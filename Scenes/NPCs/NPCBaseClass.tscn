@@ -1,0 +1,3 @@
+[gd_scene format=3 uid="uid://cnmv786k3qi1c"]
+
+[node name="NpcBaseClass" type="Node2D"]

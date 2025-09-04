@@ -1,0 +1,3 @@
+[gd_scene format=3 uid="uid://d21f2v7kq2n5o"]
+
+[node name="HeroBaseClass" type="Node2D"]
