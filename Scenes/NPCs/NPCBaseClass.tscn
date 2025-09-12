@@ -1,8 +1,9 @@
-[gd_scene load_steps=4 format=3 uid="uid://cnmv786k3qi1c"]
+[gd_scene load_steps=5 format=3 uid="uid://cnmv786k3qi1c"]
 
 [ext_resource type="Script" uid="uid://blo8rclfc3t6r" path="res://Scenes/NPCs/npc_base_class.gd" id="1_517tc"]
 [ext_resource type="Script" uid="uid://couw105c3bde4" path="res://addons/godot_state_charts/state_chart.gd" id="1_h0306"]
 [ext_resource type="Script" uid="uid://jk2jm1g6q853" path="res://addons/godot_state_charts/compound_state.gd" id="2_gn1i5"]
+[ext_resource type="Script" uid="uid://cytafq8i1y8qm" path="res://addons/godot_state_charts/atomic_state.gd" id="4_eiaeh"]
 
 [node name="NpcBaseClass" type="Node2D"]
 script = ExtResource("1_517tc")
@@ -14,13 +15,15 @@ unique_name_in_owner = true
 script = ExtResource("1_h0306")
 metadata/_custom_type_script = "uid://couw105c3bde4"
 
-[node name="Fight" type="Node" parent="StateChart"]
+[node name="Behavior" type="Node" parent="StateChart"]
 script = ExtResource("2_gn1i5")
+initial_state = NodePath("Idle")
 
-[node name="Approach" type="Node" parent="StateChart"]
-script = ExtResource("2_gn1i5")
-initial_state = NodePath("../Fight")
+[node name="Idle" type="Node" parent="StateChart/Behavior"]
+script = ExtResource("4_eiaeh")
 
-[node name="Idle" type="Node" parent="StateChart"]
-script = ExtResource("2_gn1i5")
-initial_state = NodePath("../Approach")
+[node name="Approach" type="Node" parent="StateChart/Behavior"]
+script = ExtResource("4_eiaeh")
+
+[node name="Fight" type="Node" parent="StateChart/Behavior"]
+script = ExtResource("4_eiaeh")
