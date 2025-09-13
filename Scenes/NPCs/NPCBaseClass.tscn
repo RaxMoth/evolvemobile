@@ -1,14 +1,25 @@
-[gd_scene load_steps=5 format=3 uid="uid://cnmv786k3qi1c"]
+[gd_scene load_steps=7 format=3 uid="uid://cnmv786k3qi1c"]
 
 [ext_resource type="Script" uid="uid://blo8rclfc3t6r" path="res://Scenes/NPCs/npc_base_class.gd" id="1_517tc"]
 [ext_resource type="Script" uid="uid://couw105c3bde4" path="res://addons/godot_state_charts/state_chart.gd" id="1_h0306"]
 [ext_resource type="Script" uid="uid://jk2jm1g6q853" path="res://addons/godot_state_charts/compound_state.gd" id="2_gn1i5"]
+[ext_resource type="Texture2D" uid="uid://b8hlhq44dx3qv" path="res://icon.svg" id="2_okm3t"]
 [ext_resource type="Script" uid="uid://cytafq8i1y8qm" path="res://addons/godot_state_charts/atomic_state.gd" id="4_eiaeh"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_j5p4w"]
+radius = 85.0529
 
 [node name="NpcBaseClass" type="Node2D"]
 script = ExtResource("1_517tc")
 
-[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
+[node name="Sprite2D" type="Sprite2D" parent="."]
+unique_name_in_owner = true
+texture = ExtResource("2_okm3t")
+
+[node name="Area2D" type="Area2D" parent="."]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Area2D"]
+shape = SubResource("CircleShape2D_j5p4w")
 
 [node name="StateChart" type="Node" parent="."]
 unique_name_in_owner = true

@@ -9,3 +9,12 @@ class_name npc_base_class
 
 
 @onready var state_chart: StateChart = %StateChart
+
+
+func _ready() -> void:
+	pass 
+	
+func _process(delta: float) -> void:
+	pass 
+	
+	
