@@ -1,40 +1,135 @@
-[gd_scene load_steps=7 format=3 uid="uid://cnmv786k3qi1c"]
+[gd_scene load_steps=9 format=3 uid="uid://cnmv786k3qi1c"]
 
-[ext_resource type="Script" uid="uid://blo8rclfc3t6r" path="res://Scenes/NPCs/npc_base_class.gd" id="1_517tc"]
-[ext_resource type="Script" uid="uid://couw105c3bde4" path="res://addons/godot_state_charts/state_chart.gd" id="1_h0306"]
-[ext_resource type="Script" uid="uid://jk2jm1g6q853" path="res://addons/godot_state_charts/compound_state.gd" id="2_gn1i5"]
 [ext_resource type="Texture2D" uid="uid://b8hlhq44dx3qv" path="res://icon.svg" id="2_okm3t"]
-[ext_resource type="Script" uid="uid://cytafq8i1y8qm" path="res://addons/godot_state_charts/atomic_state.gd" id="4_eiaeh"]
+[ext_resource type="Script" uid="uid://couw105c3bde4" path="res://addons/godot_state_charts/state_chart.gd" id="3_u53yq"]
+[ext_resource type="Script" uid="uid://jk2jm1g6q853" path="res://addons/godot_state_charts/compound_state.gd" id="4_wcc3o"]
+[ext_resource type="Script" uid="uid://cytafq8i1y8qm" path="res://addons/godot_state_charts/atomic_state.gd" id="5_4yoai"]
+[ext_resource type="Script" uid="uid://cf1nsco3w0mf6" path="res://addons/godot_state_charts/transition.gd" id="6_1wtkv"]
+[ext_resource type="PackedScene" uid="uid://bcwkugn6v3oy7" path="res://addons/godot_state_charts/utilities/state_chart_debugger.tscn" id="7_wcc3o"]
 
-[sub_resource type="CircleShape2D" id="CircleShape2D_j5p4w"]
-radius = 85.0529
+[sub_resource type="CircleShape2D" id="CircleShape2D_50nec"]
+radius = 75.06
 
-[node name="NpcBaseClass" type="Node2D"]
-script = ExtResource("1_517tc")
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_w4h1y"]
+radius = 7.20927
+height = 14.9335
 
-[node name="Sprite2D" type="Sprite2D" parent="."]
-unique_name_in_owner = true
+[node name="Bug" type="Node2D" groups=["Enemy"]]
+
+[node name="CanvasLayer" type="CanvasLayer" parent="."]
+
+[node name="StateChartDebugger" parent="CanvasLayer" instance=ExtResource("7_wcc3o")]
+offset_left = 421.0
+offset_top = 139.0
+offset_right = 148.0
+offset_bottom = -916.0
+scale = Vector2(0.67061, 0.954921)
+size_flags_horizontal = 3
+size_flags_vertical = 3
+initial_node_to_watch = NodePath("../../StateChart")
+
+[node name="Sprite2D" type="Sprite2D" parent="." groups=["ant"]]
+rotation = -0.0119461
+scale = Vector2(0.159393, 0.131753)
 texture = ExtResource("2_okm3t")
 
-[node name="Area2D" type="Area2D" parent="."]
+[node name="DetectionArea" type="Area2D" parent="." groups=["Enemy", "ant"]]
+unique_name_in_owner = true
+collision_layer = 3
+collision_mask = 3
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="Area2D"]
-shape = SubResource("CircleShape2D_j5p4w")
+[node name="CollisionShape2D" type="CollisionShape2D" parent="DetectionArea"]
+shape = SubResource("CircleShape2D_50nec")
+
+[node name="Body" type="Area2D" parent="." groups=["Enemy"]]
+unique_name_in_owner = true
+collision_layer = 3
+collision_mask = 3
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Body" groups=["Enemy"]]
+position = Vector2(-5, 9.31266e-10)
+rotation = -1.56459
+scale = Vector2(0.723805, 1.10464)
+shape = SubResource("CapsuleShape2D_w4h1y")
+
+[node name="NavigationAgent2D" type="NavigationAgent2D" parent="."]
+unique_name_in_owner = true
+
+[node name="Movetimer" type="Timer" parent="."]
+unique_name_in_owner = true
+wait_time = 2.0
+autostart = true
+
+[node name="AttackTimer" type="Timer" parent="."]
+unique_name_in_owner = true
+wait_time = 2.0
+one_shot = true
 
 [node name="StateChart" type="Node" parent="."]
 unique_name_in_owner = true
-script = ExtResource("1_h0306")
+script = ExtResource("3_u53yq")
 metadata/_custom_type_script = "uid://couw105c3bde4"
 
-[node name="Behavior" type="Node" parent="StateChart"]
-script = ExtResource("2_gn1i5")
+[node name="CompoundState" type="Node" parent="StateChart"]
+script = ExtResource("4_wcc3o")
 initial_state = NodePath("Idle")
 
-[node name="Idle" type="Node" parent="StateChart/Behavior"]
-script = ExtResource("4_eiaeh")
+[node name="Idle" type="Node" parent="StateChart/CompoundState"]
+script = ExtResource("5_4yoai")
 
-[node name="Approach" type="Node" parent="StateChart/Behavior"]
-script = ExtResource("4_eiaeh")
+[node name="ToApproach" type="Node" parent="StateChart/CompoundState/Idle"]
+script = ExtResource("6_1wtkv")
+to = NodePath("../../Approach")
+event = &"enemie_entered"
+delay_in_seconds = "0.0"
 
-[node name="Fight" type="Node" parent="StateChart/Behavior"]
-script = ExtResource("4_eiaeh")
+[node name="Approach" type="Node" parent="StateChart/CompoundState"]
+script = ExtResource("5_4yoai")
+
+[node name="ToIdle" type="Node" parent="StateChart/CompoundState/Approach"]
+script = ExtResource("6_1wtkv")
+to = NodePath("../../Idle")
+event = &"enemie_exited"
+delay_in_seconds = "0.0"
+
+[node name="ToFight" type="Node" parent="StateChart/CompoundState/Approach"]
+script = ExtResource("6_1wtkv")
+to = NodePath("../../Fight")
+event = &"enemy_fight"
+delay_in_seconds = "0.0"
+
+[node name="Fight" type="Node" parent="StateChart/CompoundState"]
+script = ExtResource("5_4yoai")
+
+[node name="ToDead" type="Node" parent="StateChart/CompoundState/Fight"]
+script = ExtResource("6_1wtkv")
+to = NodePath("../../Dead")
+event = &"enemy_dead"
+delay_in_seconds = "0.0"
+
+[node name="ToApproach" type="Node" parent="StateChart/CompoundState/Fight"]
+script = ExtResource("6_1wtkv")
+to = NodePath("../../Approach")
+event = &"re_approach"
+delay_in_seconds = "0.0"
+
+[node name="ToIdle" type="Node" parent="StateChart/CompoundState/Fight"]
+script = ExtResource("6_1wtkv")
+to = NodePath("../../Idle")
+event = &"target_lost"
+delay_in_seconds = "0.0"
+
+[node name="Dead" type="Node" parent="StateChart/CompoundState"]
+script = ExtResource("5_4yoai")
+
+[connection signal="area_entered" from="DetectionArea" to="." method="_on_detection_area_area_entered"]
+[connection signal="area_exited" from="DetectionArea" to="." method="_on_detection_area_area_exited"]
+[connection signal="timeout" from="AttackTimer" to="." method="_on_attack_timer_timeout"]
+[connection signal="state_entered" from="StateChart/CompoundState/Idle" to="." method="_on_idle_state_entered"]
+[connection signal="state_processing" from="StateChart/CompoundState/Idle" to="." method="_on_idle_state_processing"]
+[connection signal="state_entered" from="StateChart/CompoundState/Approach" to="." method="_on_approach_state_entered"]
+[connection signal="state_processing" from="StateChart/CompoundState/Approach" to="." method="_on_approach_state_processing"]
+[connection signal="child_entered_tree" from="StateChart/CompoundState/Approach/ToFight" to="." method="_on_to_fight_child_entered_tree"]
+[connection signal="event_received" from="StateChart/CompoundState/Fight" to="." method="_on_fight_event_received"]
+[connection signal="state_physics_processing" from="StateChart/CompoundState/Fight" to="." method="_on_fight_state_physics_processing"]
+[connection signal="event_received" from="StateChart/CompoundState/Dead" to="." method="_on_dead_event_received"]
