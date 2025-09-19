@@ -1,5 +1,6 @@
-[gd_scene load_steps=9 format=3 uid="uid://cnmv786k3qi1c"]
+[gd_scene load_steps=10 format=3 uid="uid://cnmv786k3qi1c"]
 
+[ext_resource type="Script" uid="uid://blo8rclfc3t6r" path="res://Scenes/NPCs/npc_base_class.gd" id="1_517tc"]
 [ext_resource type="Texture2D" uid="uid://b8hlhq44dx3qv" path="res://icon.svg" id="2_okm3t"]
 [ext_resource type="Script" uid="uid://couw105c3bde4" path="res://addons/godot_state_charts/state_chart.gd" id="3_u53yq"]
 [ext_resource type="Script" uid="uid://jk2jm1g6q853" path="res://addons/godot_state_charts/compound_state.gd" id="4_wcc3o"]
@@ -10,11 +11,11 @@
 [sub_resource type="CircleShape2D" id="CircleShape2D_50nec"]
 radius = 75.06
 
-[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_w4h1y"]
-radius = 7.20927
-height = 14.9335
+[sub_resource type="CircleShape2D" id="CircleShape2D_o028b"]
+radius = 13.0384
 
 [node name="Bug" type="Node2D" groups=["Enemy"]]
+script = ExtResource("1_517tc")
 
 [node name="CanvasLayer" type="CanvasLayer" parent="."]
 
@@ -47,10 +48,9 @@ collision_layer = 3
 collision_mask = 3
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Body" groups=["Enemy"]]
-position = Vector2(-5, 9.31266e-10)
+position = Vector2(-4.76837e-07, -3.72523e-09)
 rotation = -1.56459
-scale = Vector2(0.723805, 1.10464)
-shape = SubResource("CapsuleShape2D_w4h1y")
+shape = SubResource("CircleShape2D_o028b")
 
 [node name="NavigationAgent2D" type="NavigationAgent2D" parent="."]
 unique_name_in_owner = true
