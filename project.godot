@@ -24,7 +24,19 @@ window/size/viewport_height=1280
 
 enabled=PackedStringArray("res://addons/godot_state_charts/plugin.cfg")
 
+[file_customization]
+
+folder_colors={
+"res://Assets/": "red",
+"res://Ressources/": "green",
+"res://Scenes/": "orange",
+"res://Scripts/": "blue"
+}
+
+[global_group]
+
+npc=""
+
 [rendering]
 
-renderer/rendering_method="gl_compatibility"
-renderer/rendering_method.mobile="gl_compatibility"
+renderer/rendering_method="mobile"

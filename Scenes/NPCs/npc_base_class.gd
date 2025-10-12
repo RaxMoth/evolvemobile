@@ -5,16 +5,11 @@ class_name NPCBaseClass
 @export var approach_speed: float = 110.0
 @export var attack_range: float = 32.0
 @export var attack_damage: float = 3.0
-@export var max_health: float = 20.0
+@export var max_health: float = 10.0
 @export var idle_retarget_time: float = 1.2
 @export var idle_wander_radius: float = 160.0
 @export var keep_distance: float = 24.0
 @export var attack_interval: float = 0.8
-
-
-var _idle_timer := 0.0
-var _idle_goal := Vector2.ZERO
-
 
 @onready var collision_shape_2d: CollisionShape2D = $DetectionArea/CollisionShape2D
 @onready var attack_timer: Timer = %AttackTimer
@@ -22,11 +17,16 @@ var _idle_goal := Vector2.ZERO
 @onready var state_chart: StateChart = %StateChart
 
 
+var _idle_timer := 0.0
+var _idle_goal := Vector2.ZERO
 var health: float
 var target: Node2D = null
 
 func _ready() -> void:
 	health = max_health
+	
+func get_health() -> bool:
+	return health >= 0.0
 
 func is_target_valid() -> bool:
 	return is_instance_valid(target)
@@ -46,10 +46,13 @@ func move_toward_point(p: Vector2, speed: float, delta: float) -> void:
 	sprite.rotation = dir.angle()
 
 func take_damage(amount: float) -> void:
-	health -= amount
-	print(amount, " aua ")
 	if health <= 0.0:
-		print("dead")
+		attack_timer.stop()
+		state_chart.send_event("self_dead")
+	else:
+		health -= amount
+		print(amount, " aua ")
+
 
 func _on_detection_area_area_exited(area: Area2D) -> void:
 	state_chart.send_event("enemie_exited")
@@ -57,16 +60,13 @@ func _on_detection_area_area_exited(area: Area2D) -> void:
 		target = null
 		
 func _on_detection_area_area_entered(area: Area2D) -> void:
-	if area.get_parent().is_in_group("ant"):
-		target = area
-		state_chart.send_event("enemie_entered")
-		print("aha")
+	target = area
+	state_chart.send_event("enemie_entered")
 
 
 func _on_approach_state_processing(delta: float) -> void:
 	if distance_to_target() <= max(attack_range, keep_distance):
 		state_chart.send_event("enemy_fight")
-		print("hier brauch ich ein print")
 		return
 		
 	move_toward_point(target.global_position, approach_speed, delta)
@@ -95,54 +95,38 @@ func _on_idle_state_entered() -> void:
 	_idle_goal = global_position
 
 
-func _on_to_fight_child_entered_tree(node: Node) -> void:
-	print("ahaaaa")
-
-
-func _on_fight_event_received(event: StringName) -> void:
-	print("lop")
-
-
 func _on_fight_state_physics_processing(delta: float) -> void:
-	print("ich habs")
-	
 	if not is_target_valid():
 		state_chart.send_event("target_lost")
 		return
 
-	# Too far → Approach
 	if distance_to_target() > max(attack_range, keep_distance):
 		state_chart.send_event("re_approach")
 		return
 
-	# Face the target (optional micro-adjust; we hold position to keep distance)
 	var dir := (target.global_position - global_position).normalized()
 	sprite.rotation = dir.angle()
+	
 
 func _on_fight_state_entered() -> void:
-	# If no valid target, bounce back to Idle immediately.
 	if not is_target_valid():
 		state_chart.send_event("target_lost")
 		return
-
-	# Start the attack cadence.
 	attack_timer.wait_time = attack_interval
-	attack_timer.start()
+	attack_timer.start()                     
 
 func _on_fight_state_exited() -> void:
 	attack_timer.stop()
 
-
 func _on_attack_timer_timeout() -> void:
 	if is_target_valid() and distance_to_target() <= max(attack_range, keep_distance):
-		if target.has_method("take_damage"):
-			print("jojojoj")
-			target.take_damage(attack_damage)
+		if target.get_parent().has_method("take_damage"):
+			if target.get_parent().has_method("get_health"):
+				if target.get_parent().get_health():
+					target.get_parent().take_damage(attack_damage)
+				else:
+					state_chart.send_event("target_lost")
  
-	if state_chart.is_in("Fight"):
-		print("test")
-		attack_timer.start()
 
-
-func _on_dead_event_received(event: StringName) -> void:
+func _on_dead_state_entered() -> void:
 	print("hier noch überreste einbauen")

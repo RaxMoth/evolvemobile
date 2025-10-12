@@ -14,7 +14,7 @@ radius = 75.06
 [sub_resource type="CircleShape2D" id="CircleShape2D_o028b"]
 radius = 13.0384
 
-[node name="Bug" type="Node2D" groups=["Enemy"]]
+[node name="Npc" type="Node2D" groups=["Enemy"]]
 script = ExtResource("1_517tc")
 
 [node name="CanvasLayer" type="CanvasLayer" parent="."]
@@ -29,17 +29,17 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 initial_node_to_watch = NodePath("../../StateChart")
 
-[node name="Sprite2D" type="Sprite2D" parent="." groups=["ant"]]
+[node name="Sprite2D" type="Sprite2D" parent="."]
 rotation = -0.0119461
 scale = Vector2(0.159393, 0.131753)
 texture = ExtResource("2_okm3t")
 
-[node name="DetectionArea" type="Area2D" parent="." groups=["Enemy", "ant"]]
+[node name="DetectionArea" type="Area2D" parent="." groups=["Enemy"]]
 unique_name_in_owner = true
 collision_layer = 3
 collision_mask = 3
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="DetectionArea"]
+[node name="CollisionShape2D" type="CollisionShape2D" parent="DetectionArea" groups=["npc"]]
 shape = SubResource("CircleShape2D_50nec")
 
 [node name="Body" type="Area2D" parent="." groups=["Enemy"]]
@@ -62,8 +62,6 @@ autostart = true
 
 [node name="AttackTimer" type="Timer" parent="."]
 unique_name_in_owner = true
-wait_time = 2.0
-one_shot = true
 
 [node name="StateChart" type="Node" parent="."]
 unique_name_in_owner = true
@@ -104,7 +102,7 @@ script = ExtResource("5_4yoai")
 [node name="ToDead" type="Node" parent="StateChart/CompoundState/Fight"]
 script = ExtResource("6_1wtkv")
 to = NodePath("../../Dead")
-event = &"enemy_dead"
+event = &"self_dead"
 delay_in_seconds = "0.0"
 
 [node name="ToApproach" type="Node" parent="StateChart/CompoundState/Fight"]
@@ -130,6 +128,7 @@ script = ExtResource("5_4yoai")
 [connection signal="state_entered" from="StateChart/CompoundState/Approach" to="." method="_on_approach_state_entered"]
 [connection signal="state_processing" from="StateChart/CompoundState/Approach" to="." method="_on_approach_state_processing"]
 [connection signal="child_entered_tree" from="StateChart/CompoundState/Approach/ToFight" to="." method="_on_to_fight_child_entered_tree"]
-[connection signal="event_received" from="StateChart/CompoundState/Fight" to="." method="_on_fight_event_received"]
+[connection signal="state_entered" from="StateChart/CompoundState/Fight" to="." method="_on_fight_state_entered"]
+[connection signal="state_exited" from="StateChart/CompoundState/Fight" to="." method="_on_fight_state_exited"]
 [connection signal="state_physics_processing" from="StateChart/CompoundState/Fight" to="." method="_on_fight_state_physics_processing"]
-[connection signal="event_received" from="StateChart/CompoundState/Dead" to="." method="_on_dead_event_received"]
+[connection signal="state_entered" from="StateChart/CompoundState/Dead" to="." method="_on_dead_state_entered"]
