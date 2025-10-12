@@ -95,7 +95,7 @@ func _on_idle_state_entered() -> void:
 	_idle_goal = global_position
 
 
-func _on_fight_state_physics_processing(delta: float) -> void:
+func _on_fight_state_physics_processing(_delta: float) -> void:
 	if not is_target_valid():
 		state_chart.send_event("target_lost")
 		return
