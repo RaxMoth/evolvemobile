@@ -25,8 +25,11 @@ var target: Node2D = null
 func _ready() -> void:
 	health = max_health
 	
-func get_health() -> bool:
-	return health >= 0.0
+func is_alive() -> bool:
+	return health > 0.0
+
+func get_health() -> float:
+	return health
 
 func is_target_valid() -> bool:
 	return is_instance_valid(target)
@@ -46,11 +49,15 @@ func move_toward_point(p: Vector2, speed: float, delta: float) -> void:
 	sprite.rotation = dir.angle()
 
 func take_damage(amount: float) -> void:
+	if not is_alive():
+		return 
+
+	health -= amount
 	if health <= 0.0:
+		health = 0.0
 		attack_timer.stop()
 		state_chart.send_event("self_dead")
 	else:
-		health -= amount
 		print(amount, " aua ")
 
 
@@ -68,13 +75,12 @@ func _on_approach_state_processing(delta: float) -> void:
 	if distance_to_target() <= max(attack_range, keep_distance):
 		state_chart.send_event("enemy_fight")
 		return
-		
 	move_toward_point(target.global_position, approach_speed, delta)
 
 func _on_approach_state_entered() -> void:
 	if not is_target_valid():
 		state_chart.send_event("enemie_exited")
-		
+
 
 func _on_idle_state_processing(delta: float) -> void:
 	_idle_timer -= delta
@@ -86,7 +92,6 @@ func _on_idle_state_processing(delta: float) -> void:
 		dir = dir.normalized()
 		var dist := randf_range(idle_wander_radius * 0.2, idle_wander_radius)
 		_idle_goal = global_position + dir * dist
-
 	move_toward_point(_idle_goal, move_speed, delta)
 
 
@@ -120,13 +125,23 @@ func _on_fight_state_exited() -> void:
 
 func _on_attack_timer_timeout() -> void:
 	if is_target_valid() and distance_to_target() <= max(attack_range, keep_distance):
-		if target.get_parent().has_method("take_damage"):
-			if target.get_parent().has_method("get_health"):
-				if target.get_parent().get_health():
-					target.get_parent().take_damage(attack_damage)
+		var p := target.get_parent()
+		if p and p.has_method("take_damage"):
+			var alive :bool = false
+
+			if p.has_method("is_alive"):
+				alive = p.is_alive()
+			elif p.has_method("get_health"):
+				var gh = p.get_health()
+				if typeof(gh) == TYPE_FLOAT:
+					alive = gh > 0.0
 				else:
-					state_chart.send_event("target_lost")
+					alive = bool(gh)
+
+			if alive:
+				p.take_damage(attack_damage)
+			else:
+				state_chart.send_event("target_lost")
  
 
-func _on_dead_state_entered() -> void:
-	print("hier noch überreste einbauen")
+	
