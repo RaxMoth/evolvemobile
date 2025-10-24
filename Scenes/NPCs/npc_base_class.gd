@@ -15,7 +15,7 @@ class_name NPCBaseClass
 @onready var attack_timer: Timer = %AttackTimer
 @onready var sprite: Node2D = $Sprite2D
 @onready var state_chart: StateChart = %StateChart
-
+@onready var navigation_agent_2d: NavigationAgent2D = %NavigationAgent2D
 
 var _idle_timer := 0.0
 var _idle_goal := Vector2.ZERO
@@ -24,6 +24,11 @@ var target: Node2D = null
 
 func _ready() -> void:
 	health = max_health
+	var tilemap_layer := get_parent().get_node("Ground")
+	if tilemap_layer:
+		print("connected")
+		var nav_map = tilemap_layer.get_navigation_map()
+		navigation_agent_2d.set_navigation_map(nav_map)
 	
 func is_alive() -> bool:
 	return health > 0.0
@@ -39,7 +44,17 @@ func distance_to_target() -> float:
 		return INF
 	return global_position.distance_to(target.global_position)
 	
-
+func _steer_along_nav(speed: float, delta: float) -> void:
+	if navigation_agent_2d.is_navigation_finished():
+		return
+	var next_pos := navigation_agent_2d.get_next_path_position()
+	var dir := next_pos - global_position
+	if dir.length() < 0.001:
+		return
+	dir = dir.normalized()
+	global_position += dir * speed * delta
+	sprite.rotation = dir.angle()
+	
 func move_toward_point(p: Vector2, speed: float, delta: float) -> void:
 	var dir := (p - global_position)
 	if dir.length() <= 0.001:
@@ -86,14 +101,13 @@ func _on_idle_state_processing(delta: float) -> void:
 	_idle_timer -= delta
 	if _idle_timer <= 0.0 or global_position.distance_to(_idle_goal) < 8.0:
 		_idle_timer = idle_retarget_time
-		var dir := Vector2(randf_range(-1.0, 1.0), randf_range(-1.0, 1.0))
-		if dir == Vector2.ZERO:
-			dir = Vector2.RIGHT
-		dir = dir.normalized()
+		var dir := Vector2(randf_range(-1.0, 1.0), randf_range(-1.0, 1.0)).normalized()
+		if dir == Vector2.ZERO: dir = Vector2.RIGHT
 		var dist := randf_range(idle_wander_radius * 0.2, idle_wander_radius)
 		_idle_goal = global_position + dir * dist
-	move_toward_point(_idle_goal, move_speed, delta)
+		navigation_agent_2d.target_position = _idle_goal
 
+	_steer_along_nav(move_speed, delta)
 
 func _on_idle_state_entered() -> void:
 	_idle_timer = 0.0
@@ -145,3 +159,7 @@ func _on_attack_timer_timeout() -> void:
  
 
 	
+
+
+func _on_dead_state_entered() -> void:
+	queue_free()
