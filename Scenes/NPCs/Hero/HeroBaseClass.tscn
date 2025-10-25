@@ -1,3 +1,5 @@
-[gd_scene format=3 uid="uid://d21f2v7kq2n5o"]
+[gd_scene load_steps=2 format=3 uid="uid://bvyrcj7lkc1k6"]
 
-[node name="HeroBaseClass" type="Node2D"]
+[ext_resource type="PackedScene" uid="uid://cnmv786k3qi1c" path="res://Scenes/NPCs/NPCBaseClass.tscn" id="1_py7br"]
+
+[node name="Npc" instance=ExtResource("1_py7br")]
