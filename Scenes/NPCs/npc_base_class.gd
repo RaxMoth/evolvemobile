@@ -83,7 +83,8 @@ func _on_detection_area_area_exited(area: Area2D) -> void:
 		
 func _on_detection_area_area_entered(area: Area2D) -> void:
 	target = area
-	state_chart.send_event("enemie_entered")
+	if area.get_parent().is_in_group("Enemy"):
+		state_chart.send_event("enemie_entered")
 
 
 func _on_approach_state_processing(delta: float) -> void:
