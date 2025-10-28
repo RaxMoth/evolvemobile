@@ -82,8 +82,12 @@ func _on_detection_area_area_exited(area: Area2D) -> void:
 		target = null
 		
 func _on_detection_area_area_entered(area: Area2D) -> void:
-	target = area
-	if area.get_parent().is_in_group("Enemy"):
+	if area.get_owner() == self or area.get_parent() == self:
+		return
+
+	var root := area.get_owner()
+	if root and root.is_in_group("Enemy"):
+		target = area
 		state_chart.send_event("enemie_entered")
 
 

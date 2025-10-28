@@ -325,7 +325,7 @@ tile_set = SubResource("TileSet_ouhkt")
 navigation_visibility_mode = 1
 
 [node name="Npc3" parent="." instance=ExtResource("2_xf6vi")]
-position = Vector2(133, 207)
+position = Vector2(196, 82)
 
 [node name="Npc" parent="." instance=ExtResource("2_xf6vi")]
-position = Vector2(248, 44)
+position = Vector2(49, 162)

@@ -4,4 +4,6 @@
 
 [node name="Npc" instance=ExtResource("1_py7br")]
 
+[node name="CollisionShape2D" parent="DetectionArea" index="0" groups=["Enemy"]]
+
 [node name="CompoundState" parent="StateChart" index="0" groups=["Enemy", "Hero"]]
