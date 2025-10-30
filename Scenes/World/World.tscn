@@ -326,3 +326,6 @@ navigation_visibility_mode = 1
 
 [node name="Npc" parent="." instance=ExtResource("2_xf6vi")]
 position = Vector2(67, 74)
+
+[node name="Npc2" parent="." instance=ExtResource("2_xf6vi")]
+position = Vector2(226, 114)

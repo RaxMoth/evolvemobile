@@ -24,11 +24,19 @@ var target: Node2D = null
 
 func _ready() -> void:
 	health = max_health
+
+	await get_tree().physics_frame
+	
 	var tilemap_layer := get_parent().get_node("Ground")
 	if tilemap_layer:
 		print("connected")
 		var nav_map = tilemap_layer.get_navigation_map()
 		navigation_agent_2d.set_navigation_map(nav_map)
+	
+	# Configure NavigationAgent2D
+	navigation_agent_2d.path_desired_distance = 4.0
+	navigation_agent_2d.target_desired_distance = 4.0
+	navigation_agent_2d.avoidance_enabled = false  # Set to true if you want collision avoidance
 	
 func is_alive() -> bool:
 	return health > 0.0
@@ -106,10 +114,14 @@ func _on_idle_state_processing(delta: float) -> void:
 	_idle_timer -= delta
 	if _idle_timer <= 0.0 or global_position.distance_to(_idle_goal) < 8.0:
 		_idle_timer = idle_retarget_time
-		var dir := Vector2(randf_range(-1.0, 1.0), randf_range(-1.0, 1.0)).normalized()
-		if dir == Vector2.ZERO: dir = Vector2.RIGHT
+		
+		# Generate random direction
+		var angle := randf() * TAU  # Random angle in radians
+		var dir := Vector2.from_angle(angle)
 		var dist := randf_range(idle_wander_radius * 0.2, idle_wander_radius)
 		_idle_goal = global_position + dir * dist
+		
+		# Set navigation target
 		navigation_agent_2d.target_position = _idle_goal
 
 	_steer_along_nav(move_speed, delta)

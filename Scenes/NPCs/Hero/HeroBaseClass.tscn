@@ -6,4 +6,7 @@
 
 [node name="CollisionShape2D" parent="DetectionArea" index="0" groups=["Enemy"]]
 
+[node name="NavigationAgent2D" parent="." index="4"]
+navigation_layers = 3
+
 [node name="CompoundState" parent="StateChart" index="0" groups=["Enemy", "Hero"]]
