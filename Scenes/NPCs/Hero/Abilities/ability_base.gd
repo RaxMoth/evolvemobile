@@ -1,0 +1,37 @@
+extends Resource
+class_name AbilityBase
+
+enum AbilityType {
+	PASSIVE,      # Always active
+	ACTIVE,       # User triggered
+	BASIC_ATTACK, # Normal attack
+	ULTIMATE      # Special ability
+}
+
+@export var ability_name: String = "Unnamed Ability"
+@export var ability_type: AbilityType = AbilityType.ACTIVE
+@export var icon: Texture2D
+@export var cooldown: float = 1.0
+@export var description: String = ""
+
+# Stats that abilities might need
+@export_group("Ability Stats")
+@export var damage: float = 0.0
+@export var range: float = 100.0
+@export var duration: float = 0.0
+@export var heal_amount: float = 0.0
+@export var speed_modifier: float = 1.0
+
+# Override these in specific ability scripts
+func execute(caster: Node2D, target: Node2D = null) -> void:
+	push_warning("Ability.execute() not implemented for: " + ability_name)
+
+func can_use(caster: Node2D) -> bool:
+	return true
+
+func on_passive_update(caster: Node2D, delta: float) -> void:
+	# Called every frame for passive abilities
+	pass
+
+func get_cooldown_remaining(caster: Node2D) -> float:
+	return 0.0
