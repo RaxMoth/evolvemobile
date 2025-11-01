@@ -23,10 +23,17 @@ func _initialize_cooldowns() -> void:
 	cooldowns[AbilityBase.AbilityType.ULTIMATE] = 0.0
 
 func _process(delta: float) -> void:
-	# Update cooldowns
+	# Update cooldowns (apply attack speed modifier from passive)
+	var attack_speed_mult = get_attack_speed_multiplier()
+	
 	for ability_type in cooldowns.keys():
 		if cooldowns[ability_type] > 0.0:
-			cooldowns[ability_type] -= delta
+			var cooldown_reduction = delta
+			# Apply attack speed modifier to basic attack cooldown
+			if ability_type == AbilityBase.AbilityType.BASIC_ATTACK:
+				cooldown_reduction *= attack_speed_mult
+			
+			cooldowns[ability_type] -= cooldown_reduction
 			if cooldowns[ability_type] < 0.0:
 				cooldowns[ability_type] = 0.0
 			cooldown_updated.emit(ability_type, cooldowns[ability_type])
@@ -76,3 +83,17 @@ func get_ability_by_type(ability_type: AbilityBase.AbilityType) -> AbilityBase:
 		AbilityBase.AbilityType.ULTIMATE:
 			return ultimate_ability
 	return null
+
+# Get total damage multiplier from all abilities (mainly passive)
+func get_damage_multiplier() -> float:
+	var multiplier = 1.0
+	if passive_ability:
+		multiplier *= passive_ability.get_damage_multiplier(owner_entity)
+	return multiplier
+
+# Get total attack speed multiplier from all abilities (mainly passive)
+func get_attack_speed_multiplier() -> float:
+	var multiplier = 1.0
+	if passive_ability:
+		multiplier *= passive_ability.get_attack_speed_multiplier(owner_entity)
+	return multiplier

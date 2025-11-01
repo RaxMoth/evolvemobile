@@ -150,7 +150,6 @@ func _on_fight_state_entered() -> void:
 		state_chart.send_event("target_lost")
 		return
 	
-	# Use basic attack ability if available
 	if ability_system:
 		ability_system.use_basic_attack(target_entity)
 
