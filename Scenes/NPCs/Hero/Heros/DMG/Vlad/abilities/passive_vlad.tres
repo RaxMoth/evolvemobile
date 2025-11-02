@@ -1,0 +1,7 @@
+[gd_resource type="Resource" script_class="VladPassiveBloodlust" load_steps=2 format=3 uid="uid://btnrxaxocyqlo"]
+
+[ext_resource type="Script" uid="uid://tmd73mheymug" path="res://Scenes/NPCs/Hero/Heros/DMG/Vlad/Abilities/passive_bloodlust.gd" id="1_vdv6f"]
+
+[resource]
+script = ExtResource("1_vdv6f")
+metadata/_custom_type_script = "uid://tmd73mheymug"

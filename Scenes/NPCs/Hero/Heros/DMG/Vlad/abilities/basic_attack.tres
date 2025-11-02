@@ -1,0 +1,7 @@
+[gd_resource type="Resource" script_class="VladBasicAttack" load_steps=2 format=3 uid="uid://cls00ddvooq36"]
+
+[ext_resource type="Script" uid="uid://d0mfbnaga61ia" path="res://Scenes/NPCs/Hero/Heros/DMG/Vlad/Abilities/basic_melee_strike.gd" id="1_bcbdg"]
+
+[resource]
+script = ExtResource("1_bcbdg")
+metadata/_custom_type_script = "uid://d0mfbnaga61ia"
