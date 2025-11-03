@@ -1,6 +1,6 @@
 [gd_resource type="Resource" script_class="VladUltimateBloodBomb" load_steps=2 format=3 uid="uid://d4m3ntk0yrv1g"]
 
-[ext_resource type="Script" uid="uid://dfdixd5majg2c" path="res://Scenes/NPCs/Hero/Heros/DMG/Vlad/Abilities/ult_bomb.gd" id="1_us7w1"]
+[ext_resource type="Script" uid="uid://dfdixd5majg2c" path="res://Scenes/NPCs/Hero/Heros/DMG/Vlad/Abilities/ult/ult_bomb.gd" id="1_us7w1"]
 
 [resource]
 script = ExtResource("1_us7w1")
