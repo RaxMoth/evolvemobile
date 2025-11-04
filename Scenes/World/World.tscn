@@ -1,7 +1,7 @@
 [gd_scene load_steps=7 format=4 uid="uid://bo3dhj3vnqkrr"]
 
 [ext_resource type="Texture2D" uid="uid://c8nbsaqetok8o" path="res://Scenes/World/tf_jungle_tileset.png" id="1_0nbjp"]
-[ext_resource type="PackedScene" uid="uid://bvyrcj7lkc1k6" path="res://Scenes/NPCs/Hero/HeroBaseClass.tscn" id="2_xf6vi"]
+[ext_resource type="PackedScene" uid="uid://cfox5ujt4kpt7" path="res://Scenes/NPCs/Hero/Heros/DMG/Vlad/Vlad.tscn" id="2_xf6vi"]
 
 [sub_resource type="NavigationPolygon" id="NavigationPolygon_ouhkt"]
 vertices = PackedVector2Array(8, 8, -8, 8, -8, -8, 8, -8)
@@ -324,8 +324,8 @@ tile_map_data = PackedByteArray("AAAIAC0AAAACAAMAAAAJAC0AAAACAAUAAAAKAAgAAAAGAAQ
 tile_set = SubResource("TileSet_ouhkt")
 navigation_visibility_mode = 1
 
-[node name="Npc" parent="." instance=ExtResource("2_xf6vi")]
-position = Vector2(67, 74)
+[node name="Vlad" parent="." instance=ExtResource("2_xf6vi")]
+position = Vector2(219, 55)
 
-[node name="Npc2" parent="." instance=ExtResource("2_xf6vi")]
-position = Vector2(226, 114)
+[node name="Vlad2" parent="." instance=ExtResource("2_xf6vi")]
+position = Vector2(68, 131)

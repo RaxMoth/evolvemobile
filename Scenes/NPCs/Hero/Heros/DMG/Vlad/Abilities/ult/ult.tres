@@ -1,7 +1,10 @@
-[gd_resource type="Resource" script_class="VladUltimateBloodBomb" load_steps=2 format=3 uid="uid://d4m3ntk0yrv1g"]
+[gd_resource type="Resource" script_class="VladUltimateBloodBomb" load_steps=3 format=3 uid="uid://d4m3ntk0yrv1g"]
 
-[ext_resource type="Script" uid="uid://dfdixd5majg2c" path="res://Scenes/NPCs/Hero/Heros/DMG/Vlad/Abilities/ult/ult_bomb.gd" id="1_us7w1"]
+[ext_resource type="Texture2D" uid="uid://b8hlhq44dx3qv" path="res://icon.svg" id="1_7jdje"]
+[ext_resource type="Script" uid="uid://dfdixd5majg2c" path="res://Scenes/NPCs/Hero/Heros/DMG/Vlad/Abilities/ult/ult_bomb.gd" id="2_g8hh3"]
 
 [resource]
-script = ExtResource("1_us7w1")
+script = ExtResource("2_g8hh3")
+icon = ExtResource("1_7jdje")
+damage = 1.0
 metadata/_custom_type_script = "uid://dfdixd5majg2c"

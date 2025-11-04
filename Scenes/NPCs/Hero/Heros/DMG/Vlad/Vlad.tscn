@@ -1,16 +1,15 @@
-[gd_scene load_steps=7 format=3 uid="uid://cjrll1t543eme"]
+[gd_scene load_steps=6 format=3 uid="uid://cfox5ujt4kpt7"]
 
-[ext_resource type="PackedScene" uid="uid://cnmv786k3qi1c" path="res://Scenes/NPCs/NPCBaseClass.tscn" id="1_g8gcj"]
-[ext_resource type="Script" uid="uid://v7h1kjw4mr7a" path="res://Scenes/NPCs/Hero/Abilities/ability_system.gd" id="2_aqsnw"]
+[ext_resource type="PackedScene" uid="uid://bvyrcj7lkc1k6" path="res://Scenes/NPCs/Hero/HeroBaseClass.tscn" id="1_g8gcj"]
 [ext_resource type="Resource" uid="uid://btnrxaxocyqlo" path="res://Scenes/NPCs/Hero/Heros/DMG/Vlad/Abilities/passive/passive_vlad.tres" id="3_k6r5v"]
 [ext_resource type="Resource" uid="uid://bwgui8ikvrqci" path="res://Scenes/NPCs/Hero/Heros/DMG/Vlad/Abilities/active/active_mine.tres" id="4_qoltp"]
 [ext_resource type="Resource" uid="uid://cls00ddvooq36" path="res://Scenes/NPCs/Hero/Heros/DMG/Vlad/Abilities/basic_attack/basic_attack.tres" id="5_s7ida"]
 [ext_resource type="Resource" uid="uid://d4m3ntk0yrv1g" path="res://Scenes/NPCs/Hero/Heros/DMG/Vlad/Abilities/ult/ult.tres" id="6_dmu8j"]
 
 [node name="Vlad" instance=ExtResource("1_g8gcj")]
+max_health = 7.0
 
-[node name="AbilitySystem" type="Node2D" parent="." index="0"]
-script = ExtResource("2_aqsnw")
+[node name="AbilitySystem" parent="." index="0"]
 passive_ability = ExtResource("3_k6r5v")
 active_ability = ExtResource("4_qoltp")
 basic_attack = ExtResource("5_s7ida")

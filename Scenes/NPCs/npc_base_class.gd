@@ -8,6 +8,7 @@ class_name NPCBaseClass
 @export var idle_retarget_time: float = 1.2
 @export var idle_wander_radius: float = 160.0
 @export var keep_distance: float = 24.0
+@export var auto_use_ultimate: bool = true  # Automatically use ultimate when off cooldown
 
 @onready var collision_shape_2d: CollisionShape2D = $DetectionArea/CollisionShape2D
 @onready var sprite: Node2D = $Sprite2D
@@ -23,6 +24,7 @@ var target_entity: Node = null
 
 func _ready() -> void:
 	health = max_health
+	
 	await get_tree().physics_frame
 	await get_tree().physics_frame
 	
@@ -39,6 +41,15 @@ func _ready() -> void:
 	navigation_agent_2d.path_desired_distance = 4.0
 	navigation_agent_2d.target_desired_distance = 4.0
 	navigation_agent_2d.avoidance_enabled = false
+
+func _process(delta: float) -> void:
+	# Update passive ability every frame (always active)
+	if ability_system and ability_system.passive_ability:
+		ability_system.passive_ability.on_passive_update(self, delta)
+	
+	# Auto-use ultimate when off cooldown (if enabled)
+	if auto_use_ultimate and is_ultimate_ready():
+		use_ultimate()
 
 func is_alive() -> bool:
 	return health > 0.0
@@ -85,6 +96,56 @@ func take_damage(amount: float) -> void:
 		state_chart.send_event("self_dead")
 	else:
 		print(amount, " damage taken")
+
+# ============================================
+# ABILITY TRIGGERS (Called externally or automatically)
+# ============================================
+
+# Called by external UI or input system
+func use_active_ability() -> bool:
+	if not ability_system:
+		return false
+	
+	# Use active ability (e.g., place mine at current position)
+	var success = ability_system.use_active(target_entity)
+	if success:
+		print(name + " used active ability!")
+	return success
+
+# Called automatically on timer or can be triggered externally
+func use_ultimate() -> bool:
+	if not ability_system:
+		return false
+	
+	# Only use if not on cooldown
+	if ability_system.is_on_cooldown(AbilityBase.AbilityType.ULTIMATE):
+		return false
+	
+	var success = ability_system.use_ultimate(target_entity)
+	if success:
+		print(name + " used ULTIMATE!")
+	return success
+
+# Helper to check if abilities are ready (for UI indicators)
+func is_active_ready() -> bool:
+	if not ability_system:
+		return false
+	return not ability_system.is_on_cooldown(AbilityBase.AbilityType.ACTIVE)
+
+func is_ultimate_ready() -> bool:
+	if not ability_system:
+		return false
+	return not ability_system.is_on_cooldown(AbilityBase.AbilityType.ULTIMATE)
+
+func get_active_cooldown() -> float:
+	if not ability_system:
+		return 0.0
+	return ability_system.get_cooldown_remaining(AbilityBase.AbilityType.ACTIVE)
+
+func get_ultimate_cooldown() -> float:
+	if not ability_system:
+		return 0.0
+	return ability_system.get_cooldown_remaining(AbilityBase.AbilityType.ULTIMATE)
 
 func _on_detection_area_area_exited(area: Area2D) -> void:
 	if target == area:
@@ -133,7 +194,7 @@ func _on_idle_state_entered() -> void:
 	_idle_timer = 0.0
 	_idle_goal = global_position
 
-func _on_fight_state_physics_processing(_delta: float) -> void:
+func _on_fight_state_processing(_delta: float) -> void:
 	if not is_target_valid():
 		state_chart.send_event("target_lost")
 		return
@@ -142,16 +203,18 @@ func _on_fight_state_physics_processing(_delta: float) -> void:
 		state_chart.send_event("re_approach")
 		return
 
+	# Face the target
 	var dir := (target.global_position - global_position).normalized()
 	sprite.rotation = dir.angle()
+	
+	# Try to use basic attack every frame (cooldown is handled by ability system)
+	if ability_system:
+		ability_system.use_basic_attack(target_entity)
 
 func _on_fight_state_entered() -> void:
 	if not is_target_valid():
 		state_chart.send_event("target_lost")
 		return
-	
-	if ability_system:
-		ability_system.use_basic_attack(target_entity)
 
 func _on_fight_state_exited() -> void:
 	pass

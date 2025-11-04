@@ -5,7 +5,8 @@
 
 [node name="Hero" instance=ExtResource("1_py7br")]
 
-[node name="AbilitySystem" type="Node2D" parent="." index="0"]
+[node name="AbilitySystem" type="Node" parent="." index="0"]
+unique_name_in_owner = true
 script = ExtResource("2_c2olh")
 
 [node name="CollisionShape2D" parent="DetectionArea" index="0" groups=["Enemy"]]
@@ -14,3 +15,5 @@ script = ExtResource("2_c2olh")
 navigation_layers = 3
 
 [node name="CompoundState" parent="StateChart" index="0" groups=["Enemy", "Hero"]]
+
+[connection signal="state_processing" from="StateChart/CompoundState/Fight" to="." method="_on_fight_state_processing"]
