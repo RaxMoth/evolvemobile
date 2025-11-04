@@ -5,7 +5,7 @@ func _init() -> void:
 	ability_name = "Blood Strike"
 	ability_type = AbilityType.BASIC_ATTACK
 	damage = 10.0
-	range = 50.0
+	ability_range = 50.0
 	cooldown = 1.0
 	description = "A simple melee attack that strikes nearby enemies"
 
@@ -17,7 +17,7 @@ func execute(caster: Node2D, target: Node2D = null) -> void:
 		return
 	
 	var distance = caster.global_position.distance_to(target.global_position)
-	if distance <= range:
+	if distance <= ability_range:
 		# Apply damage with modifier from passive
 		var damage_mult = 1.0
 		if caster.has_node("AbilitySystem"):

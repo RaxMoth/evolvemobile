@@ -8,13 +8,13 @@ func _init() -> void:
 	ability_type = AbilityType.ACTIVE
 	damage = 15.0
 	cooldown = 8.0
-	range = 100.0  # Detection radius of mine
+	ability_range = 100.0  # Detection radius of mine
 	description = "Place a mine that explodes when enemies walk over it"
 
-func can_use(caster: Node2D) -> bool:
+func can_use(_caster: Node2D) -> bool:
 	return mine_scene != null
 
-func execute(caster: Node2D, target: Node2D = null) -> void:
+func execute(caster: Node2D, _target: Node2D = null) -> void:
 	if not mine_scene:
 		push_error("Mine scene not assigned!")
 		return

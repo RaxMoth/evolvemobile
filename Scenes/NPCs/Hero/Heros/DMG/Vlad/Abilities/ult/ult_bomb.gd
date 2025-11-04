@@ -9,7 +9,7 @@ func _init() -> void:
 	cooldown = 20.0
 	description = "Creates a devastating explosion that damages all enemies in range"
 
-func execute(caster: Node2D, target: Node2D = null) -> void:
+func execute(caster: Node2D, _target: Node2D = null) -> void:
 	# Visual effect (optional - add later)
 	_create_explosion_effect(caster)
 	
@@ -61,5 +61,5 @@ func _create_explosion_effect(caster: Node2D) -> void:
 	tween.tween_method(_draw_explosion_circle.bind(circle), 0.0, area_of_effect, 0.3)
 	tween.tween_callback(circle.queue_free)
 
-func _draw_explosion_circle(radius: float, circle_node: Node2D) -> void:
+func _draw_explosion_circle(_radius: float, circle_node: Node2D) -> void:
 	circle_node.queue_redraw()

@@ -13,7 +13,7 @@ func _init() -> void:
 	ability_type = AbilityType.PASSIVE
 	description = "The lower Vlad's health, the more damage and attack speed he gains"
 
-func on_passive_update(caster: Node2D, delta: float) -> void:
+func on_passive_update(caster: Node2D, _delta: float) -> void:
 	if not caster.has_method("get_health"):
 		return
 	
@@ -31,8 +31,8 @@ func on_passive_update(caster: Node2D, delta: float) -> void:
 		current_damage_mult = 1.0
 		current_attack_speed_mult = 1.0
 
-func get_damage_multiplier(caster: Node2D) -> float:
+func get_damage_multiplier(_caster: Node2D) -> float:
 	return current_damage_mult
 
-func get_attack_speed_multiplier(caster: Node2D) -> float:
+func get_attack_speed_multiplier(_caster: Node2D) -> float:
 	return current_attack_speed_mult

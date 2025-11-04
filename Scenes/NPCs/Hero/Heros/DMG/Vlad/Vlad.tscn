@@ -14,3 +14,6 @@ passive_ability = ExtResource("3_k6r5v")
 active_ability = ExtResource("4_qoltp")
 basic_attack = ExtResource("5_s7ida")
 ultimate_ability = ExtResource("6_dmu8j")
+
+[node name="NavigationAgent2D" parent="." index="5"]
+navigation_layers = 1
