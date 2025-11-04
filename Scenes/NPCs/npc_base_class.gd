@@ -1,13 +1,6 @@
 extends Node2D
 class_name NPCBaseClass
 
-@export var move_speed: float = 80.0
-@export var approach_speed: float = 110.0
-@export var attack_range: float = 32.0
-@export var max_health: float = 10.0
-@export var idle_retarget_time: float = 1.2
-@export var idle_wander_radius: float = 160.0
-@export var keep_distance: float = 24.0
 @export var auto_use_ultimate: bool = true  # Automatically use ultimate when off cooldown
 
 @onready var collision_shape_2d: CollisionShape2D = $DetectionArea/CollisionShape2D
@@ -15,32 +8,69 @@ class_name NPCBaseClass
 @onready var state_chart: StateChart = %StateChart
 @onready var navigation_agent_2d: NavigationAgent2D = %NavigationAgent2D
 @onready var ability_system: AbilitySystem = %AbilitySystem
+@onready var stats: HeroStatsComponent = %HeroStats
 
 var _idle_timer := 0.0
 var _idle_goal := Vector2.ZERO
-var health: float
 var target: Node2D = null
 var target_entity: Node = null
 
+var move_speed: float:
+	get: return stats.get_move_speed() if stats else 80.0
+
+var approach_speed: float:
+	get: return stats.get_approach_speed() if stats else 110.0
+
+var attack_range: float:
+	get: return stats.get_attack_range() if stats else 50.0
+
+var max_health: float:
+	get: return stats.get_max_health() if stats else 20.0
+
+var health: float:
+	get: return stats.get_current_health() if stats else 0.0
+
+var idle_retarget_time: float:
+	get: return stats.base_stats.idle_retarget_time if stats and stats.base_stats else 1.2
+
+var idle_wander_radius: float:
+	get: return stats.base_stats.idle_wander_radius if stats and stats.base_stats else 160.0
+
+var keep_distance: float:
+	get: return stats.base_stats.keep_distance if stats and stats.base_stats else 24.0
+
 func _ready() -> void:
-	health = max_health
+	if not stats or not stats.base_stats:
+		push_error(name + " requires HeroStatsComponent with base_stats resource!")
+		return
 	
 	await get_tree().physics_frame
 	await get_tree().physics_frame
 	
+	_setup_navigation()
+
+func _setup_navigation() -> void:
 	var tilemap_layer := get_parent().get_node_or_null("Ground")
-	if tilemap_layer and tilemap_layer.has_method("get_navigation_map"):
-		var nav_map = tilemap_layer.get_navigation_map()
-		if nav_map.is_valid():
-			navigation_agent_2d.set_navigation_map(nav_map)
-		else:
-			push_warning("Navigation map is invalid")
-	else:
-		push_warning("Ground tilemap not found or has no navigation")
+	if not tilemap_layer:
+		push_warning(name + ": Ground tilemap not found")
+		return
 	
+	if not tilemap_layer.has_method("get_navigation_map"):
+		push_warning(name + ": Ground tilemap has no navigation")
+		return
+	
+	var nav_map = tilemap_layer.get_navigation_map()
+	if not nav_map.is_valid():
+		push_warning(name + ": Navigation map is invalid")
+		return
+	
+	navigation_agent_2d.set_navigation_map(nav_map)
 	navigation_agent_2d.path_desired_distance = 4.0
 	navigation_agent_2d.target_desired_distance = 4.0
 	navigation_agent_2d.avoidance_enabled = false
+	
+	await get_tree().create_timer(0.1).timeout
+	print(name + ": Navigation setup complete")
 
 func _process(delta: float) -> void:
 	# Update passive ability every frame (always active)
@@ -52,10 +82,10 @@ func _process(delta: float) -> void:
 		use_ultimate()
 
 func is_alive() -> bool:
-	return health > 0.0
+	return stats.is_alive() if stats else false
 
 func get_health() -> float:
-	return health
+	return stats.get_current_health() if stats else 0.0
 
 func is_target_valid() -> bool:
 	return is_instance_valid(target) and is_instance_valid(target_entity)
@@ -87,37 +117,33 @@ func move_toward_point(p: Vector2, speed: float, delta: float) -> void:
 	sprite.rotation = dir.angle()
 
 func take_damage(amount: float) -> void:
-	if not is_alive():
+	if not is_alive() or not stats:
 		return 
-
-	health -= amount
-	if health <= 0.0:
-		health = 0.0
+	
+	stats.take_damage(amount)
+	
+	if not stats.is_alive():
 		state_chart.send_event("self_dead")
 	else:
-		print(amount, " damage taken")
+		print(name + " took " + str(amount) + " damage")
 
 # ============================================
 # ABILITY TRIGGERS (Called externally or automatically)
 # ============================================
 
-# Called by external UI or input system
 func use_active_ability() -> bool:
 	if not ability_system:
 		return false
 	
-	# Use active ability (e.g., place mine at current position)
 	var success = ability_system.use_active(target_entity)
 	if success:
 		print(name + " used active ability!")
 	return success
 
-# Called automatically on timer or can be triggered externally
 func use_ultimate() -> bool:
 	if not ability_system:
 		return false
 	
-	# Only use if not on cooldown
 	if ability_system.is_on_cooldown(AbilityBase.AbilityType.ULTIMATE):
 		return false
 	
@@ -126,7 +152,6 @@ func use_ultimate() -> bool:
 		print(name + " used ULTIMATE!")
 	return success
 
-# Helper to check if abilities are ready (for UI indicators)
 func is_active_ready() -> bool:
 	if not ability_system:
 		return false
@@ -146,6 +171,10 @@ func get_ultimate_cooldown() -> float:
 	if not ability_system:
 		return 0.0
 	return ability_system.get_cooldown_remaining(AbilityBase.AbilityType.ULTIMATE)
+
+# ============================================
+# STATE MACHINE CALLBACKS
+# ============================================
 
 func _on_detection_area_area_exited(area: Area2D) -> void:
 	if target == area:
@@ -194,7 +223,7 @@ func _on_idle_state_entered() -> void:
 	_idle_timer = 0.0
 	_idle_goal = global_position
 
-func _on_fight_state_processing(_delta: float) -> void:
+func _on_fight_state_processing(delta: float) -> void:
 	if not is_target_valid():
 		state_chart.send_event("target_lost")
 		return
@@ -203,11 +232,9 @@ func _on_fight_state_processing(_delta: float) -> void:
 		state_chart.send_event("re_approach")
 		return
 
-	# Face the target
 	var dir := (target.global_position - global_position).normalized()
 	sprite.rotation = dir.angle()
 	
-	# Try to use basic attack every frame (cooldown is handled by ability system)
 	if ability_system:
 		ability_system.use_basic_attack(target_entity)
 

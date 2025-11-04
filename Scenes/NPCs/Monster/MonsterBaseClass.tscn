@@ -1,5 +1,0 @@
-[gd_scene load_steps=2 format=3 uid="uid://dlqpsjccmk1hw"]
-
-[ext_resource type="PackedScene" uid="uid://cnmv786k3qi1c" path="res://Scenes/NPCs/NPCBaseClass.tscn" id="1_uktg3"]
-
-[node name="Npc" instance=ExtResource("1_uktg3")]
