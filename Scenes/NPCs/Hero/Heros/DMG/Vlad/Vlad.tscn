@@ -7,7 +7,7 @@
 [ext_resource type="Resource" uid="uid://cls00ddvooq36" path="res://Scenes/NPCs/Hero/Heros/DMG/Vlad/Abilities/basic_attack/basic_attack.tres" id="5_s7ida"]
 [ext_resource type="Resource" uid="uid://d4m3ntk0yrv1g" path="res://Scenes/NPCs/Hero/Heros/DMG/Vlad/Abilities/ult/ult.tres" id="6_dmu8j"]
 
-[node name="Vlad" instance=ExtResource("1_g8gcj")]
+[node name="Vlad" groups=["Enemy"] instance=ExtResource("1_g8gcj")]
 
 [node name="HeroStats" parent="." index="0"]
 base_stats = ExtResource("2_aqsnw")
@@ -18,5 +18,10 @@ active_ability = ExtResource("4_qoltp")
 basic_attack = ExtResource("5_s7ida")
 ultimate_ability = ExtResource("6_dmu8j")
 
-[node name="NavigationAgent2D" parent="." index="6"]
-navigation_layers = 1
+[node name="DetectionArea" parent="." index="4" groups=["Enemy"]]
+
+[node name="CollisionShape2D" parent="DetectionArea" index="0" groups=["npc"]]
+
+[node name="Body" parent="." index="5" groups=["Enemy"]]
+
+[node name="CollisionShape2D" parent="Body" index="0" groups=["Enemy"]]

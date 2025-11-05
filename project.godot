@@ -38,6 +38,7 @@ folder_colors={
 npc=""
 Hero=""
 Enemy=""
+Monster=""
 
 [rendering]
 

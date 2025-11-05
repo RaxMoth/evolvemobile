@@ -1,10 +1,13 @@
-[gd_scene load_steps=4 format=3 uid="uid://bvyrcj7lkc1k6"]
+[gd_scene load_steps=5 format=3 uid="uid://bvyrcj7lkc1k6"]
 
 [ext_resource type="PackedScene" uid="uid://cnmv786k3qi1c" path="res://Scenes/NPCs/NPCBaseClass.tscn" id="1_py7br"]
+[ext_resource type="Script" uid="uid://cyux65w7f8f1b" path="res://Scenes/NPCs/Hero/hero_base_class.gd" id="2_385or"]
 [ext_resource type="Script" uid="uid://v7h1kjw4mr7a" path="res://Scenes/NPCs/Hero/Abilities/ability_system.gd" id="2_c2olh"]
 [ext_resource type="Script" uid="uid://bd0gjv0o4r2ef" path="res://Scenes/NPCs/Hero/stat_component.gd" id="2_h674b"]
 
 [node name="Hero" instance=ExtResource("1_py7br")]
+script = ExtResource("2_385or")
+auto_use_ultimate = true
 
 [node name="HeroStats" type="Node" parent="." index="0"]
 unique_name_in_owner = true

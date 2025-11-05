@@ -319,7 +319,7 @@ tile_set = SubResource("TileSet_ouhkt")
 navigation_visibility_mode = 1
 
 [node name="Vlad" parent="." instance=ExtResource("2_xf6vi")]
-position = Vector2(219, 55)
+position = Vector2(56, 158)
 
 [node name="Vlad2" parent="." instance=ExtResource("2_xf6vi")]
-position = Vector2(68, 131)
+position = Vector2(223, 47)

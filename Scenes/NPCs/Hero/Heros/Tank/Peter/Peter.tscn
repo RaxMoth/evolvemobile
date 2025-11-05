@@ -3,3 +3,5 @@
 [ext_resource type="PackedScene" uid="uid://bvyrcj7lkc1k6" path="res://Scenes/NPCs/Hero/HeroBaseClass.tscn" id="1_hfm3u"]
 
 [node name="Hero" instance=ExtResource("1_hfm3u")]
+
+[node name="HeroStats" parent="." index="0" groups=["Hero"]]

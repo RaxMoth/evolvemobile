@@ -1,52 +1,60 @@
+# ============================================
+# ENTITY BASE CLASS (Root of All)
+# Save as: res://characters/base/entity_base_class.gd
+# 
+# This is the foundation for ALL entities:
+# - Heroes
+# - Mobs  
+# - Monsters/Bosses
+# - NPCs
+# ============================================
 extends Node2D
-class_name NPCBaseClass
+class_name EntityBase
 
-@export var auto_use_ultimate: bool = true  # Automatically use ultimate when off cooldown
+# ONLY core movement, states, and detection
+# NO stats, NO abilities - those are added by subclasses
 
 @onready var collision_shape_2d: CollisionShape2D = $DetectionArea/CollisionShape2D
 @onready var sprite: Node2D = $Sprite2D
 @onready var state_chart: StateChart = %StateChart
 @onready var navigation_agent_2d: NavigationAgent2D = %NavigationAgent2D
-@onready var ability_system: AbilitySystem = %AbilitySystem
-@onready var stats: HeroStatsComponent = %HeroStats
 
 var _idle_timer := 0.0
 var _idle_goal := Vector2.ZERO
 var target: Node2D = null
 var target_entity: Node = null
 
+# These are ABSTRACT - subclasses must implement
 var move_speed: float:
-	get: return stats.get_move_speed() if stats else 80.0
-
+	get: return _get_move_speed()
 var approach_speed: float:
-	get: return stats.get_approach_speed() if stats else 110.0
-
+	get: return _get_approach_speed()
 var attack_range: float:
-	get: return stats.get_attack_range() if stats else 50.0
-
-var max_health: float:
-	get: return stats.get_max_health() if stats else 20.0
-
-var health: float:
-	get: return stats.get_current_health() if stats else 0.0
-
+	get: return _get_attack_range()
 var idle_retarget_time: float:
-	get: return stats.base_stats.idle_retarget_time if stats and stats.base_stats else 1.2
-
+	get: return _get_idle_retarget_time()
 var idle_wander_radius: float:
-	get: return stats.base_stats.idle_wander_radius if stats and stats.base_stats else 160.0
-
+	get: return _get_idle_wander_radius()
 var keep_distance: float:
-	get: return stats.base_stats.keep_distance if stats and stats.base_stats else 24.0
+	get: return _get_keep_distance()
+
+# Override these in subclasses
+func _get_move_speed() -> float:
+	return 80.0
+func _get_approach_speed() -> float:
+	return 110.0
+func _get_attack_range() -> float:
+	return 50.0
+func _get_idle_retarget_time() -> float:
+	return 1.2
+func _get_idle_wander_radius() -> float:
+	return 160.0
+func _get_keep_distance() -> float:
+	return 24.0
 
 func _ready() -> void:
-	if not stats or not stats.base_stats:
-		push_error(name + " requires HeroStatsComponent with base_stats resource!")
-		return
-	
 	await get_tree().physics_frame
 	await get_tree().physics_frame
-	
 	_setup_navigation()
 
 func _setup_navigation() -> void:
@@ -72,21 +80,19 @@ func _setup_navigation() -> void:
 	await get_tree().create_timer(0.1).timeout
 	print(name + ": Navigation setup complete")
 
-func _process(delta: float) -> void:
-	# Update passive ability every frame (always active)
-	if ability_system and ability_system.passive_ability:
-		ability_system.passive_ability.on_passive_update(self, delta)
-	
-	# Auto-use ultimate when off cooldown (if enabled)
-	if auto_use_ultimate and is_ultimate_ready():
-		use_ultimate()
-
+# Abstract methods - MUST override in subclasses
 func is_alive() -> bool:
-	return stats.is_alive() if stats else false
+	push_error("is_alive() not implemented in " + name)
+	return false
+
+func take_damage(amount: float) -> void:
+	push_error("take_damage() not implemented in " + name)
 
 func get_health() -> float:
-	return stats.get_current_health() if stats else 0.0
+	push_error("get_health() not implemented in " + name)
+	return 0.0
 
+# Common utility methods
 func is_target_valid() -> bool:
 	return is_instance_valid(target) and is_instance_valid(target_entity)
 
@@ -116,64 +122,8 @@ func move_toward_point(p: Vector2, speed: float, delta: float) -> void:
 	position += dir * speed * delta
 	sprite.rotation = dir.angle()
 
-func take_damage(amount: float) -> void:
-	if not is_alive() or not stats:
-		return 
-	
-	stats.take_damage(amount)
-	
-	if not stats.is_alive():
-		state_chart.send_event("self_dead")
-	else:
-		print(name + " took " + str(amount) + " damage")
-
 # ============================================
-# ABILITY TRIGGERS (Called externally or automatically)
-# ============================================
-
-func use_active_ability() -> bool:
-	if not ability_system:
-		return false
-	
-	var success = ability_system.use_active(target_entity)
-	if success:
-		print(name + " used active ability!")
-	return success
-
-func use_ultimate() -> bool:
-	if not ability_system:
-		return false
-	
-	if ability_system.is_on_cooldown(AbilityBase.AbilityType.ULTIMATE):
-		return false
-	
-	var success = ability_system.use_ultimate(target_entity)
-	if success:
-		print(name + " used ULTIMATE!")
-	return success
-
-func is_active_ready() -> bool:
-	if not ability_system:
-		return false
-	return not ability_system.is_on_cooldown(AbilityBase.AbilityType.ACTIVE)
-
-func is_ultimate_ready() -> bool:
-	if not ability_system:
-		return false
-	return not ability_system.is_on_cooldown(AbilityBase.AbilityType.ULTIMATE)
-
-func get_active_cooldown() -> float:
-	if not ability_system:
-		return 0.0
-	return ability_system.get_cooldown_remaining(AbilityBase.AbilityType.ACTIVE)
-
-func get_ultimate_cooldown() -> float:
-	if not ability_system:
-		return 0.0
-	return ability_system.get_cooldown_remaining(AbilityBase.AbilityType.ULTIMATE)
-
-# ============================================
-# STATE MACHINE CALLBACKS
+# STATE MACHINE CALLBACKS (Common for all)
 # ============================================
 
 func _on_detection_area_area_exited(area: Area2D) -> void:
@@ -223,6 +173,7 @@ func _on_idle_state_entered() -> void:
 	_idle_timer = 0.0
 	_idle_goal = global_position
 
+# Fight state - override _on_fight_logic() in subclasses
 func _on_fight_state_processing(delta: float) -> void:
 	if not is_target_valid():
 		state_chart.send_event("target_lost")
@@ -235,8 +186,12 @@ func _on_fight_state_processing(delta: float) -> void:
 	var dir := (target.global_position - global_position).normalized()
 	sprite.rotation = dir.angle()
 	
-	if ability_system:
-		ability_system.use_basic_attack(target_entity)
+	# Let subclass handle combat logic
+	_on_fight_logic(delta)
+
+# Override this in subclasses for combat
+func _on_fight_logic(delta: float) -> void:
+	pass
 
 func _on_fight_state_entered() -> void:
 	if not is_target_valid():
