@@ -1,7 +1,7 @@
 [gd_scene load_steps=7 format=4 uid="uid://bo3dhj3vnqkrr"]
 
 [ext_resource type="Texture2D" uid="uid://c8nbsaqetok8o" path="res://Scenes/World/tf_jungle_tileset.png" id="1_0nbjp"]
-[ext_resource type="PackedScene" uid="uid://cfox5ujt4kpt7" path="res://Scenes/NPCs/Hero/Heros/DMG/Vlad/Vlad.tscn" id="2_xf6vi"]
+[ext_resource type="PackedScene" uid="uid://cuhwjncpsg4ga" path="res://Scenes/NPCs/Mob/Mobs/Hog.tscn" id="3_ouhkt"]
 
 [sub_resource type="NavigationPolygon" id="NavigationPolygon_ouhkt"]
 vertices = PackedVector2Array(8, 8, -8, 8, -8, -8, 8, -8)
@@ -318,8 +318,5 @@ tile_map_data = PackedByteArray("AAAAAAAAAAARAAEAAAAAAA0AAAARAAMAAAAAAAEAAAAQAAI
 tile_set = SubResource("TileSet_ouhkt")
 navigation_visibility_mode = 1
 
-[node name="Vlad" parent="." instance=ExtResource("2_xf6vi")]
-position = Vector2(56, 158)
-
-[node name="Vlad2" parent="." instance=ExtResource("2_xf6vi")]
+[node name="Mob" parent="." instance=ExtResource("3_ouhkt")]
 position = Vector2(223, 47)

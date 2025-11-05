@@ -1,0 +1,19 @@
+[gd_scene load_steps=3 format=3 uid="uid://ciqj3vjyob7jm"]
+
+[ext_resource type="PackedScene" uid="uid://cnmv786k3qi1c" path="res://Scenes/NPCs/NPCBaseClass.tscn" id="1_cqly6"]
+[ext_resource type="Script" uid="uid://dl6xdhtgjlivg" path="res://Scenes/NPCs/Monster/monster_base_class.gd" id="2_yeqw1"]
+
+[node name="Monster" instance=ExtResource("1_cqly6")]
+script = ExtResource("2_yeqw1")
+max_health = 500.0
+base_move_speed = 60.0
+base_attack_range = 80.0
+base_idle_retarget_time = 2.0
+base_idle_wander_radius = 200.0
+base_keep_distance = 50.0
+phase_health_thresholds = Array[float]([0.66, 0.33])
+speed_per_phase = 0.15
+ability_1 = null
+ability_2 = null
+ability_3 = null
+passive_ability = null

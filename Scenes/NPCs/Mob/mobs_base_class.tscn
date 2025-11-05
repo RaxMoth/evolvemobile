@@ -1,0 +1,16 @@
+[gd_scene load_steps=3 format=3 uid="uid://drkua71k2d53x"]
+
+[ext_resource type="PackedScene" uid="uid://cnmv786k3qi1c" path="res://Scenes/NPCs/NPCBaseClass.tscn" id="1_rywdu"]
+[ext_resource type="Script" uid="uid://ccqco0gae7bq3" path="res://Scenes/NPCs/Mob/mobs_base_class.gd" id="2_3vvr5"]
+
+[node name="Mob" instance=ExtResource("1_rywdu")]
+script = ExtResource("2_3vvr5")
+max_health = 50.0
+base_move_speed = 70.0
+base_approach_speed = 90.0
+base_attack_range = 40.0
+base_attack_damage = 5.0
+attack_cooldown = 1.5
+base_idle_retarget_time = 1.2
+base_idle_wander_radius = 120.0
+base_keep_distance = 20.0
