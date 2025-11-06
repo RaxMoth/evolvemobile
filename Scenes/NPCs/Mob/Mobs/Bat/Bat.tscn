@@ -1,0 +1,78 @@
+[gd_scene load_steps=12 format=3 uid="uid://w7djnpi3ju8u"]
+
+[ext_resource type="PackedScene" uid="uid://drkua71k2d53x" path="res://Scenes/NPCs/Mob/mobs_base_class.tscn" id="1_u0xgj"]
+[ext_resource type="Texture2D" uid="uid://daflep1k3atdg" path="res://Scenes/NPCs/Mob/Mobs/Bat/Bat-Run.png" id="2_5e5fq"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_47wbi"]
+atlas = ExtResource("2_5e5fq")
+region = Rect2(0, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_hjfkm"]
+atlas = ExtResource("2_5e5fq")
+region = Rect2(64, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_er15b"]
+atlas = ExtResource("2_5e5fq")
+region = Rect2(128, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_vjxu4"]
+atlas = ExtResource("2_5e5fq")
+region = Rect2(192, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ah7ad"]
+atlas = ExtResource("2_5e5fq")
+region = Rect2(256, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_amdt7"]
+atlas = ExtResource("2_5e5fq")
+region = Rect2(320, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_s72ym"]
+atlas = ExtResource("2_5e5fq")
+region = Rect2(384, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_1ps5o"]
+atlas = ExtResource("2_5e5fq")
+region = Rect2(448, 0, 64, 64)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_2frwa"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_47wbi")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_hjfkm")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_er15b")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_vjxu4")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_ah7ad")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_amdt7")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_s72ym")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_1ps5o")
+}],
+"loop": true,
+"name": &"default",
+"speed": 5.0
+}]
+
+[node name="Mob" instance=ExtResource("1_u0xgj")]
+
+[node name="AnimatedSprite2D" parent="." index="1"]
+sprite_frames = SubResource("SpriteFrames_2frwa")
+autoplay = "default"
+frame_progress = 0.9325178
+
+[node name="Sprite2D" parent="." index="2"]
+visible = false

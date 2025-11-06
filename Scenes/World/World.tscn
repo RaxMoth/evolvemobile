@@ -1,7 +1,8 @@
-[gd_scene load_steps=7 format=4 uid="uid://bo3dhj3vnqkrr"]
+[gd_scene load_steps=8 format=4 uid="uid://bo3dhj3vnqkrr"]
 
 [ext_resource type="Texture2D" uid="uid://c8nbsaqetok8o" path="res://Scenes/World/tf_jungle_tileset.png" id="1_0nbjp"]
-[ext_resource type="PackedScene" uid="uid://cuhwjncpsg4ga" path="res://Scenes/NPCs/Mob/Mobs/Hog.tscn" id="3_ouhkt"]
+[ext_resource type="PackedScene" uid="uid://w7djnpi3ju8u" path="res://Scenes/NPCs/Mob/Mobs/Bat/Bat.tscn" id="3_5jr8x"]
+[ext_resource type="PackedScene" uid="uid://cuhwjncpsg4ga" path="res://Scenes/NPCs/Mob/Mobs/Hog/Hog.tscn" id="3_ouhkt"]
 
 [sub_resource type="NavigationPolygon" id="NavigationPolygon_ouhkt"]
 vertices = PackedVector2Array(8, 8, -8, 8, -8, -8, 8, -8)
@@ -320,3 +321,6 @@ navigation_visibility_mode = 1
 
 [node name="Mob" parent="." instance=ExtResource("3_ouhkt")]
 position = Vector2(223, 47)
+
+[node name="Mob2" parent="." instance=ExtResource("3_5jr8x")]
+position = Vector2(81, 167)

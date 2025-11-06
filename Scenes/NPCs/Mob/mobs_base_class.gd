@@ -84,7 +84,7 @@ func take_damage(amount: float) -> void:
 # Simple combat (no ability system needed)
 # ============================================
 
-func _on_fight_logic(delta: float) -> void:
+func _on_fight_logic(_delta: float) -> void:
 	# Simple attack on cooldown
 	if attack_timer <= 0.0 and is_target_valid():
 		_perform_basic_attack()

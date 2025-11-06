@@ -85,7 +85,7 @@ func is_alive() -> bool:
 	push_error("is_alive() not implemented in " + name)
 	return false
 
-func take_damage(amount: float) -> void:
+func take_damage(_amount: float) -> void:
 	push_error("take_damage() not implemented in " + name)
 
 func get_health() -> float:
@@ -190,7 +190,7 @@ func _on_fight_state_processing(delta: float) -> void:
 	_on_fight_logic(delta)
 
 # Override this in subclasses for combat
-func _on_fight_logic(delta: float) -> void:
+func _on_fight_logic(_delta: float) -> void:
 	pass
 
 func _on_fight_state_entered() -> void:

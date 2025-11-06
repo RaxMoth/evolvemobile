@@ -18,6 +18,7 @@ radius = 13.0384
 script = ExtResource("1_517tc")
 
 [node name="CanvasLayer" type="CanvasLayer" parent="."]
+visible = false
 
 [node name="StateChartDebugger" parent="CanvasLayer" instance=ExtResource("7_wcc3o")]
 offset_left = 421.0
@@ -28,6 +29,9 @@ scale = Vector2(0.67061, 0.954921)
 size_flags_horizontal = 3
 size_flags_vertical = 3
 initial_node_to_watch = NodePath("../../StateChart")
+
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
+scale = Vector2(1, 0.99999994)
 
 [node name="Sprite2D" type="Sprite2D" parent="."]
 rotation = -0.0119461
