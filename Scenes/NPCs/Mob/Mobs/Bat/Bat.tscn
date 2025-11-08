@@ -67,12 +67,15 @@ animations = [{
 "speed": 5.0
 }]
 
-[node name="Mob" instance=ExtResource("1_u0xgj")]
+[node name="Mob" groups=["Enemy"] instance=ExtResource("1_u0xgj")]
+
+[node name="CanvasLayer" parent="." index="0"]
+visible = true
 
 [node name="AnimatedSprite2D" parent="." index="1"]
 sprite_frames = SubResource("SpriteFrames_2frwa")
 autoplay = "default"
-frame_progress = 0.9325178
+frame_progress = 0.8992774
 
 [node name="Sprite2D" parent="." index="2"]
 visible = false

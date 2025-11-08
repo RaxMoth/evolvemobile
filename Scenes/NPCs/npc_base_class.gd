@@ -175,6 +175,7 @@ func _on_idle_state_entered() -> void:
 
 # Fight state - override _on_fight_logic() in subclasses
 func _on_fight_state_processing(delta: float) -> void:
+	print("komme ioch hieran")
 	if not is_target_valid():
 		state_chart.send_event("target_lost")
 		return

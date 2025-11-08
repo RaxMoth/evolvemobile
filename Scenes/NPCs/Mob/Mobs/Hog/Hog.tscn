@@ -1,5 +1,78 @@
-[gd_scene load_steps=2 format=3 uid="uid://cuhwjncpsg4ga"]
+[gd_scene load_steps=12 format=3 uid="uid://cuhwjncpsg4ga"]
 
 [ext_resource type="PackedScene" uid="uid://drkua71k2d53x" path="res://Scenes/NPCs/Mob/mobs_base_class.tscn" id="1_jh7o6"]
+[ext_resource type="Texture2D" uid="uid://4d1vqeq2w26v" path="res://Scenes/NPCs/Mob/Mobs/Hog/Orc-Walk.png" id="2_aird7"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_dlf28"]
+atlas = ExtResource("2_aird7")
+region = Rect2(0, 0, 100, 100)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_w3y5i"]
+atlas = ExtResource("2_aird7")
+region = Rect2(100, 0, 100, 100)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_gw684"]
+atlas = ExtResource("2_aird7")
+region = Rect2(200, 0, 100, 100)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_g2gw7"]
+atlas = ExtResource("2_aird7")
+region = Rect2(300, 0, 100, 100)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_sks5a"]
+atlas = ExtResource("2_aird7")
+region = Rect2(400, 0, 100, 100)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_u3v4b"]
+atlas = ExtResource("2_aird7")
+region = Rect2(500, 0, 100, 100)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_doyb5"]
+atlas = ExtResource("2_aird7")
+region = Rect2(600, 0, 100, 100)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_7f7ba"]
+atlas = ExtResource("2_aird7")
+region = Rect2(700, 0, 100, 100)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_ilf7r"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_dlf28")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_w3y5i")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_gw684")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_g2gw7")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_sks5a")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_u3v4b")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_doyb5")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_7f7ba")
+}],
+"loop": true,
+"name": &"default",
+"speed": 5.0
+}]
 
 [node name="Mob" groups=["Enemy"] instance=ExtResource("1_jh7o6")]
+
+[node name="AnimatedSprite2D" parent="." index="1"]
+sprite_frames = SubResource("SpriteFrames_ilf7r")
+autoplay = "default"
+frame_progress = 0.71654063
+
+[node name="Sprite2D" parent="." index="2"]
+visible = false

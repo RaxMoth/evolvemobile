@@ -24,17 +24,14 @@ class_name MobBase
 @export var base_idle_wander_radius: float = 120.0
 @export var base_keep_distance: float = 20.0
 
+@onready var attack_timer: Timer = %AttackTimer
 var current_health: float
-var attack_timer: float = 0.0
 
 func _ready() -> void:
 	current_health = max_health
+	attack_timer.wait_time = attack_cooldown
 	super._ready()
 
-func _process(delta: float) -> void:
-	# Update attack cooldown
-	if attack_timer > 0.0:
-		attack_timer -= delta
 
 # ============================================
 # Override EntityBase virtual methods
@@ -85,10 +82,8 @@ func take_damage(amount: float) -> void:
 # ============================================
 
 func _on_fight_logic(_delta: float) -> void:
-	# Simple attack on cooldown
-	if attack_timer <= 0.0 and is_target_valid():
-		_perform_basic_attack()
-		attack_timer = attack_cooldown
+	print("bla")
+	attack_timer.start()
 
 func _perform_basic_attack() -> void:
 	if not target_entity or not target_entity.has_method("take_damage"):
@@ -111,3 +106,8 @@ func _on_dead_state_entered() -> void:
 # Override this in specific mobs for custom death behavior
 func _on_mob_death() -> void:
 	pass
+
+
+func _on_attack_timer_timeout() -> void:
+	if is_target_valid():
+		_perform_basic_attack()
