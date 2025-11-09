@@ -1,6 +1,7 @@
-[gd_scene load_steps=8 format=4 uid="uid://bo3dhj3vnqkrr"]
+[gd_scene load_steps=9 format=4 uid="uid://bo3dhj3vnqkrr"]
 
 [ext_resource type="Texture2D" uid="uid://c8nbsaqetok8o" path="res://Scenes/World/tf_jungle_tileset.png" id="1_0nbjp"]
+[ext_resource type="PackedScene" uid="uid://cfox5ujt4kpt7" path="res://Scenes/NPCs/Hero/Heros/DMG/Vlad/Vlad.tscn" id="2_xf6vi"]
 [ext_resource type="PackedScene" uid="uid://w7djnpi3ju8u" path="res://Scenes/NPCs/Mob/Mobs/Bat/Bat.tscn" id="3_5jr8x"]
 [ext_resource type="PackedScene" uid="uid://cuhwjncpsg4ga" path="res://Scenes/NPCs/Mob/Mobs/Hog/Hog.tscn" id="3_ouhkt"]
 
@@ -323,3 +324,6 @@ position = Vector2(223, 47)
 
 [node name="Mob2" parent="." instance=ExtResource("3_5jr8x")]
 position = Vector2(81, 167)
+
+[node name="Vlad" parent="." instance=ExtResource("2_xf6vi")]
+position = Vector2(129, 40)

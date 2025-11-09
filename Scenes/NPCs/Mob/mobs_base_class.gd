@@ -1,16 +1,6 @@
-# ============================================
-# MOB BASE CLASS (Simple Enemies)
-# Save as: res://characters/base/mob_base_class.gd
-#
-# For simple trash mob enemies with:
-# - Simple stats (no complex stat system)
-# - Basic attack only (no abilities)
-# - Fast to create and lightweight
-# ============================================
 extends EntityBase
 class_name MobBase
 
-# Simple exported stats (just set in Inspector)
 @export_group("Mob Stats")
 @export var max_health: float = 50.0
 @export var base_move_speed: float = 70.0
@@ -32,11 +22,6 @@ func _ready() -> void:
 	attack_timer.wait_time = attack_cooldown
 	super._ready()
 
-
-# ============================================
-# Override EntityBase virtual methods
-# ============================================
-
 func _get_move_speed() -> float:
 	return base_move_speed
 
@@ -54,10 +39,6 @@ func _get_idle_wander_radius() -> float:
 
 func _get_keep_distance() -> float:
 	return base_keep_distance
-
-# ============================================
-# Implement EntityBase abstract methods
-# ============================================
 
 func is_alive() -> bool:
 	return current_health > 0.0
@@ -77,15 +58,13 @@ func take_damage(amount: float) -> void:
 	else:
 		print(name + " took " + str(amount) + " damage")
 
-# ============================================
-# Simple combat (no ability system needed)
-# ============================================
 
 func _on_fight_logic(_delta: float) -> void:
 	print("bla")
 	attack_timer.start()
 
 func _perform_basic_attack() -> void:
+	print("ahaah")
 	if not target_entity or not target_entity.has_method("take_damage"):
 		return
 	
@@ -94,20 +73,15 @@ func _perform_basic_attack() -> void:
 		target_entity.take_damage(base_attack_damage)
 		print(name + " attacked for " + str(base_attack_damage) + " damage")
 
-# ============================================
-# Optional: Override for death effects
-# ============================================
 
 func _on_dead_state_entered() -> void:
-	# Optional: Add death animation, drop loot, etc.
 	_on_mob_death()
-	super._on_dead_state_entered()  # Calls queue_free()
+	super._on_dead_state_entered()  
 
-# Override this in specific mobs for custom death behavior
 func _on_mob_death() -> void:
 	pass
 
-
 func _on_attack_timer_timeout() -> void:
+	print("ding sding")
 	if is_target_valid():
 		_perform_basic_attack()

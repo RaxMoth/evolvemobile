@@ -72,7 +72,7 @@ animations = [{
 [node name="AnimatedSprite2D" parent="." index="1"]
 sprite_frames = SubResource("SpriteFrames_ilf7r")
 autoplay = "default"
-frame_progress = 0.71654063
+frame_progress = 0.22160637
 
 [node name="Sprite2D" parent="." index="2"]
 visible = false

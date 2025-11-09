@@ -1,18 +1,5 @@
-# ============================================
-# ENTITY BASE CLASS (Root of All)
-# Save as: res://characters/base/entity_base_class.gd
-# 
-# This is the foundation for ALL entities:
-# - Heroes
-# - Mobs  
-# - Monsters/Bosses
-# - NPCs
-# ============================================
 extends Node2D
 class_name EntityBase
-
-# ONLY core movement, states, and detection
-# NO stats, NO abilities - those are added by subclasses
 
 @onready var collision_shape_2d: CollisionShape2D = $DetectionArea/CollisionShape2D
 @onready var sprite: Node2D = $Sprite2D
@@ -92,7 +79,6 @@ func get_health() -> float:
 	push_error("get_health() not implemented in " + name)
 	return 0.0
 
-# Common utility methods
 func is_target_valid() -> bool:
 	return is_instance_valid(target) and is_instance_valid(target_entity)
 
@@ -173,9 +159,7 @@ func _on_idle_state_entered() -> void:
 	_idle_timer = 0.0
 	_idle_goal = global_position
 
-# Fight state - override _on_fight_logic() in subclasses
 func _on_fight_state_processing(delta: float) -> void:
-	print("komme ioch hieran")
 	if not is_target_valid():
 		state_chart.send_event("target_lost")
 		return
@@ -186,11 +170,8 @@ func _on_fight_state_processing(delta: float) -> void:
 
 	var dir := (target.global_position - global_position).normalized()
 	sprite.rotation = dir.angle()
-	
-	# Let subclass handle combat logic
 	_on_fight_logic(delta)
 
-# Override this in subclasses for combat
 func _on_fight_logic(_delta: float) -> void:
 	pass
 

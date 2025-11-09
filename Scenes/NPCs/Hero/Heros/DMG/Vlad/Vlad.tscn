@@ -1,4 +1,4 @@
-[gd_scene load_steps=7 format=3 uid="uid://cfox5ujt4kpt7"]
+[gd_scene load_steps=8 format=3 uid="uid://cfox5ujt4kpt7"]
 
 [ext_resource type="PackedScene" uid="uid://bvyrcj7lkc1k6" path="res://Scenes/NPCs/Hero/HeroBaseClass.tscn" id="1_g8gcj"]
 [ext_resource type="Resource" uid="uid://m2m6oqcsafle" path="res://Scenes/NPCs/Hero/Heros/DMG/Vlad/Vlad_stat.tres" id="2_aqsnw"]
@@ -6,6 +6,7 @@
 [ext_resource type="Resource" uid="uid://bwgui8ikvrqci" path="res://Scenes/NPCs/Hero/Heros/DMG/Vlad/Abilities/active/active_mine.tres" id="4_qoltp"]
 [ext_resource type="Resource" uid="uid://cls00ddvooq36" path="res://Scenes/NPCs/Hero/Heros/DMG/Vlad/Abilities/basic_attack/basic_attack.tres" id="5_s7ida"]
 [ext_resource type="Resource" uid="uid://d4m3ntk0yrv1g" path="res://Scenes/NPCs/Hero/Heros/DMG/Vlad/Abilities/ult/ult.tres" id="6_dmu8j"]
+[ext_resource type="Script" uid="uid://jk2jm1g6q853" path="res://addons/godot_state_charts/compound_state.gd" id="7_k6r5v"]
 
 [node name="Vlad" groups=["Enemy"] instance=ExtResource("1_g8gcj")]
 
@@ -18,10 +19,15 @@ active_ability = ExtResource("4_qoltp")
 basic_attack = ExtResource("5_s7ida")
 ultimate_ability = ExtResource("6_dmu8j")
 
-[node name="DetectionArea" parent="." index="4" groups=["Enemy"]]
+[node name="DetectionArea" parent="." index="5" groups=["Enemy"]]
 
 [node name="CollisionShape2D" parent="DetectionArea" index="0" groups=["npc"]]
 
-[node name="Body" parent="." index="5" groups=["Enemy"]]
+[node name="Body" parent="." index="6" groups=["Enemy"]]
 
 [node name="CollisionShape2D" parent="Body" index="0" groups=["Enemy"]]
+unique_name_in_owner = false
+
+[node name="CompoundState" parent="StateChart" index="0"]
+unique_name_in_owner = false
+script = ExtResource("7_k6r5v")
