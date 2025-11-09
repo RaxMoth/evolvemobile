@@ -157,6 +157,7 @@ func set_level(new_level: int) -> void:
 # ============================================
 # SAVE/LOAD SUPPORT
 # ============================================
+
 func get_save_data() -> Dictionary:
 	return {
 		"level": level,

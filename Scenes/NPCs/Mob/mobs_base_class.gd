@@ -16,6 +16,7 @@ class_name MobBase
 
 @onready var attack_timer: Timer = %AttackTimer
 var current_health: float
+var attacking: bool = false 
 
 func _ready() -> void:
 	current_health = max_health
@@ -60,8 +61,9 @@ func take_damage(amount: float) -> void:
 
 
 func _on_fight_logic(_delta: float) -> void:
-	print("bla")
-	attack_timer.start()
+	if attacking == false:
+		attacking = true
+		attack_timer.start()
 
 func _perform_basic_attack() -> void:
 	print("ahaah")
@@ -72,6 +74,7 @@ func _perform_basic_attack() -> void:
 	if distance <= base_attack_range:
 		target_entity.take_damage(base_attack_damage)
 		print(name + " attacked for " + str(base_attack_damage) + " damage")
+		attacking = false
 
 
 func _on_dead_state_entered() -> void:

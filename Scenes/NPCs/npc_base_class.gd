@@ -180,8 +180,5 @@ func _on_fight_state_entered() -> void:
 		state_chart.send_event("target_lost")
 		return
 
-func _on_fight_state_exited() -> void:
-	pass
-
 func _on_dead_state_entered() -> void:
 	queue_free()
