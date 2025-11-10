@@ -67,7 +67,8 @@ animations = [{
 "speed": 5.0
 }]
 
-[node name="Mob" groups=["Enemy"] instance=ExtResource("1_jh7o6")]
+[node name="Hug" groups=["Enemy"] instance=ExtResource("1_jh7o6")]
+max_health = 10.0
 
 [node name="AnimatedSprite2D" parent="." index="1"]
 sprite_frames = SubResource("SpriteFrames_ilf7r")
@@ -76,3 +77,6 @@ frame_progress = 0.22160637
 
 [node name="Sprite2D" parent="." index="2"]
 visible = false
+
+[connection signal="state_exited" from="StateChart/CompoundState/Fight" to="." method="_on_fight_state_exited"]
+[connection signal="state_physics_processing" from="StateChart/CompoundState/Fight" to="." method="_on_fight_state_physics_processing"]

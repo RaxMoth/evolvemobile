@@ -19,13 +19,13 @@ var current_stats := {
 }
 
 var stat_modifiers := {
-	"max_health_mult": 1.0,      
-	"max_health_add": 0.0,    
+	"max_health_mult": 1.0,
+	"max_health_add": 0.0,
 	"move_speed_mult": 1.0,
 	"move_speed_add": 0.0,
 	"attack_damage_mult": 1.0,
 	"attack_damage_add": 0.0,
-	"attack_speed_mult": 1.0, 
+	"attack_speed_mult": 1.0,
 }
 
 func _ready() -> void:
@@ -86,9 +86,9 @@ func add_stat_modifier(stat_name: String, value: float, is_multiplicative: bool 
 	var modifier_key = stat_name + ("_mult" if is_multiplicative else "_add")
 	
 	if is_multiplicative:
-		stat_modifiers[modifier_key] *= value  # Stack multiplicatively
+		stat_modifiers[modifier_key] *= value # Stack multiplicatively
 	else:
-		stat_modifiers[modifier_key] += value  # Stack additively
+		stat_modifiers[modifier_key] += value # Stack additively
 	
 	_recalculate_all_stats()
 
@@ -110,12 +110,7 @@ func clear_all_modifiers() -> void:
 			stat_modifiers[key] = 0.0
 	_recalculate_all_stats()
 
-# ============================================
-# HEALTH MANAGEMENT
-# ============================================
-
 func take_damage(amount: float) -> void:
-	var old_health = current_stats.current_health
 	current_stats.current_health = max(0.0, current_stats.current_health - amount)
 	health_changed.emit(current_stats.current_health, current_stats.max_health)
 	
@@ -123,7 +118,6 @@ func take_damage(amount: float) -> void:
 		_on_death()
 
 func heal(amount: float) -> void:
-	var old_health = current_stats.current_health
 	current_stats.current_health = min(current_stats.max_health, current_stats.current_health + amount)
 	health_changed.emit(current_stats.current_health, current_stats.max_health)
 
@@ -133,10 +127,6 @@ func is_alive() -> bool:
 func _on_death() -> void:
 	# Override in subclass or connect to signal
 	pass
-
-# ============================================
-# LEVEL PROGRESSION
-# ============================================
 
 func level_up() -> void:
 	level += 1
@@ -152,11 +142,7 @@ func level_up() -> void:
 
 func set_level(new_level: int) -> void:
 	level = max(1, new_level)
-	_recalculate_all_stats()
-
-# ============================================
-# SAVE/LOAD SUPPORT
-# ============================================
+	#_recalculate_all_stats()
 
 func get_save_data() -> Dictionary:
 	return {

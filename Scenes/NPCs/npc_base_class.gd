@@ -5,6 +5,7 @@ class_name EntityBase
 @onready var sprite: Node2D = $Sprite2D
 @onready var state_chart: StateChart = %StateChart
 @onready var navigation_agent_2d: NavigationAgent2D = %NavigationAgent2D
+@onready var health_bar: ProgressBar = %HealthBar
 
 var _idle_timer := 0.0
 var _idle_goal := Vector2.ZERO
@@ -42,6 +43,8 @@ func _get_keep_distance() -> float:
 func _ready() -> void:
 	await get_tree().physics_frame
 	await get_tree().physics_frame
+	health_bar.max_value = get_health()
+	health_bar.value = get_health()
 	_setup_navigation()
 
 func _setup_navigation() -> void:
@@ -107,10 +110,6 @@ func move_toward_point(p: Vector2, speed: float, delta: float) -> void:
 	
 	position += dir * speed * delta
 	sprite.rotation = dir.angle()
-
-# ============================================
-# STATE MACHINE CALLBACKS (Common for all)
-# ============================================
 
 func _on_detection_area_area_exited(area: Area2D) -> void:
 	if target == area:

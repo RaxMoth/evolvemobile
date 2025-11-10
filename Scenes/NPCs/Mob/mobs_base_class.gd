@@ -52,7 +52,7 @@ func take_damage(amount: float) -> void:
 		return
 	
 	current_health -= amount
-	
+	health_bar.value = current_health
 	if current_health <= 0.0:
 		current_health = 0.0
 		state_chart.send_event("self_dead")
@@ -85,6 +85,5 @@ func _on_mob_death() -> void:
 	pass
 
 func _on_attack_timer_timeout() -> void:
-	print("ding sding")
 	if is_target_valid():
 		_perform_basic_attack()

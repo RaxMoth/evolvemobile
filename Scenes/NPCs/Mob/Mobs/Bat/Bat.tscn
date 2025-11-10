@@ -68,20 +68,22 @@ animations = [{
 }]
 
 [node name="Bat" groups=["Enemy"] instance=ExtResource("1_u0xgj")]
-
-[node name="CanvasLayer" parent="." index="0"]
-visible = true
+attack_cooldown = 0.5
 
 [node name="StateChartDebugger" parent="CanvasLayer" index="0"]
+visible = false
 offset_left = 101.00001
 offset_top = 36.999992
 offset_right = 227.98987
 offset_bottom = -699.4996
 
-[node name="AnimatedSprite2D" parent="." index="1"]
+[node name="AnimatedSprite2D" parent="." index="2"]
 sprite_frames = SubResource("SpriteFrames_2frwa")
 autoplay = "default"
 frame_progress = 0.44241503
 
-[node name="Sprite2D" parent="." index="2"]
+[node name="Sprite2D" parent="." index="3"]
 visible = false
+
+[connection signal="state_exited" from="StateChart/CompoundState/Fight" to="." method="_on_fight_state_exited"]
+[connection signal="state_physics_processing" from="StateChart/CompoundState/Fight" to="." method="_on_fight_state_physics_processing"]

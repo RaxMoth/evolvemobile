@@ -12,7 +12,6 @@ var max_health: float:
 var health: float:
 	get: return stats.get_current_health() if stats else 0.0
 
-
 func _ready() -> void:
 	if not stats or not stats.base_stats:
 		push_error(name + " requires HeroStatsComponent with base_stats!")
