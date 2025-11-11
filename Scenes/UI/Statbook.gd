@@ -7,7 +7,7 @@ class_name HeroStatBook
 
 var hero_stats: HeroStatsComponent
 
-func display_hero(stats: HeroStatsComponent) -> void:
+func display_hero(stats: ) -> void:
 	hero_stats = stats
 	_update_display()
 	
