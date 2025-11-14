@@ -1,0 +1,7 @@
+[gd_resource type="Resource" script_class="BullFrontCleave" load_steps=2 format=3 uid="uid://dxt3cwqg5jh8c"]
+
+[ext_resource type="Script" uid="uid://cwfkgc14uiawh" path="res://Scenes/NPCs/Monster/Grount/abilities/bull_front_cleave.gd" id="1_hv4vt"]
+
+[resource]
+script = ExtResource("1_hv4vt")
+metadata/_custom_type_script = "uid://cwfkgc14uiawh"

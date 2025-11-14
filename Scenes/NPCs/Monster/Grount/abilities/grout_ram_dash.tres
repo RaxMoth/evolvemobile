@@ -1,0 +1,7 @@
+[gd_resource type="Resource" script_class="BullRamDash" load_steps=2 format=3 uid="uid://dyaqdcmee3tis"]
+
+[ext_resource type="Script" uid="uid://bbl84wvqrtqij" path="res://Scenes/NPCs/Monster/Grount/abilities/ram_dash.gd" id="1_us2jm"]
+
+[resource]
+script = ExtResource("1_us2jm")
+metadata/_custom_type_script = "uid://bbl84wvqrtqij"

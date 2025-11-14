@@ -1,0 +1,7 @@
+[gd_scene load_steps=3 format=3 uid="uid://cvit7v54q45mk"]
+
+[ext_resource type="PackedScene" uid="uid://ciqj3vjyob7jm" path="res://Scenes/NPCs/Monster/monster_base_class.tscn" id="1_75sub"]
+[ext_resource type="Script" uid="uid://cin06wadxf2py" path="res://Scenes/NPCs/Monster/Grount/grount.gd" id="2_7s573"]
+
+[node name="Grount" instance=ExtResource("1_75sub")]
+script = ExtResource("2_7s573")
