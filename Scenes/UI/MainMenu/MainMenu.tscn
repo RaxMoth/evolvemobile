@@ -1,12 +1,15 @@
-[gd_scene load_steps=2 format=3 uid="uid://cg6pdl50qcrj7"]
+[gd_scene load_steps=3 format=3 uid="uid://cg6pdl50qcrj7"]
 
+[ext_resource type="Script" uid="uid://bbkt6yiwjqj3y" path="res://Scenes/UI/MainMenu/main_menu.gd" id="1_7rqq1"]
 [ext_resource type="Texture2D" uid="uid://b8hlhq44dx3qv" path="res://icon.svg" id="1_les83"]
 
 [node name="MainMenu" type="Node2D"]
+script = ExtResource("1_7rqq1")
 
 [node name="UILayer" type="CanvasLayer" parent="."]
 
 [node name="Control" type="Control" parent="UILayer"]
+unique_name_in_owner = true
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -23,6 +26,7 @@ grow_horizontal = 2
 grow_vertical = 2
 
 [node name="HeroSide" type="Control" parent="UILayer/Control/HSplitContainer"]
+unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 
@@ -45,17 +49,20 @@ layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 32
 
-[node name="Skills" type="Button" parent="UILayer/Control/HSplitContainer/HeroSide/HBoxContainer/ButtonContainer/Container"]
+[node name="HeroSkills" type="Button" parent="UILayer/Control/HSplitContainer/HeroSide/HBoxContainer/ButtonContainer/Container"]
+unique_name_in_owner = true
 layout_mode = 2
 size_flags_vertical = 6
 text = "Skills"
 
-[node name="Updates" type="Button" parent="UILayer/Control/HSplitContainer/HeroSide/HBoxContainer/ButtonContainer/Container"]
+[node name="HeroUpdates" type="Button" parent="UILayer/Control/HSplitContainer/HeroSide/HBoxContainer/ButtonContainer/Container"]
+unique_name_in_owner = true
 layout_mode = 2
 size_flags_vertical = 6
 text = "Updates"
 
 [node name="PlayAsHero" type="Button" parent="UILayer/Control/HSplitContainer/HeroSide/HBoxContainer/ButtonContainer/Container"]
+unique_name_in_owner = true
 layout_mode = 2
 size_flags_vertical = 6
 text = "Play"
@@ -76,53 +83,63 @@ size_flags_vertical = 3
 [node name="HBoxContainer" type="HBoxContainer" parent="UILayer/Control/HSplitContainer/HeroSide/HBoxContainer/HeroSelectorContainer/VBoxContainer/ClassSelector"]
 layout_mode = 2
 
-[node name="Button" type="Button" parent="UILayer/Control/HSplitContainer/HeroSide/HBoxContainer/HeroSelectorContainer/VBoxContainer/ClassSelector/HBoxContainer"]
+[node name="HeroClassBackButton" type="Button" parent="UILayer/Control/HSplitContainer/HeroSide/HBoxContainer/HeroSelectorContainer/VBoxContainer/ClassSelector/HBoxContainer"]
+unique_name_in_owner = true
 layout_mode = 2
 size_flags_vertical = 4
 text = "zurück"
 
-[node name="Label" type="Label" parent="UILayer/Control/HSplitContainer/HeroSide/HBoxContainer/HeroSelectorContainer/VBoxContainer/ClassSelector/HBoxContainer"]
+[node name="HeroClassLabel" type="Label" parent="UILayer/Control/HSplitContainer/HeroSide/HBoxContainer/HeroSelectorContainer/VBoxContainer/ClassSelector/HBoxContainer"]
+unique_name_in_owner = true
 layout_mode = 2
 text = "Class name"
 
-[node name="Button2" type="Button" parent="UILayer/Control/HSplitContainer/HeroSide/HBoxContainer/HeroSelectorContainer/VBoxContainer/ClassSelector/HBoxContainer"]
+[node name="HeroClassForward" type="Button" parent="UILayer/Control/HSplitContainer/HeroSide/HBoxContainer/HeroSelectorContainer/VBoxContainer/ClassSelector/HBoxContainer"]
+unique_name_in_owner = true
 layout_mode = 2
 size_flags_vertical = 4
 text = "Vor"
 
 [node name="HeroSelector" type="MarginContainer" parent="UILayer/Control/HSplitContainer/HeroSide/HBoxContainer/HeroSelectorContainer/VBoxContainer"]
+unique_name_in_owner = true
 layout_mode = 2
 size_flags_vertical = 3
 
 [node name="HBoxContainer" type="HBoxContainer" parent="UILayer/Control/HSplitContainer/HeroSide/HBoxContainer/HeroSelectorContainer/VBoxContainer/HeroSelector"]
 layout_mode = 2
 
-[node name="Back" type="Button" parent="UILayer/Control/HSplitContainer/HeroSide/HBoxContainer/HeroSelectorContainer/VBoxContainer/HeroSelector/HBoxContainer"]
+[node name="HeroSelectorBack" type="Button" parent="UILayer/Control/HSplitContainer/HeroSide/HBoxContainer/HeroSelectorContainer/VBoxContainer/HeroSelector/HBoxContainer"]
+unique_name_in_owner = true
 layout_mode = 2
 size_flags_vertical = 4
 text = "Zurück
 "
 
-[node name="Hero" type="TextureRect" parent="UILayer/Control/HSplitContainer/HeroSide/HBoxContainer/HeroSelectorContainer/VBoxContainer/HeroSelector/HBoxContainer"]
+[node name="SelectedHero" type="TextureRect" parent="UILayer/Control/HSplitContainer/HeroSide/HBoxContainer/HeroSelectorContainer/VBoxContainer/HeroSelector/HBoxContainer"]
+unique_name_in_owner = true
 layout_mode = 2
 size_flags_vertical = 4
 texture = ExtResource("1_les83")
 stretch_mode = 2
 
-[node name="Forward" type="Button" parent="UILayer/Control/HSplitContainer/HeroSide/HBoxContainer/HeroSelectorContainer/VBoxContainer/HeroSelector/HBoxContainer"]
+[node name="HeroSelectorForward" type="Button" parent="UILayer/Control/HSplitContainer/HeroSide/HBoxContainer/HeroSelectorContainer/VBoxContainer/HeroSelector/HBoxContainer"]
+unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 4
 size_flags_vertical = 4
 text = "Vor"
 
 [node name="VSeparator" type="VSeparator" parent="UILayer/Control/HSplitContainer"]
+unique_name_in_owner = true
 layout_mode = 2
 
 [node name="MonsterSide" type="Control" parent="UILayer/Control/HSplitContainer"]
+unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 
 [node name="HBoxContainer" type="HBoxContainer" parent="UILayer/Control/HSplitContainer/MonsterSide"]
+unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -131,6 +148,7 @@ grow_horizontal = 2
 grow_vertical = 2
 
 [node name="ButtonContainer" type="MarginContainer" parent="UILayer/Control/HSplitContainer/MonsterSide/HBoxContainer"]
+unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/margin_top = 256
@@ -141,22 +159,26 @@ layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 32
 
-[node name="Skills" type="Button" parent="UILayer/Control/HSplitContainer/MonsterSide/HBoxContainer/ButtonContainer/Container"]
+[node name="MonsterSkills" type="Button" parent="UILayer/Control/HSplitContainer/MonsterSide/HBoxContainer/ButtonContainer/Container"]
+unique_name_in_owner = true
 layout_mode = 2
 size_flags_vertical = 6
 text = "Skills"
 
-[node name="Updates" type="Button" parent="UILayer/Control/HSplitContainer/MonsterSide/HBoxContainer/ButtonContainer/Container"]
+[node name="MonsterUpdates" type="Button" parent="UILayer/Control/HSplitContainer/MonsterSide/HBoxContainer/ButtonContainer/Container"]
+unique_name_in_owner = true
 layout_mode = 2
 size_flags_vertical = 6
 text = "Updates"
 
 [node name="PlayAsMonster" type="Button" parent="UILayer/Control/HSplitContainer/MonsterSide/HBoxContainer/ButtonContainer/Container"]
+unique_name_in_owner = true
 layout_mode = 2
 size_flags_vertical = 6
 text = "Play"
 
 [node name="MonsterSelectorContainer" type="MarginContainer" parent="UILayer/Control/HSplitContainer/MonsterSide/HBoxContainer"]
+unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/margin_top = 256
@@ -165,20 +187,23 @@ theme_override_constants/margin_bottom = 256
 [node name="HBoxContainer" type="HBoxContainer" parent="UILayer/Control/HSplitContainer/MonsterSide/HBoxContainer/MonsterSelectorContainer"]
 layout_mode = 2
 
-[node name="Back" type="Button" parent="UILayer/Control/HSplitContainer/MonsterSide/HBoxContainer/MonsterSelectorContainer/HBoxContainer"]
+[node name="MonsterBack" type="Button" parent="UILayer/Control/HSplitContainer/MonsterSide/HBoxContainer/MonsterSelectorContainer/HBoxContainer"]
+unique_name_in_owner = true
 layout_mode = 2
 size_flags_vertical = 4
 text = "Zurück
 "
 
 [node name="Monster" type="TextureRect" parent="UILayer/Control/HSplitContainer/MonsterSide/HBoxContainer/MonsterSelectorContainer/HBoxContainer"]
+unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 4
 size_flags_vertical = 4
 texture = ExtResource("1_les83")
 stretch_mode = 2
 
-[node name="Forward" type="Button" parent="UILayer/Control/HSplitContainer/MonsterSide/HBoxContainer/MonsterSelectorContainer/HBoxContainer"]
+[node name="MonsterForward" type="Button" parent="UILayer/Control/HSplitContainer/MonsterSide/HBoxContainer/MonsterSelectorContainer/HBoxContainer"]
+unique_name_in_owner = true
 layout_mode = 2
 size_flags_vertical = 4
 text = "Vor"
