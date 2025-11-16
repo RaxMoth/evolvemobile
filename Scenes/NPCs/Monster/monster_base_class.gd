@@ -134,14 +134,14 @@ func _enter_phase(phase: int) -> void:
 	_on_phase_entered(current_phase, old_phase)
 
 # Override this in specific monsters for phase-specific behavior
-func _on_phase_entered(new_phase: int, old_phase: int) -> void:
+func _on_phase_entered(_new_phase: int, old_phase: int) -> void:
 	pass
 
 # ============================================
 # Combat with Multiple Abilities
 # ============================================
 
-func _on_fight_logic(delta: float) -> void:
+func _on_fight_logic(_delta: float) -> void:
 	if not is_target_valid():
 		return
 	

@@ -5,7 +5,3 @@
 [node name="Main" type="Node2D"]
 
 [node name="World" parent="." instance=ExtResource("1_ig7tw")]
-
-[node name="Camera2D" type="Camera2D" parent="."]
-position = Vector2(207, 267)
-zoom = Vector2(3.5, 3.5)
