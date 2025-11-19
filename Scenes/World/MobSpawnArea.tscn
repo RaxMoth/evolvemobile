@@ -7,6 +7,14 @@ radius = 74.0
 
 [node name="MobSpawnArea" type="Area2D"]
 script = ExtResource("1_12uab")
+mob_count = null
+respawn_time = null
+auto_spawn_on_ready = null
+enforce_boundaries = null
+leash_distance = null
+return_to_center_on_reset = null
+show_debug_area = null
+debug_color = null
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
 shape = SubResource("CircleShape2D_12uab")

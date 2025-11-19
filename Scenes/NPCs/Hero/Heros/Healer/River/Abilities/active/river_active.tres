@@ -1,0 +1,7 @@
+[gd_resource type="Resource" script_class="RiverActiveWeaponSwap" load_steps=2 format=3 uid="uid://vln4uawmodrr"]
+
+[ext_resource type="Script" uid="uid://b8vdf3ucve432" path="res://Scenes/NPCs/Hero/Heros/Healer/River/Abilities/active/river_active_weapon_swap.gd" id="1_ushfi"]
+
+[resource]
+script = ExtResource("1_ushfi")
+metadata/_custom_type_script = "uid://b8vdf3ucve432"

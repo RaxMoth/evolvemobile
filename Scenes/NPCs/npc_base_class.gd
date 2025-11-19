@@ -1,7 +1,6 @@
 extends Node2D
 class_name EntityBase
 
-@onready var collision_shape_2d: CollisionShape2D = $DetectionArea/CollisionShape2D
 @onready var sprite: Node2D = $Sprite2D
 @onready var state_chart: StateChart = %StateChart
 @onready var navigation_agent_2d: NavigationAgent2D = %NavigationAgent2D
@@ -12,7 +11,6 @@ var _idle_goal := Vector2.ZERO
 var target: Node2D = null
 var target_entity: Node = null
 
-# These are ABSTRACT - subclasses must implement
 var move_speed: float:
 	get: return _get_move_speed()
 var approach_speed: float:
@@ -26,51 +24,48 @@ var idle_wander_radius: float:
 var keep_distance: float:
 	get: return _get_keep_distance()
 
-# Override these in subclasses
 func _get_move_speed() -> float:
 	return 80.0
+
 func _get_approach_speed() -> float:
 	return 110.0
+
 func _get_attack_range() -> float:
 	return 50.0
+
 func _get_idle_retarget_time() -> float:
 	return 1.2
+
 func _get_idle_wander_radius() -> float:
 	return 160.0
+
 func _get_keep_distance() -> float:
 	return 24.0
 
 func _ready() -> void:
 	await get_tree().physics_frame
 	await get_tree().physics_frame
-	health_bar.max_value = get_health()
-	health_bar.value = get_health()
+	
+	if health_bar:
+		health_bar.max_value = get_health()
+		health_bar.value = get_health()
+	
 	_setup_navigation()
 
 func _setup_navigation() -> void:
 	var tilemap_layer := get_parent().get_node_or_null("Ground")
-	if not tilemap_layer:
-		push_warning(name + ": Ground tilemap not found")
-		return
-	
-	if not tilemap_layer.has_method("get_navigation_map"):
-		push_warning(name + ": Ground tilemap has no navigation")
+	if not tilemap_layer or not tilemap_layer.has_method("get_navigation_map"):
 		return
 	
 	var nav_map = tilemap_layer.get_navigation_map()
 	if not nav_map.is_valid():
-		push_warning(name + ": Navigation map is invalid")
 		return
 	
 	navigation_agent_2d.set_navigation_map(nav_map)
 	navigation_agent_2d.path_desired_distance = 4.0
 	navigation_agent_2d.target_desired_distance = 4.0
 	navigation_agent_2d.avoidance_enabled = false
-	
-	await get_tree().create_timer(0.1).timeout
-	print(name + ": Navigation setup complete")
 
-# Abstract methods - MUST override in subclasses
 func is_alive() -> bool:
 	push_error("is_alive() not implemented in " + name)
 	return false
@@ -86,9 +81,7 @@ func is_target_valid() -> bool:
 	return is_instance_valid(target) and is_instance_valid(target_entity)
 
 func distance_to_target() -> float:
-	if not is_target_valid():
-		return INF
-	return global_position.distance_to(target.global_position)
+	return target.global_position.distance_to(global_position) if is_target_valid() else INF
 
 func _steer_along_nav(speed: float, delta: float) -> void:
 	if not is_instance_valid(navigation_agent_2d) or navigation_agent_2d.is_navigation_finished():
@@ -97,15 +90,15 @@ func _steer_along_nav(speed: float, delta: float) -> void:
 	var next_pos := navigation_agent_2d.get_next_path_position()
 	var dir := (next_pos - global_position).normalized()
 	
-	if dir.length() < 0.001:
+	if dir.length_squared() < 0.000001:
 		return
 	
 	position += dir * speed * delta
 	sprite.rotation = dir.angle()
 
-func move_toward_point(p: Vector2, speed: float, delta: float) -> void:
-	var dir := (p - global_position).normalized()
-	if dir.length() <= 0.001:
+func move_toward_point(target_pos: Vector2, speed: float, delta: float) -> void:
+	var dir := (target_pos - global_position).normalized()
+	if dir.length_squared() < 0.000001:
 		return
 	
 	position += dir * speed * delta
@@ -142,7 +135,7 @@ func _on_idle_state_processing(delta: float) -> void:
 		return
 		
 	_idle_timer -= delta
-	if _idle_timer <= 0.0 or global_position.distance_to(_idle_goal) < 8.0:
+	if _idle_timer <= 0.0 or global_position.distance_squared_to(_idle_goal) < 64.0:
 		_idle_timer = idle_retarget_time
 		
 		var angle := randf() * TAU
@@ -177,7 +170,6 @@ func _on_fight_logic(_delta: float) -> void:
 func _on_fight_state_entered() -> void:
 	if not is_target_valid():
 		state_chart.send_event("target_lost")
-		return
 
 func _on_dead_state_entered() -> void:
 	queue_free()

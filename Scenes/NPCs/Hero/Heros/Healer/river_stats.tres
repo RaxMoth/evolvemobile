@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="HeroStats" load_steps=2 format=3 uid="uid://ds5ot14uvnu6"]
+
+[ext_resource type="Script" uid="uid://dvs6vqwnqtcd8" path="res://Scenes/NPCs/Hero/hero_stats.gd" id="1_stats"]
+
+[resource]
+script = ExtResource("1_stats")
+hero_name = "River"
+hero_class = "Support"
+description = "Versatile support hero who can swap between healing allies and sniping enemies"
+base_max_health = 80.0
+base_move_speed = 85.0
+base_approach_speed = 115.0
+base_attack_range = 300.0
+base_attack_damage = 15.0
+idle_retarget_time = 1.5
+idle_wander_radius = 140.0
+keep_distance = 200.0
+health_per_level = 8.0
+damage_per_level = 2.0
+speed_per_level = 3.0

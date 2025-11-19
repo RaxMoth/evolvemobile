@@ -1,0 +1,7 @@
+[gd_resource type="Resource" script_class="RiverPassiveAdaptive" load_steps=2 format=3 uid="uid://1e8xb7ym41aq"]
+
+[ext_resource type="Script" uid="uid://buq57cv7yvp08" path="res://Scenes/NPCs/Hero/Heros/Healer/River/Abilities/passive/river_passive_adaptive.gd" id="1_kot1p"]
+
+[resource]
+script = ExtResource("1_kot1p")
+metadata/_custom_type_script = "uid://buq57cv7yvp08"

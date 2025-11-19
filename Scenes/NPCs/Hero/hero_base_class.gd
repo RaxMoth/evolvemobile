@@ -17,15 +17,14 @@ func _ready() -> void:
 		push_error(name + " requires HeroStatsComponent with base_stats!")
 		return
 	
+	if stats:
+		stats.health_changed.connect(_on_health_changed)
+	
 	super._ready()
 
-func _process(delta: float) -> void:
-	if ability_system and ability_system.passive_ability:
-		ability_system.passive_ability.on_passive_update(self, delta)
-	
+func _process(_delta: float) -> void:
 	if auto_use_ultimate and is_ultimate_ready():
 		use_ultimate()
-
 
 func _get_move_speed() -> float:
 	return stats.get_move_speed() if stats else 80.0
@@ -45,7 +44,6 @@ func _get_idle_wander_radius() -> float:
 func _get_keep_distance() -> float:
 	return stats.base_stats.keep_distance if stats and stats.base_stats else 24.0
 
-
 func is_alive() -> bool:
 	return stats.is_alive() if stats else false
 
@@ -60,52 +58,34 @@ func take_damage(amount: float) -> void:
 	
 	if not stats.is_alive():
 		state_chart.send_event("self_dead")
-	else:
-		print(name + " took " + str(amount) + " damage")
 
+func _on_health_changed(current: float, max_hp: float) -> void:
+	if health_bar:
+		health_bar.max_value = max_hp
+		health_bar.value = current
 
 func _on_fight_logic(_delta: float) -> void:
 	if ability_system:
 		ability_system.use_basic_attack(target_entity)
 
-
 func use_active_ability() -> bool:
 	if not ability_system:
 		return false
-	
-	var success = ability_system.use_active(target_entity)
-	if success:
-		print(name + " used active ability!")
-	return success
+	return ability_system.use_active(target_entity)
 
 func use_ultimate() -> bool:
-	if not ability_system:
+	if not ability_system or ability_system.is_on_cooldown(AbilityBase.AbilityType.ULTIMATE):
 		return false
-	
-	if ability_system.is_on_cooldown(AbilityBase.AbilityType.ULTIMATE):
-		return false
-	
-	var success = ability_system.use_ultimate(target_entity)
-	if success:
-		print(name + " used ULTIMATE!")
-	return success
+	return ability_system.use_ultimate(target_entity)
 
 func is_active_ready() -> bool:
-	if not ability_system:
-		return false
-	return not ability_system.is_on_cooldown(AbilityBase.AbilityType.ACTIVE)
+	return ability_system and not ability_system.is_on_cooldown(AbilityBase.AbilityType.ACTIVE)
 
 func is_ultimate_ready() -> bool:
-	if not ability_system:
-		return false
-	return not ability_system.is_on_cooldown(AbilityBase.AbilityType.ULTIMATE)
+	return ability_system and not ability_system.is_on_cooldown(AbilityBase.AbilityType.ULTIMATE)
 
 func get_active_cooldown() -> float:
-	if not ability_system:
-		return 0.0
-	return ability_system.get_cooldown_remaining(AbilityBase.AbilityType.ACTIVE)
+	return ability_system.get_cooldown_remaining(AbilityBase.AbilityType.ACTIVE) if ability_system else 0.0
 
 func get_ultimate_cooldown() -> float:
-	if not ability_system:
-		return 0.0
-	return ability_system.get_cooldown_remaining(AbilityBase.AbilityType.ULTIMATE)
+	return ability_system.get_cooldown_remaining(AbilityBase.AbilityType.ULTIMATE) if ability_system else 0.0

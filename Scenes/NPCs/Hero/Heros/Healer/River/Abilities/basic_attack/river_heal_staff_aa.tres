@@ -1,0 +1,7 @@
+[gd_resource type="Resource" script_class="RiverHealStaffAttack" load_steps=2 format=3 uid="uid://b6gsgqqks82dx"]
+
+[ext_resource type="Script" uid="uid://cdglxeufn4ncm" path="res://Scenes/NPCs/Hero/Heros/Healer/River/Abilities/basic_attack/river_heal_staff_attack.gd" id="1_3mqml"]
+
+[resource]
+script = ExtResource("1_3mqml")
+metadata/_custom_type_script = "uid://cdglxeufn4ncm"

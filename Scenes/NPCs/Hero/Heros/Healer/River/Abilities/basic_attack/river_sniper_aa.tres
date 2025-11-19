@@ -1,0 +1,7 @@
+[gd_resource type="Resource" script_class="RiverSniperAttack" load_steps=2 format=3 uid="uid://cd7sjwbc8nru"]
+
+[ext_resource type="Script" uid="uid://dbhvu23stv8kb" path="res://Scenes/NPCs/Hero/Heros/Healer/River/Abilities/basic_attack/river_sniper_attack.gd" id="1_vvwf3"]
+
+[resource]
+script = ExtResource("1_vvwf3")
+metadata/_custom_type_script = "uid://dbhvu23stv8kb"

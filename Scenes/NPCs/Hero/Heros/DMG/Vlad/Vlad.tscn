@@ -62,7 +62,7 @@ animations = [{
 "speed": 5.0
 }]
 
-[node name="Vlad" groups=["Enemy"] instance=ExtResource("1_g8gcj")]
+[node name="Vlad" instance=ExtResource("1_g8gcj")]
 
 [node name="HeroStats" parent="." index="0"]
 base_stats = ExtResource("2_aqsnw")
@@ -99,11 +99,5 @@ visible = false
 [node name="CollisionShape2D" parent="DetectionArea" index="0" groups=["npc"]]
 
 [node name="Body" parent="." index="7" groups=["Enemy"]]
-rotation = 0.0
-scale = Vector2(1, 1)
 
 [node name="CollisionShape2D" parent="Body" index="0" groups=["Enemy"]]
-unique_name_in_owner = false
-
-[node name="CompoundState" parent="StateChart" index="0"]
-unique_name_in_owner = false

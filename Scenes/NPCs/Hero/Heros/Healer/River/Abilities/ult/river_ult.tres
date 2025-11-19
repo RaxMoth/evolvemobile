@@ -1,0 +1,7 @@
+[gd_resource type="Resource" script_class="RiverUltimateMediKit" load_steps=2 format=3 uid="uid://bic1b5nq7srai"]
+
+[ext_resource type="Script" uid="uid://bdiyku0m3tpwt" path="res://Scenes/NPCs/Hero/Heros/Healer/River/Abilities/ult/river_ultimate_medikit.gd" id="1_8do6y"]
+
+[resource]
+script = ExtResource("1_8do6y")
+metadata/_custom_type_script = "uid://bdiyku0m3tpwt"
