@@ -1,7 +1,21 @@
-[gd_scene load_steps=3 format=3 uid="uid://7dofwynrx363"]
+[gd_scene load_steps=8 format=3 uid="uid://7dofwynrx363"]
 
 [ext_resource type="PackedScene" uid="uid://bvyrcj7lkc1k6" path="res://Scenes/NPCs/Hero/HeroBaseClass.tscn" id="1_hqa4n"]
 [ext_resource type="Script" uid="uid://cimbnrg6od0ec" path="res://Scenes/NPCs/Hero/Heros/Healer/River/river.gd" id="2_ecbku"]
+[ext_resource type="Resource" uid="uid://ds5ot14uvnu6" path="res://Scenes/NPCs/Hero/Heros/Healer/river_stats.tres" id="3_7c2pv"]
+[ext_resource type="Resource" uid="uid://1e8xb7ym41aq" path="res://Scenes/NPCs/Hero/Heros/Healer/River/Abilities/passive/river_passive.tres" id="4_heihs"]
+[ext_resource type="Resource" uid="uid://vln4uawmodrr" path="res://Scenes/NPCs/Hero/Heros/Healer/River/Abilities/active/river_active.tres" id="5_tvvx7"]
+[ext_resource type="Resource" uid="uid://dkib0rqbecoqj" path="res://Scenes/NPCs/Hero/Heros/Healer/River/Abilities/basic_attack/river_basic_attack.tres" id="6_1hf4a"]
+[ext_resource type="Resource" uid="uid://bic1b5nq7srai" path="res://Scenes/NPCs/Hero/Heros/Healer/River/Abilities/ult/river_ult.tres" id="7_ldrf5"]
 
 [node name="River" instance=ExtResource("1_hqa4n")]
 script = ExtResource("2_ecbku")
+
+[node name="HeroStats" parent="." index="0"]
+base_stats = ExtResource("3_7c2pv")
+
+[node name="AbilitySystem" parent="." index="1"]
+passive_ability = ExtResource("4_heihs")
+active_ability = ExtResource("5_tvvx7")
+basic_attack = ExtResource("6_1hf4a")
+ultimate_ability = ExtResource("7_ldrf5")

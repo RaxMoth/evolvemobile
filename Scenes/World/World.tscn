@@ -1,8 +1,9 @@
-[gd_scene load_steps=11 format=4 uid="uid://bo3dhj3vnqkrr"]
+[gd_scene load_steps=12 format=4 uid="uid://bo3dhj3vnqkrr"]
 
 [ext_resource type="Texture2D" uid="uid://c8nbsaqetok8o" path="res://Scenes/World/tf_jungle_tileset.png" id="1_0nbjp"]
 [ext_resource type="PackedScene" uid="uid://dgkgy56ym0l0x" path="res://Scenes/World/MobSpawnArea.tscn" id="4_5jr8x"]
 [ext_resource type="PackedScene" uid="uid://w7djnpi3ju8u" path="res://Scenes/NPCs/Mob/Mobs/Bat/Bat.tscn" id="5_27jhl"]
+[ext_resource type="PackedScene" uid="uid://7dofwynrx363" path="res://Scenes/NPCs/Hero/Heros/Healer/River/River.tscn" id="5_hveh7"]
 [ext_resource type="PackedScene" uid="uid://weodkoy2l3pv" path="res://Scenes/World/Camera/MainCam.tscn" id="6_hveh7"]
 
 [sub_resource type="NavigationPolygon" id="NavigationPolygon_ouhkt"]
@@ -625,3 +626,6 @@ position = Vector2(479, 719)
 mob_scene = ExtResource("5_27jhl")
 mob_count = 4
 show_debug_area = true
+
+[node name="River" parent="." instance=ExtResource("5_hveh7")]
+position = Vector2(119, 99)

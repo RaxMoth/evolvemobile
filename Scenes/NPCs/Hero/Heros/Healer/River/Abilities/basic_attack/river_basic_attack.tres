@@ -1,0 +1,8 @@
+[gd_resource type="Resource" script_class="RiverBasicAttack" load_steps=2 format=3 uid="uid://dkib0rqbecoqj"]
+
+[ext_resource type="Script" uid="uid://dbhvu23stv8kb" path="res://Scenes/NPCs/Hero/Heros/Healer/River/Abilities/basic_attack/river_basic_attack.gd" id="1_combined"]
+
+[resource]
+script = ExtResource("1_combined")
+heal_amount = 8.0
+metadata/_custom_type_script = "uid://dbhvu23stv8kb"
