@@ -1,0 +1,7 @@
+[gd_resource type="Resource" script_class="IreliaActiveShield" load_steps=2 format=3 uid="uid://2a84wy2n2bno"]
+
+[ext_resource type="Script" uid="uid://de7cq4nmteyi6" path="res://Scenes/NPCs/Hero/Heros/Support/Irelia/Abilities/Active/irelia_active_shield.gd" id="1_c8yqg"]
+
+[resource]
+script = ExtResource("1_c8yqg")
+metadata/_custom_type_script = "uid://de7cq4nmteyi6"

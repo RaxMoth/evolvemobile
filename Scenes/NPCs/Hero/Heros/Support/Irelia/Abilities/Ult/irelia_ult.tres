@@ -1,0 +1,7 @@
+[gd_resource type="Resource" script_class="IreliaUltimateTaunt" load_steps=2 format=3 uid="uid://5o6u1y81qi8j"]
+
+[ext_resource type="Script" uid="uid://ds6w22w54lvw0" path="res://Scenes/NPCs/Hero/Heros/Support/Irelia/Abilities/Ult/irelia_ultimate_taunt.gd" id="1_b1fc5"]
+
+[resource]
+script = ExtResource("1_b1fc5")
+metadata/_custom_type_script = "uid://ds6w22w54lvw0"

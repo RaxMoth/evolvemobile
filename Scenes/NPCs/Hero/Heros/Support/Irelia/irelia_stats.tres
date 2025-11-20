@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="HeroStats" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://Scenes/NPCs/Hero/hero_stats.gd" id="1_stats"]
+
+[resource]
+script = ExtResource("1_stats")
+hero_name = "Irelia"
+hero_class = "Tank/Support"
+description = "Defensive support who shields allies and draws enemy attention"
+base_max_health = 150.0
+base_move_speed = 75.0
+base_approach_speed = 100.0
+base_attack_range = 120.0
+base_attack_damage = 5.0
+idle_retarget_time = 1.8
+idle_wander_radius = 80.0
+keep_distance = 100.0
+health_per_level = 15.0
+damage_per_level = 0.5
+speed_per_level = 2.0

@@ -2,7 +2,7 @@
 
 [ext_resource type="PackedScene" uid="uid://bvyrcj7lkc1k6" path="res://Scenes/NPCs/Hero/HeroBaseClass.tscn" id="1_hqa4n"]
 [ext_resource type="Script" uid="uid://cimbnrg6od0ec" path="res://Scenes/NPCs/Hero/Heros/Healer/River/river.gd" id="2_ecbku"]
-[ext_resource type="Resource" uid="uid://ds5ot14uvnu6" path="res://Scenes/NPCs/Hero/Heros/Healer/river_stats.tres" id="3_7c2pv"]
+[ext_resource type="Resource" uid="uid://ds5ot14uvnu6" path="res://Scenes/NPCs/Hero/Heros/Healer/River/river_stats.tres" id="3_7c2pv"]
 [ext_resource type="Resource" uid="uid://1e8xb7ym41aq" path="res://Scenes/NPCs/Hero/Heros/Healer/River/Abilities/passive/river_passive.tres" id="4_heihs"]
 [ext_resource type="Resource" uid="uid://vln4uawmodrr" path="res://Scenes/NPCs/Hero/Heros/Healer/River/Abilities/active/river_active.tres" id="5_tvvx7"]
 [ext_resource type="Resource" uid="uid://dkib0rqbecoqj" path="res://Scenes/NPCs/Hero/Heros/Healer/River/Abilities/basic_attack/river_basic_attack.tres" id="6_1hf4a"]

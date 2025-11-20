@@ -1,0 +1,7 @@
+[gd_resource type="Resource" script_class="IreliaPassiveRegeneration" load_steps=2 format=3 uid="uid://biehxohk5x7dp"]
+
+[ext_resource type="Script" uid="uid://clqcylvch0eja" path="res://Scenes/NPCs/Hero/Heros/Support/Irelia/Abilities/Passive/irelia_passive_regeneration.gd" id="1_io1w8"]
+
+[resource]
+script = ExtResource("1_io1w8")
+metadata/_custom_type_script = "uid://clqcylvch0eja"

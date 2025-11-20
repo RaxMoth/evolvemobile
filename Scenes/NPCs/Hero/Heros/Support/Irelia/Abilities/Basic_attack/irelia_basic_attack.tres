@@ -1,0 +1,7 @@
+[gd_resource type="Resource" script_class="IreliaBasicAttack" load_steps=2 format=3 uid="uid://qymj70fpxgwf"]
+
+[ext_resource type="Script" uid="uid://csqf7qfehc1io" path="res://Scenes/NPCs/Hero/Heros/Support/Irelia/Abilities/Basic_attack/irelia_basic_attack.gd" id="1_ixuuq"]
+
+[resource]
+script = ExtResource("1_ixuuq")
+metadata/_custom_type_script = "uid://csqf7qfehc1io"
