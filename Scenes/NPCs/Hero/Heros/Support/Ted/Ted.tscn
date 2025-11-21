@@ -1,0 +1,44 @@
+[gd_scene load_steps=7 format=3]
+
+[ext_resource type="PackedScene" path="res://Scenes/NPCs/Hero/HeroBaseClass.tscn" id="1_base"]
+[ext_resource type="Script" path="res://Scenes/NPCs/Hero/Heros/DPS/Ted/ted.gd" id="2_script"]
+[ext_resource type="Resource" path="res://Scenes/NPCs/Hero/Heros/DPS/Ted/ted_stats.tres" id="3_stats"]
+[ext_resource type="Resource" path="res://Scenes/NPCs/Hero/Heros/DPS/Ted/Abilities/passive/ted_passive.tres" id="4_passive"]
+[ext_resource type="Resource" path="res://Scenes/NPCs/Hero/Heros/DPS/Ted/Abilities/active/ted_active.tres" id="5_active"]
+[ext_resource type="Resource" path="res://Scenes/NPCs/Hero/Heros/DPS/Ted/Abilities/basic_attack/ted_basic_attack.tres" id="6_basic"]
+[ext_resource type="Resource" path="res://Scenes/NPCs/Hero/Heros/DPS/Ted/Abilities/ultimate/ted_ultimate.tres" id="7_ultimate"]
+
+[node name="Ted" groups=["Hero"] instance=ExtResource("1_base")]
+script = ExtResource("2_script")
+auto_use_ultimate = true
+
+[node name="HeroStats" parent="." index="0"]
+base_stats = ExtResource("3_stats")
+
+[node name="AbilitySystem" parent="." index="1"]
+passive_ability = ExtResource("4_passive")
+active_ability = ExtResource("5_active")
+basic_attack = ExtResource("6_basic")
+ultimate_ability = ExtResource("7_ultimate")
+
+[node name="Control" parent="." index="3"]
+offset_left = -12.0
+offset_top = -13.0
+offset_right = 12.0
+
+[node name="HealthBar" parent="Control" index="0"]
+anchors_preset = -1
+anchor_left = -0.129
+anchor_right = 0.839
+offset_left = 0.0
+offset_right = 0.0
+
+[node name="AnimatedSprite2D" parent="." index="4"]
+visible = false
+
+[node name="Sprite2D" parent="." index="5"]
+modulate = Color(0.7, 0.5, 0.3, 1)
+
+[node name="DetectionArea" parent="." index="6" groups=["Hero"]]
+
+[node name="Body" parent="." index="7" groups=["Hero"]]
