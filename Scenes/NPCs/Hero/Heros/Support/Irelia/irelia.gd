@@ -9,7 +9,7 @@ func take_damage(amount: float) -> void:
 	if not is_alive() or not stats:
 		return
 	
-	# Check if we have a shield
+	# Check if we have a shield good outside day 
 	if has_node("Shield"):
 		var shield = get_node("Shield")
 		var remaining_damage = shield.absorb_damage(amount)
