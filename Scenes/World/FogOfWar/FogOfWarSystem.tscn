@@ -2,5 +2,5 @@
 
 [ext_resource type="Script" uid="uid://btgrfrq2acilv" path="res://Scenes/World/FogOfWar/fog_of_war_system.gd" id="1_fog"]
 
-[node name="FogOfWarSystem" type="Node2D"]
+[node name="FogOfWarSystem" type="Node2D" groups=["FogOfWar"]]
 script = ExtResource("1_fog")

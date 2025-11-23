@@ -1,29 +1,21 @@
 extends Node2D
 
-## World script with Fog of War - CORRECTED VERSION
-## Uses FogOfWarSystemOptimized which has world_size property
-
 func _ready():
 	_setup_fog()
 	_setup_hero_vision()
 
 func _setup_fog():
-	# Use OPTIMIZED system - it has world_size property!
 	var fog = preload("res://Scenes/World/FogOfWar/FogOfWarSystemOptimized.tscn").instantiate()
 	fog.name = "FogOfWar"
-	
-	# These properties exist in FogOfWarSystemOptimized
-	fog.world_size = Vector2(2000, 2000)  # ✅ Works!
+	fog.world_size = Vector2(2000, 2000)
 	fog.world_offset = Vector2(0, 0)
 	fog.tile_size = 32
 	fog.fog_color = Color(0, 0, 0, 0.85)
 	fog.reveal_smoothness = 1.5
-	
+
 	add_child(fog)
-	print("✓ Fog of War system initialized")
 
 func _setup_hero_vision():
-	# Wait for all nodes to be ready
 	await get_tree().process_frame
 	
 	var heroes = get_tree().get_nodes_in_group("Hero")
@@ -32,8 +24,7 @@ func _setup_hero_vision():
 	if heroes.is_empty():
 		push_warning("No heroes found! Make sure heroes are in 'Hero' group")
 		return
-	
-	# Vision settings per hero type
+
 	var vision_map = {
 		"river": 300.0,   # Scout - best vision
 		"vlad": 250.0,    # DPS - good vision

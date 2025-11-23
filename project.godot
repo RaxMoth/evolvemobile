@@ -39,6 +39,7 @@ npc=""
 Hero=""
 Enemy=""
 Monster=""
+FogOfWar=""
 
 [input]
 

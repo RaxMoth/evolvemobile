@@ -1,13 +1,10 @@
-[gd_scene load_steps=7 format=3 uid="uid://bvyrcj7lkc1k6"]
+[gd_scene load_steps=6 format=3 uid="uid://bvyrcj7lkc1k6"]
 
 [ext_resource type="PackedScene" uid="uid://cnmv786k3qi1c" path="res://Scenes/NPCs/NPCBaseClass.tscn" id="1_py7br"]
 [ext_resource type="Script" uid="uid://cyux65w7f8f1b" path="res://Scenes/NPCs/Hero/hero_base_class.gd" id="2_385or"]
 [ext_resource type="Script" uid="uid://v7h1kjw4mr7a" path="res://Scenes/NPCs/Hero/Abilities/ability_system.gd" id="2_c2olh"]
 [ext_resource type="Script" uid="uid://bd0gjv0o4r2ef" path="res://Scenes/NPCs/Hero/stat_component.gd" id="2_h674b"]
 [ext_resource type="PackedScene" uid="uid://b6q5qdoikam77" path="res://Scenes/World/FogOfWar/VisionArea.tscn" id="5_m1rxm"]
-
-[sub_resource type="CircleShape2D" id="CircleShape2D_o028b"]
-radius = 123.00001
 
 [node name="Hero" groups=["Hero"] instance=ExtResource("1_py7br")]
 script = ExtResource("2_385or")
@@ -25,19 +22,10 @@ script = ExtResource("2_c2olh")
 
 [node name="CollisionShape2D" parent="Body" index="0" groups=["Hero"]]
 
-[node name="Vision" type="Area2D" parent="." index="8"]
-unique_name_in_owner = true
-collision_layer = 3
-collision_mask = 3
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="Vision" index="0"]
-position = Vector2(-4.76837e-07, -3.72523e-09)
-rotation = -1.56459
-shape = SubResource("CircleShape2D_o028b")
-
-[node name="NavigationAgent2D" parent="." index="9"]
+[node name="NavigationAgent2D" parent="." index="8"]
 navigation_layers = 3
 
 [node name="CompoundState" parent="StateChart" index="0" groups=["Enemy", "Hero"]]
 
-[node name="VisionArea" parent="." index="13" instance=ExtResource("5_m1rxm")]
+[node name="VisionArea" parent="." index="12" instance=ExtResource("5_m1rxm")]
+unique_name_in_owner = true

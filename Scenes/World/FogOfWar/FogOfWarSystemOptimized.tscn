@@ -2,16 +2,11 @@
 
 [ext_resource type="Script" uid="uid://5wrg1iaeqksn" path="res://Scenes/World/FogOfWar/fog_of_war_system_optimized.gd" id="1_fog"]
 
-[node name="FogOfWarSystemOptimized" type="CanvasLayer"]
+[node name="FogOfWarSystemOptimized" type="CanvasLayer" groups=["FogOfWar"]]
 layer = 100
 script = ExtResource("1_fog")
-tile_size = 32
-fog_color = Color(0, 0, 0, 0.85)
-world_size = Vector2(2000, 2000)
-world_offset = Vector2(0, 0)
-reveal_smoothness = 1.5
 
-[node name="FogRect" type="ColorRect" parent="."]
+[node name="FogRect" type="ColorRect" parent="." groups=["FogOfWar"]]
 offset_right = 2000.0
 offset_bottom = 2000.0
 mouse_filter = 2

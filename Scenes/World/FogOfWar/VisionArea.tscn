@@ -8,11 +8,9 @@ radius = 200.0
 [node name="VisionArea" type="Area2D"]
 collision_layer = 0
 collision_mask = 0
-monitorable = false
 monitoring = false
+monitorable = false
 script = ExtResource("1_vision")
-vision_radius = 200.0
-reveal_update_interval = 0.2
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
 shape = SubResource("CircleShape2D_vision")
