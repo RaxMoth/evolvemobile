@@ -1,10 +1,14 @@
-[gd_scene load_steps=12 format=4 uid="uid://bo3dhj3vnqkrr"]
+[gd_scene load_steps=16 format=4 uid="uid://bo3dhj3vnqkrr"]
 
 [ext_resource type="Texture2D" uid="uid://c8nbsaqetok8o" path="res://Scenes/World/tf_jungle_tileset.png" id="1_0nbjp"]
+[ext_resource type="Script" uid="uid://dp1dciyhok24n" path="res://Scenes/World/world.gd" id="1_hveh7"]
+[ext_resource type="PackedScene" uid="uid://cfox5ujt4kpt7" path="res://Scenes/NPCs/Hero/Heros/DMG/Vlad/Vlad.tscn" id="2_xf6vi"]
+[ext_resource type="PackedScene" uid="uid://cvit7v54q45mk" path="res://Scenes/NPCs/Monster/Grount/Grount.tscn" id="3_ouhkt"]
 [ext_resource type="PackedScene" uid="uid://dgkgy56ym0l0x" path="res://Scenes/World/MobSpawnArea.tscn" id="4_5jr8x"]
 [ext_resource type="PackedScene" uid="uid://w7djnpi3ju8u" path="res://Scenes/NPCs/Mob/Mobs/Bat/Bat.tscn" id="5_27jhl"]
 [ext_resource type="PackedScene" uid="uid://7dofwynrx363" path="res://Scenes/NPCs/Hero/Heros/Healer/River/River.tscn" id="5_hveh7"]
 [ext_resource type="PackedScene" uid="uid://weodkoy2l3pv" path="res://Scenes/World/Camera/MainCam.tscn" id="6_hveh7"]
+[ext_resource type="PackedScene" uid="uid://bihu6l6qpnho1" path="res://Scenes/NPCs/Hero/Heros/Support/Irelia/Irelia.tscn" id="6_p7pgw"]
 
 [sub_resource type="NavigationPolygon" id="NavigationPolygon_ouhkt"]
 vertices = PackedVector2Array(8, 8, -8, 8, -8, -8, 8, -8)
@@ -603,6 +607,7 @@ texture = ExtResource("1_0nbjp")
 sources/0 = SubResource("TileSetAtlasSource_0nbjp")
 
 [node name="World" type="Node2D"]
+script = ExtResource("1_hveh7")
 
 [node name="Ground" type="TileMapLayer" parent="."]
 unique_name_in_owner = true
@@ -615,7 +620,7 @@ tile_map_data = PackedByteArray("AAAMAP3/AAAPABAAAAAMAP7/AAAPABEAAAAMAP//AAAPABI
 tile_set = SubResource("TileSet_xf6vi")
 
 [node name="MainCam" parent="." instance=ExtResource("6_hveh7")]
-position = Vector2(392, 624)
+position = Vector2(111, 228)
 debug_mode = true
 zoom_speed = 0.5
 default_zoom = 2.0
@@ -881,5 +886,17 @@ mob_scene = ExtResource("5_27jhl")
 mob_count = 4
 show_debug_area = true
 
-[node name="River" parent="." instance=ExtResource("5_hveh7")]
+[node name="Heros" type="Node" parent="."]
+unique_name_in_owner = true
+
+[node name="Irelia" parent="Heros" instance=ExtResource("6_p7pgw")]
+position = Vector2(130, 188)
+
+[node name="Grount" parent="Heros" instance=ExtResource("3_ouhkt")]
+position = Vector2(63, 149)
+
+[node name="River" parent="Heros" instance=ExtResource("5_hveh7")]
 position = Vector2(119, 99)
+
+[node name="Vlad" parent="Heros" instance=ExtResource("2_xf6vi")]
+position = Vector2(130, 218)
