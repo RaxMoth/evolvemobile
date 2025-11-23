@@ -5,7 +5,7 @@ func _ready():
 	_setup_hero_vision()
 
 func _setup_fog():
-	var fog = preload("res://Scenes/World/FogOfWar/FogOfWarSystemOptimized.tscn").instantiate()
+	var fog = preload("res://Scenes/World/FogOfWar/FogOfWarSystem.tscn").instantiate()
 	fog.name = "FogOfWar"
 	fog.world_size = Vector2(2000, 2000)
 	fog.world_offset = Vector2(0, 0)
@@ -45,6 +45,7 @@ func _setup_hero_vision():
 				vision = vision_map[key]
 				break
 		
-		# Add vision to hero
+		print("Hero pos:", hero.global_position)
+
 		FogOfWarHelper.add_vision_to_hero(hero, vision)
 		print("  ✓ ", hero.name, " vision: ", vision)
