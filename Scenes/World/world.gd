@@ -11,9 +11,8 @@ func _setup_fog():
 	fog.world_offset = Vector2(0, 0)
 	fog.tile_size = 32
 	fog.fog_color = Color(0, 0, 0, 0.85)
-	fog.reveal_smoothness = 1.5
-
-	add_child(fog)
+	
+	add_child(fog)  # Add to World (Node2D), not as CanvasLayer
 
 func _setup_hero_vision():
 	await get_tree().process_frame
@@ -26,18 +25,17 @@ func _setup_hero_vision():
 		return
 
 	var vision_map = {
-		"river": 300.0,   # Scout - best vision
-		"vlad": 250.0,    # DPS - good vision
-		"ted": 220.0,     # Pet master
-		"irelia": 200.0   # Tank - standard
+		"river": 300.0,
+		"vlad": 250.0,
+		"ted": 220.0,
+		"irelia": 200.0
 	}
 	
 	for hero in heroes:
 		if not hero is Node2D:
 			continue
 		
-		# Determine vision radius
-		var vision = 200.0  # default
+		var vision = 200.0
 		var hero_name = hero.name.to_lower()
 		
 		for key in vision_map:
@@ -46,6 +44,5 @@ func _setup_hero_vision():
 				break
 		
 		print("Hero pos:", hero.global_position)
-
 		FogOfWarHelper.add_vision_to_hero(hero, vision)
 		print("  ✓ ", hero.name, " vision: ", vision)

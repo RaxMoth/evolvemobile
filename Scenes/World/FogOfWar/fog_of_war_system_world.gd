@@ -1,5 +1,5 @@
 extends Node2D
-class_name FogOfWarSystem
+class_name FogOfWarSystemWorld
 
 signal area_revealed(position: Vector2)
 
@@ -31,17 +31,18 @@ func _setup_fog_sprite() -> void:
 	fog_sprite.name = "FogSprite"
 	add_child(fog_sprite)
 	
-	# Create a white texture the size of your world
-	var fog_texture_image = Image.create(int(world_size.x), int(world_size.y), false, Image.FORMAT_RGBA8)
-	fog_texture_image.fill(Color.WHITE)
-	var fog_texture = ImageTexture.create_from_image(fog_texture_image)
+	# Create a white texture that covers the world
+	var white_image = Image.create(int(world_size.x), int(world_size.y), false, Image.FORMAT_RGBA8)
+	white_image.fill(Color.WHITE)
+	var white_texture = ImageTexture.create_from_image(white_image)
+	fog_sprite.texture = white_texture
 	
-	fog_sprite.texture = fog_texture
-	fog_sprite.centered = false  # Don't center, position from top-left
-	fog_sprite.position = world_offset
-	fog_sprite.z_index = 100  # Above everything else
+	# Position and center
+	fog_sprite.position = world_offset + world_size / 2
+	fog_sprite.centered = true
+	fog_sprite.z_index = 100  # Above everything
 	
-	# Apply shader material
+	# Apply shader
 	var shader = load("res://Scenes/World/FogOfWar/fog_of_war.gdshader")
 	var material = ShaderMaterial.new()
 	material.shader = shader
@@ -82,48 +83,5 @@ func reveal_area(world_position: Vector2, radius: float) -> void:
 	if dirty:
 		exploration_texture = ImageTexture.create_from_image(exploration_image)
 		
-		if fog_sprite and fog_sprite.material:
-			fog_sprite.material.set_shader_parameter("exploration_map", exploration_texture)
-
-func is_tile_explored(world_position: Vector2) -> bool:
-	var grid_x = int(floor((world_position.x - world_offset.x) / tile_size))
-	var grid_y = int(floor((world_position.y - world_offset.y) / tile_size))
-	
-	if grid_x < 0 or grid_x >= grid_width or grid_y < 0 or grid_y >= grid_height:
-		return false
-	
-	return exploration_image.get_pixel(grid_x, grid_y).r > 0.5
-
-func get_exploration_percentage() -> float:
-	var total_tiles = grid_width * grid_height
-	var explored_tiles = 0
-	
-	for x in range(grid_width):
-		for y in range(grid_height):
-			if exploration_image.get_pixel(x, y).r > 0.5:
-				explored_tiles += 1
-	
-	return (float(explored_tiles) / float(total_tiles)) * 100.0
-
-func clear_fog() -> void:
-	exploration_image.fill(Color.WHITE)
-	exploration_texture = ImageTexture.create_from_image(exploration_image)
-	if fog_sprite and fog_sprite.material:
-		fog_sprite.material.set_shader_parameter("exploration_map", exploration_texture)
-
-func reset_fog() -> void:
-	exploration_image.fill(Color.BLACK)
-	exploration_texture = ImageTexture.create_from_image(exploration_image)
-	if fog_sprite and fog_sprite.material:
-		fog_sprite.material.set_shader_parameter("exploration_map", exploration_texture)
-
-func save_exploration_state() -> PackedByteArray:
-	return exploration_image.get_data()
-
-func load_exploration_state(data: PackedByteArray) -> void:
-	var loaded_image = Image.create_from_data(grid_width, grid_height, false, Image.FORMAT_R8, data)
-	if loaded_image:
-		exploration_image = loaded_image
-		exploration_texture = ImageTexture.create_from_image(exploration_image)
 		if fog_sprite and fog_sprite.material:
 			fog_sprite.material.set_shader_parameter("exploration_map", exploration_texture)
