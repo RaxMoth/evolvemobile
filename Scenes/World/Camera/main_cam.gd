@@ -30,6 +30,7 @@ class_name GameCamera
 var is_shaking: bool = false
 var shake_amount: float = 0.0
 var shake_duration: float = 0.0
+var hero_ui: HeroContainer
 
 func _ready() -> void:
 	enabled = true
@@ -43,6 +44,10 @@ func _ready() -> void:
 	
 	if not follow_target:
 		_auto_find_target()
+	
+	# Get reference to hero UI
+	if has_node("CanvasLayer/HeroContainer"):
+		hero_ui = $CanvasLayer/HeroContainer
 
 func _process(delta: float) -> void:
 	if debug_mode:
@@ -77,7 +82,6 @@ func _auto_find_target() -> void:
 		follow_target = heroes[0]
 		print("Camera auto-found target: " + follow_target.name)
 
-
 func _handle_debug_controls(delta: float) -> void:
 	var move_direction = Vector2.ZERO
 	var speed = debug_move_speed
@@ -105,7 +109,6 @@ func toggle_debug_mode() -> void:
 	else:
 		print("Camera Debug Mode: OFF (Following target)")
 
-
 func _handle_zoom_controls(delta: float) -> void:
 	var zoom_change = 0.0
 	
@@ -130,7 +133,6 @@ func set_zoom_level(level: float) -> void:
 
 func reset_zoom() -> void:
 	zoom = Vector2(default_zoom, default_zoom)
-
 
 func shake(amount: float, duration: float) -> void:
 	if not shake_enabled:
@@ -166,14 +168,11 @@ func get_viewport_rect_in_world() -> Rect2:
 	return Rect2(top_left, world_size)
 
 func _unhandled_input(event: InputEvent) -> void:
-	# Toggle debug mode with a key (e.g., F3)
 	if event.is_action_pressed("toggle_camera_debug"):
 		toggle_debug_mode()
 	
-	# Reset zoom with a key (e.g., R)
 	if event.is_action_pressed("reset_camera_zoom"):
 		reset_zoom()
 	
-	# Center on target (e.g., C key)
 	if event.is_action_pressed("center_camera") and follow_target:
 		center_on_position(follow_target.global_position, true)
