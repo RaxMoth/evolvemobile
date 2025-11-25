@@ -1,8 +1,11 @@
 extends Node2D
 
+var exploration_controller: HeroExplorationController
+
 func _ready():
 	_setup_fog()
 	_setup_hero_vision()
+	_setup_exploration_controller()
 
 func _setup_fog():
 	var fog = preload("res://Scenes/World/FogOfWar/FogOfWarSystem.tscn").instantiate()
@@ -12,7 +15,7 @@ func _setup_fog():
 	fog.tile_size = 32
 	fog.fog_color = Color(0, 0, 0, 0.85)
 	
-	add_child(fog)  # Add to World (Node2D), not as CanvasLayer
+	add_child(fog)
 
 func _setup_hero_vision():
 	await get_tree().process_frame
@@ -46,3 +49,28 @@ func _setup_hero_vision():
 		print("Hero pos:", hero.global_position)
 		FogOfWarHelper.add_vision_to_hero(hero, vision)
 		print("  ✓ ", hero.name, " vision: ", vision)
+
+func _setup_exploration_controller():
+	await get_tree().process_frame
+	
+	exploration_controller = HeroExplorationController.new()
+	exploration_controller.name = "HeroExplorationController"
+	exploration_controller.group_exploration_enabled = true
+	exploration_controller.group_cohesion_radius = 150.0
+	exploration_controller.exploration_update_interval = 2.0
+	exploration_controller.exploration_tile_size = 32
+	
+	add_child(exploration_controller)
+	
+	# Connect signals
+	exploration_controller.exploration_target_reached.connect(_on_exploration_target_reached)
+	exploration_controller.monster_detected.connect(_on_monster_detected)
+	
+	print("Exploration controller initialized")
+
+func _on_exploration_target_reached(position: Vector2) -> void:
+	print("Heroes reached exploration target: ", position)
+
+func _on_monster_detected(monster: Node2D) -> void:
+	print("Monster detected: ", monster.name, " at ", monster.global_position)
+	# You can add logic here to make heroes engage the monster

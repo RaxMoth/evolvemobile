@@ -25,7 +25,48 @@ func _ready() -> void:
 func _process(_delta: float) -> void:
 	if auto_use_ultimate and is_ultimate_ready():
 		use_ultimate()
+# Add to HeroBase class
+var exploration_target: Vector2 = Vector2.ZERO
+var use_exploration_target: bool = false
+var exploration_target_smooth: Vector2 = Vector2.ZERO  # Smoothed target
+var target_smooth_speed: float = 5.0  # How fast to smooth
 
+func set_exploration_target(target: Vector2) -> void:
+	exploration_target = target
+	use_exploration_target = true
+
+func _on_idle_state_processing(delta: float) -> void:
+	if not is_instance_valid(navigation_agent_2d):
+		return
+	
+	# Check if we should use exploration target
+	if use_exploration_target:
+		# Smooth the target for fluid movement
+		exploration_target_smooth = exploration_target_smooth.lerp(exploration_target, target_smooth_speed * delta)
+		
+		# Check if close enough to target
+		if global_position.distance_to(exploration_target) < 80.0:
+			# Reached target, wait for new one
+			use_exploration_target = false
+		else:
+			navigation_agent_2d.target_position = exploration_target_smooth
+			_steer_along_nav(move_speed * 0.8, delta)  # Slightly slower for more control
+			return
+	
+	# Fallback to original idle behavior
+	_idle_timer -= delta
+	if _idle_timer <= 0.0 or global_position.distance_squared_to(_idle_goal) < 64.0:
+		_idle_timer = idle_retarget_time
+		
+		var angle := randf() * TAU
+		var dir := Vector2.from_angle(angle)
+		var dist := randf_range(idle_wander_radius * 0.2, idle_wander_radius)
+		_idle_goal = global_position + dir * dist
+		
+		navigation_agent_2d.target_position = _idle_goal
+
+	_steer_along_nav(move_speed, delta)
+	
 func _get_move_speed() -> float:
 	return stats.get_move_speed() if stats else 80.0
 

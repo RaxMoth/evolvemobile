@@ -11,6 +11,7 @@ collision_mask = 0
 monitoring = false
 monitorable = false
 script = ExtResource("1_vision")
+vision_radius = 120.0
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
 shape = SubResource("CircleShape2D_vision")
