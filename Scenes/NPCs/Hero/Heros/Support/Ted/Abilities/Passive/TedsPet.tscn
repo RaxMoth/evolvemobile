@@ -1,19 +1,11 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=3 format=3 uid="uid://dmwsr7r1rglla"]
 
-[ext_resource type="Script" path="res://Scenes/NPCs/Hero/Heros/DPS/Ted/Pet/teds_pet.gd" id="1_pet"]
+[ext_resource type="Script" uid="uid://bqnd1nwlvm5hc" path="res://Scenes/NPCs/Hero/Heros/Support/Ted/Abilities/Passive/teds_pet.gd" id="1_pet"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_pet"]
-radius = 10.0
 
 [node name="TedsPet" type="CharacterBody2D"]
-collision_layer = 1
-collision_mask = 1
 script = ExtResource("1_pet")
-max_health = 50.0
-move_speed = 120.0
-attack_damage = 8.0
-attack_range = 60.0
-attack_cooldown = 1.0
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
 shape = SubResource("CircleShape2D_pet")

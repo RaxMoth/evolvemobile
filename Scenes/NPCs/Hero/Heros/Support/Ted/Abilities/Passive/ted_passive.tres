@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="TedPassivePet" load_steps=3 format=3 uid="uid://nfsnxynceabk"]
+
+[ext_resource type="Script" uid="uid://qgfv465m85lu" path="res://Scenes/NPCs/Hero/Heros/Support/Ted/Abilities/Passive/ted_passive_pet.gd" id="1_passive"]
+[ext_resource type="PackedScene" uid="uid://dmwsr7r1rglla" path="res://Scenes/NPCs/Hero/Heros/Support/Ted/Abilities/Passive/TedsPet.tscn" id="2_pet"]
+
+[resource]
+script = ExtResource("1_passive")
+pet_scene = ExtResource("2_pet")
+ability_name = "Loyal Companion"
+ability_type = 0
+description = "Ted fights alongside his loyal pet"

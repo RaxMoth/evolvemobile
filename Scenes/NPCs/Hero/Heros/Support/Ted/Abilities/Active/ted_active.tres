@@ -1,0 +1,7 @@
+[gd_resource type="Resource" script_class="TedActiveRally" load_steps=2 format=3 uid="uid://domtge3f30xre"]
+
+[ext_resource type="Script" uid="uid://bplmq5qf4n0m2" path="res://Scenes/NPCs/Hero/Heros/Support/Ted/Abilities/Active/ted_active.gd" id="1_51yw4"]
+
+[resource]
+script = ExtResource("1_51yw4")
+metadata/_custom_type_script = "uid://bplmq5qf4n0m2"

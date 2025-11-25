@@ -4,7 +4,7 @@ class_name TrapCage
 @export var duration: float = 6.0
 @export var cage_radius: float = 150.0
 
-var trapped_enemies: Array[Node2D] = []
+var trapped_enemies: Array[Node2D] = []  # Already typed correctly
 var cage_active: bool = true
 
 func _ready() -> void:
@@ -81,14 +81,16 @@ func _on_body_exited(body: Node2D) -> void:
 	_prevent_exit(body)
 
 func _on_area_exited(area: Area2D) -> void:
-	_prevent_exit(area.get_parent())
+	_prevent_exit(area.get_parent() if area.get_parent() is Node2D else null)
 
 func _prevent_exit(node: Node) -> void:
-	if not cage_active:
+	if not cage_active or not node:
 		return
 	
 	var entity = _get_entity(node)
-	if entity and trapped_enemies.has(entity):
+	
+	# FIXED: Check if entity is Node2D before checking array
+	if entity and entity is Node2D and trapped_enemies.has(entity):
 		# Teleport back to center of cage
 		entity.global_position = global_position
 
@@ -116,12 +118,15 @@ func _is_valid_target(entity: Node) -> bool:
 	
 	return false
 
-func _get_entity(node: Node) -> Node:
-	if node.has_method("get_parent"):
+func _get_entity(node: Node) -> Node2D:
+	# Return as Node2D if valid, otherwise null
+	if node is Node2D:
+		return node
+	elif node.has_method("get_parent") and node.get_parent() is Node2D:
 		return node.get_parent()
-	elif node.has_method("get_owner"):
+	elif node.has_method("get_owner") and node.get_owner() is Node2D:
 		return node.get_owner()
-	return node
+	return null
 
 func _expire() -> void:
 	cage_active = false

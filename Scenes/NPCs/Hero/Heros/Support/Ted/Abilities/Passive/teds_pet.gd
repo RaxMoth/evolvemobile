@@ -10,7 +10,7 @@ signal pet_died
 @export var attack_cooldown: float = 1.0
 
 var current_health: float
-var owner: Node2D = null
+var owner_entity: Node2D = null  # FIXED: Renamed from 'owner'
 var target: Node2D = null
 var attack_timer: float = 0.0
 var attack_speed_multiplier: float = 1.0
@@ -42,7 +42,7 @@ func _physics_process(delta: float) -> void:
 		_follow_owner(delta)
 
 func _find_nearest_enemy() -> Node2D:
-	if not owner:
+	if not owner_entity:
 		return null
 	
 	var enemies = get_tree().get_nodes_in_group("Enemy")
@@ -86,13 +86,13 @@ func _move_and_attack(delta: float) -> void:
 		sprite.rotation = dir.angle()
 
 func _follow_owner(delta: float) -> void:
-	if not is_instance_valid(owner):
+	if not is_instance_valid(owner_entity):
 		return
 	
-	var distance = global_position.distance_to(owner.global_position)
+	var distance = global_position.distance_to(owner_entity.global_position)
 	
 	if distance > 100.0:  # Stay within 100 units of Ted
-		var dir: Vector2 = (owner.global_position - global_position).normalized()
+		var dir: Vector2 = (owner_entity.global_position - global_position).normalized()
 		velocity = dir * move_speed
 		move_and_slide()
 		sprite.rotation = dir.angle()

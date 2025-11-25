@@ -1,16 +1,15 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene load_steps=8 format=3 uid="uid://svw0uhofgkkp"]
 
 [ext_resource type="PackedScene" uid="uid://bvyrcj7lkc1k6" path="res://Scenes/NPCs/Hero/HeroBaseClass.tscn" id="1_base"]
 [ext_resource type="Script" uid="uid://dplj5se2hav5w" path="res://Scenes/NPCs/Hero/Heros/Support/Ted/ted.gd" id="2_script"]
-[ext_resource type="Resource" path="res://Scenes/NPCs/Hero/Heros/Support/Ted/ted_stats.tres" id="3_stats"]
-[ext_resource type="Resource" path="res://Scenes/NPCs/Hero/Heros/Support/Ted/Abilities/Passive/TedsPet.tscn" id="4_passive"]
-[ext_resource type="Resource" path="res://Scenes/NPCs/Hero/Heros/DPS/Ted/Abilities/active/ted_active.tres" id="5_active"]
-[ext_resource type="Resource" path="res://Scenes/NPCs/Hero/Heros/DPS/Ted/Abilities/basic_attack/ted_basic_attack.tres" id="6_basic"]
-[ext_resource type="Resource" path="res://Scenes/NPCs/Hero/Heros/DPS/Ted/Abilities/ultimate/ted_ultimate.tres" id="7_ultimate"]
+[ext_resource type="Resource" uid="uid://dp0hbh1u0o4li" path="res://Scenes/NPCs/Hero/Heros/Support/Ted/ted_stats.tres" id="3_stats"]
+[ext_resource type="Resource" path="res://Scenes/NPCs/Hero/Heros/Support/Ted/Abilities/passive/ted_passive.tres" id="4_passive"]
+[ext_resource type="Resource" uid="uid://domtge3f30xre" path="res://Scenes/NPCs/Hero/Heros/Support/Ted/Abilities/Active/ted_active.tres" id="5_active"]
+[ext_resource type="Resource" uid="uid://cptxpdak80ik1" path="res://Scenes/NPCs/Hero/Heros/Support/Ted/Abilities/basic_attack/ted_basic_attack.tres" id="6_basic"]
+[ext_resource type="Resource" uid="uid://c5example4" path="res://Scenes/NPCs/Hero/Heros/Support/Ted/Abilities/Ult/ted_ultimate.tres" id="7_ultimate"]
 
-[node name="Ted" groups=["Hero"] instance=ExtResource("1_base")]
+[node name="Ted" instance=ExtResource("1_base")]
 script = ExtResource("2_script")
-auto_use_ultimate = true
 
 [node name="HeroStats" parent="." index="0"]
 base_stats = ExtResource("3_stats")
@@ -30,8 +29,6 @@ offset_right = 12.0
 anchors_preset = -1
 anchor_left = -0.129
 anchor_right = 0.839
-offset_left = 0.0
-offset_right = 0.0
 
 [node name="AnimatedSprite2D" parent="." index="4"]
 visible = false
@@ -40,5 +37,3 @@ visible = false
 modulate = Color(0.7, 0.5, 0.3, 1)
 
 [node name="DetectionArea" parent="." index="6" groups=["Hero"]]
-
-[node name="Body" parent="." index="7" groups=["Hero"]]
