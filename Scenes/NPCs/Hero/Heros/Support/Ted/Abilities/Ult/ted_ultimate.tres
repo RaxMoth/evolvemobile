@@ -1,8 +1,3 @@
-[gd_resource type="Resource" script_class="TedUltimateTrapCage" load_steps=3 format=3 uid="uid://c5example4"]
-
-[ext_resource type="Script" uid="uid://buq71b61vhbli" path="res://Scenes/NPCs/Hero/Heros/Support/Ted/Abilities/Ult/ted_ultimate_trap.gd" id="1_j3euo"]
-[ext_resource type="PackedScene" uid="uid://4idw7v83awvi" path="res://Scenes/NPCs/Hero/Heros/Support/Ted/Abilities/Ult/TrapCage.tscn" id="2_trap"]
+[gd_resource type="Resource" format=3 uid="uid://tedultuid"]
 
 [resource]
-script = ExtResource("1_j3euo")
-trap_scene = ExtResource("2_trap")

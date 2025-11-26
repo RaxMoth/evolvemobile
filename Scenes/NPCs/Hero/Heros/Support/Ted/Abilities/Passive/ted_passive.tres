@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="TedPassivePet" load_steps=3 format=3 uid="uid://nfsnxynceabk"]
+[gd_resource type="Resource" script_class="TedPassivePet" load_steps=3 format=3 uid="uid://c1bxmamqk2cr0"]
 
 [ext_resource type="Script" uid="uid://qgfv465m85lu" path="res://Scenes/NPCs/Hero/Heros/Support/Ted/Abilities/Passive/ted_passive_pet.gd" id="1_passive"]
 [ext_resource type="PackedScene" uid="uid://dmwsr7r1rglla" path="res://Scenes/NPCs/Hero/Heros/Support/Ted/Abilities/Passive/TedsPet.tscn" id="2_pet"]

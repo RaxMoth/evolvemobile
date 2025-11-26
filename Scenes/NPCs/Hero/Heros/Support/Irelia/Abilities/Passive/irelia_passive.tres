@@ -4,4 +4,8 @@
 
 [resource]
 script = ExtResource("1_io1w8")
+ability_name = "Regeneration"
+ability_type = 0
+description = "Slowly regenerates health over time (0.5 HP/s)"
+heal_amount = 0.5
 metadata/_custom_type_script = "uid://clqcylvch0eja"

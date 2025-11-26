@@ -904,3 +904,6 @@ position = Vector2(70, 78)
 
 [node name="Grount" parent="." instance=ExtResource("3_ouhkt")]
 position = Vector2(2611, 1242)
+ability_1 = null
+ability_2 = null
+ability_3 = null

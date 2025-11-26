@@ -4,4 +4,10 @@
 
 [resource]
 script = ExtResource("1_b1fc5")
+ability_name = "Monster Taunt"
+ability_type = 3
+cooldown = 15.0
+description = "Force the monster to attack Irelia for 5 seconds"
+ability_range = 200.0
+duration = 5.0
 metadata/_custom_type_script = "uid://ds6w22w54lvw0"

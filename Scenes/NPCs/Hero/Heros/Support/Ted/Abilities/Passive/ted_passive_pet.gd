@@ -4,38 +4,55 @@ class_name TedPassivePet
 @export var pet_scene: PackedScene
 
 var pet_instance: Node2D = null
+var owner_entity: Node2D = null # Changed from 'owner'
 var respawn_timer: float = 0.0
-var respawn_time: float = 10.0
+const RESPAWN_TIME: float = 10.0
 
-func on_passive_update(caster: Node2D, delta: float) -> void:
-	# Check if pet exists and is alive
-	if not is_instance_valid(pet_instance):
-		respawn_timer -= delta
-		
-		if respawn_timer <= 0.0:
-			_spawn_pet(caster)
+func on_passive_update(entity: Node2D, delta: float) -> void:
+	owner_entity = entity
 	
-	# Update pet's attack speed if boosted
-	if is_instance_valid(pet_instance) and caster.has_method("get_attack_speed_boost"):
-		var boost = caster.get_attack_speed_boost()
-		if pet_instance.has_method("set_attack_speed_boost"):
-			pet_instance.set_attack_speed_boost(boost)
+	# Spawn pet on first update
+	if not pet_instance and pet_scene:
+		_spawn_pet()
+	
+	# Handle respawn timer
+	if not is_instance_valid(pet_instance) and respawn_timer > 0.0:
+		respawn_timer -= delta
+		if respawn_timer <= 0.0:
+			_spawn_pet()
 
-func _spawn_pet(caster: Node2D) -> void:
-	if not pet_scene:
+func _spawn_pet() -> void:
+	if not owner_entity or not is_instance_valid(owner_entity):
 		return
 	
 	pet_instance = pet_scene.instantiate()
-	caster.get_parent().add_child(pet_instance)
-	pet_instance.global_position = caster.global_position + Vector2(30, 0)
 	
-	if "owner" in pet_instance:
-		pet_instance.owner = caster
+	# Get the root of the scene (World or Main)
+	var scene_root = owner_entity.get_tree().root.get_child(0)
 	
-	# Connect to pet death
-	if pet_instance.has_signal("pet_died"):
-		pet_instance.pet_died.connect(_on_pet_died)
+	# Add to scene tree first
+	scene_root.add_child(pet_instance)
+	
+	# IMPORTANT: Set owner AFTER adding to tree
+	# Owner must be a node that's already in the tree
+	pet_instance.owner = scene_root
+	
+	# Set pet's owner reference
+	if pet_instance.has_method("set_owner_entity"):
+		pet_instance.set_owner_entity(owner_entity)
+	elif "owner_entity" in pet_instance:
+		pet_instance.owner_entity = owner_entity
+	
+	# Position pet near Ted
+	pet_instance.global_position = owner_entity.global_position + Vector2(30, 0)
+	
+	# Connect death signal
+	if pet_instance.has_signal("died"):
+		pet_instance.died.connect(_on_pet_died)
+	
+	print("Pet spawned for " + owner_entity.name)
 
 func _on_pet_died() -> void:
+	print("Pet died! Respawning in " + str(RESPAWN_TIME) + " seconds")
 	pet_instance = null
-	respawn_timer = respawn_time
+	respawn_timer = RESPAWN_TIME

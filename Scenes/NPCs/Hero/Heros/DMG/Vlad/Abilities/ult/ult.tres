@@ -5,6 +5,11 @@
 
 [resource]
 script = ExtResource("2_g8hh3")
+ability_name = "Blood Bomb"
+ability_type = 3
 icon = ExtResource("1_7jdje")
-damage = 1.0
+cooldown = 20.0
+description = "Creates a devastating explosion that damages all enemies in range"
+damage = 50.0
+area_of_effect = 150.0
 metadata/_custom_type_script = "uid://dfdixd5majg2c"

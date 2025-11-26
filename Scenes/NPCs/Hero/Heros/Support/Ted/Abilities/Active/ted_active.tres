@@ -1,7 +1,15 @@
-[gd_resource type="Resource" script_class="TedActiveRally" load_steps=2 format=3 uid="uid://domtge3f30xre"]
+[gd_resource type="Resource" script_class="TedActiveRally" load_steps=3 format=3 uid="uid://c5example1"]
 
-[ext_resource type="Script" uid="uid://bplmq5qf4n0m2" path="res://Scenes/NPCs/Hero/Heros/Support/Ted/Abilities/Active/ted_active.gd" id="1_51yw4"]
+[ext_resource type="Script" uid="uid://bplmq5qf4n0m2" path="res://Scenes/NPCs/Hero/Heros/Support/Ted/Abilities/active/ted_active.gd" id="1_active"]
+[ext_resource type="Texture2D" uid="uid://b8hlhq44dx3qv" path="res://icon.svg" id="2_icon"]
 
 [resource]
-script = ExtResource("1_51yw4")
+script = ExtResource("1_active")
+ability_name = "Rally Cry"
+ability_type = 1
+icon = ExtResource("2_icon")
+cooldown = 10.0
+description = "Ted and his pet gain 50% attack speed for 5 seconds"
+attack_speed_boost = 1.5
+boost_duration = 5.0
 metadata/_custom_type_script = "uid://bplmq5qf4n0m2"

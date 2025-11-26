@@ -4,4 +4,10 @@
 
 [resource]
 script = ExtResource("1_8el7q")
+slam_radius = 120.0
+ability_name = "Ground Slam"
+ability_type = 3
+cooldown = 999999.0
+description = "LOCKED until Stage 2. Leaps and slams ground dealing AoE damage (Stage 2: 32 dmg, Stage 3: 50 dmg)"
+damage = 32.0
 metadata/_custom_type_script = "uid://dg381s3ogg0s0"

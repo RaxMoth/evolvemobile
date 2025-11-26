@@ -26,11 +26,11 @@ class_name GameCamera
 
 @export_group("Screen Shake")
 @export var shake_enabled: bool = true
+@onready var hero_ui: Control = %HeroContainer
 
 var is_shaking: bool = false
 var shake_amount: float = 0.0
 var shake_duration: float = 0.0
-var hero_ui: HeroContainer
 
 func _ready() -> void:
 	enabled = true

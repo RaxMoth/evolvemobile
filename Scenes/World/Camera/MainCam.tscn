@@ -9,3 +9,4 @@ script = ExtResource("1_yiek2")
 [node name="CanvasLayer" type="CanvasLayer" parent="."]
 
 [node name="HeroContainer" parent="CanvasLayer" instance=ExtResource("2_hero_ui")]
+unique_name_in_owner = true

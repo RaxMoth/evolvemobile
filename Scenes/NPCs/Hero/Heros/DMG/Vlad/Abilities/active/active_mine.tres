@@ -7,5 +7,9 @@
 [resource]
 script = ExtResource("1_bemwi")
 mine_scene = ExtResource("2_ifr3g")
+ability_name = "Land Mine"
 icon = ExtResource("1_q81y0")
+cooldown = 8.0
+description = "Place a mine that explodes when enemies walk over it"
+damage = 18.0
 metadata/_custom_type_script = "uid://b8rkcbi4fgnv5"

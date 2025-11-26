@@ -1,7 +1,10 @@
-[gd_resource type="Resource" script_class="VladPassiveBloodlust" load_steps=2 format=3 uid="uid://btnrxaxocyqlo"]
+[gd_resource type="Resource" script_class="VladPassiveBloodlust" load_steps=2 format=3 uid="uid://cevl13rjegnsm"]
 
-[ext_resource type="Script" uid="uid://tmd73mheymug" path="res://Scenes/NPCs/Hero/Heros/DMG/Vlad/Abilities/passive/passive_bloodlust.gd" id="1_vdv6f"]
+[ext_resource type="Script" uid="uid://tmd73mheymug" path="res://Scenes/NPCs/Hero/Heros/DMG/Vlad/Abilities/passive/passive_bloodlust.gd" id="1_gv6yf"]
 
 [resource]
-script = ExtResource("1_vdv6f")
-metadata/_custom_type_script = "uid://tmd73mheymug"
+script = ExtResource("1_gv6yf")
+ability_name = "Bloodlust"
+ability_type = 0
+description = "Below 30% health: +50% damage and +100% attack speed"
+metadata/_custom_type_script = "uid://crchhtk3gfv24"

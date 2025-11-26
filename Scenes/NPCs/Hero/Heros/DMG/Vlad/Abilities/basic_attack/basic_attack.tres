@@ -5,8 +5,9 @@
 
 [resource]
 script = ExtResource("2_2r0eq")
-ability_name = "Bla"
+ability_name = "Blood Strike"
 ability_type = 2
 icon = ExtResource("1_lcs13")
-damage = 2.0
+damage = 10.0
+ability_range = 50.0
 metadata/_custom_type_script = "uid://d0mfbnaga61ia"

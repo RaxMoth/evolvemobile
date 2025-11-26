@@ -1,7 +1,17 @@
-[gd_resource type="Resource" script_class="IreliaActiveShield" load_steps=2 format=3 uid="uid://2a84wy2n2bno"]
+[gd_resource type="Resource" script_class="IreliaActiveShield" load_steps=3 format=3 uid="uid://dpxctbhrluxfq"]
 
-[ext_resource type="Script" uid="uid://de7cq4nmteyi6" path="res://Scenes/NPCs/Hero/Heros/Support/Irelia/Abilities/Active/irelia_active_shield.gd" id="1_c8yqg"]
+[ext_resource type="Script" uid="uid://de7cq4nmteyi6" path="res://Scenes/NPCs/Hero/Heros/Support/Irelia/Abilities/active/irelia_active_shield.gd" id="1_7h08t"]
+
+[sub_resource type="Resource" id="Resource_c8yqg"]
+metadata/__load_path__ = "res://Scenes/NPCs/Hero/Heros/Support/Irelia/Abilities/active/Shield/Shield.tscn"
 
 [resource]
-script = ExtResource("1_c8yqg")
-metadata/_custom_type_script = "uid://de7cq4nmteyi6"
+script = ExtResource("1_7h08t")
+shield_scene = SubResource("Resource_c8yqg")
+ability_name = "Divine Shield"
+ability_type = 1
+heal_amount = 18.0
+duration = 7.0
+cooldown = 13.0
+description = "Shield all heroes for 18 HP for 7 seconds"
+metadata/_custom_type_script = "uid://dxphdgf2i6ufj"

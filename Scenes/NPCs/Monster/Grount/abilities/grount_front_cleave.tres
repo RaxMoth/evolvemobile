@@ -4,4 +4,9 @@
 
 [resource]
 script = ExtResource("1_hv4vt")
+cone_angle = 50.0
+ability_name = "Front Cleave"
+cooldown = 4.5
+description = "Cleaves enemies in a frontal cone (Stage 1: 12 dmg, Stage 2: 17 dmg, Stage 3: 24 dmg)"
+damage = 12.0
 metadata/_custom_type_script = "uid://cwfkgc14uiawh"

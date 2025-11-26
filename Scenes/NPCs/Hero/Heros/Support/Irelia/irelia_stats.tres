@@ -1,12 +1,14 @@
-[gd_resource type="Resource" script_class="HeroStats" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="HeroStats" load_steps=3 format=3 uid="uid://dee3mmsm1t3fr"]
 
-[ext_resource type="Script" path="res://Scenes/NPCs/Hero/hero_stats.gd" id="1_stats"]
+[ext_resource type="Script" uid="uid://dvs6vqwnqtcd8" path="res://Scenes/NPCs/Hero/hero_stats.gd" id="1_stats"]
+[ext_resource type="Texture2D" uid="uid://0vlvy3mej50h" path="res://Icon.jpg" id="2_portrait"]
 
 [resource]
 script = ExtResource("1_stats")
 hero_name = "Irelia"
 hero_class = "Tank/Support"
-description = "Defensive support who shields allies and draws enemy attention"
+description = "Defensive tank who shields allies and draws enemy attention"
+portrait = ExtResource("2_portrait")
 base_max_health = 150.0
 base_move_speed = 75.0
 base_approach_speed = 100.0
@@ -15,6 +17,6 @@ base_attack_damage = 5.0
 idle_retarget_time = 1.8
 idle_wander_radius = 80.0
 keep_distance = 100.0
-health_per_level = 15.0
-damage_per_level = 0.5
-speed_per_level = 2.0
+health_per_level = 8.0
+damage_per_level = 0.2
+speed_per_level = 1.0

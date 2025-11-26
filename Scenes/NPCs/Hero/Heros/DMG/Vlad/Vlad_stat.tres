@@ -6,6 +6,12 @@
 [resource]
 script = ExtResource("1_aenkc")
 hero_name = "Vlad"
+hero_class = "DPS/Berserker"
+description = "High-risk berserker who gains massive power when at low health"
 portrait = ExtResource("1_htbav")
-base_max_health = 10.0
+idle_wander_radius = 120.0
+keep_distance = 40.0
+health_per_level = 6.0
+damage_per_level = 0.7
+speed_per_level = 1.2
 metadata/_custom_type_script = "uid://dvs6vqwnqtcd8"

@@ -4,4 +4,10 @@
 
 [resource]
 script = ExtResource("1_ixuuq")
+ability_name = "Guardian Strike"
+ability_type = 2
+cooldown = 1.5
+description = "A defensive strike that prioritizes protecting allies"
+damage = 5.0
+ability_range = 120.0
 metadata/_custom_type_script = "uid://csqf7qfehc1io"
