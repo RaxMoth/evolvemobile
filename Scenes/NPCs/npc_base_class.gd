@@ -62,7 +62,8 @@ func _setup_navigation() -> void:
 		return
 	
 	navigation_agent_2d.set_navigation_map(nav_map)
-	navigation_agent_2d.path_desired_distance = 4.0
+	navigation_agent_2d.path_desired_distance = 6.0
+	navigation_agent_2d.simplify_path = true
 	navigation_agent_2d.target_desired_distance = 4.0
 	navigation_agent_2d.avoidance_enabled = false
 

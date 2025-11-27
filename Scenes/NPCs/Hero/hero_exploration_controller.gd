@@ -4,6 +4,12 @@ class_name HeroExplorationController
 signal exploration_target_reached(position: Vector2)
 signal monster_detected(monster: Node2D)
 
+@export_group("Performance")
+@export var boids_update_interval: float = 0.1  # Update boids 10x per second, not 60x
+@export var max_separation_checks: int = 3  # Only check nearest 3 heroes
+var boids_timer: float = 0.0
+var cached_boids_data: Dictionary = {}
+
 @export_group("Group Behavior")
 @export var group_exploration_enabled: bool = true
 @export var group_cohesion_radius: float = 200.0
@@ -184,6 +190,14 @@ func _is_recently_explored(position: Vector2) -> bool:
 	return false
 
 func _update_hero_flow(delta: float) -> void:
+	boids_timer -= delta
+	
+	# Only recalculate boids every 0.1s
+	if boids_timer <= 0.0:
+		boids_timer = boids_update_interval
+		_recalculate_boids()
+	
+	# Apply cached boids data
 	for hero in heroes:
 		if not is_instance_valid(hero):
 			continue
@@ -191,7 +205,35 @@ func _update_hero_flow(delta: float) -> void:
 		if hero_solo_mode.get(hero, false):
 			_update_solo_hero(hero, delta)
 		else:
-			_update_group_hero(hero, delta)
+			_apply_cached_boids(hero)
+
+func _recalculate_boids() -> void:
+	for hero in heroes:
+		if not is_instance_valid(hero):
+			continue
+		
+		var separation = _calculate_separation(hero)
+		var cohesion = _calculate_cohesion(hero)
+		var alignment = _calculate_alignment(hero)
+		
+		cached_boids_data[hero] = {
+			"separation": separation,
+			"cohesion": cohesion,
+			"alignment": alignment
+		}
+
+func _apply_cached_boids(hero: Node2D) -> void:
+	if not cached_boids_data.has(hero):
+		return
+	
+	var data = cached_boids_data[hero]
+	var formation_offset = hero_formation_offset.get(hero, Vector2.ZERO)
+	var base_target = current_group_target + formation_offset
+	
+	var final_target = base_target + data.separation * 1.5 + data.cohesion * 0.5 + data.alignment * 0.3
+	
+	if hero.has_method("set_exploration_target"):
+		hero.set_exploration_target(final_target)
 
 func _update_group_hero(hero: Node2D, delta: float) -> void:
 	var formation_offset = hero_formation_offset.get(hero, Vector2.ZERO)
