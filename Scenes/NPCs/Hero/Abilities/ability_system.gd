@@ -10,7 +10,7 @@ signal cooldown_updated(ability_type: AbilityBase.AbilityType, time_remaining: f
 @export var ultimate_ability: AbilityBase
 
 var owner_entity: Node2D
-var cooldowns: Dictionary = {}  # AbilityType -> time_remaining
+var cooldowns: Dictionary = {} # AbilityType -> time_remaining
 
 func _ready() -> void:
 	owner_entity = get_parent()

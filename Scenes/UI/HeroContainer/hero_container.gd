@@ -10,7 +10,7 @@ extends Control
 var hero_assignments = {}
 
 func _ready() -> void:
-	await get_tree().process_frame  # Wait for heroes to spawn
+	await get_tree().process_frame # Wait for heroes to spawn
 	_assign_heroes()
 
 func _assign_heroes() -> void:
@@ -117,8 +117,9 @@ func _on_hero_health_changed(current: float, max_health: float, health_bar: Prog
 	else:
 		health_bar.modulate = Color.RED
 
-func _on_ability_used(ability_name: String, icon_node: TextureRect, ability: AbilityBase) -> void:
-	if not ability or not is_instance_valid(icon_node):
+func _on_ability_used(used_ability: AbilityBase, icon_node: TextureRect, ability: AbilityBase) -> void:
+	# Check if the emitted ability matches the one we're tracking
+	if used_ability != ability:
 		return
 	
 	# Dim icon during cooldown

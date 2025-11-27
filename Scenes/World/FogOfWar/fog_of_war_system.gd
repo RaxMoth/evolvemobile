@@ -5,7 +5,7 @@ signal area_revealed(position: Vector2)
 
 @export var tile_size: int = 32
 @export var fog_color: Color = Color(0, 0, 0, 0.85)
-@export var world_size: Vector2 = Vector2(2000, 2000)
+@export var world_size: Vector2 = Vector2(9200,5185)
 @export var world_offset: Vector2 = Vector2(0, 0)
 
 var exploration_texture: ImageTexture
