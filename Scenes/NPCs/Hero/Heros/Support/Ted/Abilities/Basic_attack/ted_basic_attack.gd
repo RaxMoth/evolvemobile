@@ -1,6 +1,5 @@
 extends AbilityBase
-class_name TedBasicAttack
-
+class_name TedBasicAttacks
 ## Ted's basic melee attack - simple and straightforward
 
 func _init() -> void:
