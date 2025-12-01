@@ -3,6 +3,7 @@ extends AbilityBase
 
 @export var cone_angle: float = 60.0
 @export var cone_range: float = 80.0
+@export var cone_angle_per_stage: Array[float] = [50.0, 60.0, 75.0]
 
 func _init() -> void:
 	ability_name = "Front Cleave"
@@ -11,12 +12,27 @@ func _init() -> void:
 	cooldown = 3.0
 	description = "Attacks enemies in a frontal cone"
 
+func apply_stage_stats(stage: int) -> void:
+	super.apply_stage_stats(stage)
+	if cone_angle_per_stage.size() >= stage and stage > 0:
+		cone_angle = cone_angle_per_stage[stage - 1]
+
 func execute(caster: Node2D, target: Node2D = null, override_damage: float = -1.0) -> void:
+	print("\n╔════════════════════════════════════════════════════════")
+	print("║ FRONT CLEAVE EXECUTION START")
+	print("╠════════════════════════════════════════════════════════")
+	
 	if not caster or not caster.has_node("Sprite2D"):
+		print("║ ❌ ERROR: No caster or Sprite2D!")
+		print("╚════════════════════════════════════════════════════════\n")
 		return
 	
-	# Use override damage if provided
 	var effective_damage = override_damage if override_damage >= 0.0 else damage
+	
+	print("║ Caster: ", caster.name)
+	print("║ Caster Groups: ", caster.get_groups())
+	print("║ Effective Damage: ", effective_damage)
+	print("╠════════════════════════════════════════════════════════")
 	
 	var sprite = caster.get_node("Sprite2D")
 	var forward_dir = Vector2.from_angle(sprite.rotation)
@@ -30,41 +46,86 @@ func execute(caster: Node2D, target: Node2D = null, override_damage: float = -1.
 	query.collide_with_areas = true
 	
 	var results = space_state.intersect_shape(query, 32)
+	
+	print("║ PHYSICS QUERY RESULTS: ", results.size(), " colliders found")
+	print("╠════════════════════════════════════════════════════════")
+	
 	var hit_count = 0
+	var checked_entities: Array = []  # Track which actual entities we've checked
 	
 	for result in results:
 		var collider = result.collider
 		var entity = _get_entity(collider)
 		
-		if not entity or entity == caster or not entity is Node2D:
+		if not entity or entity == caster:
 			continue
 		
+		# Skip if we already checked this entity (multiple colliders per entity)
+		if checked_entities.has(entity):
+			continue
+		
+		checked_entities.append(entity)
+		
+		print("║ Checking entity: ", entity.name)
+		print("║   • Type: ", entity.get_class())
+		print("║   • Groups: ", entity.get_groups())
+		
+		# Check if entity is in front cone
 		var to_entity = (entity.global_position - caster.global_position).normalized()
 		var angle_to_entity = forward_dir.angle_to(to_entity)
 		
-		if abs(angle_to_entity) <= deg_to_rad(cone_angle / 2.0):
-			var can_hit = false
-			if entity.is_in_group("Hero"):
-				can_hit = true
-			elif entity.is_in_group("Enemy") and not entity.is_in_group("Monster"):
-				can_hit = true
-			
-			if can_hit and entity.has_method("take_damage"):
-				entity.take_damage(effective_damage)
-				hit_count += 1
+		if abs(angle_to_entity) > deg_to_rad(cone_angle / 2.0):
+			print("║   ❌ NOT IN CONE")
+			continue
+		
+		print("║   ✓ IN CONE")
+		
+		# Check targeting
+		var can_hit = false
+		if entity.is_in_group("Hero"):
+			can_hit = true
+			print("║   ✓ CAN HIT (Hero)")
+		elif entity.is_in_group("Enemy") and not entity.is_in_group("Monster"):
+			can_hit = true
+			print("║   ✓ CAN HIT (Mob)")
+		else:
+			print("║   ❌ CANNOT HIT")
+		
+		if can_hit and entity.has_method("take_damage"):
+			print("║   💥 DEALING ", effective_damage, " DAMAGE")
+			entity.take_damage(effective_damage)
+			hit_count += 1
+			print("║   ✓ DAMAGE DEALT!")
+		elif can_hit:
+			print("║   ❌ No take_damage method!")
 	
-	if hit_count > 0:
-		print(caster.name + " cleaved " + str(hit_count) + " enemies for " + str(effective_damage) + " damage!")
+	print("╠════════════════════════════════════════════════════════")
+	print("║ RESULT: Hit ", hit_count, " enemies")
+	print("╚════════════════════════════════════════════════════════\n")
 	
 	_create_cleave_effect(caster, forward_dir)
 
 func _get_entity(collider: Node) -> Node2D:
+	# FIXED: Don't return Area2D nodes directly!
+	# Area2D nodes (DetectionArea, Body, etc.) don't have the Enemy group
+	# We need to get their OWNER (the actual Bat/Hog/Hero entity)
+	
+	# Try owner first (this gets the actual entity)
+	if collider.has_method("get_owner"):
+		var owner = collider.get_owner()
+		if owner and owner is Node2D and owner != collider:
+			return owner
+	
+	# Try parent as fallback
+	if collider.has_method("get_parent"):
+		var parent = collider.get_parent()
+		if parent and parent is Node2D and parent != collider:
+			return parent
+	
+	# Last resort: if collider itself is the entity (shouldn't happen with Area2D)
 	if collider is Node2D:
 		return collider
-	elif collider.has_method("get_parent") and collider.get_parent() is Node2D:
-		return collider.get_parent()
-	elif collider.has_method("get_owner") and collider.get_owner() is Node2D:
-		return collider.get_owner()
+	
 	return null
 
 func _create_cleave_effect(caster: Node2D, direction: Vector2) -> void:

@@ -7,7 +7,9 @@
 script = ExtResource("1_us2jm")
 ability_name = "Ram Dash"
 icon = ExtResource("1_nrmkh")
-cooldown = 12.0
 description = "Charges forward damaging enemies (Stage 1: 18 dmg, Stage 2: 25 dmg, Stage 3: 36 dmg)"
 damage = 18.0
+cooldown = 12.0
+damage_per_stage = Array[float]([12.0, 24.0, 36.0])
+cooldown_per_stage = Array[float]([12.0, 8.0, 4.0])
 metadata/_custom_type_script = "uid://bbl84wvqrtqij"

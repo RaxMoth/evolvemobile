@@ -93,9 +93,15 @@ func _perform_slam(caster: Node2D) -> void:
 	
 	print("Ground Slam hit " + str(hit_count) + " enemies for " + str(_effective_damage) + " damage each!")
 
-func _get_entity(collider: Node) -> Node:
+func _get_entity(collider: Node) -> Node2D:
+	if collider.has_method("get_owner"):
+		var owner = collider.get_owner()
+		if owner and owner is Node2D and owner != collider:
+			return owner
+	
 	if collider.has_method("get_parent"):
-		return collider.get_parent()
-	elif collider.has_method("get_owner"):
-		return collider.get_owner()
-	return collider
+		var parent = collider.get_parent()
+		if parent and parent is Node2D and parent != collider:
+			return parent
+	
+	return collider if collider is Node2D else null
