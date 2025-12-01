@@ -17,3 +17,8 @@ ability_3 = ExtResource("5_60m1s")
 
 [node name="AnimatedSprite2D" parent="." index="2"]
 sprite_frames = ExtResource("6_n33a8")
+autoplay = "default"
+frame_progress = 0.44122237
+
+[node name="Sprite2D" parent="." index="3"]
+visible = false

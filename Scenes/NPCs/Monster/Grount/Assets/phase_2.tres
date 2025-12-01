@@ -1,4 +1,23 @@
-[gd_resource type="SpriteFrames" format=3 uid="uid://djyxnrs2dcpep"]
+[gd_resource type="SpriteFrames" load_steps=4 format=3 uid="uid://djyxnrs2dcpep"]
+
+[ext_resource type="Texture2D" uid="uid://dfys34pg5oxdi" path="res://Scenes/NPCs/Hero/Heros/Support/Ted/Assets/up_stand.png" id="1_mdf6k"]
+[ext_resource type="Texture2D" uid="uid://bkp34raygt486" path="res://Scenes/NPCs/Hero/Heros/Support/Ted/Assets/up_walk1.png" id="2_fh3j1"]
+[ext_resource type="Texture2D" uid="uid://b4ppxoiceig7p" path="res://Scenes/NPCs/Hero/Heros/Support/Ted/Assets/up_walk2.png" id="3_wnvkn"]
 
 [resource]
 resource_name = "phase_3"
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("1_mdf6k")
+}, {
+"duration": 1.0,
+"texture": ExtResource("2_fh3j1")
+}, {
+"duration": 1.0,
+"texture": ExtResource("3_wnvkn")
+}],
+"loop": true,
+"name": &"default",
+"speed": 5.0
+}]

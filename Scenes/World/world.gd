@@ -10,7 +10,7 @@ func _ready():
 func _setup_fog():
 	var fog = preload("res://Scenes/World/FogOfWar/FogOfWarSystem.tscn").instantiate()
 	fog.name = "FogOfWar"
-	fog.world_size = Vector2(9200,5185)
+	fog.world_size = Vector2(9200, 5185)
 	fog.world_offset = Vector2(0, 0)
 	fog.tile_size = 32
 	fog.fog_color = Color(0, 0, 0, 0.85)
@@ -69,5 +69,4 @@ func _on_exploration_target_reached(position: Vector2) -> void:
 	print("Heroes reached exploration target: ", position)
 
 func _on_monster_detected(monster: Node2D) -> void:
-	print("Monster detected: ", monster.name, " at ", monster.global_position)
-	# You can add logic here to make heroes engage the monster
+	pass

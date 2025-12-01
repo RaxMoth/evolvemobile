@@ -35,6 +35,14 @@ signal phase_changed(new_phase: int)
 @export var ability_3: AbilityBase  # Special ability 2
 @export var passive_ability: AbilityBase  # Passive (always active)
 
+# Animation names in AnimatedSprite2D (e.g., "phase_1", "phase_2", "phase_3")
+@export var phase_1_animation: String = "phase_1"
+@export var phase_2_animation: String = "phase_2"
+@export var phase_3_animation: String = "phase_3"
+@export var enable_phase_effects: bool = true  # Visual flash on phase change
+
+@onready var animated_sprite: AnimatedSprite2D = $AnimatedSprite2D
+
 var current_phase: int = 1
 var current_health: float
 var ability_cooldowns := {
@@ -202,13 +210,7 @@ func _on_monster_death() -> void:
 # ============================================
 
 @export_group("Phase Visuals")
-# Animation names in AnimatedSprite2D (e.g., "phase_1", "phase_2", "phase_3")
-@export var phase_1_animation: String = "phase_1"
-@export var phase_2_animation: String = "phase_2"
-@export var phase_3_animation: String = "phase_3"
-@export var enable_phase_effects: bool = true  # Visual flash on phase change
 
-@onready var animated_sprite: AnimatedSprite2D = $AnimatedSprite2D
 
 func _enter_phase(phase: int) -> void:
 	var old_phase = current_phase
