@@ -55,7 +55,7 @@ func execute(caster: Node2D, target: Node2D = null, override_damage: float = -1.
 	
 	for result in results:
 		var collider = result.collider
-		var entity = _get_entity(collider)
+		var entity = Globals.get_entity_from_collider(collider)
 		
 		if not entity or entity == caster:
 			continue
@@ -105,28 +105,6 @@ func execute(caster: Node2D, target: Node2D = null, override_damage: float = -1.
 	
 	_create_cleave_effect(caster, forward_dir)
 
-func _get_entity(collider: Node) -> Node2D:
-	# FIXED: Don't return Area2D nodes directly!
-	# Area2D nodes (DetectionArea, Body, etc.) don't have the Enemy group
-	# We need to get their OWNER (the actual Bat/Hog/Hero entity)
-	
-	# Try owner first (this gets the actual entity)
-	if collider.has_method("get_owner"):
-		var owner = collider.get_owner()
-		if owner and owner is Node2D and owner != collider:
-			return owner
-	
-	# Try parent as fallback
-	if collider.has_method("get_parent"):
-		var parent = collider.get_parent()
-		if parent and parent is Node2D and parent != collider:
-			return parent
-	
-	# Last resort: if collider itself is the entity (shouldn't happen with Area2D)
-	if collider is Node2D:
-		return collider
-	
-	return null
 
 func _create_cleave_effect(caster: Node2D, direction: Vector2) -> void:
 	var effect = Node2D.new()

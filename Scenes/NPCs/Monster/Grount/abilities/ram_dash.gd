@@ -81,7 +81,7 @@ func _check_dash_collisions(caster: Node2D, previous_pos: Vector2) -> void:
 	
 	for result in results:
 		var collider = result.collider
-		var entity = _get_entity(collider)
+		var entity = Globals.get_entity_from_collider(collider)
 		
 		if entity == caster or not entity:
 			continue
@@ -106,15 +106,3 @@ func _check_dash_collisions(caster: Node2D, previous_pos: Vector2) -> void:
 				entity.apply_knockback(dash_direction * knockback_force)
 			
 			print(caster.name + " rammed " + entity.name + " for " + str(_effective_damage) + " damage!")
-
-func _get_entity(collider: Node) -> Node2D:
-	if collider.has_method("get_owner"):
-		var owner = collider.get_owner()
-		if owner and owner is Node2D and owner != collider:
-			return owner
-	
-	if collider.has_method("get_parent"):
-		var parent = collider.get_parent()
-		if parent and parent is Node2D and parent != collider:
-			return parent
-	return collider if collider is Node2D else null
