@@ -1,7 +1,7 @@
 class_name BullFrontCleave
 extends AbilityBase
 
-@export var cone_angle: float = 60.0  # Degrees
+@export var cone_angle: float = 60.0 
 @export var cone_range: float = 80.0
 
 func _init() -> void:
@@ -11,15 +11,12 @@ func _init() -> void:
 	cooldown = 3.0
 	description = "Attacks enemies in a frontal cone"
 
-func execute(caster: Node2D, target: Node2D = null) -> void:
+func execute(caster: Node2D, _target: Node2D = null) -> void:
 	if not caster or not caster.has_node("Sprite2D"):
 		return
-	
-	# Get direction bull is facing
 	var sprite = caster.get_node("Sprite2D")
 	var forward_dir = Vector2.from_angle(sprite.rotation)
 	
-	# Find all entities in cone
 	var space_state = caster.get_world_2d().direct_space_state
 	var query = PhysicsShapeQueryParameters2D.new()
 	var shape = CircleShape2D.new()
@@ -35,11 +32,9 @@ func execute(caster: Node2D, target: Node2D = null) -> void:
 		var collider = result.collider
 		var entity = _get_entity(collider)
 		
-		# Ensure entity is valid Node2D
 		if not entity or entity == caster or not entity is Node2D:
 			continue
 		
-		# Check if entity is in front cone
 		var to_entity = (entity.global_position - caster.global_position).normalized()
 		var angle_to_entity = forward_dir.angle_to(to_entity)
 		
