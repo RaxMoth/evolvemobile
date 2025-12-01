@@ -327,7 +327,7 @@ tile_map_data = PackedByteArray("AAAoAWEAAAARAAIAAAAoAWIAAAARAAIAAACuAS4AAAARAAI
 tile_set = SubResource("TileSet_ouhkt")
 
 [node name="MainCam" parent="." instance=ExtResource("6_hveh7")]
-position = Vector2(111, 228)
+position = Vector2(449, 257)
 debug_mode = true
 zoom_speed = 0.5
 default_zoom = 2.0
@@ -345,7 +345,7 @@ show_debug_area = true
 [node name="BatArea2" parent="Spawns" instance=ExtResource("4_5jr8x")]
 position = Vector2(227, 307)
 mob_scene = ExtResource("5_27jhl")
-mob_count = 3
+mob_count = 5
 respawn_time = 40.0
 auto_spawn_on_ready = true
 show_debug_area = true
@@ -354,16 +354,16 @@ show_debug_area = true
 unique_name_in_owner = true
 
 [node name="Irelia" parent="Heros" instance=ExtResource("6_p7pgw")]
-position = Vector2(130, 188)
+position = Vector2(272, 31)
 
 [node name="River" parent="Heros" instance=ExtResource("5_hveh7")]
-position = Vector2(119, 99)
+position = Vector2(56, -4)
 
 [node name="Vlad" parent="Heros" instance=ExtResource("2_xf6vi")]
-position = Vector2(130, 218)
+position = Vector2(10, 8)
 
 [node name="Ted" parent="Heros" instance=ExtResource("8_kuxid")]
-position = Vector2(409, 198)
+position = Vector2(417, 18)
 
 [node name="Grount" parent="." instance=ExtResource("3_ouhkt")]
-position = Vector2(755, 92)
+position = Vector2(756, 92)

@@ -8,6 +8,8 @@ extends AbilityBase
 var is_dashing: bool = false
 var dash_direction: Vector2 = Vector2.ZERO
 var dash_remaining: float = 0.0
+var _effective_damage: float = 0.0 # Store effective damage for dash duration
+var _hit_entities: Array = [] # Track entities already hit during this dash
 
 func _init() -> void:
 	ability_name = "Ram Dash"
@@ -19,9 +21,13 @@ func _init() -> void:
 func can_use(caster: Node2D) -> bool:
 	return not is_dashing
 
-func execute(caster: Node2D, target: Node2D = null) -> void:
+func execute(caster: Node2D, target: Node2D = null, override_damage: float = -1.0) -> void:
 	if not caster or is_dashing:
 		return
+	
+	# Calculate effective damage
+	_effective_damage = override_damage if override_damage >= 0.0 else damage
+	_hit_entities.clear() # Reset hit tracking
 	
 	# Determine dash direction (toward target or forward)
 	if target and is_instance_valid(target):
@@ -35,7 +41,7 @@ func execute(caster: Node2D, target: Node2D = null) -> void:
 	# Start dash process
 	caster.get_tree().create_timer(0.0).timeout.connect(_dash_update.bind(caster))
 	
-	print(caster.name + " charges forward!")
+	print(caster.name + " charges forward with " + str(_effective_damage) + " damage!")
 
 func _dash_update(caster: Node2D) -> void:
 	if not is_dashing or not is_instance_valid(caster):
@@ -80,6 +86,10 @@ func _check_dash_collisions(caster: Node2D, previous_pos: Vector2) -> void:
 		if entity == caster or not entity:
 			continue
 		
+		# Don't hit the same entity twice during one dash
+		if _hit_entities.has(entity):
+			continue
+		
 		# FIXED: Proper targeting - Heroes OR Mobs (but not other Monsters)
 		var can_hit = false
 		if entity.is_in_group("Hero"):
@@ -88,13 +98,14 @@ func _check_dash_collisions(caster: Node2D, previous_pos: Vector2) -> void:
 			can_hit = true # Hit Mobs
 		
 		if can_hit and entity.has_method("take_damage"):
-			entity.take_damage(damage)
+			entity.take_damage(_effective_damage) # Use effective damage!
+			_hit_entities.append(entity) # Mark as hit
 			
 			# Apply knockback
 			if entity.has_method("apply_knockback"):
 				entity.apply_knockback(dash_direction * knockback_force)
 			
-			print(caster.name + " rammed " + entity.name + "!")
+			print(caster.name + " rammed " + entity.name + " for " + str(_effective_damage) + " damage!")
 
 func _get_entity(collider: Node) -> Node:
 	if collider.has_method("get_parent"):

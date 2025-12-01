@@ -9,7 +9,7 @@ func _init() -> void:
 	cooldown = 20.0
 	description = "Creates a devastating explosion that damages all enemies in range"
 
-func execute(caster: Node2D, _target: Node2D = null) -> void:
+func execute(caster: Node2D, _target: Node2D = null, _override_damage: float = -1.0) -> void:
 	# Visual effect (optional - add later)
 	_create_explosion_effect(caster)
 	

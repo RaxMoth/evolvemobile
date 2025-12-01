@@ -1,20 +1,20 @@
 extends AbilityBase
 class_name VladActiveMine
 
-@export var mine_scene: PackedScene  # Assign the mine scene in the resource
+@export var mine_scene: PackedScene # Assign the mine scene in the resource
 
 func _init() -> void:
 	ability_name = "Land Mine"
 	ability_type = AbilityType.ACTIVE
 	damage = 15.0
 	cooldown = 8.0
-	ability_range = 100.0  # Detection radius of mine
+	ability_range = 100.0 # Detection radius of mine
 	description = "Place a mine that explodes when enemies walk over it"
 
 func can_use(_caster: Node2D) -> bool:
 	return mine_scene != null
 
-func execute(caster: Node2D, _target: Node2D = null) -> void:
+func execute(caster: Node2D, _target: Node2D = null, _override_damage: float = -1.0) -> void:
 	if not mine_scene:
 		push_error("Mine scene not assigned!")
 		return

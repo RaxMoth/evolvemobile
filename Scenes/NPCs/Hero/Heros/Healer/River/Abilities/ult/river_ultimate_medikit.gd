@@ -13,7 +13,7 @@ func _init() -> void:
 func can_use(_caster: Node2D) -> bool:
 	return medikit_scene != null
 
-func execute(caster: Node2D, _target: Node2D = null) -> void:
+func execute(caster: Node2D, _target: Node2D = null, _override_damage: float = -1.0) -> void:
 	if not medikit_scene:
 		push_error("MediKit scene not assigned!")
 		return

@@ -3,7 +3,7 @@ class_name IreliaActiveShield
 
 @export var shield_scene: PackedScene
 
-func execute(caster: Node2D, _target: Node2D = null) -> void:
+func execute(caster: Node2D, _target: Node2D = null, _override_damage: float = -1.0) -> void:
 	var heroes = caster.get_tree().get_nodes_in_group("Hero")
 	var shielded_count = 0
 	
@@ -24,7 +24,7 @@ func _apply_shield(hero: Node2D) -> void:
 	# Create new shield
 	var shield = preload("res://Scenes/NPCs/Hero/Heros/Support/Irelia/Abilities/Active/shield.gd").new()
 	shield.name = "Shield"
-	shield.shield_amount = heal_amount  # Using heal_amount as shield amount
+	shield.shield_amount = heal_amount # Using heal_amount as shield amount
 	shield.duration = duration
 	shield.owner_hero = hero
 	hero.add_child(shield)
@@ -39,7 +39,7 @@ func _apply_shield(hero: Node2D) -> void:
 func _hook_damage_function(hero: Node2D, shield: Node) -> void:
 	# Store original take_damage
 	if hero.has_meta("original_take_damage"):
-		return  # Already hooked
+		return # Already hooked
 	
 	hero.set_meta("original_take_damage", true)
 	

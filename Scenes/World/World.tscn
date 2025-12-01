@@ -950,11 +950,6 @@ position = Vector2(70, 78)
 
 [node name="Grount" parent="." instance=ExtResource("3_ouhkt")]
 position = Vector2(1406, 174)
-speed_per_stage = 0.15
 ability_1 = null
 ability_2 = null
 ability_3 = null
-stage_1_animation = "phase_1"
-stage_2_animation = "phase_2"
-stage_3_animation = "phase_3"
-enable_stage_effects = true

@@ -11,10 +11,10 @@ var current_mode: WeaponMode = WeaponMode.SNIPER
 func _init() -> void:
 	ability_name = "Weapon Swap"
 	ability_type = AbilityType.ACTIVE
-	cooldown = 1.0  # Short cooldown for quick swapping
+	cooldown = 1.0 # Short cooldown for quick swapping
 	description = "Swap between Sniper Rifle (long range damage) and Heal Staff (heal allies)"
 
-func execute(caster: Node2D, _target: Node2D = null) -> void:
+func execute(caster: Node2D, _target: Node2D = null, _override_damage: float = -1.0) -> void:
 	if current_mode == WeaponMode.SNIPER:
 		current_mode = WeaponMode.HEAL_STAFF
 	else:

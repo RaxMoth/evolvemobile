@@ -3,7 +3,7 @@ class_name TedActiveRally
 
 ## Rally Cry - Boosts attack speed for Ted and his pet
 
-@export var attack_speed_boost: float = 1.5  # 50% faster attacks
+@export var attack_speed_boost: float = 1.5 # 50% faster attacks
 @export var boost_duration: float = 5.0
 
 func _init() -> void:
@@ -12,7 +12,7 @@ func _init() -> void:
 	cooldown = 10.0
 	description = "Ted and his pet gain 50% attack speed for 5 seconds"
 
-func execute(caster: Node2D, _target: Node2D = null) -> void:
+func execute(caster: Node2D, _target: Node2D = null, _override_damage: float = -1.0) -> void:
 	if not caster:
 		return
 	

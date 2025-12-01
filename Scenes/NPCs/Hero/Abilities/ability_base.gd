@@ -2,10 +2,10 @@ extends Resource
 class_name AbilityBase
 
 enum AbilityType {
-	PASSIVE,      # Always active
-	ACTIVE,       # User triggered
+	PASSIVE, # Always active
+	ACTIVE, # User triggered
 	BASIC_ATTACK, # Normal attack
-	ULTIMATE      # Special ability
+	ULTIMATE # Special ability
 }
 
 @export var ability_name: String = "Unnamed Ability"
@@ -26,7 +26,7 @@ enum AbilityType {
 @export var area_of_effect: float = 0.0
 
 # Override these in specific ability scripts
-func execute(_caster: Node2D, _target: Node2D = null) -> void:
+func execute(_caster: Node2D, _target: Node2D = null, _override_damage: float = -1.0) -> void:
 	push_warning("Ability.execute() not implemented for: " + ability_name)
 
 func can_use(_caster: Node2D) -> bool:

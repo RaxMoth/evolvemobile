@@ -10,5 +10,5 @@ ability_name = "Front Cleave"
 icon = ExtResource("1_xemj1")
 cooldown = 4.5
 description = "Cleaves enemies in a frontal cone (Stage 1: 12 dmg, Stage 2: 17 dmg, Stage 3: 24 dmg)"
-damage = 12.0
+damage = 200.0
 metadata/_custom_type_script = "uid://cwfkgc14uiawh"

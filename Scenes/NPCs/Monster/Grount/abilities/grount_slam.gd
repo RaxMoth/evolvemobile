@@ -5,6 +5,9 @@ extends AbilityBase
 @export var jump_height: float = 100.0
 @export var slam_radius: float = 150.0
 
+# Store effective damage for use in async slam
+var _effective_damage: float = 0.0
+
 func _init() -> void:
 	ability_name = "Ground Slam"
 	ability_type = AbilityType.ULTIMATE
@@ -13,9 +16,12 @@ func _init() -> void:
 	cooldown = 12.0
 	description = "Leaps into the air and slams the ground"
 
-func execute(caster: Node2D, target: Node2D = null) -> void:
+func execute(caster: Node2D, target: Node2D = null, override_damage: float = -1.0) -> void:
 	if not caster:
 		return
+	
+	# Calculate effective damage
+	_effective_damage = override_damage if override_damage >= 0.0 else damage
 	
 	var start_pos = caster.global_position
 	var target_pos = start_pos
@@ -82,10 +88,10 @@ func _perform_slam(caster: Node2D) -> void:
 			can_hit = true # Hit Mobs
 		
 		if can_hit and entity.has_method("take_damage"):
-			entity.take_damage(damage)
+			entity.take_damage(_effective_damage) # Use effective damage!
 			hit_count += 1
 	
-	print("Ground Slam hit " + str(hit_count) + " enemies!")
+	print("Ground Slam hit " + str(hit_count) + " enemies for " + str(_effective_damage) + " damage each!")
 
 func _get_entity(collider: Node) -> Node:
 	if collider.has_method("get_parent"):

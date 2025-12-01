@@ -1,7 +1,7 @@
 extends AbilityBase
 class_name IreliaUltimateTaunt
 
-func execute(caster: Node2D, _target: Node2D = null) -> void:
+func execute(caster: Node2D, _target: Node2D = null, _override_damage: float = -1.0) -> void:
 	var monsters = caster.get_tree().get_nodes_in_group("Monster")
 	var taunted_count = 0
 	
@@ -21,7 +21,7 @@ func execute(caster: Node2D, _target: Node2D = null) -> void:
 			if not is_instance_valid(enemy) or not enemy.has_method("is_alive") or not enemy.is_alive():
 				continue
 			
-			if enemy.is_in_group("Hero"):  # Don't taunt heroes
+			if enemy.is_in_group("Hero"): # Don't taunt heroes
 				continue
 			
 			var distance = caster.global_position.distance_to(enemy.global_position)
