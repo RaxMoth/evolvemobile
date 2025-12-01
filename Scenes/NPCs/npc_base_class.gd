@@ -132,9 +132,14 @@ func _on_detection_area_area_entered(area: Area2D) -> void:
 		state_chart.send_event("enemie_entered")
 
 func _on_approach_state_processing(delta: float) -> void:
+	if not is_target_valid():
+		state_chart.send_event("enemie_exited")
+		return
+	
 	if distance_to_target() <= max(attack_range, keep_distance):
 		state_chart.send_event("enemy_fight")
 		return
+	
 	move_toward_point(target.global_position, approach_speed, delta)
 
 func _on_approach_state_entered() -> void:

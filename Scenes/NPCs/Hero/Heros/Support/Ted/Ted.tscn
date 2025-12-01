@@ -1,4 +1,4 @@
-[gd_scene load_steps=8 format=3 uid="uid://svw0uhofgkkp"]
+[gd_scene load_steps=12 format=3 uid="uid://svw0uhofgkkp"]
 
 [ext_resource type="PackedScene" uid="uid://bvyrcj7lkc1k6" path="res://Scenes/NPCs/Hero/HeroBaseClass.tscn" id="1_base"]
 [ext_resource type="Script" uid="uid://dplj5se2hav5w" path="res://Scenes/NPCs/Hero/Heros/Support/Ted/ted.gd" id="2_script"]
@@ -7,6 +7,26 @@
 [ext_resource type="Resource" uid="uid://c5example1" path="res://Scenes/NPCs/Hero/Heros/Support/Ted/Abilities/Active/ted_active.tres" id="5_active"]
 [ext_resource type="Resource" uid="uid://c5example2" path="res://Scenes/NPCs/Hero/Heros/Support/Ted/Abilities/Basic_attack/ted_basic_attack.tres" id="6_basic"]
 [ext_resource type="Resource" uid="uid://tedultuid" path="res://Scenes/NPCs/Hero/Heros/Support/Ted/Abilities/Ult/ted_ultimate.tres" id="7_ultimate"]
+[ext_resource type="Texture2D" uid="uid://bb2dijthjhu1d" path="res://Scenes/NPCs/Hero/Heros/Support/Ted/Assets/down_stand.png" id="8_ly8wu"]
+[ext_resource type="Texture2D" uid="uid://dvlk5kubj3lyi" path="res://Scenes/NPCs/Hero/Heros/Support/Ted/Assets/down_walk1.png" id="9_r4v6i"]
+[ext_resource type="Texture2D" uid="uid://bfqk3tfkrgooa" path="res://Scenes/NPCs/Hero/Heros/Support/Ted/Assets/down_walk2.png" id="10_0likg"]
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_k2pxe"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("8_ly8wu")
+}, {
+"duration": 1.0,
+"texture": ExtResource("9_r4v6i")
+}, {
+"duration": 1.0,
+"texture": ExtResource("10_0likg")
+}],
+"loop": true,
+"name": &"default",
+"speed": 5.0
+}]
 
 [node name="Ted" instance=ExtResource("1_base")]
 script = ExtResource("2_script")
@@ -31,9 +51,12 @@ anchor_left = -0.129
 anchor_right = 0.839
 
 [node name="AnimatedSprite2D" parent="." index="4"]
-visible = false
+sprite_frames = SubResource("SpriteFrames_k2pxe")
+autoplay = "default"
+frame_progress = 0.07211461
 
 [node name="Sprite2D" parent="." index="5"]
+visible = false
 modulate = Color(0.7, 0.5, 0.3, 1)
 
 [node name="DetectionArea" parent="." index="6" groups=["Hero"]]

@@ -1,8 +1,29 @@
-[gd_scene load_steps=3 format=3 uid="uid://dmwsr7r1rglla"]
+[gd_scene load_steps=7 format=3 uid="uid://dmwsr7r1rglla"]
 
 [ext_resource type="Script" uid="uid://bqnd1nwlvm5hc" path="res://Scenes/NPCs/Hero/Heros/Support/Ted/Abilities/Passive/teds_pet.gd" id="1_pet"]
+[ext_resource type="Texture2D" uid="uid://dbitmrq0kvfo6" path="res://Scenes/NPCs/Hero/Heros/Support/Ted/Abilities/Passive/Assets/down_stand.png" id="2_62k54"]
+[ext_resource type="Texture2D" uid="uid://xsnh6yrty8em" path="res://Scenes/NPCs/Hero/Heros/Support/Ted/Abilities/Passive/Assets/down_walk1.png" id="3_xjask"]
+[ext_resource type="Texture2D" uid="uid://b5ojoat051xwx" path="res://Scenes/NPCs/Hero/Heros/Support/Ted/Abilities/Passive/Assets/down_walk2.png" id="4_pq2yh"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_pet"]
+radius = 14.035668
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_63u05"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("2_62k54")
+}, {
+"duration": 1.0,
+"texture": ExtResource("3_xjask")
+}, {
+"duration": 1.0,
+"texture": ExtResource("4_pq2yh")
+}],
+"loop": true,
+"name": &"default",
+"speed": 5.0
+}]
 
 [node name="TedsPet" type="CharacterBody2D" groups=["Hero"]]
 script = ExtResource("1_pet")
@@ -10,9 +31,11 @@ script = ExtResource("1_pet")
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
 shape = SubResource("CircleShape2D_pet")
 
-[node name="Sprite2D" type="Sprite2D" parent="."]
+[node name="Sprite2D" type="AnimatedSprite2D" parent="."]
 modulate = Color(0.6, 0.4, 0.2, 1)
-scale = Vector2(0.6, 0.6)
+sprite_frames = SubResource("SpriteFrames_63u05")
+autoplay = "default"
+frame_progress = 0.11522432
 
 [node name="HealthBar" type="ProgressBar" parent="."]
 offset_left = -10.0

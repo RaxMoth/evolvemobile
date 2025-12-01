@@ -1,12 +1,32 @@
-[gd_scene load_steps=8 format=3 uid="uid://bihu6l6qpnho1"]
+[gd_scene load_steps=12 format=3 uid="uid://bihu6l6qpnho1"]
 
 [ext_resource type="PackedScene" uid="uid://bvyrcj7lkc1k6" path="res://Scenes/NPCs/Hero/HeroBaseClass.tscn" id="1_rak2b"]
 [ext_resource type="Script" uid="uid://ctnbso1qiocca" path="res://Scenes/NPCs/Hero/Heros/Support/Irelia/irelia.gd" id="2_8w040"]
-[ext_resource type="Resource" path="res://Scenes/NPCs/Hero/Heros/Support/Irelia/irelia_stats.tres" id="3_8w040"]
+[ext_resource type="Resource" uid="uid://dee3mmsm1t3fr" path="res://Scenes/NPCs/Hero/Heros/Support/Irelia/irelia_stats.tres" id="3_8w040"]
 [ext_resource type="Resource" uid="uid://biehxohk5x7dp" path="res://Scenes/NPCs/Hero/Heros/Support/Irelia/Abilities/Passive/irelia_passive.tres" id="4_a54q5"]
-[ext_resource type="Resource" uid="uid://2a84wy2n2bno" path="res://Scenes/NPCs/Hero/Heros/Support/Irelia/Abilities/Active/irelia_active.tres" id="5_pjmie"]
+[ext_resource type="Resource" uid="uid://dpxctbhrluxfq" path="res://Scenes/NPCs/Hero/Heros/Support/Irelia/Abilities/Active/irelia_active.tres" id="5_pjmie"]
 [ext_resource type="Resource" uid="uid://qymj70fpxgwf" path="res://Scenes/NPCs/Hero/Heros/Support/Irelia/Abilities/Basic_attack/irelia_basic_attack.tres" id="6_nviu7"]
 [ext_resource type="Resource" uid="uid://5o6u1y81qi8j" path="res://Scenes/NPCs/Hero/Heros/Support/Irelia/Abilities/Ult/irelia_ult.tres" id="7_6vrsb"]
+[ext_resource type="Texture2D" uid="uid://bk17ahngrcr0" path="res://Scenes/NPCs/Hero/Heros/Support/Irelia/Assets/down_stand.png" id="8_6vrsb"]
+[ext_resource type="Texture2D" uid="uid://big0b5ghexv8v" path="res://Scenes/NPCs/Hero/Heros/Support/Irelia/Assets/down_walk1.png" id="9_dfbog"]
+[ext_resource type="Texture2D" uid="uid://da54upmnqpqyh" path="res://Scenes/NPCs/Hero/Heros/Support/Irelia/Assets/down_walk2.png" id="10_xf2i0"]
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_pq56w"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("8_6vrsb")
+}, {
+"duration": 1.0,
+"texture": ExtResource("9_dfbog")
+}, {
+"duration": 1.0,
+"texture": ExtResource("10_xf2i0")
+}],
+"loop": true,
+"name": &"default",
+"speed": 5.0
+}]
 
 [node name="Irelia" instance=ExtResource("1_rak2b")]
 script = ExtResource("2_8w040")
@@ -19,3 +39,11 @@ passive_ability = ExtResource("4_a54q5")
 active_ability = ExtResource("5_pjmie")
 basic_attack = ExtResource("6_nviu7")
 ultimate_ability = ExtResource("7_6vrsb")
+
+[node name="AnimatedSprite2D" parent="." index="4"]
+sprite_frames = SubResource("SpriteFrames_pq56w")
+autoplay = "default"
+frame_progress = 0.45177355
+
+[node name="Sprite2D" parent="." index="5"]
+visible = false
