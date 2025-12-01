@@ -27,15 +27,19 @@ func _spawn_pet() -> void:
 	
 	pet_instance = pet_scene.instantiate()
 	
-	# Get the root of the scene (World or Main)
-	var scene_root = owner_entity.get_tree().root.get_child(0)
+	# FIXED: Spawn as sibling to Ted (same parent node)
+	# This makes pet and Ted both children of World/Main, not root
+	var parent_node = owner_entity.get_parent()
+	if not parent_node:
+		push_error("Ted has no parent node - cannot spawn pet!")
+		return
 	
 	# Add to scene tree first
-	scene_root.add_child(pet_instance)
+	parent_node.add_child(pet_instance)
 	
 	# IMPORTANT: Set owner AFTER adding to tree
 	# Owner must be a node that's already in the tree
-	pet_instance.owner = scene_root
+	pet_instance.owner = parent_node
 	
 	# Set pet's owner reference
 	if pet_instance.has_method("set_owner_entity"):

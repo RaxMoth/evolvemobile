@@ -81,9 +81,6 @@ func _perform_slam(caster: Node2D) -> void:
 			entity.take_damage(damage)
 			hit_count += 1
 	
-	print("Ground Slam hit " + str(hit_count) + " enemies!")
-	
-	# Visual effect
 	_create_slam_effect(caster)
 
 func _create_slam_effect(caster: Node2D) -> void:

@@ -67,18 +67,13 @@ func _explode() -> void:
 		return
 	
 	has_exploded = true
-	
-	# Visual explosion effect
 	modulate = Color.ORANGE_RED
 	var tween = create_tween()
 	tween.set_parallel(true)
 	tween.tween_property(self, "scale", Vector2(3, 3), 0.2)
 	tween.tween_property(self, "modulate:a", 0.0, 0.2)
-	
-	# Wait a tiny bit for visual effect
 	await get_tree().create_timer(explosion_delay).timeout
 	
-	# Deal damage to all enemies in range
 	var space_state = get_world_2d().direct_space_state
 	var query = PhysicsShapeQueryParameters2D.new()
 	var shape = CircleShape2D.new()

@@ -1,5 +1,5 @@
 extends AbilityBase
-class_name TedBasicAttacks
+class_name TedBasicAttack
 ## Ted's basic melee attack - simple and straightforward
 
 func _init() -> void:
@@ -35,8 +35,6 @@ func execute(caster: Node2D, target: Node2D = null) -> void:
 		
 		# Visual effect
 		_create_attack_effect(caster, target)
-		
-		print(caster.name + " dealt " + str(final_damage) + " damage to " + target.name)
 
 func _create_attack_effect(caster: Node2D, target: Node2D) -> void:
 	# Brown/orange slash line

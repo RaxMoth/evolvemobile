@@ -8,7 +8,7 @@ signal died
 @export var attack_range: float = 60.0
 @export var attack_cooldown: float = 1.2
 
-var owner_entity: Node2D = null  # Changed from 'owner'
+var owner_entity: Node2D = null 
 var current_health: float
 var current_target: Node2D = null
 var attack_timer: float = 0.0
@@ -18,8 +18,7 @@ const SEARCH_RADIUS: float = 400.0
 
 func _ready() -> void:
 	current_health = max_health
-	add_to_group("Hero")  # So it benefits from hero buffs
-
+	
 func set_owner_entity(new_owner: Node2D) -> void:
 	owner_entity = new_owner
 	print("Pet owner set to: " + owner_entity.name)

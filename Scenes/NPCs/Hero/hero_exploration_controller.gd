@@ -5,27 +5,27 @@ signal exploration_target_reached(position: Vector2)
 signal monster_detected(monster: Node2D)
 
 @export_group("Performance")
-@export var boids_update_interval: float = 0.1  # Update boids 10x per second, not 60x
-@export var max_separation_checks: int = 3  # Only check nearest 3 heroes
+@export var boids_update_interval: float = 0.1 # Update boids 10x per second, not 60x
+@export var max_separation_checks: int = 3 # Only check nearest 3 heroes
 var boids_timer: float = 0.0
 var cached_boids_data: Dictionary = {}
 
 @export_group("Group Behavior")
 @export var group_exploration_enabled: bool = true
 @export var group_cohesion_radius: float = 200.0
-@export var personal_space_radius: float = 80.0  
+@export var personal_space_radius: float = 80.0
 @export var exploration_update_interval: float = 3.0
 
 @export_group("Exploration Settings")
 @export var exploration_tile_size: int = 32
 @export var search_radius_per_check: float = 400.0
-@export var waypoint_reached_distance: float = 100.0  
-@export var stuck_detection_time: float = 5.0  
+@export var waypoint_reached_distance: float = 100.0
+@export var stuck_detection_time: float = 5.0
 
 @export_group("Movement Smoothing")
 @export var use_formation: bool = true
-@export var formation_spread: float = 100.0  
-@export var wander_while_moving: bool = true  
+@export var formation_spread: float = 100.0
+@export var wander_while_moving: bool = true
 @export var wander_strength: float = 50.0
 
 var heroes: Array[Node2D] = []
@@ -34,11 +34,11 @@ var current_group_target: Vector2 = Vector2.ZERO
 var exploration_timer: float = 0.0
 
 var hero_solo_mode: Dictionary = {}
-var hero_formation_offset: Dictionary = {} 
-var hero_last_positions: Dictionary = {} 
+var hero_formation_offset: Dictionary = {}
+var hero_last_positions: Dictionary = {}
 var hero_stuck_timers: Dictionary = {}
 
-var explored_targets: Array[Vector2] = []  
+var explored_targets: Array[Vector2] = []
 var current_exploration_zone: Vector2 = Vector2.ZERO
 
 func _ready() -> void:
@@ -102,10 +102,10 @@ func _setup_formation() -> void:
 		return
 	
 	var formations = [
-		Vector2(0, 0),         
-		Vector2(-1, -1),        
-		Vector2(1, -1),          
-		Vector2(0, 1),          
+		Vector2(0, 0),
+		Vector2(-1, -1),
+		Vector2(1, -1),
+		Vector2(0, 1),
 	]
 	
 	for i in range(heroes.size()):
@@ -128,7 +128,6 @@ func _update_exploration_targets() -> void:
 		current_group_target = unexplored_target
 		current_exploration_zone = unexplored_target
 		exploration_target_reached.emit(unexplored_target)
-		print("New exploration zone: ", unexplored_target)
 	else:
 		current_group_target = _get_random_map_position()
 
@@ -137,9 +136,9 @@ func _find_next_exploration_zone(from_position: Vector2) -> Vector2:
 		return Vector2.ZERO
 	
 	var best_target = Vector2.ZERO
-	var best_score = -INF
+	var best_score = - INF
 
-	var angles = 8  
+	var angles = 8
 	var distances = [200, 400, 600]
 	
 	for angle_step in angles:
@@ -180,7 +179,7 @@ func _count_unexplored_in_area(center: Vector2, radius: float) -> int:
 	return count
 
 func _is_recently_explored(position: Vector2) -> bool:
-	var recent_memory = 5  
+	var recent_memory = 5
 	var check_count = min(recent_memory, explored_targets.size())
 	
 	for i in range(explored_targets.size() - check_count, explored_targets.size()):
@@ -316,7 +315,7 @@ func _calculate_alignment(hero: Node2D) -> Vector2:
 			count += 1
 	
 	if count > 0:
-		return avg_velocity / count * 50.0  
+		return avg_velocity / count * 50.0
 	
 	return Vector2.ZERO
 
@@ -334,11 +333,10 @@ func _check_stuck_heroes(delta: float) -> void:
 		
 		var last_pos = hero_last_positions[hero]
 
-		if current_pos.distance_to(last_pos) < 5.0:  
+		if current_pos.distance_to(last_pos) < 5.0:
 			hero_stuck_timers[hero] += delta
 			
 			if hero_stuck_timers[hero] > stuck_detection_time:
-				print(hero.name, " is stuck! Finding new path...")
 				_unstuck_hero(hero)
 				hero_stuck_timers[hero] = 0.0
 		else:

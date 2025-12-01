@@ -116,7 +116,17 @@ func _on_detection_area_area_entered(area: Area2D) -> void:
 		return
 
 	var root := area.get_owner()
-	if root and root.is_in_group("Enemy"):
+	if not root:
+		return
+	
+	var can_target := false
+	
+	if is_in_group("Enemy") and root.is_in_group("Hero"):
+		can_target = true
+	elif is_in_group("Hero") and root.is_in_group("Enemy"):
+		can_target = true
+	
+	if can_target:
 		target = area
 		target_entity = area.get_parent()
 		state_chart.send_event("enemie_entered")

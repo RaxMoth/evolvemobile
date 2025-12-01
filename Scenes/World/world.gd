@@ -45,10 +45,7 @@ func _setup_hero_vision():
 			if key in hero_name:
 				vision = vision_map[key]
 				break
-		
-		print("Hero pos:", hero.global_position)
 		FogOfWarHelper.add_vision_to_hero(hero, vision)
-		print("  ✓ ", hero.name, " vision: ", vision)
 
 func _setup_exploration_controller():
 	await get_tree().process_frame

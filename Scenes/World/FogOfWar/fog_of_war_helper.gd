@@ -13,7 +13,6 @@ static func add_vision_to_hero(hero: Node2D, vision_radius: float = 200.0) -> Vi
 		print("Hero already has vision: ", hero.name)
 		return hero.get_node("VisionArea")
 	
-	# Create and add vision area
 	var vision = VISION_SCENE.instantiate()
 	vision.name = "VisionArea"
 	vision.vision_radius = vision_radius

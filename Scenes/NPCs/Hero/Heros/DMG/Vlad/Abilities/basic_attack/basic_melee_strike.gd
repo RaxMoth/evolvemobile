@@ -26,4 +26,3 @@ func execute(caster: Node2D, target: Node2D = null) -> void:
 		
 		var final_damage = damage * damage_mult
 		target.take_damage(final_damage)
-		print(caster.name + " dealt " + str(final_damage) + " damage to " + target.name)

@@ -1,7 +1,8 @@
-[gd_scene load_steps=3 format=3 uid="uid://drkua71k2d53x"]
+[gd_scene load_steps=4 format=3 uid="uid://drkua71k2d53x"]
 
 [ext_resource type="PackedScene" uid="uid://cnmv786k3qi1c" path="res://Scenes/NPCs/NPCBaseClass.tscn" id="1_rywdu"]
 [ext_resource type="Script" uid="uid://ccqco0gae7bq3" path="res://Scenes/NPCs/Mob/mobs_base_class.gd" id="2_3vvr5"]
+[ext_resource type="Script" uid="uid://cf1nsco3w0mf6" path="res://addons/godot_state_charts/transition.gd" id="3_k2x2f"]
 
 [node name="Mob" instance=ExtResource("1_rywdu")]
 script = ExtResource("2_3vvr5")
@@ -14,3 +15,15 @@ attack_cooldown = 1.5
 base_idle_retarget_time = 1.2
 base_idle_wander_radius = 120.0
 base_keep_distance = 20.0
+
+[node name="ToDead" type="Node" parent="StateChart/CompoundState/Idle" index="1"]
+script = ExtResource("3_k2x2f")
+to = NodePath("../../Dead")
+event = &"self_dead"
+delay_in_seconds = "0.0"
+
+[node name="ToDead" type="Node" parent="StateChart/CompoundState/Approach" index="2"]
+script = ExtResource("3_k2x2f")
+to = NodePath("../../Dead")
+event = &"self_dead"
+delay_in_seconds = "0.0"

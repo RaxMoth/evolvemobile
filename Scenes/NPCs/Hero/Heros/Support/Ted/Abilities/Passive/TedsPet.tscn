@@ -4,7 +4,7 @@
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_pet"]
 
-[node name="TedsPet" type="CharacterBody2D"]
+[node name="TedsPet" type="CharacterBody2D" groups=["Hero"]]
 script = ExtResource("1_pet")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]

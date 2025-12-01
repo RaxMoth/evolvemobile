@@ -53,7 +53,6 @@ func _apply_taunt(enemy: Node2D, caster: Node2D) -> void:
 		if is_instance_valid(taunt) and is_instance_valid(enemy):
 			taunt.queue_free()
 	
-	# Visual feedback
 	_create_taunt_link(enemy, caster)
 
 func _create_taunt_link(enemy: Node2D, caster: Node2D) -> void:

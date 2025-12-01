@@ -632,259 +632,305 @@ unique_name_in_owner = true
 [node name="BatArea" parent="Spawns" instance=ExtResource("4_5jr8x")]
 position = Vector2(899, 1071)
 mob_scene = ExtResource("5_27jhl")
-mob_count = 4
+mob_count = 3
+respawn_time = 40.0
 show_debug_area = true
 
 [node name="BatArea2" parent="Spawns" instance=ExtResource("4_5jr8x")]
 position = Vector2(562, 681)
 mob_scene = ExtResource("5_27jhl")
-mob_count = 4
+mob_count = 3
+respawn_time = 40.0
+auto_spawn_on_ready = true
 show_debug_area = true
 
 [node name="BatArea3" parent="Spawns" instance=ExtResource("4_5jr8x")]
 position = Vector2(1366, 155)
 mob_scene = ExtResource("5_27jhl")
-mob_count = 4
+mob_count = 2
+respawn_time = 40.0
+auto_spawn_on_ready = false
+return_to_center_on_reset = true
 show_debug_area = true
 
 [node name="BatArea4" parent="Spawns" instance=ExtResource("4_5jr8x")]
 position = Vector2(1837, 221)
 mob_scene = ExtResource("5_27jhl")
-mob_count = 4
+mob_count = 3
+respawn_time = 40.0
 show_debug_area = true
 
 [node name="BatArea5" parent="Spawns" instance=ExtResource("4_5jr8x")]
 position = Vector2(2197, 397)
 mob_scene = ExtResource("5_27jhl")
-mob_count = 4
+mob_count = 3
+respawn_time = 40.0
 show_debug_area = true
 
 [node name="BatArea6" parent="Spawns" instance=ExtResource("4_5jr8x")]
 position = Vector2(2069, 1186)
 mob_scene = ExtResource("5_27jhl")
-mob_count = 4
+mob_count = 3
+respawn_time = 40.0
 show_debug_area = true
 
 [node name="BatArea7" parent="Spawns" instance=ExtResource("4_5jr8x")]
 position = Vector2(2391, 1146)
 mob_scene = ExtResource("5_27jhl")
-mob_count = 4
+mob_count = 3
+respawn_time = 40.0
 show_debug_area = true
 
 [node name="BatArea8" parent="Spawns" instance=ExtResource("4_5jr8x")]
 position = Vector2(2503, 1432)
 mob_scene = ExtResource("5_27jhl")
-mob_count = 4
+mob_count = 3
+respawn_time = 40.0
 show_debug_area = true
 
 [node name="BatArea9" parent="Spawns" instance=ExtResource("4_5jr8x")]
 position = Vector2(1638, 1481)
 mob_scene = ExtResource("5_27jhl")
-mob_count = 4
+mob_count = 3
+respawn_time = 40.0
 show_debug_area = true
 
 [node name="BatArea10" parent="Spawns" instance=ExtResource("4_5jr8x")]
 position = Vector2(1231, 1803)
 mob_scene = ExtResource("5_27jhl")
-mob_count = 4
+mob_count = 3
+respawn_time = 40.0
 show_debug_area = true
 
 [node name="BatArea11" parent="Spawns" instance=ExtResource("4_5jr8x")]
 position = Vector2(1245, 2937)
 mob_scene = ExtResource("5_27jhl")
-mob_count = 4
+mob_count = 3
+respawn_time = 40.0
 show_debug_area = true
 
 [node name="BatArea12" parent="Spawns" instance=ExtResource("4_5jr8x")]
 position = Vector2(1813, 3146)
 mob_scene = ExtResource("5_27jhl")
-mob_count = 4
+mob_count = 3
+respawn_time = 40.0
 show_debug_area = true
 
 [node name="BatArea13" parent="Spawns" instance=ExtResource("4_5jr8x")]
 position = Vector2(1431, 3291)
 mob_scene = ExtResource("5_27jhl")
-mob_count = 4
+mob_count = 3
+respawn_time = 40.0
 show_debug_area = true
 
 [node name="BatArea14" parent="Spawns" instance=ExtResource("4_5jr8x")]
 position = Vector2(556, 3086)
 mob_scene = ExtResource("5_27jhl")
-mob_count = 4
+mob_count = 3
+respawn_time = 40.0
 show_debug_area = true
 
 [node name="BatArea15" parent="Spawns" instance=ExtResource("4_5jr8x")]
 position = Vector2(500, 3227)
 mob_scene = ExtResource("5_27jhl")
-mob_count = 4
+mob_count = 3
+respawn_time = 40.0
 show_debug_area = true
 
 [node name="BatArea16" parent="Spawns" instance=ExtResource("4_5jr8x")]
 position = Vector2(1108, 3655)
 mob_scene = ExtResource("5_27jhl")
-mob_count = 4
+mob_count = 3
+respawn_time = 40.0
 show_debug_area = true
 
 [node name="BatArea17" parent="Spawns" instance=ExtResource("4_5jr8x")]
 position = Vector2(1774, 3638)
 mob_scene = ExtResource("5_27jhl")
-mob_count = 4
+mob_count = 3
+respawn_time = 40.0
 show_debug_area = true
 
 [node name="BatArea18" parent="Spawns" instance=ExtResource("4_5jr8x")]
 position = Vector2(862, 4414)
 mob_scene = ExtResource("5_27jhl")
-mob_count = 4
+mob_count = 3
+respawn_time = 40.0
 show_debug_area = true
 
 [node name="BatArea19" parent="Spawns" instance=ExtResource("4_5jr8x")]
 position = Vector2(1438, 4659)
 mob_scene = ExtResource("5_27jhl")
-mob_count = 4
+mob_count = 3
+respawn_time = 40.0
 show_debug_area = true
 
 [node name="BatArea20" parent="Spawns" instance=ExtResource("4_5jr8x")]
 position = Vector2(2599, 4413)
 mob_scene = ExtResource("5_27jhl")
-mob_count = 4
+mob_count = 3
+respawn_time = 40.0
 show_debug_area = true
 
 [node name="BatArea21" parent="Spawns" instance=ExtResource("4_5jr8x")]
 position = Vector2(3199, 5094)
 mob_scene = ExtResource("5_27jhl")
-mob_count = 4
+mob_count = 3
+respawn_time = 40.0
 show_debug_area = true
 
 [node name="BatArea22" parent="Spawns" instance=ExtResource("4_5jr8x")]
 position = Vector2(3818, 5123)
 mob_scene = ExtResource("5_27jhl")
-mob_count = 4
+mob_count = 3
+respawn_time = 40.0
 show_debug_area = true
 
 [node name="BatArea23" parent="Spawns" instance=ExtResource("4_5jr8x")]
 position = Vector2(3888, 4426)
 mob_scene = ExtResource("5_27jhl")
-mob_count = 4
+mob_count = 3
+respawn_time = 40.0
 show_debug_area = true
 
 [node name="BatArea24" parent="Spawns" instance=ExtResource("4_5jr8x")]
 position = Vector2(4577, 4255)
 mob_scene = ExtResource("5_27jhl")
-mob_count = 4
+mob_count = 3
+respawn_time = 40.0
 show_debug_area = true
 
 [node name="BatArea25" parent="Spawns" instance=ExtResource("4_5jr8x")]
 position = Vector2(5217, 3395)
 mob_scene = ExtResource("5_27jhl")
-mob_count = 4
+mob_count = 3
+respawn_time = 40.0
 show_debug_area = true
 
 [node name="BatArea26" parent="Spawns" instance=ExtResource("4_5jr8x")]
 position = Vector2(6114, 3622)
 mob_scene = ExtResource("5_27jhl")
-mob_count = 4
+mob_count = 3
+respawn_time = 40.0
 show_debug_area = true
 
 [node name="BatArea27" parent="Spawns" instance=ExtResource("4_5jr8x")]
 position = Vector2(5885, 2883)
 mob_scene = ExtResource("5_27jhl")
-mob_count = 4
+mob_count = 3
+respawn_time = 40.0
 show_debug_area = true
 
 [node name="BatArea28" parent="Spawns" instance=ExtResource("4_5jr8x")]
 position = Vector2(5743, 2019)
 mob_scene = ExtResource("5_27jhl")
-mob_count = 4
+mob_count = 3
+respawn_time = 40.0
 show_debug_area = true
 
 [node name="BatArea29" parent="Spawns" instance=ExtResource("4_5jr8x")]
 position = Vector2(6979, 1804)
 mob_scene = ExtResource("5_27jhl")
-mob_count = 4
+mob_count = 3
+respawn_time = 40.0
 show_debug_area = true
 
 [node name="BatArea30" parent="Spawns" instance=ExtResource("4_5jr8x")]
 position = Vector2(6111, 2148)
 mob_scene = ExtResource("5_27jhl")
-mob_count = 4
+mob_count = 3
+respawn_time = 40.0
 show_debug_area = true
 
 [node name="BatArea31" parent="Spawns" instance=ExtResource("4_5jr8x")]
 position = Vector2(6637, 2948)
 mob_scene = ExtResource("5_27jhl")
-mob_count = 4
+mob_count = 3
+respawn_time = 40.0
 show_debug_area = true
 
 [node name="BatArea32" parent="Spawns" instance=ExtResource("4_5jr8x")]
 position = Vector2(7954, 3383)
 mob_scene = ExtResource("5_27jhl")
-mob_count = 4
+mob_count = 3
+respawn_time = 40.0
 show_debug_area = true
 
 [node name="BatArea33" parent="Spawns" instance=ExtResource("4_5jr8x")]
 position = Vector2(8007, 2344)
 mob_scene = ExtResource("5_27jhl")
-mob_count = 4
+mob_count = 3
+respawn_time = 40.0
 show_debug_area = true
 
 [node name="BatArea34" parent="Spawns" instance=ExtResource("4_5jr8x")]
 position = Vector2(7832, 2032)
 mob_scene = ExtResource("5_27jhl")
-mob_count = 4
+mob_count = 3
+respawn_time = 40.0
 show_debug_area = true
 
 [node name="BatArea35" parent="Spawns" instance=ExtResource("4_5jr8x")]
 position = Vector2(7601, 962)
 mob_scene = ExtResource("5_27jhl")
-mob_count = 4
+mob_count = 3
+respawn_time = 40.0
 show_debug_area = true
 
 [node name="BatArea36" parent="Spawns" instance=ExtResource("4_5jr8x")]
 position = Vector2(7809, 1015)
 mob_scene = ExtResource("5_27jhl")
-mob_count = 4
+mob_count = 3
+respawn_time = 40.0
 show_debug_area = true
 
 [node name="BatArea37" parent="Spawns" instance=ExtResource("4_5jr8x")]
 position = Vector2(7644, 1233)
 mob_scene = ExtResource("5_27jhl")
-mob_count = 4
+mob_count = 3
+respawn_time = 40.0
 show_debug_area = true
 
 [node name="BatArea38" parent="Spawns" instance=ExtResource("4_5jr8x")]
 position = Vector2(6828, 1144)
 mob_scene = ExtResource("5_27jhl")
-mob_count = 4
+mob_count = 3
+respawn_time = 40.0
 show_debug_area = true
 
 [node name="BatArea39" parent="Spawns" instance=ExtResource("4_5jr8x")]
 position = Vector2(6318, 969)
 mob_scene = ExtResource("5_27jhl")
-mob_count = 4
+mob_count = 3
+respawn_time = 40.0
 show_debug_area = true
 
 [node name="BatArea40" parent="Spawns" instance=ExtResource("4_5jr8x")]
 position = Vector2(5563, 1382)
 mob_scene = ExtResource("5_27jhl")
-mob_count = 4
+mob_count = 3
+respawn_time = 40.0
 show_debug_area = true
 
 [node name="BatArea41" parent="Spawns" instance=ExtResource("4_5jr8x")]
 position = Vector2(3837, 1339)
 mob_scene = ExtResource("5_27jhl")
-mob_count = 4
+mob_count = 3
+respawn_time = 40.0
 show_debug_area = true
 
 [node name="BatArea43" parent="Spawns" instance=ExtResource("4_5jr8x")]
 position = Vector2(2975, 1904)
 mob_scene = ExtResource("5_27jhl")
-mob_count = 4
+mob_count = 3
+respawn_time = 40.0
 show_debug_area = true
 
 [node name="BatArea42" parent="Spawns" instance=ExtResource("4_5jr8x")]
 position = Vector2(4602, 1435)
 mob_scene = ExtResource("5_27jhl")
-mob_count = 4
+mob_count = 3
+respawn_time = 40.0
 show_debug_area = true
 
 [node name="Heros" type="Node" parent="."]

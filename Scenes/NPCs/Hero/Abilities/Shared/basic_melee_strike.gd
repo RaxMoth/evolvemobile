@@ -18,4 +18,3 @@ func execute(caster: Node2D, target: Node2D = null) -> void:
 	var distance = caster.global_position.distance_to(target.global_position)
 	if distance <= range:
 		target.take_damage(damage)
-		print(caster.name + " dealt " + str(damage) + " damage to " + target.name)
