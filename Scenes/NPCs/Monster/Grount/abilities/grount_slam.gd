@@ -31,9 +31,6 @@ func execute(caster: Node2D, target: Node2D = null) -> void:
 	_perform_jump(caster, start_pos, target_pos)
 
 func _perform_jump(caster: Node2D, start_pos: Vector2, target_pos: Vector2) -> void:
-	# Make bull "invulnerable" or invisible during jump (optional)
-	var original_modulate = caster.modulate
-	
 	# Jump animation using tween
 	var tween = caster.create_tween()
 	tween.set_parallel(true)
@@ -77,25 +74,18 @@ func _perform_slam(caster: Node2D) -> void:
 		if entity == caster or not entity:
 			continue
 		
-		if entity.is_in_group("Enemy") and entity.has_method("take_damage"):
+		# FIXED: Proper targeting - Heroes OR Mobs (but not other Monsters)
+		var can_hit = false
+		if entity.is_in_group("Hero"):
+			can_hit = true
+		elif entity.is_in_group("Enemy") and not entity.is_in_group("Monster"):
+			can_hit = true # Hit Mobs
+		
+		if can_hit and entity.has_method("take_damage"):
 			entity.take_damage(damage)
 			hit_count += 1
 	
-	_create_slam_effect(caster)
-
-func _create_slam_effect(caster: Node2D) -> void:
-	# Create expanding shockwave visual
-	var effect = Node2D.new()
-	caster.get_parent().add_child(effect)
-	effect.global_position = caster.global_position
-	effect.z_index = -1
-	
-	# Animate shockwave
-	var tween = effect.create_tween()
-	tween.set_parallel(true)
-	tween.tween_property(effect, "scale", Vector2(3, 3), 0.5)
-	tween.tween_property(effect, "modulate:a", 0.0, 0.5)
-	tween.tween_callback(effect.queue_free)
+	print("Ground Slam hit " + str(hit_count) + " enemies!")
 
 func _get_entity(collider: Node) -> Node:
 	if collider.has_method("get_parent"):

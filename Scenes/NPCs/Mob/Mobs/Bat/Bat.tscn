@@ -69,6 +69,7 @@ animations = [{
 
 [node name="Bat" groups=["Enemy"] instance=ExtResource("1_u0xgj")]
 attack_cooldown = 0.5
+xp_value = 20.0
 
 [node name="StateChartDebugger" parent="CanvasLayer" index="0"]
 visible = false

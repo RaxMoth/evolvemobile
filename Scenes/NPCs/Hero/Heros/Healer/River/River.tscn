@@ -30,6 +30,7 @@ animations = [{
 
 [node name="River" instance=ExtResource("1_hqa4n")]
 script = ExtResource("2_ecbku")
+xp_value = 100.0
 
 [node name="HeroStats" parent="." index="0"]
 base_stats = ExtResource("3_7c2pv")

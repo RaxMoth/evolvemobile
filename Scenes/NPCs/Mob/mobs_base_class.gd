@@ -139,7 +139,6 @@ func _on_attack_timer_timeout() -> void:
 		_perform_basic_attack()
 
 func _on_dead_state_entered() -> void:
-	print("sdHAHAHAHHAHAHHAHHHAHHAHA")
 	_on_mob_death()
 	super._on_dead_state_entered()
 

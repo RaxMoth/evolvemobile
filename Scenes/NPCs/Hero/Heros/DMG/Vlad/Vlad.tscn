@@ -2,7 +2,7 @@
 
 [ext_resource type="PackedScene" uid="uid://bvyrcj7lkc1k6" path="res://Scenes/NPCs/Hero/HeroBaseClass.tscn" id="1_g8gcj"]
 [ext_resource type="Resource" uid="uid://m2m6oqcsafle" path="res://Scenes/NPCs/Hero/Heros/DMG/Vlad/Vlad_stat.tres" id="2_aqsnw"]
-[ext_resource type="Resource" uid="uid://btnrxaxocyqlo" path="res://Scenes/NPCs/Hero/Heros/DMG/Vlad/Abilities/passive/passive_vlad.tres" id="3_k6r5v"]
+[ext_resource type="Resource" uid="uid://cevl13rjegnsm" path="res://Scenes/NPCs/Hero/Heros/DMG/Vlad/Abilities/passive/passive_vlad.tres" id="3_k6r5v"]
 [ext_resource type="Resource" uid="uid://bwgui8ikvrqci" path="res://Scenes/NPCs/Hero/Heros/DMG/Vlad/Abilities/active/active_mine.tres" id="4_qoltp"]
 [ext_resource type="Resource" uid="uid://cls00ddvooq36" path="res://Scenes/NPCs/Hero/Heros/DMG/Vlad/Abilities/basic_attack/basic_attack.tres" id="5_s7ida"]
 [ext_resource type="Resource" uid="uid://d4m3ntk0yrv1g" path="res://Scenes/NPCs/Hero/Heros/DMG/Vlad/Abilities/ult/ult.tres" id="6_dmu8j"]
@@ -63,6 +63,7 @@ animations = [{
 }]
 
 [node name="Vlad" instance=ExtResource("1_g8gcj")]
+xp_value = 100.0
 
 [node name="HeroStats" parent="." index="0"]
 base_stats = ExtResource("2_aqsnw")

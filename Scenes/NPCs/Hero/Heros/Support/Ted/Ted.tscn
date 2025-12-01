@@ -30,6 +30,7 @@ animations = [{
 
 [node name="Ted" instance=ExtResource("1_base")]
 script = ExtResource("2_script")
+xp_value = 100.0
 
 [node name="HeroStats" parent="." index="0"]
 base_stats = ExtResource("3_stats")
@@ -53,7 +54,7 @@ anchor_right = 0.839
 [node name="AnimatedSprite2D" parent="." index="4"]
 sprite_frames = SubResource("SpriteFrames_k2pxe")
 autoplay = "default"
-frame_progress = 0.07211461
+frame_progress = 0.58320284
 
 [node name="Sprite2D" parent="." index="5"]
 visible = false

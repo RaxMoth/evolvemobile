@@ -71,6 +71,7 @@ animations = [{
 max_health = 100.0
 base_attack_damage = 10.0
 attack_cooldown = 1.0
+xp_value = 10.0
 
 [node name="AnimatedSprite2D" parent="." index="2"]
 sprite_frames = SubResource("SpriteFrames_ilf7r")

@@ -35,7 +35,7 @@ func execute(caster: Node2D, target: Node2D = null) -> void:
 		var collider = result.collider
 		var entity = _get_entity(collider)
 		
-		# FIXED: Ensure entity is valid Node2D
+		# Ensure entity is valid Node2D
 		if not entity or entity == caster or not entity is Node2D:
 			continue
 		
@@ -45,7 +45,14 @@ func execute(caster: Node2D, target: Node2D = null) -> void:
 		
 		# Convert cone angle to radians and check if in cone
 		if abs(angle_to_entity) <= deg_to_rad(cone_angle / 2.0):
-			if entity.is_in_group("Enemy") and entity.has_method("take_damage"):
+			# FIXED: Proper targeting - Heroes OR Mobs (but not other Monsters)
+			var can_hit = false
+			if entity.is_in_group("Hero"):
+				can_hit = true
+			elif entity.is_in_group("Enemy") and not entity.is_in_group("Monster"):
+				can_hit = true  # Hit Mobs (in Enemy group but not Monster group)
+			
+			if can_hit and entity.has_method("take_damage"):
 				entity.take_damage(damage)
 				hit_count += 1
 	

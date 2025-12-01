@@ -66,7 +66,7 @@ func _check_dash_collisions(caster: Node2D, previous_pos: Vector2) -> void:
 	var space_state = caster.get_world_2d().direct_space_state
 	var query = PhysicsShapeQueryParameters2D.new()
 	var shape = CircleShape2D.new()
-	shape.radius = 40.0  # Hit radius during dash
+	shape.radius = 40.0 # Hit radius during dash
 	query.shape = shape
 	query.transform = Transform2D(0, caster.global_position)
 	query.collide_with_areas = true
@@ -80,7 +80,14 @@ func _check_dash_collisions(caster: Node2D, previous_pos: Vector2) -> void:
 		if entity == caster or not entity:
 			continue
 		
-		if entity.is_in_group("Enemy") and entity.has_method("take_damage"):
+		# FIXED: Proper targeting - Heroes OR Mobs (but not other Monsters)
+		var can_hit = false
+		if entity.is_in_group("Hero"):
+			can_hit = true
+		elif entity.is_in_group("Enemy") and not entity.is_in_group("Monster"):
+			can_hit = true # Hit Mobs
+		
+		if can_hit and entity.has_method("take_damage"):
 			entity.take_damage(damage)
 			
 			# Apply knockback

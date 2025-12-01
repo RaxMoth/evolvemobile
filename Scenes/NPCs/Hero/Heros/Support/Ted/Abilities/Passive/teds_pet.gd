@@ -171,7 +171,6 @@ func _perform_attack() -> void:
 	
 	if current_target.has_method("take_damage"):
 		current_target.take_damage(attack_damage)
-		print("Pet attacked for " + str(attack_damage) + " damage!")
 
 func take_damage(amount: float) -> void:
 	current_health -= amount

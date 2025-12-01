@@ -3,9 +3,19 @@ extends Node2D
 var exploration_controller: HeroExplorationController
 
 func _ready():
+	_setup_fog()
 	_setup_hero_vision()
 	_setup_exploration_controller()
 
+func _setup_fog():
+	var fog = preload("res://Scenes/World/FogOfWar/FogOfWarSystem.tscn").instantiate()
+	fog.name = "FogOfWar"
+	fog.world_size = Vector2(9200, 5185)
+	fog.world_offset = Vector2(0, 0)
+	fog.tile_size = 32
+	fog.fog_color = Color(0, 0, 0, 0.85)
+	
+	add_child(fog)
 
 func _setup_hero_vision():
 	await get_tree().process_frame

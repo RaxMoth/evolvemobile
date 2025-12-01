@@ -30,6 +30,7 @@ animations = [{
 
 [node name="Irelia" instance=ExtResource("1_rak2b")]
 script = ExtResource("2_8w040")
+xp_value = 100.0
 
 [node name="HeroStats" parent="." index="0"]
 base_stats = ExtResource("3_8w040")

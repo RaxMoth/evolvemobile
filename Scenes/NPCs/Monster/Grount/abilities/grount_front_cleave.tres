@@ -1,11 +1,13 @@
-[gd_resource type="Resource" script_class="BullFrontCleave" load_steps=2 format=3 uid="uid://dxt3cwqg5jh8c"]
+[gd_resource type="Resource" script_class="BullFrontCleave" load_steps=3 format=3 uid="uid://dxt3cwqg5jh8c"]
 
 [ext_resource type="Script" uid="uid://cwfkgc14uiawh" path="res://Scenes/NPCs/Monster/Grount/abilities/bull_front_cleave.gd" id="1_hv4vt"]
+[ext_resource type="Texture2D" uid="uid://0vlvy3mej50h" path="res://Icon.jpg" id="1_xemj1"]
 
 [resource]
 script = ExtResource("1_hv4vt")
 cone_angle = 50.0
 ability_name = "Front Cleave"
+icon = ExtResource("1_xemj1")
 cooldown = 4.5
 description = "Cleaves enemies in a frontal cone (Stage 1: 12 dmg, Stage 2: 17 dmg, Stage 3: 24 dmg)"
 damage = 12.0

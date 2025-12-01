@@ -1,6 +1,9 @@
 extends Node2D
 class_name EntityBase
 
+@export_group("XP System")
+@export var xp_value: float = 0.0 # How much XP this entity is worth when killed
+
 @onready var sprite: Node2D = $Sprite2D
 @onready var state_chart: StateChart = %StateChart
 @onready var navigation_agent_2d: NavigationAgent2D = %NavigationAgent2D
@@ -111,6 +114,7 @@ func _on_detection_area_area_exited(area: Area2D) -> void:
 		target_entity = null
 		state_chart.send_event("enemie_exited")
 
+
 func _on_detection_area_area_entered(area: Area2D) -> void:
 	if area.get_owner() == self or area.get_parent() == self:
 		return
@@ -119,12 +123,32 @@ func _on_detection_area_area_entered(area: Area2D) -> void:
 	if not root:
 		return
 	
+	# TARGETING RULES:
+	# - Monsters can target: Heroes AND Mobs
+	# - Mobs can target: Heroes AND Monsters (defend themselves!)
+	# - Heroes can target: Mobs AND Monsters
+	# - Nobody targets their own type (no Mob-on-Mob, no Monster-on-Monster)
+	
 	var can_target := false
 	
-	if is_in_group("Enemy") and root.is_in_group("Hero"):
-		can_target = true
-	elif is_in_group("Hero") and root.is_in_group("Enemy"):
-		can_target = true
+	if is_in_group("Monster"):
+		# Monsters attack both Heroes and Mobs (but not other Monsters)
+		if root.is_in_group("Hero"):
+			can_target = true
+		elif root.is_in_group("Enemy") and not root.is_in_group("Monster"):
+			can_target = true
+	
+	elif is_in_group("Enemy"):
+		# Mobs attack Heroes AND Monsters (but not other Mobs)
+		if root.is_in_group("Hero"):
+			can_target = true
+		elif root.is_in_group("Monster"):
+			can_target = true # Defend against Monsters!
+	
+	elif is_in_group("Hero"):
+		# Heroes attack all enemies (Mobs and Monsters)
+		if root.is_in_group("Enemy"):
+			can_target = true
 	
 	if can_target:
 		target = area
@@ -132,6 +156,7 @@ func _on_detection_area_area_entered(area: Area2D) -> void:
 		state_chart.send_event("enemie_entered")
 
 func _on_approach_state_processing(delta: float) -> void:
+	# CRITICAL: Check if target is still valid before accessing it
 	if not is_target_valid():
 		state_chart.send_event("enemie_exited")
 		return
@@ -140,7 +165,13 @@ func _on_approach_state_processing(delta: float) -> void:
 		state_chart.send_event("enemy_fight")
 		return
 	
-	move_toward_point(target.global_position, approach_speed, delta)
+	# FIXED: Use navigation system instead of direct movement
+	if is_instance_valid(navigation_agent_2d):
+		navigation_agent_2d.target_position = target.global_position
+		_steer_along_nav(approach_speed, delta)
+	else:
+		# Fallback if navigation fails
+		move_toward_point(target.global_position, approach_speed, delta)
 
 func _on_approach_state_entered() -> void:
 	if not is_target_valid():
@@ -168,6 +199,7 @@ func _on_idle_state_entered() -> void:
 	_idle_goal = global_position
 
 func _on_fight_state_processing(delta: float) -> void:
+	# CRITICAL: Check if target is still valid before accessing it
 	if not is_target_valid():
 		state_chart.send_event("target_lost")
 		return
@@ -188,4 +220,25 @@ func _on_fight_state_entered() -> void:
 		state_chart.send_event("target_lost")
 
 func _on_dead_state_entered() -> void:
+	# Grant XP to killer before dying
+	_grant_xp_to_killer()
+	
 	queue_free()
+
+# ============================================
+# XP SYSTEM - Grant XP to whoever killed this entity
+# ============================================
+
+func _grant_xp_to_killer() -> void:
+	# Check if we have a valid target that killed us
+	if not is_instance_valid(target_entity):
+		return
+	
+	# Check if killer can gain XP
+	if not target_entity.has_method("gain_xp"):
+		return
+	
+	# Grant XP based on this entity's value
+	if xp_value > 0:
+		target_entity.gain_xp(xp_value)
+		print(name + " granted " + str(xp_value) + " XP to " + target_entity.name)
