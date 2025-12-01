@@ -187,3 +187,109 @@ func get_stage_name() -> String:
 		Stage.STRONG:
 			return "APEX PREDATOR"
 	return "Unknown"
+	
+	
+func _on_phase_entered(new_phase: int, old_phase: int) -> void:
+	super._on_phase_entered(new_phase, old_phase)
+	
+	# Switch sprite animation based on evolution stage
+	_update_visual_stage(new_phase)
+	
+	# Keep existing behavior
+	match new_phase:
+		1:
+			_configure_weak_abilities()
+		2:
+			_configure_medium_abilities()
+		3:
+			_configure_strong_abilities()
+
+func _update_visual_stage(stage: int) -> void:
+	# Switch AnimatedSprite2D animation
+	if has_node("AnimatedSprite2D"):
+		var anim_sprite = $AnimatedSprite2D
+		
+		# Animation names must match what you set up in SpriteFrames
+		var animation_name = "phase_" + str(stage)
+		
+		if anim_sprite.sprite_frames and anim_sprite.sprite_frames.has_animation(animation_name):
+			anim_sprite.play(animation_name)
+			print("Grount visual stage: " + animation_name)
+		else:
+			push_warning("Missing animation: " + animation_name + " - Create it in AnimatedSprite2D!")
+	
+	# Optional: Evolution flash effect
+	_play_evolution_visual_effect(stage)
+	
+	# Optional: Scale up with each stage
+	_update_stage_scale(stage)
+
+func _play_evolution_visual_effect(stage: int) -> void:
+	# Flash the sprite
+	if has_node("AnimatedSprite2D"):
+		var anim_sprite = $AnimatedSprite2D
+		var original_modulate = anim_sprite.modulate
+		
+		var flash_color = Color.WHITE
+		match stage:
+			2:
+				flash_color = Color(1.5, 1.2, 0.8)  # Orange
+			3:
+				flash_color = Color(1.8, 0.8, 0.8)  # Red
+		
+		var tween = create_tween()
+		tween.tween_property(anim_sprite, "modulate", flash_color, 0.2)
+		tween.tween_property(anim_sprite, "modulate", original_modulate, 0.4)
+	
+	# Expanding ring (keep your existing effect or use this)
+	_create_evolution_ring_effect(stage)
+
+func _create_evolution_ring_effect(stage: int) -> void:
+	var effect = Node2D.new()
+	get_parent().add_child(effect)
+	effect.global_position = global_position
+	effect.z_index = 10
+	
+	var circle = Line2D.new()
+	effect.add_child(circle)
+	
+	# Stage-specific colors
+	match stage:
+		2:
+			circle.default_color = Color.ORANGE
+		3:
+			circle.default_color = Color.RED
+		_:
+			circle.default_color = Color.YELLOW
+	
+	circle.width = 5.0
+	
+	# Draw circle
+	for i in range(33):
+		var angle = i * TAU / 32
+		circle.add_point(Vector2(cos(angle), sin(angle)) * 60)
+	
+	# Animate
+	var tween = effect.create_tween()
+	tween.set_parallel(true)
+	tween.tween_property(effect, "scale", Vector2(4, 4), 1.0)
+	tween.tween_property(circle, "modulate:a", 0.0, 1.0)
+	tween.tween_callback(effect.queue_free)
+
+func _update_stage_scale(stage: int) -> void:
+	# Make Grount physically grow with each stage
+	var target_scale = Vector2.ONE
+	
+	match stage:
+		1:
+			target_scale = Vector2(1.0, 1.0)  # Normal
+		2:
+			target_scale = Vector2(1.25, 1.25)  # 25% bigger
+		3:
+			target_scale = Vector2(1.5, 1.5)  # 50% bigger - APEX
+	
+	# Smooth growth animation
+	var tween = create_tween()
+	tween.tween_property(self, "scale", target_scale, 0.5)\
+		.set_trans(Tween.TRANS_BACK)\
+		.set_ease(Tween.EASE_OUT)

@@ -17,3 +17,7 @@ ability_1 = null
 ability_2 = null
 ability_3 = null
 passive_ability = null
+phase_1_animation = "phase_1"
+phase_2_animation = "phase_2"
+phase_3_animation = "phase_3"
+enable_phase_effects = true

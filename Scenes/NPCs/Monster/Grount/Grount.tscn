@@ -1,19 +1,19 @@
-[gd_scene load_steps=6 format=3 uid="uid://cvit7v54q45mk"]
+[gd_scene load_steps=7 format=3 uid="uid://cvit7v54q45mk"]
 
 [ext_resource type="PackedScene" uid="uid://ciqj3vjyob7jm" path="res://Scenes/NPCs/Monster/monster_base_class.tscn" id="1_75sub"]
 [ext_resource type="Script" uid="uid://cin06wadxf2py" path="res://Scenes/NPCs/Monster/Grount/grount.gd" id="2_7s573"]
 [ext_resource type="Resource" uid="uid://dxt3cwqg5jh8c" path="res://Scenes/NPCs/Monster/Grount/abilities/grount_front_cleave.tres" id="3_tudf8"]
 [ext_resource type="Resource" uid="uid://dyaqdcmee3tis" path="res://Scenes/NPCs/Monster/Grount/abilities/grout_ram_dash.tres" id="4_n33a8"]
 [ext_resource type="Resource" uid="uid://droiw24xlfrd1" path="res://Scenes/NPCs/Monster/Grount/abilities/grount_ground_slam.tres" id="5_60m1s"]
+[ext_resource type="SpriteFrames" uid="uid://fb0ft3xyfl3b" path="res://Scenes/NPCs/Monster/Grount/Assets/phase_1.tres" id="6_n33a8"]
 
 [node name="Grount" instance=ExtResource("1_75sub")]
 script = ExtResource("2_7s573")
+max_health = 800.0
+base_attack_range = 60.0
 ability_1 = ExtResource("3_tudf8")
 ability_2 = ExtResource("4_n33a8")
 ability_3 = ExtResource("5_60m1s")
-max_health = 800.0
-base_move_speed = 60.0
-base_approach_speed = 80.0
-base_attack_range = 60.0
-base_attack_damage = 12.0
-attack_cooldown = 2.0
+
+[node name="AnimatedSprite2D" parent="." index="2"]
+sprite_frames = ExtResource("6_n33a8")

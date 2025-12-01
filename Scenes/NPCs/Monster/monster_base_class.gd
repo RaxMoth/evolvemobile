@@ -119,22 +119,10 @@ func _check_phase_transition() -> void:
 	if new_phase != current_phase:
 		_enter_phase(new_phase)
 
-func _enter_phase(phase: int) -> void:
-	var old_phase = current_phase
-	current_phase = phase
-	
-	print(name + " entered Phase " + str(current_phase) + "!")
-	
-	# Reset cooldowns on phase change
-	for key in ability_cooldowns.keys():
-		ability_cooldowns[key] = 0.0
-	
-	# Emit signal and call override
-	phase_changed.emit(current_phase)
-	_on_phase_entered(current_phase, old_phase)
+
 
 # Override this in specific monsters for phase-specific behavior
-func _on_phase_entered(_new_phase: int, old_phase: int) -> void:
+func _on_phase_entered(_new_phase: int, _old_phase: int) -> void:
 	pass
 
 # ============================================
@@ -205,3 +193,116 @@ func _on_dead_state_entered() -> void:
 # Override for custom death behavior (cutscenes, loot, etc.)
 func _on_monster_death() -> void:
 	pass
+
+
+# Add this to monster_base_class.gd
+
+# ============================================
+# PHASE-BASED VISUAL SYSTEM
+# ============================================
+
+@export_group("Phase Visuals")
+# Animation names in AnimatedSprite2D (e.g., "phase_1", "phase_2", "phase_3")
+@export var phase_1_animation: String = "phase_1"
+@export var phase_2_animation: String = "phase_2"
+@export var phase_3_animation: String = "phase_3"
+@export var enable_phase_effects: bool = true  # Visual flash on phase change
+
+@onready var animated_sprite: AnimatedSprite2D = $AnimatedSprite2D
+
+func _enter_phase(phase: int) -> void:
+	var old_phase = current_phase
+	current_phase = phase
+	
+	print(name + " entered Phase " + str(current_phase) + "!")
+	
+	# Reset cooldowns on phase change
+	for key in ability_cooldowns.keys():
+		ability_cooldowns[key] = 0.0
+	
+	# VISUAL UPDATE: Switch sprite animation
+	_update_phase_visuals(current_phase)
+	
+	# Emit signal and call override
+	phase_changed.emit(current_phase)
+	_on_phase_entered(current_phase, old_phase)
+
+func _update_phase_visuals(phase: int) -> void:
+	if not animated_sprite:
+		return
+	
+	# Switch to phase-specific animation
+	var animation_name: String
+	match phase:
+		1:
+			animation_name = phase_1_animation
+		2:
+			animation_name = phase_2_animation
+		3:
+			animation_name = phase_3_animation
+		_:
+			animation_name = phase_1_animation
+	
+	# Check if animation exists
+	if animated_sprite.sprite_frames and animated_sprite.sprite_frames.has_animation(animation_name):
+		animated_sprite.play(animation_name)
+		print(name + " switched to animation: " + animation_name)
+	else:
+		push_warning(name + " missing animation: " + animation_name)
+	
+	# Optional: Visual effect on phase change
+	if enable_phase_effects:
+		_play_phase_change_effect(phase)
+
+func _play_phase_change_effect(phase: int) -> void:
+	# Flash effect
+	if animated_sprite:
+		var original_modulate = animated_sprite.modulate
+		var flash_color = Color.WHITE
+		
+		match phase:
+			2:
+				flash_color = Color(1.5, 1.2, 0.8)  # Orange flash
+			3:
+				flash_color = Color(1.8, 0.8, 0.8)  # Red flash
+		
+		var tween = create_tween()
+		tween.tween_property(animated_sprite, "modulate", flash_color, 0.2)
+		tween.tween_property(animated_sprite, "modulate", original_modulate, 0.3)
+	
+	# Expanding ring effect
+	var effect = Node2D.new()
+	get_parent().add_child(effect)
+	effect.global_position = global_position
+	effect.z_index = 10
+	
+	# Create effect visuals
+	var circle = _create_phase_ring(phase)
+	effect.add_child(circle)
+	
+	var tween = effect.create_tween()
+	tween.set_parallel(true)
+	tween.tween_property(effect, "scale", Vector2(5, 5), 0.8)
+	tween.tween_property(circle, "modulate:a", 0.0, 0.8)
+	tween.tween_callback(effect.queue_free)
+
+func _create_phase_ring(phase: int) -> Line2D:
+	var circle = Line2D.new()
+	
+	# Phase-specific colors
+	match phase:
+		2:
+			circle.default_color = Color.ORANGE
+		3:
+			circle.default_color = Color.RED
+		_:
+			circle.default_color = Color.WHITE
+	
+	circle.width = 4.0
+	
+	# Draw circle
+	for i in range(33):
+		var angle = i * TAU / 32
+		circle.add_point(Vector2(cos(angle), sin(angle)) * 50)
+	
+	return circle
