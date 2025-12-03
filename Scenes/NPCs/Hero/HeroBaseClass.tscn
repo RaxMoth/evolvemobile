@@ -18,14 +18,15 @@ script = ExtResource("2_h674b")
 unique_name_in_owner = true
 script = ExtResource("2_c2olh")
 
-[node name="Body" parent="." index="7" groups=["Hero"]]
+[node name="Body" parent="." index="6" groups=["Hero"]]
 
 [node name="CollisionShape2D" parent="Body" index="0" groups=["Hero"]]
 
-[node name="NavigationAgent2D" parent="." index="8"]
+[node name="NavigationAgent2D" parent="." index="7"]
 navigation_layers = 3
 
 [node name="CompoundState" parent="StateChart" index="0" groups=["Enemy", "Hero"]]
 
-[node name="VisionArea" parent="." index="12" instance=ExtResource("5_m1rxm")]
+[node name="VisionArea" parent="." index="11" instance=ExtResource("5_m1rxm")]
 unique_name_in_owner = true
+vision_radius = 160.0

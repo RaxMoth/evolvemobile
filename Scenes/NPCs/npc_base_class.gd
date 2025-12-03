@@ -2,7 +2,10 @@ extends Node2D
 class_name EntityBase
 
 @export_group("XP System")
-@export var xp_value: float = 0.0 # How much XP this entity is worth when killed
+
+@export var xp_value: float = 0.0
+var last_attacker: Node2D = null
+
 
 @onready var sprite: Node2D = $Sprite2D
 @onready var state_chart: StateChart = %StateChart
@@ -129,6 +132,7 @@ func _on_detection_area_area_entered(area: Area2D) -> void:
 	# - Heroes can target: Mobs AND Monsters
 	# - Nobody targets their own type (no Mob-on-Mob, no Monster-on-Monster)
 	
+
 	var can_target := false
 	
 	if is_in_group("Monster"):
@@ -242,3 +246,5 @@ func _grant_xp_to_killer() -> void:
 	if xp_value > 0:
 		target_entity.gain_xp(xp_value)
 		print(name + " granted " + str(xp_value) + " XP to " + target_entity.name)
+		
+		
