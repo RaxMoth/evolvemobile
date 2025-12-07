@@ -22,6 +22,7 @@ var spawn_area: Node = null
 var spawn_position: Vector2 = Vector2.ZERO
 
 func _ready() -> void:
+	_setup_mob_combat_role()
 	current_health = max_health
 	attack_timer.wait_time = attack_cooldown
 	
@@ -35,6 +36,20 @@ func _process(_delta: float) -> void:
 	if spawn_area and spawn_area.has_method("is_position_in_area"):
 		if not spawn_area.is_position_in_area(global_position):
 			_handle_out_of_bounds()
+
+
+func _setup_mob_combat_role() -> void:
+	# Mobs are simple melee
+	combat_role = Globals.CombatRole.MELEE
+	preferred_distance = base_attack_range * 0.8
+	min_distance = 20.0
+	max_distance = base_attack_range * 1.5
+	strafe_enabled = true
+	strafe_speed = 40.0 # Slower, less agile
+	strafe_change_interval = 3.0
+
+func _is_attack_ready() -> bool:
+	return not attacking
 
 func _get_move_speed() -> float:
 	return base_move_speed

@@ -6,16 +6,25 @@ enum StageNames {VULNERABLE = 1, DANGEROUS = 2, APEX_PREDATOR = 3}
 var damage_multiplier: float = 1.0
 
 func _ready() -> void:
-	add_to_group("Monster") # Make sure we're in Monster group!
+	add_to_group("Monster")
 	_apply_stage_configuration(1)
 	super._ready()
+	
 	print("═══════════════════════════════════════")
 	print("║ ", name, " SPAWNED")
 	print("║ Stage: ", get_stage_name())
 	print("║ Groups: ", get_groups())
 	print("═══════════════════════════════════════")
 
-func _on_stage_entered(new_stage: int, _old_stage: int) -> void:
+# ============================================
+# Stage Change - Grount-Specific Behavior
+# ============================================
+
+func _on_stage_entered(new_stage: int, old_stage: int) -> void:
+	# Call parent first for common behavior
+	super._on_stage_entered(new_stage, old_stage)
+	
+	# Then add grount-specific behavior
 	_apply_stage_configuration(new_stage)
 	_update_stage_scale(new_stage)
 
@@ -43,9 +52,10 @@ func _apply_stage_configuration(stage: int) -> void:
 			base_move_speed = 110.0
 			damage_multiplier = 2.0
 	
-	# Apply stage stats to abilities (loaded from resources)
+	# Apply stage stats to abilities
 	_configure_abilities_for_stage(stage)
 	
+	# Update health bar
 	if health_bar:
 		health_bar.max_value = max_health
 		health_bar.value = current_health
@@ -55,7 +65,6 @@ func _apply_stage_configuration(stage: int) -> void:
 	print("  ✓ Damage Multiplier: ", damage_multiplier)
 
 func _configure_abilities_for_stage(stage: int) -> void:
-	# Let abilities load their stats from their resources
 	if ability_1:
 		ability_1.apply_stage_stats(stage)
 		print("  ✓ Ability 1: ", ability_1.ability_name, " - Damage: ", ability_1.damage, ", CD: ", ability_1.cooldown)
@@ -71,7 +80,10 @@ func _configure_abilities_for_stage(stage: int) -> void:
 			ability_3.cooldown = 999999.0
 		print("  ✓ Ability 3: ", ability_3.ability_name, " - Damage: ", ability_3.damage, ", CD: ", ability_3.cooldown)
 
-# FIXED: Pass damage as parameter with debug logging
+# ============================================
+# Combat - Override with Damage Multiplier
+# ============================================
+
 func _try_use_ability(ability_name: String, ability: AbilityBase) -> bool:
 	if not ability:
 		print("❌ ", name, " - No ability assigned for ", ability_name)
@@ -96,11 +108,15 @@ func _try_use_ability(ability_name: String, ability: AbilityBase) -> bool:
 	print("  • Target: ", target_entity.name if is_instance_valid(target_entity) else "NONE")
 	print("  • Target Groups: ", target_entity.get_groups() if is_instance_valid(target_entity) else "N/A")
 	
-	# Pass damage as parameter to execute
+	# Pass effective damage as parameter
 	ability.execute(self, target_entity, effective_damage)
 	
 	ability_cooldowns[ability_name] = ability.cooldown
 	return true
+
+# ============================================
+# Visuals
+# ============================================
 
 func _update_stage_scale(stage: int) -> void:
 	var target_scale = Vector2.ONE
@@ -117,6 +133,10 @@ func _update_stage_scale(stage: int) -> void:
 	tween.tween_property(self, "scale", target_scale, 0.5) \
 		.set_trans(Tween.TRANS_BACK) \
 		.set_ease(Tween.EASE_OUT)
+
+# ============================================
+# Helper Methods
+# ============================================
 
 func get_stage_name() -> String:
 	match current_stage:

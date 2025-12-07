@@ -338,8 +338,9 @@ unique_name_in_owner = true
 [node name="BatArea" parent="Spawns" instance=ExtResource("4_5jr8x")]
 position = Vector2(740, 262)
 mob_scene = ExtResource("5_27jhl")
-mob_count = 3
-respawn_time = 40.0
+mob_count = 4
+respawn_time = 4.0
+auto_spawn_on_ready = true
 show_debug_area = true
 
 [node name="BatArea2" parent="Spawns" instance=ExtResource("4_5jr8x")]

@@ -12,6 +12,20 @@ var last_attacker: Node2D = null
 @onready var navigation_agent_2d: NavigationAgent2D = %NavigationAgent2D
 @onready var health_bar: ProgressBar = %HealthBar
 
+@export_group("Combat Behavior")
+@export var combat_role: Globals.CombatRole = Globals.CombatRole.MELEE
+@export var preferred_distance: float = 50.0
+@export var min_distance: float = 30.0
+@export var max_distance: float = 150.0
+@export var strafe_enabled: bool = true
+@export var strafe_speed: float = 60.0
+
+var strafe_direction: int = 1
+var strafe_timer: float = 0.0
+var strafe_change_interval: float = 2.0
+var is_on_cooldown: bool = false
+
+
 var _idle_timer := 0.0
 var _idle_goal := Vector2.ZERO
 var target: Node2D = null
@@ -29,6 +43,9 @@ var idle_wander_radius: float:
 	get: return _get_idle_wander_radius()
 var keep_distance: float:
 	get: return _get_keep_distance()
+
+func _is_attack_ready() -> bool:
+	return not is_on_cooldown
 
 func _get_move_speed() -> float:
 	return 80.0
@@ -203,18 +220,117 @@ func _on_idle_state_entered() -> void:
 	_idle_goal = global_position
 
 func _on_fight_state_processing(delta: float) -> void:
-	# CRITICAL: Check if target is still valid before accessing it
 	if not is_target_valid():
 		state_chart.send_event("target_lost")
 		return
-
-	if distance_to_target() > max(attack_range, keep_distance):
+	
+	var distance = distance_to_target()
+	
+	# Check if too far
+	if distance > max_distance:
 		state_chart.send_event("re_approach")
 		return
-
+	
+	# Point toward target
 	var dir := (target.global_position - global_position).normalized()
 	sprite.rotation = dir.angle()
+	
+	# Execute combat behavior based on role
+	match combat_role:
+		Globals.CombatRole.MELEE:
+			_melee_combat_behavior(delta, distance, dir)
+		Globals.CombatRole.RANGED:
+			_ranged_combat_behavior(delta, distance, dir)
+		Globals.CombatRole.SUPPORT:
+			_support_combat_behavior(delta, distance, dir)
+	
+	# Call child class fight logic
 	_on_fight_logic(delta)
+
+# ============================================
+# MELEE BEHAVIOR - Close and strafe
+# ============================================
+
+func _melee_combat_behavior(delta: float, distance: float, dir: Vector2) -> void:
+	if distance > preferred_distance + 10.0:
+		# Too far, move closer
+		_move_toward_target(approach_speed, delta)
+	elif distance < preferred_distance - 10.0:
+		# Too close, back up a bit
+		_move_away_from_target(move_speed * 0.5, delta)
+	else:
+		# At ideal distance, strafe if on cooldown
+		if strafe_enabled and not _is_attack_ready():
+			_strafe_around_target(delta, dir)
+
+# ============================================
+# RANGED BEHAVIOR - Kite and maintain distance
+# ============================================
+
+func _ranged_combat_behavior(delta: float, distance: float, dir: Vector2) -> void:
+	# KITING: If enemy too close, back away!
+	if distance < min_distance:
+		_kite_away_from_target(approach_speed, delta)
+	elif distance < preferred_distance - 20.0:
+		# Still too close, maintain distance
+		_kite_away_from_target(move_speed, delta)
+	elif distance > preferred_distance + 30.0:
+		# Too far, move closer
+		_move_toward_target(move_speed * 0.7, delta)
+	else:
+		# At good distance, strafe
+		if strafe_enabled:
+			_strafe_around_target(delta, dir)
+
+# ============================================
+# SUPPORT BEHAVIOR - Default to ranged
+# ============================================
+
+func _support_combat_behavior(delta: float, distance: float, dir: Vector2) -> void:
+	_ranged_combat_behavior(delta, distance, dir)
+
+# ============================================
+# MOVEMENT FUNCTIONS
+# ============================================
+
+func _move_toward_target(speed: float, delta: float) -> void:
+	if not is_target_valid():
+		return
+	navigation_agent_2d.target_position = target.global_position
+	_steer_along_nav(speed, delta)
+
+func _move_away_from_target(speed: float, delta: float) -> void:
+	if not is_target_valid():
+		return
+	var away_dir = (global_position - target.global_position).normalized()
+	var away_point = global_position + away_dir * 100.0
+	navigation_agent_2d.target_position = away_point
+	_steer_along_nav(speed, delta)
+
+func _kite_away_from_target(speed: float, delta: float) -> void:
+	if not is_target_valid():
+		return
+	var away_dir = (global_position - target.global_position).normalized()
+	var perpendicular = Vector2(-away_dir.y, away_dir.x) * strafe_direction
+	var kite_dir = (away_dir + perpendicular * 0.3).normalized()
+	var kite_point = global_position + kite_dir * 80.0
+	navigation_agent_2d.target_position = kite_point
+	_steer_along_nav(speed, delta)
+
+func _strafe_around_target(delta: float, dir: Vector2) -> void:
+	if not is_target_valid():
+		return
+	
+	strafe_timer += delta
+	if strafe_timer >= strafe_change_interval:
+		strafe_timer = 0.0
+		if randf() > 0.5:
+			strafe_direction *= -1
+	
+	var perpendicular = Vector2(-dir.y, dir.x) * strafe_direction
+	var strafe_point = global_position + perpendicular * strafe_speed * delta
+	navigation_agent_2d.target_position = strafe_point
+	_steer_along_nav(strafe_speed, delta)
 
 func _on_fight_logic(_delta: float) -> void:
 	pass
@@ -246,5 +362,3 @@ func _grant_xp_to_killer() -> void:
 	if xp_value > 0:
 		target_entity.gain_xp(xp_value)
 		print(name + " granted " + str(xp_value) + " XP to " + target_entity.name)
-		
-		

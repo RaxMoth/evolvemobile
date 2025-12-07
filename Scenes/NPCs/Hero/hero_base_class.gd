@@ -19,7 +19,7 @@ func _ready() -> void:
 	
 	if stats:
 		stats.health_changed.connect(_on_health_changed)
-	
+	_setup_combat_role_from_stats()
 	super._ready()
 
 func _process(_delta: float) -> void:
@@ -28,12 +28,34 @@ func _process(_delta: float) -> void:
 # Add to HeroBase class
 var exploration_target: Vector2 = Vector2.ZERO
 var use_exploration_target: bool = false
-var exploration_target_smooth: Vector2 = Vector2.ZERO  # Smoothed target
-var target_smooth_speed: float = 5.0  # How fast to smooth
+var exploration_target_smooth: Vector2 = Vector2.ZERO # Smoothed target
+var target_smooth_speed: float = 5.0 # How fast to smooth
 
 func set_exploration_target(target: Vector2) -> void:
 	exploration_target = target
 	use_exploration_target = true
+
+func _setup_combat_role_from_stats() -> void:
+	if not stats or not stats.base_stats:
+		return
+	
+	# Read from HeroStats resource
+	combat_role = stats.base_stats.combat_role
+	preferred_distance = stats.base_stats.preferred_distance
+	min_distance = stats.base_stats.min_distance
+	max_distance = stats.base_stats.max_distance
+	strafe_enabled = stats.base_stats.strafe_enabled
+	strafe_speed = stats.base_stats.strafe_speed
+	strafe_change_interval = stats.base_stats.strafe_change_interval
+
+
+func _is_attack_ready() -> bool:
+	if not ability_system:
+		return true
+	
+	# Check if basic attack is off cooldown
+	var basic_cooldown = ability_system.cooldowns.get(AbilityBase.AbilityType.BASIC_ATTACK, 0.0)
+	return basic_cooldown <= 0.0
 
 func _on_idle_state_processing(delta: float) -> void:
 	if not is_instance_valid(navigation_agent_2d):
@@ -50,7 +72,7 @@ func _on_idle_state_processing(delta: float) -> void:
 			use_exploration_target = false
 		else:
 			navigation_agent_2d.target_position = exploration_target_smooth
-			_steer_along_nav(move_speed * 0.8, delta)  # Slightly slower for more control
+			_steer_along_nav(move_speed * 0.8, delta) # Slightly slower for more control
 			return
 	
 	# Fallback to original idle behavior

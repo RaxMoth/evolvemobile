@@ -19,3 +19,11 @@ static func get_entity_from_collider(collider: Node) -> Node2D:
 			return parent
 	
 	return collider if collider is Node2D else null
+
+
+
+enum CombatRole {
+	MELEE,
+	RANGED,
+	SUPPORT
+}

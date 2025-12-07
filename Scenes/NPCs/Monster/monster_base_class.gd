@@ -14,17 +14,17 @@ signal stage_changed(new_stage: int)
 @export var base_keep_distance: float = 50.0
 
 @export_group("Evolution System")
-@export var evolution_xp_thresholds: Array[int] = [100, 300]  # Stage 2 at 100 XP, Stage 3 at 300 XP
-@export var speed_per_stage: float = 0.15  # 15% speed increase per stage
+@export var evolution_xp_thresholds: Array[int] = [100, 300]
+@export var speed_per_stage: float = 0.15
 
 @export_group("Monster Abilities")
-@export var ability_1: AbilityBase  # Primary attack
-@export var ability_2: AbilityBase  # Special ability 1
-@export var ability_3: AbilityBase  # Special ability 2
-@export var passive_ability: AbilityBase  # Passive (always active)
+@export var ability_1: AbilityBase
+@export var ability_2: AbilityBase
+@export var ability_3: AbilityBase
+@export var passive_ability: AbilityBase
 
 @export_group("Stage Visuals")
-@export var stage_1_animation: String = "phase_1"  # Keep "phase_" prefix for backward compatibility with existing animations
+@export var stage_1_animation: String = "phase_1"
 @export var stage_2_animation: String = "phase_2"
 @export var stage_3_animation: String = "phase_3"
 @export var enable_stage_effects: bool = true
@@ -43,6 +43,7 @@ var ability_cooldowns := {
 }
 
 func _ready() -> void:
+	_setup_monster_combat_role()
 	current_health = max_health
 	current_stage = 1
 	_update_next_evolution_threshold()
@@ -57,6 +58,61 @@ func _process(delta: float) -> void:
 	# Update passive ability
 	if passive_ability:
 		passive_ability.on_passive_update(self, delta)
+
+# ============================================
+# Combat Setup
+# ============================================
+
+func _setup_monster_combat_role() -> void:
+	combat_role = Globals.CombatRole.MELEE
+	preferred_distance = 45.0
+	min_distance = 20.0
+	max_distance = 100.0
+	strafe_enabled = true
+	strafe_speed = 70.0
+	strafe_change_interval = 1.5
+	_update_combat_for_stage()
+
+func _update_combat_for_stage() -> void:
+	match current_stage:
+		1:
+			strafe_speed = 60.0
+			strafe_change_interval = 2.0
+		2:
+			strafe_speed = 75.0
+			strafe_change_interval = 1.5
+		3:
+			strafe_speed = 90.0
+			strafe_change_interval = 1.0
+
+func _is_attack_ready() -> bool:
+	return ability_cooldowns.get("ability_1", 0.0) <= 0.0
+
+# ============================================
+# XP Value System
+# ============================================
+
+func _update_xp_value_for_stage() -> void:
+	match current_stage:
+		1:
+			xp_value = 100.0
+		2:
+			xp_value = 200.0
+		3:
+			xp_value = 400.0
+		_:
+			xp_value = 100.0
+
+# ============================================
+# Stage Change Hook (Override in child classes)
+# ============================================
+
+func _on_stage_entered(new_stage: int, _old_stage: int) -> void:
+	# Common behavior for all monsters
+	_update_xp_value_for_stage()
+	_update_combat_for_stage()
+	
+	# Child classes should call super first, then add their own logic
 
 # ============================================
 # EntityBase Virtual Method Overrides
@@ -86,22 +142,28 @@ func is_alive() -> bool:
 func get_health() -> float:
 	return current_health
 
-func take_damage(amount: float) -> void:
+func take_damage(amount: float, attacker: Node2D = null) -> void:
 	if not is_alive():
 		return
 	
+	last_attacker = attacker
 	current_health -= amount
+	
+	if health_bar:
+		health_bar.value = current_health
 	
 	if current_health <= 0.0:
 		current_health = 0.0
 		state_chart.send_event("self_dead")
+
+func _get_entity_level() -> int:
+	return current_stage
 
 # ============================================
 # XP & Evolution System
 # ============================================
 
 func gain_xp(amount: float) -> void:
-	"""Called automatically when monster kills something"""
 	current_xp += amount
 	print(name + " gained " + str(amount) + " XP (Total: " + str(current_xp) + "/" + str(next_evolution_xp) + ")")
 	
@@ -132,9 +194,11 @@ func _evolve_to_stage(new_stage: int) -> void:
 	# Visual update
 	_update_stage_visuals(current_stage)
 	
-	# Emit signal and call override (subclass handles stat/ability changes)
-	stage_changed.emit(current_stage)
+	# Call hook (child classes override this)
 	_on_stage_entered(current_stage, old_stage)
+	
+	# Emit signal
+	stage_changed.emit(current_stage)
 
 func _update_next_evolution_threshold() -> void:
 	var stage_index = current_stage - 1
@@ -179,16 +243,16 @@ func _play_stage_effect(stage: int) -> void:
 		var flash_color = Color.WHITE
 		match stage:
 			2:
-				flash_color = Color(1.5, 1.2, 0.8)  # Orange
+				flash_color = Color(1.5, 1.2, 0.8) # Orange
 			3:
-				flash_color = Color(1.8, 0.8, 0.8)  # Red
+				flash_color = Color(1.8, 0.8, 0.8) # Red
 		
 		var original = animated_sprite.modulate
 		var tween = create_tween()
 		tween.tween_property(animated_sprite, "modulate", flash_color, 0.2)
 		tween.tween_property(animated_sprite, "modulate", original, 0.3)
 	
-	# Expanding ring
+	# Expanding ring effect
 	var effect = Node2D.new()
 	get_parent().add_child(effect)
 	effect.global_position = global_position
@@ -236,6 +300,7 @@ func _choose_and_use_ability() -> void:
 			else:
 				_try_use_ability("ability_1", ability_1)
 		_:
+			# Stage 3: Prioritize abilities
 			if ability_cooldowns["ability_3"] <= 0.0 and ability_3:
 				_try_use_ability("ability_3", ability_3)
 			elif ability_cooldowns["ability_2"] <= 0.0 and ability_2:
@@ -255,18 +320,15 @@ func _try_use_ability(ability_name: String, ability: AbilityBase) -> bool:
 	return false
 
 # ============================================
-# Overridable Methods
+# Death
 # ============================================
-
-# Override in subclass to apply stage-specific stats/abilities
-func _on_stage_entered(_new_stage: int, _old_stage: int) -> void:
-	pass
 
 func _on_dead_state_entered() -> void:
 	_on_monster_death()
 	super._on_dead_state_entered()
 
 func _on_monster_death() -> void:
+	# Override in child classes for custom death behavior
 	pass
 
 # ============================================
