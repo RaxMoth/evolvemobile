@@ -64,7 +64,7 @@ func _process(delta: float) -> void:
 # ============================================
 
 func _setup_monster_combat_role() -> void:
-	combat_role = Globals.CombatRole.MELEE
+	combat_role = Types.CombatRole.MELEE
 	preferred_distance = 45.0
 	min_distance = 20.0
 	max_distance = 100.0

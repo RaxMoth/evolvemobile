@@ -20,10 +20,10 @@ stage_2_animation = "phase_2"
 stage_3_animation = "phase_3"
 enable_stage_effects = true
 
-[node name="AnimatedSprite2D" parent="." index="2"]
+[node name="AnimatedSprite2D" parent="." index="0"]
 sprite_frames = ExtResource("6_n33a8")
 autoplay = "default"
 frame_progress = 0.44122237
 
-[node name="Sprite2D" parent="." index="3"]
+[node name="Sprite2D" parent="." index="1"]
 visible = false

@@ -41,8 +41,8 @@ active_ability = ExtResource("5_pjmie")
 basic_attack = ExtResource("6_nviu7")
 ultimate_ability = ExtResource("7_6vrsb")
 
-[node name="CanvasLayer" parent="." index="2"]
-visible = false
+[node name="StateChartDebugger" parent="CanvasLayer" index="1"]
+visible = true
 
 [node name="Control" type="Control" parent="." index="3"]
 layout_mode = 3

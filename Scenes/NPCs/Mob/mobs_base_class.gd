@@ -40,7 +40,7 @@ func _process(_delta: float) -> void:
 
 func _setup_mob_combat_role() -> void:
 	# Mobs are simple melee
-	combat_role = Globals.CombatRole.MELEE
+	combat_role = Types.CombatRole.MELEE
 	preferred_distance = base_attack_range * 0.8
 	min_distance = 20.0
 	max_distance = base_attack_range * 1.5

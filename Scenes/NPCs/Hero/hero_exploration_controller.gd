@@ -66,18 +66,16 @@ func _process(delta: float) -> void:
 	_check_for_monsters()
 	
 func _cleanup_freed_heroes() -> void:
-	var to_remove = []
-	
-	for hero in heroes:
+	for i in range(heroes.size() - 1, -1, -1):
+		var hero = heroes[i]
+		
 		if not is_instance_valid(hero):
-			to_remove.append(hero)
-	
-	for hero in to_remove:
-		heroes.erase(hero)
-		hero_solo_mode.erase(hero)
-		hero_formation_offset.erase(hero)
-		hero_last_positions.erase(hero)
-		hero_stuck_timers.erase(hero)
+			heroes.remove_at(i)
+			hero_solo_mode.erase(hero)
+			hero_formation_offset.erase(hero)
+			hero_last_positions.erase(hero)
+			hero_stuck_timers.erase(hero)
+			cached_boids_data.erase(hero)
 
 func _find_heroes() -> void:
 	heroes.clear()

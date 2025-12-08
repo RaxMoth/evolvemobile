@@ -3,7 +3,7 @@ class_name HeroStats
 
 @export_group("Identity")
 @export var hero_name: String = "Unknown Hero"
-@export var hero_class: String = "DMG"  
+@export var hero_class: String = "DMG"
 @export var description: String = ""
 @export var portrait: Texture2D
 
@@ -25,7 +25,7 @@ class_name HeroStats
 @export var speed_per_level: float = 2.0
 
 @export_group("Combat Behavior")
-@export var combat_role: Globals.CombatRole = Globals.CombatRole.MELEE
+@export var combat_role: Types.CombatRole = Types.CombatRole.MELEE
 @export var preferred_distance: float = 50.0
 @export var min_distance: float = 30.0
 @export var max_distance: float = 150.0

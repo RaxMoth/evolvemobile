@@ -13,7 +13,7 @@ var last_attacker: Node2D = null
 @onready var health_bar: ProgressBar = %HealthBar
 
 @export_group("Combat Behavior")
-@export var combat_role: Globals.CombatRole = Globals.CombatRole.MELEE
+@export var combat_role: Types.CombatRole = Types.CombatRole.MELEE
 @export var preferred_distance: float = 50.0
 @export var min_distance: float = 30.0
 @export var max_distance: float = 150.0
@@ -237,11 +237,11 @@ func _on_fight_state_processing(delta: float) -> void:
 	
 	# Execute combat behavior based on role
 	match combat_role:
-		Globals.CombatRole.MELEE:
+		Types.CombatRole.MELEE:
 			_melee_combat_behavior(delta, distance, dir)
-		Globals.CombatRole.RANGED:
+		Types.CombatRole.RANGED:
 			_ranged_combat_behavior(delta, distance, dir)
-		Globals.CombatRole.SUPPORT:
+		Types.CombatRole.SUPPORT:
 			_support_combat_behavior(delta, distance, dir)
 	
 	# Call child class fight logic

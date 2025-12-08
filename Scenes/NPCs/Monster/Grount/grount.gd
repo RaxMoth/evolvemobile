@@ -86,18 +86,14 @@ func _configure_abilities_for_stage(stage: int) -> void:
 
 func _try_use_ability(ability_name: String, ability: AbilityBase) -> bool:
 	if not ability:
-		print("❌ ", name, " - No ability assigned for ", ability_name)
 		return false
 	
 	if ability_cooldowns.get(ability_name, 0.0) > 0.0:
-		print("⏳ ", name, " - ", ability.ability_name, " on cooldown (", ability_cooldowns[ability_name], "s)")
 		return false
 	
 	if not ability.can_use(self):
-		print("❌ ", name, " - ", ability.ability_name, " can't be used")
 		return false
 	
-	# Calculate effective damage with multiplier
 	var effective_damage = ability.damage * damage_multiplier
 	
 	print("\n🎯 ", name, " USING ABILITY:")
@@ -107,8 +103,6 @@ func _try_use_ability(ability_name: String, ability: AbilityBase) -> bool:
 	print("  • Effective Damage: ", effective_damage)
 	print("  • Target: ", target_entity.name if is_instance_valid(target_entity) else "NONE")
 	print("  • Target Groups: ", target_entity.get_groups() if is_instance_valid(target_entity) else "N/A")
-	
-	# Pass effective damage as parameter
 	ability.execute(self, target_entity, effective_damage)
 	
 	ability_cooldowns[ability_name] = ability.cooldown
