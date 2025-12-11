@@ -1,4 +1,3 @@
-
 extends Node
 
 static func get_entity_from_collider(collider: Node) -> Node2D:

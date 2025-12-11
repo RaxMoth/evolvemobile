@@ -126,52 +126,27 @@ func move_toward_point(target_pos: Vector2, speed: float, delta: float) -> void:
 	sprite.rotation = dir.angle()
 
 func _check_for_nearby_enemies() -> void:
-	"""Check detection area for any remaining enemies and re-engage"""
 	if not is_instance_valid(detection_area):
 		return
 	
-	# Get all areas currently in detection range
 	var areas_in_range = detection_area.get_overlapping_areas()
 	
 	for area in areas_in_range:
 		if _can_target_area(area):
-			# Found an enemy! Re-engage immediately
 			target = area
 			target_entity = area.get_parent()
 			state_chart.send_event("enemie_entered")
 			print(name + " found remaining enemy: " + target_entity.name)
-			return  # Only target one enemy at a time
 
 func _can_target_area(area: Area2D) -> bool:
-	"""Check if we can target this area based on group rules"""
 	if area.get_owner() == self or area.get_parent() == self:
 		return false
 	
 	var root := area.get_owner()
 	if not root:
 		return false
-	
-	# TARGETING RULES (same as _on_detection_area_area_entered)
-	if is_in_group("Monster"):
-		# Monsters attack Heroes and Mobs (but not other Monsters)
-		if root.is_in_group("Hero"):
-			return true
-		elif root.is_in_group("Enemy") and not root.is_in_group("Monster"):
-			return true
-	
-	elif is_in_group("Enemy"):
-		# Mobs attack Heroes and Monsters (but not other Mobs)
-		if root.is_in_group("Hero"):
-			return true
-		elif root.is_in_group("Monster"):
-			return true
-	
-	elif is_in_group("Hero"):
-		# Heroes attack all enemies (Mobs and Monsters)
-		if root.is_in_group("Enemy"):
-			return true
-	
-	return false
+
+	return GameUtils.can_entity_target(self, root)
 
 func _on_detection_area_area_exited(area: Area2D) -> void:
 	if target == area:
@@ -267,8 +242,8 @@ func _get_exploration_target() -> Vector2:
 func _get_valid_random_destination() -> Vector2:
 	"""Sample multiple random points and pick the best one"""
 	var best_point = global_position
-	var best_score = -INF
-	var samples = 5  # Try 5 random points
+	var best_score = - INF
+	var samples = 5 # Try 5 random points
 	
 	for i in range(samples):
 		var candidate = _generate_random_point()
@@ -288,99 +263,38 @@ func _generate_random_point() -> Vector2:
 	# For heroes: larger exploration radius
 	var radius = idle_wander_radius
 	if is_in_group("Hero"):
-		radius *= 1.5  # Heroes explore further
+		radius *= 1.5 # Heroes explore further
 	
 	var dist := randf_range(radius * 0.3, radius)
 	return global_position + dir * dist
 
 func _score_destination(point: Vector2) -> float:
-	"""Score a destination point (higher is better)"""
 	var score = 0.0
+	if GameUtils.is_point_too_close_to_wall(get_world_2d(), point, 32.0, 1, 8):
+		return -1000.0
 	
-	# 1. CHECK WALLS - Very important!
-	if _is_too_close_to_wall(point):
-		return -1000.0  # Reject this point entirely
-	
-	# 2. PREFER FORWARD MOVEMENT
 	var current_facing = sprite.rotation if sprite else 0.0
 	var to_point = (point - global_position).normalized()
 	var point_angle = to_point.angle()
-	var angle_diff = abs(angle_difference(current_facing, point_angle))
-	score += (PI - angle_diff) * 50.0  # Prefer forward direction
+	var angle_diff = abs(GameUtils.angle_difference(current_facing, point_angle))
+	score += (PI - angle_diff) * 50.0
 	
-	# 3. PREFER UNEXPLORED AREAS (for heroes)
 	if is_in_group("Hero"):
 		var fog_system = get_tree().get_first_node_in_group("FogOfWar")
-		if fog_system and fog_system.has_method("is_tile_explored"):
-			if not fog_system.is_tile_explored(point):
-				score += 200.0  # Big bonus for unexplored!
+		if GameUtils.is_position_explored(fog_system, point):
+			score -= 50.0
+		else:
+			score += 200.0
 	
-	# 4. PREFER OPEN SPACES
-	var nearby_walls = _count_walls_in_radius(point, 50.0)
-	score -= nearby_walls * 30.0  # Penalize points near walls
-	
-	# 5. AVOID RECENTLY VISITED AREAS
-	# (Could implement with a visited_positions array if needed)
+	var nearby_walls = GameUtils.count_walls_in_radius(get_world_2d(), point, 50.0, 1, 12)
+	score -= nearby_walls * 30.0
 	
 	return score
-
-func _is_too_close_to_wall(point: Vector2) -> bool:
-	"""Check if a point is too close to walls/obstacles"""
-	var space_state = get_world_2d().direct_space_state
-	var wall_check_radius = 32.0  # Minimum distance from walls
-	
-	# Sample 8 directions around the point
-	for i in range(8):
-		var angle = i * TAU / 8.0
-		var offset = Vector2.from_angle(angle) * wall_check_radius
-		var check_point = point + offset
-		
-		# Raycast from point to check position
-		var query = PhysicsRayQueryParameters2D.create(point, check_point)
-		query.collision_mask = 1  # Adjust to your wall layer
-		query.collide_with_areas = false
-		query.collide_with_bodies = true
-		
-		var result = space_state.intersect_ray(query)
-		if result:
-			# Hit a wall too close!
-			return true
-	
-	return false
-
-func _count_walls_in_radius(point: Vector2, radius: float) -> int:
-	"""Count how many obstacles are near this point"""
-	var space_state = get_world_2d().direct_space_state
-	var count = 0
-	
-	# Sample 12 directions
-	for i in range(12):
-		var angle = i * TAU / 12.0
-		var check_point = point + Vector2.from_angle(angle) * radius
-		
-		var query = PhysicsRayQueryParameters2D.create(point, check_point)
-		query.collision_mask = 1
-		query.collide_with_areas = false
-		query.collide_with_bodies = true
-		
-		var result = space_state.intersect_ray(query)
-		if result:
-			count += 1
-	
-	return count
 
 # ============================================
 # HELPER FUNCTION
 # ============================================
 
-func angle_difference(from: float, to: float) -> float:
-	"""Calculate shortest angle difference"""
-	var diff = fmod(to - from, TAU)
-	if diff > PI:
-		diff -= TAU
-	elif diff < -PI:
-		diff += TAU
-	return diff
 
 func _on_idle_state_entered() -> void:
 	_idle_timer = 0.0

@@ -21,7 +21,7 @@ var cached_boids_data: Dictionary = {}
 @export var search_radius_per_check: float = 400.0
 @export var waypoint_reached_distance: float = 100.0
 @export var stuck_detection_time: float = 5.0
-@export var prefer_forward_exploration: bool = true  # NEW: Prefer exploring forward
+@export var prefer_forward_exploration: bool = true # NEW: Prefer exploring forward
 
 @export_group("Movement Smoothing")
 @export var use_formation: bool = true
@@ -43,7 +43,7 @@ var explored_targets: Array[Vector2] = []
 var current_exploration_zone: Vector2 = Vector2.ZERO
 
 func _ready() -> void:
-	add_to_group("HeroExplorationController")  # NEW: Add to group so it can be found
+	add_to_group("HeroExplorationController") # NEW: Add to group so it can be found
 	await get_tree().process_frame
 	_find_heroes()
 	_find_fog_system()
@@ -117,7 +117,7 @@ func _find_next_exploration_zone(from_position: Vector2) -> Vector2:
 		return Vector2.ZERO
 	
 	var best_target = Vector2.ZERO
-	var best_score = -INF
+	var best_score = - INF
 	
 	# Determine forward direction from group movement
 	var group_velocity = _calculate_group_velocity()
@@ -125,7 +125,7 @@ func _find_next_exploration_zone(from_position: Vector2) -> Vector2:
 
 	# Sample in a cone ahead if prefer_forward is enabled
 	var angles = 12
-	var distances = [300, 500, 700]  # Explore further ahead
+	var distances = [300, 500, 700] # Explore further ahead
 	
 	for angle_step in angles:
 		var base_angle = (angle_step / float(angles)) * TAU
@@ -134,7 +134,7 @@ func _find_next_exploration_zone(from_position: Vector2) -> Vector2:
 		if prefer_forward_exploration and group_velocity.length() > 1.0:
 			# Focus 60% of samples in forward 120-degree cone
 			if randf() < 0.6:
-				base_angle = forward_angle + randf_range(-PI/3, PI/3)
+				base_angle = forward_angle + randf_range(-PI / 3, PI / 3)
 		
 		var direction = Vector2.from_angle(base_angle)
 		
@@ -155,7 +155,7 @@ func _find_next_exploration_zone(from_position: Vector2) -> Vector2:
 				# Bonus for forward direction
 				if prefer_forward_exploration:
 					var to_target = (check_pos - from_position).normalized()
-					var angle_diff = abs(angle_difference(forward_angle, to_target.angle()))
+					var angle_diff = abs(GameUtils.angle_difference(forward_angle, to_target.angle()))
 					score += (PI - angle_diff) * 50.0
 				
 				# Slight penalty for distance (prefer closer if equally good)
@@ -196,20 +196,12 @@ func _calculate_group_velocity() -> Vector2:
 		var last_pos = hero_last_positions.get(hero, hero.global_position)
 		var velocity = hero.global_position - last_pos
 		
-		if velocity.length() > 1.0:  # Only count if actually moving
+		if velocity.length() > 1.0: # Only count if actually moving
 			total_velocity += velocity.normalized()
 			count += 1
 	
 	return total_velocity / count if count > 0 else Vector2.ZERO
 
-func angle_difference(from: float, to: float) -> float:
-	"""Calculate shortest angle difference"""
-	var diff = fmod(to - from, TAU)
-	if diff > PI:
-		diff -= TAU
-	elif diff < -PI:
-		diff += TAU
-	return diff
 
 # ============================================
 # REST OF EXISTING METHODS
@@ -250,10 +242,10 @@ func _setup_formation() -> void:
 		return
 	
 	var formations = [
-		Vector2(0, 0),       # Leader/center
-		Vector2(-1, -1),     # Back left
-		Vector2(1, -1),      # Back right
-		Vector2(0, 1),       # Front
+		Vector2(0, 0), # Leader/center
+		Vector2(-1, -1), # Back left
+		Vector2(1, -1), # Back right
+		Vector2(0, 1), # Front
 	]
 	
 	for i in range(heroes.size()):

@@ -370,13 +370,6 @@ position = Vector2(56, -4)
 
 [node name="Vlad" parent="Heros" instance=ExtResource("2_xf6vi")]
 position = Vector2(10, 8)
-auto_use_ultimate = null
-combat_role = null
-preferred_distance = null
-min_distance = null
-max_distance = null
-strafe_enabled = null
-strafe_speed = null
 
 [node name="Ted" parent="Heros" instance=ExtResource("8_kuxid")]
 position = Vector2(423, 226)

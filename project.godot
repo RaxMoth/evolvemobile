@@ -19,6 +19,7 @@ config/icon="uid://0vlvy3mej50h"
 
 Globals="*res://Scripts/globals.gd"
 Types="*res://Scripts/types.gd"
+GameUtils="*res://Scripts/game_utils.gd"
 
 [display]
 
