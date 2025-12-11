@@ -4,7 +4,7 @@ class_name MonsterBase
 signal stage_changed(new_stage: int)
 
 @export_group("Monster Configuration")
-@export var monster_stats: MonsterStats  # ← Single resource for everything!
+@export var monster_stats: MonsterStats
 
 @export_group("Monster Abilities")
 @export var ability_1: AbilityBase
@@ -51,6 +51,8 @@ func _process(delta: float) -> void:
 	# Update passive ability
 	if passive_ability:
 		passive_ability.on_passive_update(self, delta)
+	
+	# NO SPAWN POINT CHECKS - Monster roams freely like heroes!
 
 # ============================================
 # Stage Configuration (Resource-Driven)
@@ -150,9 +152,10 @@ func _is_attack_ready() -> bool:
 # ============================================
 
 func _on_stage_entered(new_stage: int, _old_stage: int) -> void:
-
+	# Apply new stage configuration from resource
 	_apply_stage_configuration(new_stage)
 	_update_combat_for_stage()
+
 
 # ============================================
 # EntityBase Virtual Method Overrides
@@ -167,13 +170,14 @@ func _get_approach_speed() -> float:
 	return _get_move_speed() * 1.4
 
 func _get_attack_range() -> float:
-	return 80.0  # Could also be in resource if needed
+	return 80.0
 
 func _get_idle_retarget_time() -> float:
 	return 2.0
 
 func _get_idle_wander_radius() -> float:
-	return 200.0
+	# Roam freely across the map like heroes!
+	return 300.0  # Larger radius for exploration
 
 func _get_keep_distance() -> float:
 	return 50.0
@@ -219,7 +223,7 @@ func _check_evolution() -> void:
 	if current_xp >= next_threshold:
 		var new_stage = current_stage + 1
 		
-		if new_stage <= 3:  # Max 3 stages
+		if new_stage <= 3:
 			_evolve_to_stage(new_stage)
 
 func _evolve_to_stage(new_stage: int) -> void:

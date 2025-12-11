@@ -71,12 +71,6 @@ animations = [{
 attack_cooldown = 0.5
 xp_value = 20.0
 
-[node name="StateChartDebugger" parent="CanvasLayer" index="0"]
-visible = false
-offset_left = 101.00001
-offset_top = 36.999992
-offset_right = 227.98987
-offset_bottom = -699.4996
 
 [node name="AnimatedSprite2D" parent="." index="2"]
 sprite_frames = SubResource("SpriteFrames_2frwa")

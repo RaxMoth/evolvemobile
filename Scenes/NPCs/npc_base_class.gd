@@ -2,15 +2,7 @@ extends Node2D
 class_name EntityBase
 
 @export_group("XP System")
-
 @export var xp_value: float = 0.0
-var last_attacker: Node2D = null
-
-
-@onready var sprite: Node2D = $Sprite2D
-@onready var state_chart: StateChart = %StateChart
-@onready var navigation_agent_2d: NavigationAgent2D = %NavigationAgent2D
-@onready var health_bar: ProgressBar = %HealthBar
 
 @export_group("Combat Behavior")
 @export var combat_role: Types.CombatRole = Types.CombatRole.MELEE
@@ -20,12 +12,17 @@ var last_attacker: Node2D = null
 @export var strafe_enabled: bool = true
 @export var strafe_speed: float = 60.0
 
+@onready var sprite: Node2D = $Sprite2D
+@onready var state_chart: StateChart = %StateChart
+@onready var navigation_agent_2d: NavigationAgent2D = %NavigationAgent2D
+@onready var health_bar: ProgressBar = %HealthBar
+@onready var detection_area: Area2D = %DetectionArea
+
 var strafe_direction: int = 1
 var strafe_timer: float = 0.0
 var strafe_change_interval: float = 2.0
 var is_on_cooldown: bool = false
-
-
+var last_attacker: Node2D = null
 var _idle_timer := 0.0
 var _idle_goal := Vector2.ZERO
 var target: Node2D = null
@@ -128,6 +125,54 @@ func move_toward_point(target_pos: Vector2, speed: float, delta: float) -> void:
 	position += dir * speed * delta
 	sprite.rotation = dir.angle()
 
+func _check_for_nearby_enemies() -> void:
+	"""Check detection area for any remaining enemies and re-engage"""
+	if not is_instance_valid(detection_area):
+		return
+	
+	# Get all areas currently in detection range
+	var areas_in_range = detection_area.get_overlapping_areas()
+	
+	for area in areas_in_range:
+		if _can_target_area(area):
+			# Found an enemy! Re-engage immediately
+			target = area
+			target_entity = area.get_parent()
+			state_chart.send_event("enemie_entered")
+			print(name + " found remaining enemy: " + target_entity.name)
+			return  # Only target one enemy at a time
+
+func _can_target_area(area: Area2D) -> bool:
+	"""Check if we can target this area based on group rules"""
+	if area.get_owner() == self or area.get_parent() == self:
+		return false
+	
+	var root := area.get_owner()
+	if not root:
+		return false
+	
+	# TARGETING RULES (same as _on_detection_area_area_entered)
+	if is_in_group("Monster"):
+		# Monsters attack Heroes and Mobs (but not other Monsters)
+		if root.is_in_group("Hero"):
+			return true
+		elif root.is_in_group("Enemy") and not root.is_in_group("Monster"):
+			return true
+	
+	elif is_in_group("Enemy"):
+		# Mobs attack Heroes and Monsters (but not other Mobs)
+		if root.is_in_group("Hero"):
+			return true
+		elif root.is_in_group("Monster"):
+			return true
+	
+	elif is_in_group("Hero"):
+		# Heroes attack all enemies (Mobs and Monsters)
+		if root.is_in_group("Enemy"):
+			return true
+	
+	return false
+
 func _on_detection_area_area_exited(area: Area2D) -> void:
 	if target == area:
 		target = null
@@ -142,34 +187,8 @@ func _on_detection_area_area_entered(area: Area2D) -> void:
 	var root := area.get_owner()
 	if not root:
 		return
-	
-	# TARGETING RULES:
-	# - Monsters can target: Heroes AND Mobs
-	# - Mobs can target: Heroes AND Monsters (defend themselves!)
-	# - Heroes can target: Mobs AND Monsters
-	# - Nobody targets their own type (no Mob-on-Mob, no Monster-on-Monster)
-	
-
-	var can_target := false
-	
-	if is_in_group("Monster"):
-		# Monsters attack both Heroes and Mobs (but not other Monsters)
-		if root.is_in_group("Hero"):
-			can_target = true
-		elif root.is_in_group("Enemy") and not root.is_in_group("Monster"):
-			can_target = true
-	
-	elif is_in_group("Enemy"):
-		# Mobs attack Heroes AND Monsters (but not other Mobs)
-		if root.is_in_group("Hero"):
-			can_target = true
-		elif root.is_in_group("Monster"):
-			can_target = true # Defend against Monsters!
-	
-	elif is_in_group("Hero"):
-		# Heroes attack all enemies (Mobs and Monsters)
-		if root.is_in_group("Enemy"):
-			can_target = true
+		
+	var can_target := _can_target_area(area)
 	
 	if can_target:
 		target = area
@@ -196,7 +215,7 @@ func _on_approach_state_processing(delta: float) -> void:
 
 func _on_approach_state_entered() -> void:
 	if not is_target_valid():
-		state_chart.send_event("enemie_exited")
+		_check_for_nearby_enemies()
 
 func _on_idle_state_processing(delta: float) -> void:
 	if not is_instance_valid(navigation_agent_2d):
@@ -205,19 +224,168 @@ func _on_idle_state_processing(delta: float) -> void:
 	_idle_timer -= delta
 	if _idle_timer <= 0.0 or global_position.distance_squared_to(_idle_goal) < 64.0:
 		_idle_timer = idle_retarget_time
-		
-		var angle := randf() * TAU
-		var dir := Vector2.from_angle(angle)
-		var dist := randf_range(idle_wander_radius * 0.2, idle_wander_radius)
-		_idle_goal = global_position + dir * dist
-		
+		_idle_goal = _get_smart_idle_destination()
 		navigation_agent_2d.target_position = _idle_goal
 
 	_steer_along_nav(move_speed, delta)
 
+func _get_smart_idle_destination() -> Vector2:
+	"""Get a smart idle destination that:
+	1. For heroes: Prefers unexplored areas
+	2. For all: Avoids walls and obstacles
+	3. Picks the best of multiple samples
+	"""
+	
+	# For heroes: Check if exploration controller has a target
+	if is_in_group("Hero"):
+		var exploration_target = _get_exploration_target()
+		if exploration_target != Vector2.ZERO:
+			return exploration_target
+	
+	# For monsters or heroes without exploration target: Smart random
+	return _get_valid_random_destination()
+
+func _get_exploration_target() -> Vector2:
+	"""Get target from HeroExplorationController if available"""
+	var exploration_controller = get_tree().get_first_node_in_group("HeroExplorationController")
+	if not exploration_controller:
+		return Vector2.ZERO
+	
+	# Check if we (as a hero) have a specific exploration target set
+	# Use 'in' operator to check if the property exists, then use get() to access it safely
+	if "exploration_target" in self:
+		var hero_target = get("exploration_target")
+		if hero_target is Vector2 and hero_target != Vector2.ZERO:
+			return hero_target
+	
+	# Get the group's current target
+	if exploration_controller.has_method("get_current_group_target"):
+		return exploration_controller.get_current_group_target()
+	
+	return Vector2.ZERO
+
+func _get_valid_random_destination() -> Vector2:
+	"""Sample multiple random points and pick the best one"""
+	var best_point = global_position
+	var best_score = -INF
+	var samples = 5  # Try 5 random points
+	
+	for i in range(samples):
+		var candidate = _generate_random_point()
+		var score = _score_destination(candidate)
+		
+		if score > best_score:
+			best_score = score
+			best_point = candidate
+	
+	return best_point
+
+func _generate_random_point() -> Vector2:
+	"""Generate a random point around current position"""
+	var angle := randf() * TAU
+	var dir := Vector2.from_angle(angle)
+	
+	# For heroes: larger exploration radius
+	var radius = idle_wander_radius
+	if is_in_group("Hero"):
+		radius *= 1.5  # Heroes explore further
+	
+	var dist := randf_range(radius * 0.3, radius)
+	return global_position + dir * dist
+
+func _score_destination(point: Vector2) -> float:
+	"""Score a destination point (higher is better)"""
+	var score = 0.0
+	
+	# 1. CHECK WALLS - Very important!
+	if _is_too_close_to_wall(point):
+		return -1000.0  # Reject this point entirely
+	
+	# 2. PREFER FORWARD MOVEMENT
+	var current_facing = sprite.rotation if sprite else 0.0
+	var to_point = (point - global_position).normalized()
+	var point_angle = to_point.angle()
+	var angle_diff = abs(angle_difference(current_facing, point_angle))
+	score += (PI - angle_diff) * 50.0  # Prefer forward direction
+	
+	# 3. PREFER UNEXPLORED AREAS (for heroes)
+	if is_in_group("Hero"):
+		var fog_system = get_tree().get_first_node_in_group("FogOfWar")
+		if fog_system and fog_system.has_method("is_tile_explored"):
+			if not fog_system.is_tile_explored(point):
+				score += 200.0  # Big bonus for unexplored!
+	
+	# 4. PREFER OPEN SPACES
+	var nearby_walls = _count_walls_in_radius(point, 50.0)
+	score -= nearby_walls * 30.0  # Penalize points near walls
+	
+	# 5. AVOID RECENTLY VISITED AREAS
+	# (Could implement with a visited_positions array if needed)
+	
+	return score
+
+func _is_too_close_to_wall(point: Vector2) -> bool:
+	"""Check if a point is too close to walls/obstacles"""
+	var space_state = get_world_2d().direct_space_state
+	var wall_check_radius = 32.0  # Minimum distance from walls
+	
+	# Sample 8 directions around the point
+	for i in range(8):
+		var angle = i * TAU / 8.0
+		var offset = Vector2.from_angle(angle) * wall_check_radius
+		var check_point = point + offset
+		
+		# Raycast from point to check position
+		var query = PhysicsRayQueryParameters2D.create(point, check_point)
+		query.collision_mask = 1  # Adjust to your wall layer
+		query.collide_with_areas = false
+		query.collide_with_bodies = true
+		
+		var result = space_state.intersect_ray(query)
+		if result:
+			# Hit a wall too close!
+			return true
+	
+	return false
+
+func _count_walls_in_radius(point: Vector2, radius: float) -> int:
+	"""Count how many obstacles are near this point"""
+	var space_state = get_world_2d().direct_space_state
+	var count = 0
+	
+	# Sample 12 directions
+	for i in range(12):
+		var angle = i * TAU / 12.0
+		var check_point = point + Vector2.from_angle(angle) * radius
+		
+		var query = PhysicsRayQueryParameters2D.create(point, check_point)
+		query.collision_mask = 1
+		query.collide_with_areas = false
+		query.collide_with_bodies = true
+		
+		var result = space_state.intersect_ray(query)
+		if result:
+			count += 1
+	
+	return count
+
+# ============================================
+# HELPER FUNCTION
+# ============================================
+
+func angle_difference(from: float, to: float) -> float:
+	"""Calculate shortest angle difference"""
+	var diff = fmod(to - from, TAU)
+	if diff > PI:
+		diff -= TAU
+	elif diff < -PI:
+		diff += TAU
+	return diff
+
 func _on_idle_state_entered() -> void:
 	_idle_timer = 0.0
 	_idle_goal = global_position
+	_check_for_nearby_enemies()
 
 func _on_fight_state_processing(delta: float) -> void:
 	if not is_target_valid():
@@ -252,6 +420,12 @@ func _on_fight_state_processing(delta: float) -> void:
 # ============================================
 
 func _melee_combat_behavior(delta: float, distance: float, dir: Vector2) -> void:
+	# If attack is ready and we're in range, STOP MOVING and attack
+	if _is_attack_ready() and distance <= attack_range:
+		# Stand still to attack
+		return
+	
+	# Attack on cooldown, reposition based on distance
 	if distance > preferred_distance + 10.0:
 		# Too far, move closer
 		_move_toward_target(approach_speed, delta)
@@ -259,8 +433,8 @@ func _melee_combat_behavior(delta: float, distance: float, dir: Vector2) -> void
 		# Too close, back up a bit
 		_move_away_from_target(move_speed * 0.5, delta)
 	else:
-		# At ideal distance, strafe if on cooldown
-		if strafe_enabled and not _is_attack_ready():
+		# At ideal distance, strafe while on cooldown
+		if strafe_enabled:
 			_strafe_around_target(delta, dir)
 
 # ============================================
@@ -268,6 +442,13 @@ func _melee_combat_behavior(delta: float, distance: float, dir: Vector2) -> void
 # ============================================
 
 func _ranged_combat_behavior(delta: float, distance: float, dir: Vector2) -> void:
+	# If attack is ready and we're in good range, STOP MOVING and attack
+	if _is_attack_ready():
+		if distance >= min_distance and distance <= attack_range:
+			# Perfect range and attack ready - stand still!
+			return
+	
+	# Attack on cooldown - need to reposition
 	# KITING: If enemy too close, back away!
 	if distance < min_distance:
 		_kite_away_from_target(approach_speed, delta)
@@ -278,7 +459,7 @@ func _ranged_combat_behavior(delta: float, distance: float, dir: Vector2) -> voi
 		# Too far, move closer
 		_move_toward_target(move_speed * 0.7, delta)
 	else:
-		# At good distance, strafe
+		# At good distance but attack on cooldown, strafe
 		if strafe_enabled:
 			_strafe_around_target(delta, dir)
 

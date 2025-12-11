@@ -44,8 +44,12 @@ func _ready() -> void:
 
 func _draw() -> void:
 	if show_debug_area:
+		# Draw spawn area (wander radius)
 		draw_circle(Vector2.ZERO, area_radius, debug_color)
 		draw_arc(Vector2.ZERO, area_radius, 0, TAU, 32, Color.RED, 2.0)
+		
+		# Draw leash distance (chase radius)
+		draw_arc(Vector2.ZERO, leash_distance, 0, TAU, 64, Color.ORANGE, 1.0, true)
 
 func spawn_mobs() -> void:
 	if not mob_scene:
@@ -68,6 +72,9 @@ func spawn_single_mob() -> MobBase:
 	mob.spawn_area = self
 	mob.spawn_position = spawn_pos
 	
+	# Set mob's chase distance to match leash distance
+	mob.chase_distance = leash_distance
+	
 	spawned_mobs.append(mob)
 	
 	if mob.has_signal("tree_exiting"):
@@ -79,6 +86,10 @@ func _get_random_position_in_area() -> Vector2:
 	var angle = randf() * TAU
 	var distance = randf() * area_radius * 0.8
 	return area_center + Vector2(cos(angle), sin(angle)) * distance
+
+# ============================================
+# FIXED: Smarter Leashing - Check mob's is_in_combat flag
+# ============================================
 
 func _on_body_exited(body: Node2D) -> void:
 	_check_mob_exit(body)
@@ -95,25 +106,50 @@ func _check_mob_exit(node: Node) -> void:
 	if not spawned_mobs.has(mob):
 		return
 	
+	# Check if mob is too far (leash distance)
 	if enforce_boundaries:
-		_handle_leash(mob)
+		_check_leash_distance(mob)
 	
 	mob_left_area.emit(mob)
 
-func _handle_leash(mob: MobBase) -> void:
+func _check_leash_distance(mob: MobBase) -> void:
 	var distance = mob.global_position.distance_to(area_center)
 	
+	# Only hard leash if beyond leash distance
 	if distance > leash_distance:
+		_handle_hard_leash(mob)
+
+func _handle_hard_leash(mob: MobBase) -> void:
+	# Check mob's is_in_combat flag (set by mob itself in state enter/exit)
+	if not mob.is_in_combat:
+		# Not in combat, safe to leash immediately
+		_reset_mob_to_spawn(mob)
+		print(mob.name + " leashed (idle, out of bounds)")
+	else:
+		# In combat, let the mob's own chase distance handle it
+		pass
+
+func _reset_mob_to_spawn(mob: MobBase) -> void:
+	if return_to_center_on_reset:
+		mob.global_position = area_center
+	else:
 		mob.global_position = mob.spawn_position
-		mob.target = null
-		mob.target_entity = null
-		
-		if mob.state_chart:
-			mob.state_chart.send_event("enemie_exited")
-		
-		mob.current_health = mob.max_health
-		if mob.health_bar:
-			mob.health_bar.value = mob.max_health
+	
+	mob.target = null
+	mob.target_entity = null
+	mob.is_in_combat = false
+	
+	if mob.state_chart:
+		mob.state_chart.send_event("enemie_exited")
+	
+	# Heal to full on leash
+	mob.current_health = mob.max_health
+	if mob.health_bar:
+		mob.health_bar.value = mob.max_health
+
+# ============================================
+# Respawning
+# ============================================
 
 func _on_mob_died(mob: MobBase) -> void:
 	spawned_mobs.erase(mob)
@@ -123,6 +159,10 @@ func _on_mob_died(mob: MobBase) -> void:
 		var new_mob = spawn_single_mob()
 		if new_mob:
 			mob_respawned.emit(new_mob)
+
+# ============================================
+# Helper Methods
+# ============================================
 
 func is_position_in_area(pos: Vector2) -> bool:
 	return area_center.distance_to(pos) <= area_radius

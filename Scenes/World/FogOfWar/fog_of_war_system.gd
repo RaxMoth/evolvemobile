@@ -43,17 +43,17 @@ func _setup_fog_sprite() -> void:
 	
 	# Apply shader material
 	var shader = load("res://Scenes/World/FogOfWar/fog_of_war.gdshader")
-	var material = ShaderMaterial.new()
-	material.shader = shader
+	var materials = ShaderMaterial.new()
+	materials.shader = shader
 	
-	material.set_shader_parameter("exploration_map", exploration_texture)
-	material.set_shader_parameter("fog_color", fog_color)
-	material.set_shader_parameter("tile_size", tile_size)
-	material.set_shader_parameter("world_offset", world_offset)
-	material.set_shader_parameter("grid_size", Vector2(grid_width, grid_height))
-	material.set_shader_parameter("world_size", world_size)
+	materials.set_shader_parameter("exploration_map", exploration_texture)
+	materials.set_shader_parameter("fog_color", fog_color)
+	materials.set_shader_parameter("tile_size", tile_size)
+	materials.set_shader_parameter("world_offset", world_offset)
+	materials.set_shader_parameter("grid_size", Vector2(grid_width, grid_height))
+	materials.set_shader_parameter("world_size", world_size)
 	
-	fog_sprite.material = material
+	fog_sprite.material = materials
 
 func reveal_area(world_position: Vector2, radius: float) -> void:
 	var grid_x = int((world_position.x - world_offset.x) / tile_size)

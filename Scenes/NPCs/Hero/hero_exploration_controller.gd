@@ -5,8 +5,8 @@ signal exploration_target_reached(position: Vector2)
 signal monster_detected(monster: Node2D)
 
 @export_group("Performance")
-@export var boids_update_interval: float = 0.1 # Update boids 10x per second, not 60x
-@export var max_separation_checks: int = 3 # Only check nearest 3 heroes
+@export var boids_update_interval: float = 0.1
+@export var max_separation_checks: int = 3
 var boids_timer: float = 0.0
 var cached_boids_data: Dictionary = {}
 
@@ -21,6 +21,7 @@ var cached_boids_data: Dictionary = {}
 @export var search_radius_per_check: float = 400.0
 @export var waypoint_reached_distance: float = 100.0
 @export var stuck_detection_time: float = 5.0
+@export var prefer_forward_exploration: bool = true  # NEW: Prefer exploring forward
 
 @export_group("Movement Smoothing")
 @export var use_formation: bool = true
@@ -42,6 +43,7 @@ var explored_targets: Array[Vector2] = []
 var current_exploration_zone: Vector2 = Vector2.ZERO
 
 func _ready() -> void:
+	add_to_group("HeroExplorationController")  # NEW: Add to group so it can be found
 	await get_tree().process_frame
 	_find_heroes()
 	_find_fog_system()
@@ -64,7 +66,155 @@ func _process(delta: float) -> void:
 	_update_hero_flow(delta)
 	_check_stuck_heroes(delta)
 	_check_for_monsters()
+
+# ============================================
+# NEW: PUBLIC API FOR HEROES TO USE
+# ============================================
+
+func get_current_group_target() -> Vector2:
+	"""Get the current exploration target for heroes to use in idle"""
+	return current_group_target
+
+func get_hero_exploration_target(hero: Node2D) -> Vector2:
+	"""Get specific target for a hero including formation offset"""
+	if not is_instance_valid(hero):
+		return Vector2.ZERO
 	
+	var formation_offset = hero_formation_offset.get(hero, Vector2.ZERO)
+	return current_group_target + formation_offset
+
+func is_hero_in_group_mode(hero: Node2D) -> bool:
+	"""Check if hero is following group exploration"""
+	return not hero_solo_mode.get(hero, false)
+
+# ============================================
+# IMPROVED EXPLORATION TARGET SELECTION
+# ============================================
+
+func _update_exploration_targets() -> void:
+	if not fog_system:
+		return
+	
+	var group_center = _calculate_group_center()
+	
+	# Check if we reached the current target
+	if group_center.distance_to(current_group_target) < waypoint_reached_distance:
+		explored_targets.append(current_group_target)
+	
+	# Find next target preferring forward direction
+	var unexplored_target = _find_next_exploration_zone(group_center)
+	
+	if unexplored_target != Vector2.ZERO:
+		current_group_target = unexplored_target
+		current_exploration_zone = unexplored_target
+		exploration_target_reached.emit(unexplored_target)
+	else:
+		# Fallback: random unexplored area
+		current_group_target = _get_random_unexplored_position(group_center)
+
+func _find_next_exploration_zone(from_position: Vector2) -> Vector2:
+	if not fog_system:
+		return Vector2.ZERO
+	
+	var best_target = Vector2.ZERO
+	var best_score = -INF
+	
+	# Determine forward direction from group movement
+	var group_velocity = _calculate_group_velocity()
+	var forward_angle = group_velocity.angle() if group_velocity.length() > 1.0 else 0.0
+
+	# Sample in a cone ahead if prefer_forward is enabled
+	var angles = 12
+	var distances = [300, 500, 700]  # Explore further ahead
+	
+	for angle_step in angles:
+		var base_angle = (angle_step / float(angles)) * TAU
+		
+		# Bias toward forward direction
+		if prefer_forward_exploration and group_velocity.length() > 1.0:
+			# Focus 60% of samples in forward 120-degree cone
+			if randf() < 0.6:
+				base_angle = forward_angle + randf_range(-PI/3, PI/3)
+		
+		var direction = Vector2.from_angle(base_angle)
+		
+		for distance in distances:
+			var check_pos = from_position + direction * distance
+			
+			# Skip recently explored
+			if _is_recently_explored(check_pos):
+				continue
+			
+			# Count unexplored tiles
+			var unexplored_count = _count_unexplored_in_area(check_pos, 150.0)
+			
+			if unexplored_count > 0:
+				# Calculate score
+				var score = unexplored_count * 10.0
+				
+				# Bonus for forward direction
+				if prefer_forward_exploration:
+					var to_target = (check_pos - from_position).normalized()
+					var angle_diff = abs(angle_difference(forward_angle, to_target.angle()))
+					score += (PI - angle_diff) * 50.0
+				
+				# Slight penalty for distance (prefer closer if equally good)
+				score -= distance * 0.05
+				
+				if score > best_score:
+					best_score = score
+					best_target = check_pos
+	
+	return best_target
+
+func _get_random_unexplored_position(near_position: Vector2) -> Vector2:
+	"""Find random unexplored position near group"""
+	if not fog_system:
+		return _get_random_map_position()
+	
+	# Try 10 random points, pick first unexplored one
+	for i in range(10):
+		var angle = randf() * TAU
+		var distance = randf_range(300, 600)
+		var candidate = near_position + Vector2.from_angle(angle) * distance
+		
+		if not fog_system.is_tile_explored(candidate):
+			return candidate
+	
+	# Fallback
+	return _get_random_map_position()
+
+func _calculate_group_velocity() -> Vector2:
+	"""Calculate average movement direction of group"""
+	var total_velocity = Vector2.ZERO
+	var count = 0
+	
+	for hero in heroes:
+		if not is_instance_valid(hero):
+			continue
+		
+		var last_pos = hero_last_positions.get(hero, hero.global_position)
+		var velocity = hero.global_position - last_pos
+		
+		if velocity.length() > 1.0:  # Only count if actually moving
+			total_velocity += velocity.normalized()
+			count += 1
+	
+	return total_velocity / count if count > 0 else Vector2.ZERO
+
+func angle_difference(from: float, to: float) -> float:
+	"""Calculate shortest angle difference"""
+	var diff = fmod(to - from, TAU)
+	if diff > PI:
+		diff -= TAU
+	elif diff < -PI:
+		diff += TAU
+	return diff
+
+# ============================================
+# REST OF EXISTING METHODS
+# ============================================
+
 func _cleanup_freed_heroes() -> void:
 	for i in range(heroes.size() - 1, -1, -1):
 		var hero = heroes[i]
@@ -100,64 +250,16 @@ func _setup_formation() -> void:
 		return
 	
 	var formations = [
-		Vector2(0, 0),
-		Vector2(-1, -1),
-		Vector2(1, -1),
-		Vector2(0, 1),
+		Vector2(0, 0),       # Leader/center
+		Vector2(-1, -1),     # Back left
+		Vector2(1, -1),      # Back right
+		Vector2(0, 1),       # Front
 	]
 	
 	for i in range(heroes.size()):
 		var hero = heroes[i]
 		var formation_index = i % formations.size()
 		hero_formation_offset[hero] = formations[formation_index] * formation_spread
-
-func _update_exploration_targets() -> void:
-	if not fog_system:
-		return
-	
-	var group_center = _calculate_group_center()
-	
-	if group_center.distance_to(current_group_target) < waypoint_reached_distance:
-		explored_targets.append(current_group_target)
-	
-	var unexplored_target = _find_next_exploration_zone(group_center)
-	
-	if unexplored_target != Vector2.ZERO:
-		current_group_target = unexplored_target
-		current_exploration_zone = unexplored_target
-		exploration_target_reached.emit(unexplored_target)
-	else:
-		current_group_target = _get_random_map_position()
-
-func _find_next_exploration_zone(from_position: Vector2) -> Vector2:
-	if not fog_system:
-		return Vector2.ZERO
-	
-	var best_target = Vector2.ZERO
-	var best_score = - INF
-
-	var angles = 8
-	var distances = [200, 400, 600]
-	
-	for angle_step in angles:
-		var angle = (angle_step / float(angles)) * TAU
-		var direction = Vector2.from_angle(angle)
-		
-		for distance in distances:
-			var check_pos = from_position + direction * distance
-
-			if _is_recently_explored(check_pos):
-				continue
-			var unexplored_count = _count_unexplored_in_area(check_pos, 150.0)
-			
-			if unexplored_count > 0:
-				var score = unexplored_count * 10.0 - (distance * 0.1)
-				
-				if score > best_score:
-					best_score = score
-					best_target = check_pos
-	
-	return best_target
 
 func _count_unexplored_in_area(center: Vector2, radius: float) -> int:
 	if not fog_system:
@@ -189,12 +291,10 @@ func _is_recently_explored(position: Vector2) -> bool:
 func _update_hero_flow(delta: float) -> void:
 	boids_timer -= delta
 	
-	# Only recalculate boids every 0.1s
 	if boids_timer <= 0.0:
 		boids_timer = boids_update_interval
 		_recalculate_boids()
 	
-	# Apply cached boids data
 	for hero in heroes:
 		if not is_instance_valid(hero):
 			continue
@@ -232,64 +332,36 @@ func _apply_cached_boids(hero: Node2D) -> void:
 	if hero.has_method("set_exploration_target"):
 		hero.set_exploration_target(final_target)
 
-func _update_group_hero(hero: Node2D, delta: float) -> void:
-	var formation_offset = hero_formation_offset.get(hero, Vector2.ZERO)
-	var base_target = current_group_target + formation_offset
-	var separation = _calculate_separation(hero)
-	var cohesion = _calculate_cohesion(hero)
-	var alignment = _calculate_alignment(hero)
-	var wander = Vector2.ZERO
-	if wander_while_moving:
-		var time = Time.get_ticks_msec() / 1000.0
-		wander = Vector2(
-			sin(time * 2.0 + hero.get_instance_id()) * wander_strength,
-			cos(time * 1.5 + hero.get_instance_id()) * wander_strength
-		)
-	
-	var final_target = base_target + separation * 1.5 + cohesion * 0.5 + alignment * 0.3 + wander
-	
-	if hero.has_method("set_exploration_target"):
-		hero.set_exploration_target(final_target)
-
-func _update_solo_hero(hero: Node2D, delta: float) -> void:
-	var unexplored = _find_next_exploration_zone(hero.global_position)
-	
-	if unexplored != Vector2.ZERO:
-		var wander = Vector2(
-			randf_range(-wander_strength, wander_strength),
-			randf_range(-wander_strength, wander_strength)
-		)
-		
-		if hero.has_method("set_exploration_target"):
-			hero.set_exploration_target(unexplored + wander)
+func _update_solo_hero(hero: Node2D, _delta: float) -> void:
+	# Solo heroes just explore on their own
+	pass
 
 func _calculate_separation(hero: Node2D) -> Vector2:
 	var separation = Vector2.ZERO
-	var nearby_count = 0
+	var count = 0
 	
-	for other_hero in heroes:
-		if other_hero == hero or not is_instance_valid(other_hero):
+	for other in heroes:
+		if other == hero or not is_instance_valid(other):
 			continue
 		
-		var distance = hero.global_position.distance_to(other_hero.global_position)
-		
+		var distance = hero.global_position.distance_to(other.global_position)
 		if distance < personal_space_radius and distance > 0:
-			var push_away = (hero.global_position - other_hero.global_position).normalized()
-			var strength = 1.0 - (distance / personal_space_radius)
-			separation += push_away * strength * personal_space_radius
-			nearby_count += 1
+			var away = (hero.global_position - other.global_position).normalized()
+			separation += away / distance
+			count += 1
+			
+			if count >= max_separation_checks:
+				break
 	
-	if nearby_count > 0:
-		separation /= nearby_count
-	
-	return separation
+	return separation.normalized() * 50.0 if count > 0 else Vector2.ZERO
 
 func _calculate_cohesion(hero: Node2D) -> Vector2:
-	var group_center = _calculate_group_center()
-	var distance = hero.global_position.distance_to(group_center)
+	var center = _calculate_group_center()
+	var to_center = center - hero.global_position
+	var distance = to_center.length()
 	
 	if distance > group_cohesion_radius:
-		return (group_center - hero.global_position).normalized() * (distance - group_cohesion_radius)
+		return to_center.normalized() * 100.0
 	
 	return Vector2.ZERO
 
@@ -297,25 +369,18 @@ func _calculate_alignment(hero: Node2D) -> Vector2:
 	var avg_velocity = Vector2.ZERO
 	var count = 0
 	
-	for other_hero in heroes:
-		if other_hero == hero or not is_instance_valid(other_hero):
+	for other in heroes:
+		if other == hero or not is_instance_valid(other):
 			continue
 		
-		var distance = hero.global_position.distance_to(other_hero.global_position)
+		var distance = hero.global_position.distance_to(other.global_position)
 		if distance < group_cohesion_radius:
-			var current_pos = other_hero.global_position
-			if not hero_last_positions.has(other_hero):
-				hero_last_positions[other_hero] = current_pos
-				continue
-			
-			var last_pos = hero_last_positions[other_hero]
-			avg_velocity += (current_pos - last_pos)
+			var last_pos = hero_last_positions.get(other, other.global_position)
+			var velocity = other.global_position - last_pos
+			avg_velocity += velocity
 			count += 1
 	
-	if count > 0:
-		return avg_velocity / count * 50.0
-	
-	return Vector2.ZERO
+	return avg_velocity.normalized() * 30.0 if count > 0 else Vector2.ZERO
 
 func _check_stuck_heroes(delta: float) -> void:
 	for hero in heroes:
@@ -343,15 +408,30 @@ func _check_stuck_heroes(delta: float) -> void:
 		hero_last_positions[hero] = current_pos
 
 func _unstuck_hero(hero: Node2D) -> void:
-	var random_offset = Vector2(
-		randf_range(-150, 150),
-		randf_range(-150, 150)
-	)
+	print(hero.name + " is stuck! Finding new path...")
 	
-	var unstuck_target = hero.global_position + random_offset
+	# Try to find an unexplored area nearby
+	var new_target = Vector2.ZERO
+	
+	if fog_system:
+		for i in range(8):
+			var angle = i * TAU / 8.0
+			var offset = Vector2.from_angle(angle) * 200.0
+			var check_pos = hero.global_position + offset
+			
+			if not fog_system.is_tile_explored(check_pos):
+				new_target = check_pos
+				break
+	
+	# Fallback to random offset
+	if new_target == Vector2.ZERO:
+		new_target = hero.global_position + Vector2(
+			randf_range(-200, 200),
+			randf_range(-200, 200)
+		)
 	
 	if hero.has_method("set_exploration_target"):
-		hero.set_exploration_target(unstuck_target)
+		hero.set_exploration_target(new_target)
 
 func _calculate_group_center() -> Vector2:
 	if heroes.is_empty():

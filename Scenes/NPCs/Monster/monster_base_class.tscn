@@ -5,19 +5,12 @@
 
 [node name="Monster" groups=["Enemy", "Monster"] instance=ExtResource("1_cqly6")]
 script = ExtResource("2_yeqw1")
-max_health = 500.0
-base_move_speed = 60.0
-base_attack_range = 80.0
-base_idle_retarget_time = 2.0
-base_idle_wander_radius = 200.0
-base_keep_distance = 50.0
-speed_per_phase = 0.15
+monster_stats = null
 ability_1 = null
 ability_2 = null
 ability_3 = null
 passive_ability = null
-phase_1_animation = "phase_1"
-phase_2_animation = "phase_2"
-phase_3_animation = "phase_3"
-enable_phase_effects = true
-evolution_xp_thresholds = Array[int]([100, 300])
+stage_1_animation = "phase_1"
+stage_2_animation = "phase_2"
+stage_3_animation = "phase_3"
+enable_stage_effects = true
