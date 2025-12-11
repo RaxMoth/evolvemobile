@@ -12,6 +12,17 @@ class_name EntityBase
 @export var strafe_enabled: bool = true
 @export var strafe_speed: float = 60.0
 
+@export_group("Smart Targeting")
+@export var enable_smart_targeting: bool = true
+@export var target_reeval_interval_approach: float = 0.5
+@export var target_reeval_interval_fight: float = 1.0
+@export var switch_threshold_approach: float = 30.0
+@export var switch_threshold_fight: float = 50.0
+@export var max_chase_distance: float = 1000.0
+@export var priority_hero_monster: int = 100
+@export var priority_mob: int = 50
+
+
 @onready var sprite: Node2D = $Sprite2D
 @onready var state_chart: StateChart = %StateChart
 @onready var navigation_agent_2d: NavigationAgent2D = %NavigationAgent2D
@@ -27,6 +38,10 @@ var _idle_timer := 0.0
 var _idle_goal := Vector2.ZERO
 var target: Node2D = null
 var target_entity: Node = null
+
+var _target_reeval_timer: float = 0.0
+var _current_state: String = "Idle"
+
 
 var move_speed: float:
 	get: return _get_move_speed()
@@ -129,14 +144,13 @@ func _check_for_nearby_enemies() -> void:
 	if not is_instance_valid(detection_area):
 		return
 	
-	var areas_in_range = detection_area.get_overlapping_areas()
-	
-	for area in areas_in_range:
-		if _can_target_area(area):
-			target = area
-			target_entity = area.get_parent()
-			state_chart.send_event("enemie_entered")
-			print(name + " found remaining enemy: " + target_entity.name)
+	# NEW: Use smart targeting
+	var best_target_area = _find_best_target()
+	if best_target_area:
+		target = best_target_area
+		target_entity = best_target_area.get_owner()
+		state_chart.send_event("enemie_entered")
+		print(name + " found remaining enemy: " + target_entity.name)
 
 func _can_target_area(area: Area2D) -> bool:
 	if area.get_owner() == self or area.get_parent() == self:
@@ -150,9 +164,15 @@ func _can_target_area(area: Area2D) -> bool:
 
 func _on_detection_area_area_exited(area: Area2D) -> void:
 	if target == area:
-		target = null
-		target_entity = null
-		state_chart.send_event("enemie_exited")
+		print(name + "'s target exited detection range")
+		
+		# NEW: Try to find another target
+		if enable_smart_targeting:
+			_reevaluate_current_target()
+		else:
+			target = null
+			target_entity = null
+			state_chart.send_event("enemie_exited")
 
 
 func _on_detection_area_area_entered(area: Area2D) -> void:
@@ -164,14 +184,26 @@ func _on_detection_area_area_entered(area: Area2D) -> void:
 		return
 		
 	var can_target := _can_target_area(area)
+	if not can_target:
+		return
 	
-	if can_target:
+	# NEW: Use smart targeting
+	if enable_smart_targeting:
+		var best_target_area = _find_best_target()
+		if best_target_area:
+			var best_target_node = best_target_area.get_owner()
+			if is_instance_valid(best_target_node):
+				print(name + " detected enemies, targeting: " + best_target_node.name)
+				target = best_target_area
+				target_entity = best_target_node
+				state_chart.send_event("enemie_entered")
+	else:
+		# OLD BEHAVIOR
 		target = area
 		target_entity = area.get_parent()
 		state_chart.send_event("enemie_entered")
-
+		
 func _on_approach_state_processing(delta: float) -> void:
-	# CRITICAL: Check if target is still valid before accessing it
 	if not is_target_valid():
 		state_chart.send_event("enemie_exited")
 		return
@@ -180,15 +212,24 @@ func _on_approach_state_processing(delta: float) -> void:
 		state_chart.send_event("enemy_fight")
 		return
 	
-	# FIXED: Use navigation system instead of direct movement
+	# ⬇️ ADD THESE 5 LINES ⬇️
+	if enable_smart_targeting:
+		_target_reeval_timer -= delta
+		if _target_reeval_timer <= 0.0:
+			_target_reeval_timer = target_reeval_interval_approach
+			_reevaluate_current_target()
+	# ⬆️ END NEW CODE ⬆️
+	
 	if is_instance_valid(navigation_agent_2d):
 		navigation_agent_2d.target_position = target.global_position
 		_steer_along_nav(approach_speed, delta)
 	else:
-		# Fallback if navigation fails
 		move_toward_point(target.global_position, approach_speed, delta)
 
 func _on_approach_state_entered() -> void:
+	_current_state = "Approach" # ⬅️ ADD THIS LINE
+	_target_reeval_timer = target_reeval_interval_approach # ⬅️ ADD THIS LINE
+	
 	if not is_target_valid():
 		_check_for_nearby_enemies()
 
@@ -297,6 +338,7 @@ func _score_destination(point: Vector2) -> float:
 
 
 func _on_idle_state_entered() -> void:
+	_current_state = "Idle"
 	_idle_timer = 0.0
 	_idle_goal = global_position
 	_check_for_nearby_enemies()
@@ -312,6 +354,12 @@ func _on_fight_state_processing(delta: float) -> void:
 	if distance > max_distance:
 		state_chart.send_event("re_approach")
 		return
+	
+	if enable_smart_targeting:
+		_target_reeval_timer -= delta
+		if _target_reeval_timer <= 0.0:
+			_target_reeval_timer = target_reeval_interval_fight
+			_reevaluate_current_target()
 	
 	# Point toward target
 	var dir := (target.global_position - global_position).normalized()
@@ -427,19 +475,182 @@ func _strafe_around_target(delta: float, dir: Vector2) -> void:
 	navigation_agent_2d.target_position = strafe_point
 	_steer_along_nav(strafe_speed, delta)
 
-func _on_fight_logic(_delta: float) -> void:
-	pass
 
 func _on_fight_state_entered() -> void:
+	_current_state = "Fight"
 	if not is_target_valid():
 		state_chart.send_event("target_lost")
 
-func _on_dead_state_entered() -> void:
-	# Grant XP to killer before dying
-	_grant_xp_to_killer()
-	
-	queue_free()
+# ... existing combat methods (_melee_combat_behavior, _ranged_combat_behavior, etc.)
 
+# ============================================
+# ⬇️ ADD ALL NEW METHODS HERE ⬇️
+# ============================================
+
+func _find_best_target() -> Area2D:
+	if not enable_smart_targeting:
+		return _find_first_valid_target()
+	
+	if not is_instance_valid(detection_area):
+		return null
+	
+	var best_area: Area2D = null
+	var best_score: float = - INF
+	
+	# Iterate through areas directly
+	for area in detection_area.get_overlapping_areas():
+		if not _can_target_area(area):
+			continue
+		
+		var entity = area.get_owner()
+		if not is_instance_valid(entity):
+			continue
+		
+		var score = _score_target(entity)
+		if score > best_score:
+			best_score = score
+			best_area = area # Store the area, not the entity
+	
+	return best_area if best_score > 0.0 else null
+
+func _find_first_valid_target() -> Area2D:
+	"""Fallback: Find first valid target area"""
+	if not is_instance_valid(detection_area):
+		return null
+	
+	var areas = detection_area.get_overlapping_areas()
+	for area in areas:
+		if _can_target_area(area):
+			return area
+	return null
+
+func _score_target(target_node: Node2D) -> float:
+	"""Calculate score for a target (higher = better)"""
+	if not is_instance_valid(target_node):
+		return -1000.0
+	
+	var score = 0.0
+	var distance = global_position.distance_to(target_node.global_position)
+	
+	score += _get_target_priority(target_node)
+	score += _get_distance_score(distance)
+	score += _get_threat_score(target_node)
+	
+	if target_entity != target_node:
+		score -= 20.0
+	
+	if distance > max_chase_distance:
+		score -= 100.0
+	
+	return score
+
+func _get_target_priority(target_node: Node2D) -> float:
+	"""Get base priority score"""
+	if target_node.is_in_group("Hero") or target_node.is_in_group("Monster"):
+		return priority_hero_monster
+	elif target_node.is_in_group("Enemy"):
+		return priority_mob
+	return 0.0
+
+func _get_distance_score(distance: float) -> float:
+	"""Calculate distance score"""
+	if distance < 50.0:
+		return 50.0
+	elif distance < 150.0:
+		return 30.0
+	elif distance < 300.0:
+		return 10.0
+	elif distance < 500.0:
+		return -10.0
+	else:
+		return -50.0
+
+func _get_threat_score(target_node: Node2D) -> float:
+	"""Calculate threat score"""
+	var threat = 0.0
+	
+	# Check if target is attacking me
+	if "target_entity" in target_node:
+		var their_target = target_node.get("target_entity")
+		if their_target == self:
+			threat += 30.0
+	
+	# Check if target is low health
+	if target_node.has_method("get_health") and target_node.has_method("is_alive"):
+		if target_node.call("is_alive"):
+			var current_hp = target_node.call("get_health")
+			var max_hp = target_node.get_health() if target_node.has_method("get_health") else 100.0
+			var health_percent = current_hp / max_hp if max_hp > 0 else 1.0
+			if health_percent < 0.3:
+				threat += 15.0
+	
+	# Check if target is far (likely fleeing)
+	var distance = global_position.distance_to(target_node.global_position)
+	if distance > 400.0 and is_target_valid() and target_entity == target_node:
+		threat -= 20.0
+	
+	return threat
+
+func _should_switch_target(new_target_area: Area2D) -> bool:
+	"""Determine if should switch targets"""
+	if not enable_smart_targeting:
+		return not is_target_valid()
+	
+	if not is_target_valid():
+		return true
+	
+	var new_target_node = new_target_area.get_owner()
+	if not is_instance_valid(new_target_node):
+		return false
+	
+	var current_score = _score_target(target_entity)
+	var new_score = _score_target(new_target_node)
+	
+	var threshold = switch_threshold_approach
+	if _current_state == "Fight":
+		threshold = switch_threshold_fight
+	
+	return new_score > current_score + threshold
+
+func _reevaluate_current_target() -> void:
+	"""Re-evaluate and possibly switch targets"""
+	if not enable_smart_targeting:
+		return
+	
+	var best_target_area = _find_best_target()
+	
+	if not best_target_area:
+		if is_target_valid():
+			print(name + " lost all valid targets")
+			target = null
+			target_entity = null
+			state_chart.send_event("enemie_exited")
+		return
+	
+	var best_target_node = best_target_area.get_owner() if best_target_area else null
+	
+	if is_target_valid() and target_entity == best_target_node:
+		return
+	
+	if _should_switch_target(best_target_area):
+		var old_name = target_entity.name if target_entity else "none"
+		print(name + " switching from " + old_name + " to " + best_target_node.name)
+		target = best_target_area
+		target_entity = best_target_node
+		
+		if _current_state == "Idle":
+			state_chart.send_event("enemie_entered")
+
+# ============================================
+# ⬆️ END NEW METHODS ⬆️
+# ============================================
+
+func _on_fight_logic(_delta: float) -> void:
+	pass
+
+func _on_dead_state_entered() -> void:
+	_grant_xp_to_killer()
+	queue_free()
 # ============================================
 # XP SYSTEM - Grant XP to whoever killed this entity
 # ============================================

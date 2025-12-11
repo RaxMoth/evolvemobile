@@ -103,11 +103,18 @@ func _on_fight_logic(_delta: float) -> void:
 func use_active_ability() -> bool:
 	if not ability_system:
 		return false
+		
+	if not is_target_valid():
+		return false
 	return ability_system.use_active(target_entity)
 
 func use_ultimate() -> bool:
 	if not ability_system or ability_system.is_on_cooldown(AbilityBase.AbilityType.ULTIMATE):
 		return false
+		
+	if not is_target_valid():
+		return false
+		
 	return ability_system.use_ultimate(target_entity)
 
 func is_active_ready() -> bool:
