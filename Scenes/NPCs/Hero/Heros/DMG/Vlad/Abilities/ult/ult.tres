@@ -1,6 +1,6 @@
 [gd_resource type="Resource" script_class="VladUltimateBloodBomb" load_steps=3 format=3 uid="uid://d4m3ntk0yrv1g"]
 
-[ext_resource type="Texture2D" uid="uid://b8hlhq44dx3qv" path="res://icon.svg" id="1_7jdje"]
+[ext_resource type="Texture2D" uid="uid://b8hlhq44dx3qv" path="res://Assets/icon.svg" id="1_7jdje"]
 [ext_resource type="Script" uid="uid://dfdixd5majg2c" path="res://Scenes/NPCs/Hero/Heros/DMG/Vlad/Abilities/ult/ult_bomb.gd" id="2_g8hh3"]
 
 [resource]

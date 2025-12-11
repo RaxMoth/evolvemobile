@@ -1,0 +1,8 @@
+[gd_resource type="Resource" script_class="MonsterStats" load_steps=2 format=3 uid="uid://beh8ck0yckyl5"]
+
+[ext_resource type="Script" uid="uid://ddjum8l4u4tan" path="res://Scenes/NPCs/Monster/monster_stats.gd" id="1_q54ng"]
+
+[resource]
+script = ExtResource("1_q54ng")
+monster_name = "Grount"
+metadata/_custom_type_script = "uid://ddjum8l4u4tan"

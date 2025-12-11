@@ -1,7 +1,7 @@
 [gd_resource type="Resource" script_class="TedBasicAttack" load_steps=3 format=3 uid="uid://c5example2"]
 
-[ext_resource type="Script" path="res://Scenes/NPCs/Hero/Heros/Support/Ted/Abilities/basic_attack/ted_basic_attack.gd" id="1_basic"]
-[ext_resource type="Texture2D" uid="uid://b8hlhq44dx3qv" path="res://icon.svg" id="2_icon"]
+[ext_resource type="Script" uid="uid://sqy7m5iqomjt" path="res://Scenes/NPCs/Hero/Heros/Support/Ted/Abilities/basic_attack/ted_basic_attack.gd" id="1_basic"]
+[ext_resource type="Texture2D" uid="uid://b8hlhq44dx3qv" path="res://Assets/icon.svg" id="2_icon"]
 
 [resource]
 script = ExtResource("1_basic")

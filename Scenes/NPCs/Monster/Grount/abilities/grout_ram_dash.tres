@@ -1,6 +1,6 @@
 [gd_resource type="Resource" script_class="BullRamDash" load_steps=3 format=3 uid="uid://dyaqdcmee3tis"]
 
-[ext_resource type="Texture2D" uid="uid://0vlvy3mej50h" path="res://Icon.jpg" id="1_nrmkh"]
+[ext_resource type="Texture2D" uid="uid://0vlvy3mej50h" path="res://Assets/Icon.jpg" id="1_nrmkh"]
 [ext_resource type="Script" uid="uid://bbl84wvqrtqij" path="res://Scenes/NPCs/Monster/Grount/abilities/ram_dash.gd" id="1_us2jm"]
 
 [resource]

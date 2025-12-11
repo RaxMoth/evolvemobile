@@ -1,6 +1,6 @@
 [gd_resource type="Resource" script_class="VladBasicAttack" load_steps=3 format=3 uid="uid://cls00ddvooq36"]
 
-[ext_resource type="Texture2D" uid="uid://b8hlhq44dx3qv" path="res://icon.svg" id="1_lcs13"]
+[ext_resource type="Texture2D" uid="uid://b8hlhq44dx3qv" path="res://Assets/icon.svg" id="1_lcs13"]
 [ext_resource type="Script" uid="uid://d0mfbnaga61ia" path="res://Scenes/NPCs/Hero/Heros/DMG/Vlad/Abilities/basic_attack/basic_melee_strike.gd" id="2_2r0eq"]
 
 [resource]

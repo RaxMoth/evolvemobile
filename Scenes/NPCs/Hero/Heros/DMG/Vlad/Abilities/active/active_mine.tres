@@ -1,7 +1,7 @@
 [gd_resource type="Resource" script_class="VladActiveMine" load_steps=4 format=3 uid="uid://bwgui8ikvrqci"]
 
 [ext_resource type="Script" uid="uid://b8rkcbi4fgnv5" path="res://Scenes/NPCs/Hero/Heros/DMG/Vlad/Abilities/active/active_mine.gd" id="1_bemwi"]
-[ext_resource type="Texture2D" uid="uid://b8hlhq44dx3qv" path="res://icon.svg" id="1_q81y0"]
+[ext_resource type="Texture2D" uid="uid://b8hlhq44dx3qv" path="res://Assets/icon.svg" id="1_q81y0"]
 [ext_resource type="PackedScene" uid="uid://dgrwxxlwnw1w3" path="res://Scenes/NPCs/Hero/Heros/DMG/Vlad/Abilities/active/Mine/Mine.tscn" id="2_ifr3g"]
 
 [resource]

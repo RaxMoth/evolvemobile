@@ -3,19 +3,8 @@ class_name MonsterBase
 
 signal stage_changed(new_stage: int)
 
-@export_group("Monster Stats")
-@export var max_health: float = 500.0
-@export var base_move_speed: float = 60.0
-@export var base_attack_range: float = 80.0
-
-@export_group("Monster Behavior")
-@export var base_idle_retarget_time: float = 2.0
-@export var base_idle_wander_radius: float = 200.0
-@export var base_keep_distance: float = 50.0
-
-@export_group("Evolution System")
-@export var evolution_xp_thresholds: Array[int] = [100, 300]
-@export var speed_per_stage: float = 0.15
+@export_group("Monster Configuration")
+@export var monster_stats: MonsterStats  # ← Single resource for everything!
 
 @export_group("Monster Abilities")
 @export var ability_1: AbilityBase
@@ -34,7 +23,7 @@ signal stage_changed(new_stage: int)
 var current_stage: int = 1
 var current_health: float
 var current_xp: float = 0.0
-var next_evolution_xp: int = 100
+var damage_multiplier: float = 1.0
 
 var ability_cooldowns := {
 	"ability_1": 0.0,
@@ -43,10 +32,14 @@ var ability_cooldowns := {
 }
 
 func _ready() -> void:
+	if not monster_stats:
+		push_error(name + " missing MonsterStats resource!")
+		return
+	
+	# Initialize from resource
+	_apply_stage_configuration(1)
 	_setup_monster_combat_role()
-	current_health = max_health
-	current_stage = 1
-	_update_next_evolution_threshold()
+	
 	super._ready()
 
 func _process(delta: float) -> void:
@@ -60,87 +53,136 @@ func _process(delta: float) -> void:
 		passive_ability.on_passive_update(self, delta)
 
 # ============================================
-# Combat Setup
+# Stage Configuration (Resource-Driven)
+# ============================================
+
+func _apply_stage_configuration(stage: int) -> void:
+	if not monster_stats:
+		return
+	
+	print("\n▶ Applying Stage ", stage, " Configuration for ", name)
+	
+	# Apply health (with healing for evolution)
+	var old_max = current_health if stage > 1 else 0.0
+	var new_health = monster_stats.get_health_for_stage(stage)
+	
+	if stage == 1:
+		current_health = new_health
+	else:
+		# Evolution: heal by the HP increase
+		current_health += (new_health - old_max)
+	
+	# Apply all stats from resource
+	damage_multiplier = monster_stats.get_damage_mult_for_stage(stage)
+	xp_value = monster_stats.get_xp_value_for_stage(stage)
+	
+	# Configure abilities for this stage
+	_configure_abilities_for_stage(stage)
+	
+	# Update health bar
+	if health_bar:
+		health_bar.max_value = new_health
+		health_bar.value = current_health
+	
+	# Update visual scale
+	_update_stage_scale(stage)
+	
+	print("  ✓ HP: ", current_health, "/", new_health)
+	print("  ✓ Speed: ", monster_stats.get_speed_for_stage(stage))
+	print("  ✓ Damage Multiplier: ", damage_multiplier)
+	print("  ✓ XP Value: ", xp_value)
+
+func _configure_abilities_for_stage(stage: int) -> void:
+	if ability_1:
+		ability_1.apply_stage_stats(stage)
+		print("  ✓ Ability 1: ", ability_1.ability_name, " - Damage: ", ability_1.damage, ", CD: ", ability_1.cooldown)
+	
+	if ability_2:
+		ability_2.apply_stage_stats(stage)
+		print("  ✓ Ability 2: ", ability_2.ability_name, " - Damage: ", ability_2.damage, ", CD: ", ability_2.cooldown)
+	
+	if ability_3:
+		ability_3.apply_stage_stats(stage)
+		# Lock ability until stage 2
+		if stage < 2:
+			ability_3.cooldown = 999999.0
+		print("  ✓ Ability 3: ", ability_3.ability_name, " - Damage: ", ability_3.damage, ", CD: ", ability_3.cooldown)
+
+func _update_stage_scale(stage: int) -> void:
+	if not monster_stats:
+		return
+	
+	var target_scale = monster_stats.get_scale_for_stage(stage)
+	
+	var tween = create_tween()
+	tween.tween_property(self, "scale", target_scale, 0.5) \
+		.set_trans(Tween.TRANS_BACK) \
+		.set_ease(Tween.EASE_OUT)
+
+# ============================================
+# Combat Setup (Resource-Driven)
 # ============================================
 
 func _setup_monster_combat_role() -> void:
+	if not monster_stats:
+		return
+	
 	combat_role = Types.CombatRole.MELEE
 	preferred_distance = 45.0
 	min_distance = 20.0
 	max_distance = 100.0
 	strafe_enabled = true
-	strafe_speed = 70.0
-	strafe_change_interval = 1.5
+	
 	_update_combat_for_stage()
 
 func _update_combat_for_stage() -> void:
-	match current_stage:
-		1:
-			strafe_speed = 60.0
-			strafe_change_interval = 2.0
-		2:
-			strafe_speed = 75.0
-			strafe_change_interval = 1.5
-		3:
-			strafe_speed = 90.0
-			strafe_change_interval = 1.0
+	if not monster_stats:
+		return
+	
+	strafe_speed = monster_stats.get_strafe_speed_for_stage(current_stage)
+	strafe_change_interval = monster_stats.get_strafe_interval_for_stage(current_stage)
 
 func _is_attack_ready() -> bool:
 	return ability_cooldowns.get("ability_1", 0.0) <= 0.0
 
 # ============================================
-# XP Value System
-# ============================================
-
-func _update_xp_value_for_stage() -> void:
-	match current_stage:
-		1:
-			xp_value = 100.0
-		2:
-			xp_value = 200.0
-		3:
-			xp_value = 400.0
-		_:
-			xp_value = 100.0
-
-# ============================================
-# Stage Change Hook (Override in child classes)
+# Stage Change Hook
 # ============================================
 
 func _on_stage_entered(new_stage: int, _old_stage: int) -> void:
-	# Common behavior for all monsters
-	_update_xp_value_for_stage()
+
+	_apply_stage_configuration(new_stage)
 	_update_combat_for_stage()
-	
-	# Child classes should call super first, then add their own logic
 
 # ============================================
 # EntityBase Virtual Method Overrides
 # ============================================
 
 func _get_move_speed() -> float:
-	return base_move_speed * (1.0 + (current_stage - 1) * speed_per_stage)
+	if not monster_stats:
+		return 60.0
+	return monster_stats.get_speed_for_stage(current_stage)
 
 func _get_approach_speed() -> float:
 	return _get_move_speed() * 1.4
 
 func _get_attack_range() -> float:
-	return base_attack_range
+	return 80.0  # Could also be in resource if needed
 
 func _get_idle_retarget_time() -> float:
-	return base_idle_retarget_time
+	return 2.0
 
 func _get_idle_wander_radius() -> float:
-	return base_idle_wander_radius
+	return 200.0
 
 func _get_keep_distance() -> float:
-	return base_keep_distance
+	return 50.0
 
 func is_alive() -> bool:
 	return current_health > 0.0
 
 func get_health() -> float:
-	return current_health
+	return monster_stats.get_health_for_stage(current_stage) if monster_stats else current_health
 
 func take_damage(amount: float, attacker: Node2D = null) -> void:
 	if not is_alive():
@@ -160,21 +202,24 @@ func _get_entity_level() -> int:
 	return current_stage
 
 # ============================================
-# XP & Evolution System
+# XP & Evolution System (Resource-Driven)
 # ============================================
 
 func gain_xp(amount: float) -> void:
 	current_xp += amount
-	print(name + " gained " + str(amount) + " XP (Total: " + str(current_xp) + "/" + str(next_evolution_xp) + ")")
+	
+	var next_threshold = _get_next_evolution_threshold()
+	print(name + " gained " + str(amount) + " XP (Total: " + str(current_xp) + "/" + str(next_threshold) + ")")
 	
 	_check_evolution()
 
 func _check_evolution() -> void:
-	if current_xp >= next_evolution_xp:
+	var next_threshold = _get_next_evolution_threshold()
+	
+	if current_xp >= next_threshold:
 		var new_stage = current_stage + 1
-		var max_stage = evolution_xp_thresholds.size() + 1
 		
-		if new_stage <= max_stage:
+		if new_stage <= 3:  # Max 3 stages
 			_evolve_to_stage(new_stage)
 
 func _evolve_to_stage(new_stage: int) -> void:
@@ -185,8 +230,6 @@ func _evolve_to_stage(new_stage: int) -> void:
 	print("║  " + name + " EVOLVED TO STAGE " + str(current_stage) + "!  ║")
 	print("╚════════════════════════════════════╝")
 	
-	_update_next_evolution_threshold()
-	
 	# Reset cooldowns on evolution
 	for key in ability_cooldowns.keys():
 		ability_cooldowns[key] = 0.0
@@ -194,19 +237,17 @@ func _evolve_to_stage(new_stage: int) -> void:
 	# Visual update
 	_update_stage_visuals(current_stage)
 	
-	# Call hook (child classes override this)
+	# Call hook (applies stats from resource)
 	_on_stage_entered(current_stage, old_stage)
 	
 	# Emit signal
 	stage_changed.emit(current_stage)
 
-func _update_next_evolution_threshold() -> void:
-	var stage_index = current_stage - 1
+func _get_next_evolution_threshold() -> int:
+	if not monster_stats:
+		return 999999
 	
-	if stage_index < evolution_xp_thresholds.size():
-		next_evolution_xp = evolution_xp_thresholds[stage_index]
-	else:
-		next_evolution_xp = 999999
+	return monster_stats.get_xp_threshold_for_stage(current_stage + 1)
 
 # ============================================
 # Stage Visuals
@@ -219,14 +260,10 @@ func _update_stage_visuals(stage: int) -> void:
 	# Switch animation
 	var animation_name: String
 	match stage:
-		1:
-			animation_name = stage_1_animation
-		2:
-			animation_name = stage_2_animation
-		3:
-			animation_name = stage_3_animation
-		_:
-			animation_name = stage_1_animation
+		1: animation_name = stage_1_animation
+		2: animation_name = stage_2_animation
+		3: animation_name = stage_3_animation
+		_: animation_name = stage_1_animation
 	
 	if animated_sprite.sprite_frames and animated_sprite.sprite_frames.has_animation(animation_name):
 		animated_sprite.play(animation_name)
@@ -242,10 +279,8 @@ func _play_stage_effect(stage: int) -> void:
 	if animated_sprite:
 		var flash_color = Color.WHITE
 		match stage:
-			2:
-				flash_color = Color(1.5, 1.2, 0.8) # Orange
-			3:
-				flash_color = Color(1.8, 0.8, 0.8) # Red
+			2: flash_color = Color(1.5, 1.2, 0.8)  # Orange
+			3: flash_color = Color(1.8, 0.8, 0.8)  # Red
 		
 		var original = animated_sprite.modulate
 		var tween = create_tween()
@@ -262,12 +297,9 @@ func _play_stage_effect(stage: int) -> void:
 	effect.add_child(circle)
 	
 	match stage:
-		2:
-			circle.default_color = Color.ORANGE
-		3:
-			circle.default_color = Color.RED
-		_:
-			circle.default_color = Color.YELLOW
+		2: circle.default_color = Color.ORANGE
+		3: circle.default_color = Color.RED
+		_: circle.default_color = Color.YELLOW
 	
 	circle.width = 5.0
 	for i in range(33):
@@ -313,7 +345,9 @@ func _try_use_ability(ability_name: String, ability: AbilityBase) -> bool:
 		return false
 	
 	if ability.can_use(self):
-		ability.execute(self, target_entity)
+		# Apply damage multiplier from resource
+		var effective_damage = ability.damage * damage_multiplier
+		ability.execute(self, target_entity, effective_damage)
 		ability_cooldowns[ability_name] = ability.cooldown
 		return true
 	
@@ -336,15 +370,16 @@ func _on_monster_death() -> void:
 # ============================================
 
 func get_evolution_progress() -> float:
-	if current_stage >= evolution_xp_thresholds.size() + 1:
+	var next_threshold = _get_next_evolution_threshold()
+	if next_threshold >= 999999:
 		return 1.0
 	
 	var prev_threshold = 0
 	if current_stage > 1:
-		prev_threshold = evolution_xp_thresholds[current_stage - 2]
+		prev_threshold = monster_stats.get_xp_threshold_for_stage(current_stage)
 	
 	var xp_in_stage = current_xp - prev_threshold
-	var xp_needed = next_evolution_xp - prev_threshold
+	var xp_needed = next_threshold - prev_threshold
 	
 	return xp_in_stage / float(xp_needed)
 
@@ -353,9 +388,6 @@ func get_stage() -> int:
 
 func get_xp() -> float:
 	return current_xp
-
-func get_next_evolution_xp() -> int:
-	return next_evolution_xp
 
 func get_ability_cooldown(ability_name: String) -> float:
 	return ability_cooldowns.get(ability_name, 0.0)

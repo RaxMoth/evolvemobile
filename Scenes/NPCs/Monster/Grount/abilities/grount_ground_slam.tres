@@ -1,7 +1,7 @@
 [gd_resource type="Resource" script_class="BullGroundSlam" load_steps=3 format=3 uid="uid://droiw24xlfrd1"]
 
 [ext_resource type="Script" uid="uid://dg381s3ogg0s0" path="res://Scenes/NPCs/Monster/Grount/abilities/grount_slam.gd" id="1_8el7q"]
-[ext_resource type="Texture2D" uid="uid://0vlvy3mej50h" path="res://Icon.jpg" id="1_rgsdf"]
+[ext_resource type="Texture2D" uid="uid://0vlvy3mej50h" path="res://Assets/Icon.jpg" id="1_rgsdf"]
 
 [resource]
 script = ExtResource("1_8el7q")

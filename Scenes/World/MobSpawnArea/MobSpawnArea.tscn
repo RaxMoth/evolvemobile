@@ -1,6 +1,6 @@
 [gd_scene load_steps=3 format=3 uid="uid://dgkgy56ym0l0x"]
 
-[ext_resource type="Script" uid="uid://c137bi03yc167" path="res://Scenes/World/mob_spawn_area.gd" id="1_12uab"]
+[ext_resource type="Script" uid="uid://c137bi03yc167" path="res://Scenes/World/MobSpawnArea/mob_spawn_area.gd" id="1_12uab"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_12uab"]
 radius = 74.0
