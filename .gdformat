@@ -1,0 +1,11 @@
+# GDFormat configuration
+# This file controls how gdformat auto-formats your GDScript files
+
+# Maximum line length before wrapping
+line-length = 100
+
+# Use tabs for indentation (Godot standard)
+indent = tab
+
+# Number of blank lines between function definitions
+function-definition-spacing = 2

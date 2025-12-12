@@ -1,0 +1,17 @@
+{
+  "editor.formatOnSave": true,
+
+  "[gdscript]": {
+    "editor.defaultFormatter": "geequlim.godot-tools",
+    "editor.formatOnSave": true,
+    "editor.tabSize": 4,
+    "editor.insertSpaces": false
+  },
+
+  "godot_tools.editor_path": "/Applications/Godot 5.app/Contents/MacOS/Godot",
+  "godot_tools.gdscript_lsp_server_port": 6005,
+
+  "files.associations": {
+    "*.gd": "gdscript"
+  }
+}

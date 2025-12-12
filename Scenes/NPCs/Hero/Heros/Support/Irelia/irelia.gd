@@ -49,6 +49,7 @@ func _on_fight_logic(delta: float) -> void:
 
 func _find_threatened_ally() -> Node2D:
 	var heroes = get_tree().get_nodes_in_group("Hero")
+
 	
 	for hero in heroes:
 		if hero == self:
@@ -60,7 +61,7 @@ func _find_threatened_ally() -> Node2D:
 		# Check if hero is at low health
 		if hero.has_method("get_health"):
 			var health_percent = hero.get_health() / hero.max_health
-			if health_percent < 0.4:  # Below 40% health
+			if health_percent < 0.4: # Below 40% health
 				return hero
 	
 	return null
@@ -78,14 +79,14 @@ func _find_enemy_attacking(ally: Node2D) -> Node2D:
 		# Check if enemy is targeting this ally
 		if "target_entity" in enemy and enemy.target_entity == ally:
 			var distance = global_position.distance_to(enemy.global_position)
-			if distance <= 200.0:  # Within reasonable range
+			if distance <= 200.0: # Within reasonable range
 				return enemy
 	
 	return null
 
 # Irelia stays close to allies to protect them
 func _get_idle_wander_radius() -> float:
-	return 80.0  # Stay closer to team
+	return 80.0 # Stay closer to team
 
 func _on_idle_state_processing(delta: float) -> void:
 	if not is_instance_valid(navigation_agent_2d):
