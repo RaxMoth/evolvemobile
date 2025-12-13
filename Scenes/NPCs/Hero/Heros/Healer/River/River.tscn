@@ -41,6 +41,9 @@ active_ability = ExtResource("5_tvvx7")
 basic_attack = ExtResource("6_1hf4a")
 ultimate_ability = ExtResource("7_ldrf5")
 
+[node name="HBoxContainer" parent="Control" index="0"]
+unique_name_in_owner = false
+
 [node name="AnimatedSprite2D" parent="." index="3"]
 sprite_frames = SubResource("SpriteFrames_qjsu5")
 autoplay = "default"
@@ -48,3 +51,6 @@ frame_progress = 0.75361794
 
 [node name="Sprite2D" parent="." index="4"]
 visible = false
+
+[node name="CollisionShape2D" parent="Body" index="0"]
+script = null

@@ -54,5 +54,3 @@ frame_progress = 0.58320284
 [node name="Sprite2D" parent="." index="4"]
 visible = false
 modulate = Color(0.7, 0.5, 0.3, 1)
-
-[node name="DetectionArea" parent="." index="5" groups=["Hero"]]

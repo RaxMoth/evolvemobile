@@ -12,10 +12,6 @@ monster_stats = ExtResource("2_n33a8")
 ability_1 = ExtResource("3_tudf8")
 ability_2 = ExtResource("4_n33a8")
 ability_3 = ExtResource("5_60m1s")
-stage_1_animation = "phase_1"
-stage_2_animation = "phase_2"
-stage_3_animation = "phase_3"
-enable_stage_effects = true
 
 [node name="AnimatedSprite2D" parent="." index="1"]
 sprite_frames = ExtResource("6_n33a8")

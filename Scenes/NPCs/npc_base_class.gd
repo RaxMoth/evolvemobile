@@ -8,6 +8,7 @@ class_name EntityBase
 # ============================================
 # SECTION 1: EXPORTS & CONFIGURATION
 # ============================================
+signal died
 
 @export_group("XP System")
 @export var xp_value: float = 0.0
@@ -329,7 +330,7 @@ func _reevaluate_current_target(threshold: float) -> void:
 		print(name + " switching from " + old_name + " to " + best_target_node.name)
 		target = best_target_area
 		target_entity = best_target_node
-		
+
 func _check_for_nearby_enemies() -> void:
 	"""Check detection area for any remaining enemies and re-engage"""
 	if not is_instance_valid(detection_area):
@@ -375,7 +376,6 @@ func _on_detection_area_area_entered(area: Area2D) -> void:
 		if best_target_area:
 			var best_target_node = best_target_area.get_owner()
 			if is_instance_valid(best_target_node):
-				print(name + " detected enemies, targeting: " + best_target_node.name)
 				target = best_target_area
 				target_entity = best_target_node
 				state_chart.send_event("enemie_entered")
@@ -387,8 +387,6 @@ func _on_detection_area_area_entered(area: Area2D) -> void:
 func _on_detection_area_area_exited(area: Area2D) -> void:
 	"""Called when an area exits detection range"""
 	if target == area:
-		print(name + "'s target exited detection range")
-		
 		if enable_smart_targeting:
 			_reevaluate_current_target(switch_threshold_approach)
 		else:
@@ -709,6 +707,7 @@ func _on_fight_logic(_delta: float) -> void:
 ## Dead State - Entity has died
 
 func _on_dead_state_entered() -> void:
+	died.emit()
 	"""Entered Dead state - grant XP and clean up"""
 	_grant_xp_to_killer()
 	queue_free()
