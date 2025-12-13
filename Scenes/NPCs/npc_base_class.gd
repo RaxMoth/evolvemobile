@@ -303,8 +303,7 @@ func _should_switch_target(new_target_area: Area2D, threshold: float) -> bool:
 	return new_score > current_score + threshold
 
 func _reevaluate_current_target(threshold: float) -> void:
-	"""Re-evaluate current target and switch if better option exists.
-	Uses provided threshold appropriate for current state."""
+	"""Re-evaluate and possibly switch targets with given threshold"""
 	if not enable_smart_targeting:
 		return
 	
@@ -324,11 +323,13 @@ func _reevaluate_current_target(threshold: float) -> void:
 		return
 	
 	if _should_switch_target(best_target_area, threshold):
-		var old_name = target_entity.name if target_entity else "none"
+		var old_name: String = "none"
+		if is_instance_valid(target_entity):
+			old_name = str(target_entity.name)
 		print(name + " switching from " + old_name + " to " + best_target_node.name)
 		target = best_target_area
 		target_entity = best_target_node
-
+		
 func _check_for_nearby_enemies() -> void:
 	"""Check detection area for any remaining enemies and re-engage"""
 	if not is_instance_valid(detection_area):

@@ -27,7 +27,7 @@ func take_damage(amount: float) -> void:
 		state_chart.send_event("self_dead")
 
 # Override to prioritize enemies attacking allies
-func _on_fight_logic(delta: float) -> void:
+func _on_fight_logic(_delta: float) -> void:
 	if not ability_system:
 		return
 	

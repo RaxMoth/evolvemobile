@@ -1,11 +1,9 @@
 extends Node2D
 class_name FogOfWarSystem
 
-signal area_revealed(position: Vector2)
-
 @export var tile_size: int = 32
 @export var fog_color: Color = Color(0, 0, 0, 0.85)
-@export var world_size: Vector2 = Vector2(9200,5185)
+@export var world_size: Vector2 = Vector2(9200, 5185)
 @export var world_offset: Vector2 = Vector2(0, 0)
 
 var exploration_texture: ImageTexture
@@ -37,9 +35,9 @@ func _setup_fog_sprite() -> void:
 	var fog_texture = ImageTexture.create_from_image(fog_texture_image)
 	
 	fog_sprite.texture = fog_texture
-	fog_sprite.centered = false  # Don't center, position from top-left
+	fog_sprite.centered = false # Don't center, position from top-left
 	fog_sprite.position = world_offset
-	fog_sprite.z_index = 100  # Above everything else
+	fog_sprite.z_index = 100 # Above everything else
 	
 	# Apply shader material
 	var shader = load("res://Scenes/World/FogOfWar/fog_of_war.gdshader")
@@ -67,7 +65,6 @@ func reveal_area(world_position: Vector2, radius: float) -> void:
 
 	for x in range(grid_x - tile_radius, grid_x + tile_radius + 1):
 		for y in range(grid_y - tile_radius, grid_y + tile_radius + 1):
-			
 			if x < 0 or x >= grid_width or y < 0 or y >= grid_height:
 				continue
 
