@@ -1,13 +1,15 @@
-[gd_resource type="Resource" script_class="IreliaUltimateTaunt" load_steps=2 format=3 uid="uid://5o6u1y81qi8j"]
+[gd_resource type="Resource" script_class="IreliaUltimateTaunt" load_steps=3 format=3 uid="uid://5o6u1y81qi8j"]
 
 [ext_resource type="Script" uid="uid://ds6w22w54lvw0" path="res://Scenes/NPCs/Hero/Heros/Support/Irelia/Abilities/Ult/irelia_ultimate_taunt.gd" id="1_b1fc5"]
+[ext_resource type="Texture2D" uid="uid://0vlvy3mej50h" path="res://Assets/Icon.jpg" id="1_xlwob"]
 
 [resource]
 script = ExtResource("1_b1fc5")
 ability_name = "Monster Taunt"
 ability_type = 3
-cooldown = 15.0
+icon = ExtResource("1_xlwob")
 description = "Force the monster to attack Irelia for 5 seconds"
+cooldown = 15.0
 ability_range = 200.0
 duration = 5.0
 metadata/_custom_type_script = "uid://ds6w22w54lvw0"

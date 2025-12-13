@@ -74,31 +74,24 @@ active_ability = ExtResource("4_qoltp")
 basic_attack = ExtResource("5_s7ida")
 ultimate_ability = ExtResource("6_dmu8j")
 
-[node name="Control" parent="." index="3"]
+[node name="Control" parent="." index="2"]
 offset_left = -11.0
 offset_top = -13.0
 offset_right = 20.0
 
-[node name="HealthBar" parent="Control" index="0"]
-anchors_preset = -1
-anchor_left = -0.12900001
-anchor_right = 0.83900005
-offset_left = -0.0009996891
-offset_right = -0.009000778
-
-[node name="AnimatedSprite2D" parent="." index="4"]
+[node name="AnimatedSprite2D" parent="." index="3"]
 sprite_frames = SubResource("SpriteFrames_dmu8j")
 autoplay = "default"
 frame_progress = 0.1156109
 speed_scale = 0.5
 
-[node name="Sprite2D" parent="." index="5"]
+[node name="Sprite2D" parent="." index="4"]
 visible = false
 
-[node name="DetectionArea" parent="." index="6" groups=["Enemy"]]
+[node name="DetectionArea" parent="." index="5" groups=["Enemy"]]
 
 [node name="CollisionShape2D" parent="DetectionArea" index="0" groups=["npc"]]
 
-[node name="Body" parent="." index="7" groups=["Enemy"]]
+[node name="Body" parent="." index="6" groups=["Enemy"]]
 
 [node name="CollisionShape2D" parent="Body" index="0" groups=["Enemy"]]

@@ -1,5 +1,6 @@
-[gd_resource type="Resource" script_class="TedPassivePet" load_steps=3 format=3 uid="uid://c1bxmamqk2cr0"]
+[gd_resource type="Resource" script_class="TedPassivePet" load_steps=4 format=3 uid="uid://c1bxmamqk2cr0"]
 
+[ext_resource type="Texture2D" uid="uid://0vlvy3mej50h" path="res://Assets/Icon.jpg" id="1_moker"]
 [ext_resource type="Script" uid="uid://qgfv465m85lu" path="res://Scenes/NPCs/Hero/Heros/Support/Ted/Abilities/Passive/ted_passive_pet.gd" id="1_passive"]
 [ext_resource type="PackedScene" uid="uid://dmwsr7r1rglla" path="res://Scenes/NPCs/Hero/Heros/Support/Ted/Abilities/Passive/TedsPet.tscn" id="2_pet"]
 
@@ -8,4 +9,5 @@ script = ExtResource("1_passive")
 pet_scene = ExtResource("2_pet")
 ability_name = "Loyal Companion"
 ability_type = 0
+icon = ExtResource("1_moker")
 description = "Ted fights alongside his loyal pet"
