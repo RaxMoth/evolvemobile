@@ -13,8 +13,6 @@ func _init() -> void:
 	ability_name = "Adaptive Weapon"
 	ability_type = AbilityType.BASIC_ATTACK
 	description = "Sniper or Heal based on current weapon mode"
-	
-	# Start with sniper stats
 	damage = sniper_damage
 	ability_range = sniper_range
 	cooldown = sniper_cooldown
@@ -24,7 +22,7 @@ func can_use(caster: Node2D) -> bool:
 		return false
 	return true
 
-func execute(caster: Node2D, target: Node2D = null) -> void:
+func execute(caster: Node2D, target: Node2D = null, _override_damage: float = -1.0) -> void:
 	# Check current weapon mode from River
 	if not caster.has_method("get_weapon_mode"):
 		return
@@ -32,9 +30,9 @@ func execute(caster: Node2D, target: Node2D = null) -> void:
 	var mode = caster.get_weapon_mode()
 	
 	match mode:
-		0:  # SNIPER mode
+		0: # SNIPER mode
 			_execute_sniper(caster, target)
-		1:  # HEAL_STAFF mode
+		1: # HEAL_STAFF mode
 			_execute_heal(caster, target)
 
 func _execute_sniper(caster: Node2D, target: Node2D) -> void:

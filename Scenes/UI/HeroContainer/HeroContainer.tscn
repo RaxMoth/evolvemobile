@@ -228,7 +228,7 @@ layout_mode = 2
 expand_mode = 1
 stretch_mode = 5
 
-[node name="Ultiwmate" type="TextureRect" parent="MarginContainer/HeroHBoxContainer/Hero4/VBoxContainer/AbilityContainer"]
+[node name="Ultimate" type="TextureRect" parent="MarginContainer/HeroHBoxContainer/Hero4/VBoxContainer/AbilityContainer"]
 custom_minimum_size = Vector2(30, 30)
 layout_mode = 2
 expand_mode = 1

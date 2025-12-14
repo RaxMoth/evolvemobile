@@ -14,7 +14,7 @@ func _init() -> void:
 func can_use(_caster: Node2D) -> bool:
 	return trap_scene != null
 
-func execute(caster: Node2D, target: Node2D = null) -> void:
+func execute(caster: Node2D, target: Node2D = null, _override_damage: float = -1.0) -> void:
 	if not trap_scene:
 		push_error("Trap scene not assigned!")
 		return

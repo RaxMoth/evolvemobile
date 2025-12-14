@@ -1,4 +1,10 @@
-[gd_resource type="Resource" format=3 uid="uid://b5n1wqkllmaqo"]
+[gd_resource type="Resource" script_class="RiverActiveWeaponSwap" load_steps=3 format=3 uid="uid://b5n1wqkllmaqo"]
+
+[ext_resource type="Script" uid="uid://b8vdf3ucve432" path="res://Scenes/NPCs/Hero/Heros/Healer/River/Abilities/active/river_active_weapon_swap.gd" id="1_active"]
+[ext_resource type="Texture2D" uid="uid://b8hlhq44dx3qv" path="res://Assets/icon.svg" id="2_icon"]
 
 [resource]
-metadata/_custom_type_script = "uid://bdlw5rkh77f2g"
+script = ExtResource("1_active")
+ability_name = "Weapon Swap"
+icon = ExtResource("2_icon")
+description = "Swap between Sniper Rifle (long range damage) and Heal Staff (heal allies)"

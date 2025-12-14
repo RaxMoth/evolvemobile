@@ -1,3 +1,18 @@
-[gd_resource type="Resource" format=3 uid="uid://tedultuid"]
+[gd_resource type="Resource" script_class="TedUltimateTrapCage" load_steps=4 format=3 uid="uid://bd0lrdfadyflv"]
+
+[ext_resource type="Texture2D" uid="uid://0vlvy3mej50h" path="res://Assets/Icon.jpg" id="1_1gwko"]
+[ext_resource type="Script" uid="uid://buq71b61vhbli" path="res://Scenes/NPCs/Hero/Heros/Support/Ted/Abilities/Ult/ted_ultimate_trap.gd" id="1_bm2ge"]
+[ext_resource type="PackedScene" uid="uid://4idw7v83awvi" path="res://Scenes/NPCs/Hero/Heros/Support/Ted/Abilities/Ult/TrapCage.tscn" id="3_urshe"]
 
 [resource]
+script = ExtResource("1_bm2ge")
+trap_scene = ExtResource("3_urshe")
+ability_name = "TED ULt"
+ability_type = 3
+icon = ExtResource("1_1gwko")
+damage = 40.0
+cooldown = 5.0
+duration = 2.0
+heal_amount = 20.0
+area_of_effect = 2.0
+metadata/_custom_type_script = "uid://buq71b61vhbli"

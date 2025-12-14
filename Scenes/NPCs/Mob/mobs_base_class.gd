@@ -212,9 +212,5 @@ func _on_attack_timer_timeout() -> void:
 	if is_target_valid():
 		_perform_basic_attack()
 
-# ============================================
-# Death
-# ============================================
-
 func _on_mob_death() -> void:
 	queue_free()

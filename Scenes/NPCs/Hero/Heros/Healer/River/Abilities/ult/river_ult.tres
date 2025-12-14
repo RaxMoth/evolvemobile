@@ -1,4 +1,16 @@
-[gd_resource type="Resource" format=3 uid="uid://c0pjxk8ynq6xh"]
+[gd_resource type="Resource" script_class="RiverUltimateMediKit" load_steps=4 format=3 uid="uid://c0pjxk8ynq6xh"]
+
+[ext_resource type="Script" uid="uid://bdiyku0m3tpwt" path="res://Scenes/NPCs/Hero/Heros/Healer/River/Abilities/ult/river_ultimate_medikit.gd" id="1_ult"]
+[ext_resource type="Texture2D" uid="uid://b8hlhq44dx3qv" path="res://Assets/icon.svg" id="2_icon"]
+[ext_resource type="PackedScene" path="res://Scenes/NPCs/Hero/Heros/Healer/River/Abilities/ult/MediKit.tscn" id="3_medikit"]
 
 [resource]
+script = ExtResource("1_ult")
+medikit_scene = ExtResource("3_medikit")
+ability_name = "Emergency Supply Drop"
+ability_type = 3
+icon = ExtResource("2_icon")
+description = "Drop a MediKit that heals allies who walk over it"
+cooldown = 25.0
+heal_amount = 30.0
 metadata/_custom_type_script = "uid://cbkopovd2t68g"

@@ -7,10 +7,9 @@ func _init() -> void:
 	ability_name = "Fire Arrow"
 	ability_type = AbilityType.BASIC_ATTACK
 	damage = 3.0
-	range = 300.0
 	cooldown = 1.0
 
-func execute(caster: Node2D, target: Node2D = null) -> void:
+func execute(caster: Node2D, target: Node2D = null, _override_damage: float = -1.0) -> void:
 	if not target:
 		return
 	
