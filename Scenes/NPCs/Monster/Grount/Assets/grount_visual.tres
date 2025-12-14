@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="MonsterVisualConfig" load_steps=5 format=3 uid="uid://d1j446y12n0fv"]
+
+[ext_resource type="Script" uid="uid://8f2haeo87pmo" path="res://Scenes/NPCs/Monster/monster_visual_config.gd" id="1_0twbp"]
+[ext_resource type="SpriteFrames" uid="uid://fb0ft3xyfl3b" path="res://Scenes/NPCs/Monster/Grount/Assets/phase_1.tres" id="2_dio4m"]
+[ext_resource type="SpriteFrames" uid="uid://djyxnrs2dcpep" path="res://Scenes/NPCs/Monster/Grount/Assets/phase_2.tres" id="3_mklxy"]
+[ext_resource type="SpriteFrames" uid="uid://d2m1aayc8lko7" path="res://Scenes/NPCs/Monster/Grount/Assets/phase_3.tres" id="4_xcf0r"]
+
+[resource]
+script = ExtResource("1_0twbp")
+stage_1_sprite_frames = ExtResource("2_dio4m")
+stage_2_sprite_frames = ExtResource("3_mklxy")
+stage_3_sprite_frames = ExtResource("4_xcf0r")

@@ -5,6 +5,7 @@ signal stage_changed(new_stage: int)
 
 @export_group("Monster Configuration")
 @export var monster_stats: MonsterStats
+@export var visual_config: MonsterVisualConfig
 
 @export_group("Monster Abilities")
 @export var ability_1: AbilityBase
@@ -12,11 +13,6 @@ signal stage_changed(new_stage: int)
 @export var ability_3: AbilityBase
 @export var passive_ability: AbilityBase
 
-@export_group("Stage Visuals")
-@export var stage_1_animation: String = "phase_1"
-@export var stage_2_animation: String = "phase_2"
-@export var stage_3_animation: String = "phase_3"
-@export var enable_stage_effects: bool = true
 
 @onready var animated_sprite: AnimatedSprite2D = $AnimatedSprite2D
 
@@ -35,28 +31,19 @@ func _ready() -> void:
 	if not monster_stats:
 		push_error(name + " missing MonsterStats resource!")
 		return
-	
-	# Initialize from resource
 	_apply_stage_configuration(1)
 	_setup_monster_combat_role()
 	
 	super._ready()
 
 func _process(delta: float) -> void:
-	# Update ability cooldowns
 	for key in ability_cooldowns.keys():
 		if ability_cooldowns[key] > 0.0:
 			ability_cooldowns[key] -= delta
-	
-	# Update passive ability
+
 	if passive_ability:
 		passive_ability.on_passive_update(self, delta)
 	
-	# NO SPAWN POINT CHECKS - Monster roams freely like heroes!
-
-# ============================================
-# Stage Configuration (Resource-Driven)
-# ============================================
 
 func _apply_stage_configuration(stage: int) -> void:
 	if not monster_stats:
@@ -64,35 +51,25 @@ func _apply_stage_configuration(stage: int) -> void:
 	
 	print("\n▶ Applying Stage ", stage, " Configuration for ", name)
 	
-	# Apply health (with healing for evolution)
 	var old_max = current_health if stage > 1 else 0.0
 	var new_health = monster_stats.get_health_for_stage(stage)
 	
 	if stage == 1:
 		current_health = new_health
 	else:
-		# Evolution: heal by the HP increase
 		current_health += (new_health - old_max)
 	
-	# Apply all stats from resource
 	damage_multiplier = monster_stats.get_damage_mult_for_stage(stage)
 	xp_value = monster_stats.get_xp_value_for_stage(stage)
 	
-	# Configure abilities for this stage
 	_configure_abilities_for_stage(stage)
 	
-	# Update health bar
 	if health_bar:
 		health_bar.max_value = new_health
 		health_bar.value = current_health
 	
-	# Update visual scale
 	_update_stage_scale(stage)
-	
-	print("  ✓ HP: ", current_health, "/", new_health)
-	print("  ✓ Speed: ", monster_stats.get_speed_for_stage(stage))
-	print("  ✓ Damage Multiplier: ", damage_multiplier)
-	print("  ✓ XP Value: ", xp_value)
+
 
 func _configure_abilities_for_stage(stage: int) -> void:
 	if ability_1:
@@ -152,7 +129,6 @@ func _is_attack_ready() -> bool:
 # ============================================
 
 func _on_stage_entered(new_stage: int, _old_stage: int) -> void:
-	# Apply new stage configuration from resource
 	_apply_stage_configuration(new_stage)
 	_update_combat_for_stage()
 
@@ -177,7 +153,7 @@ func _get_idle_retarget_time() -> float:
 
 func _get_idle_wander_radius() -> float:
 	# Roam freely across the map like heroes!
-	return 300.0  # Larger radius for exploration
+	return 300.0 # Larger radius for exploration
 
 func _get_keep_distance() -> float:
 	return 50.0
@@ -257,25 +233,27 @@ func _get_next_evolution_threshold() -> int:
 # Stage Visuals
 # ============================================
 
+
 func _update_stage_visuals(stage: int) -> void:
-	if not animated_sprite:
+	if not animated_sprite or not visual_config:
 		return
-	
-	# Switch animation
-	var animation_name: String
-	match stage:
-		1: animation_name = stage_1_animation
-		2: animation_name = stage_2_animation
-		3: animation_name = stage_3_animation
-		_: animation_name = stage_1_animation
-	
+
+	var sprite_frames = visual_config.get_sprite_frames_for_stage(stage)
+	var animation_name = visual_config.get_animation_name_for_stage(stage)
+	if sprite_frames:
+		animated_sprite.sprite_frames = sprite_frames
+
 	if animated_sprite.sprite_frames and animated_sprite.sprite_frames.has_animation(animation_name):
 		animated_sprite.play(animation_name)
 	else:
-		push_warning(name + " missing animation: " + animation_name)
+		var available_anims = animated_sprite.sprite_frames.get_animation_names()
+		if available_anims.size() > 0:
+			animated_sprite.play(available_anims[0])
+			print(name + " using fallback animation: " + available_anims[0])
+		else:
+			push_warning(name + " has no animations available!")
 	
-	# Visual effects
-	if enable_stage_effects:
+	if visual_config.enable_stage_effects:
 		_play_stage_effect(stage)
 
 func _play_stage_effect(stage: int) -> void:
@@ -283,8 +261,8 @@ func _play_stage_effect(stage: int) -> void:
 	if animated_sprite:
 		var flash_color = Color.WHITE
 		match stage:
-			2: flash_color = Color(1.5, 1.2, 0.8)  # Orange
-			3: flash_color = Color(1.8, 0.8, 0.8)  # Red
+			2: flash_color = Color(1.5, 1.2, 0.8) # Orange
+			3: flash_color = Color(1.8, 0.8, 0.8) # Red
 		
 		var original = animated_sprite.modulate
 		var tween = create_tween()

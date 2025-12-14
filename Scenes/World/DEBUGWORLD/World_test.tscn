@@ -376,3 +376,4 @@ position = Vector2(423, 226)
 
 [node name="Grount" parent="." instance=ExtResource("3_ouhkt")]
 position = Vector2(1167, 93)
+visual_config = null

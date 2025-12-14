@@ -304,7 +304,6 @@ func _should_switch_target(new_target_area: Area2D, threshold: float) -> bool:
 	return new_score > current_score + threshold
 
 func _reevaluate_current_target(threshold: float) -> void:
-	"""Re-evaluate and possibly switch targets with given threshold"""
 	if not enable_smart_targeting:
 		return
 	
@@ -312,7 +311,6 @@ func _reevaluate_current_target(threshold: float) -> void:
 	
 	if not best_target_area:
 		if is_target_valid():
-			print(name + " lost all valid targets")
 			target = null
 			target_entity = null
 			state_chart.send_event("enemie_exited")

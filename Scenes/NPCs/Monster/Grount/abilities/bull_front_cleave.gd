@@ -18,21 +18,7 @@ func apply_stage_stats(stage: int) -> void:
 		cone_angle = cone_angle_per_stage[stage - 1]
 
 func execute(caster: Node2D, target: Node2D = null, override_damage: float = -1.0) -> void:
-	print("\n╔════════════════════════════════════════════════════════")
-	print("║ FRONT CLEAVE EXECUTION START")
-	print("╠════════════════════════════════════════════════════════")
-	
-	if not caster or not caster.has_node("Sprite2D"):
-		print("║ ❌ ERROR: No caster or Sprite2D!")
-		print("╚════════════════════════════════════════════════════════\n")
-		return
-	
 	var effective_damage = override_damage if override_damage >= 0.0 else damage
-	
-	print("║ Caster: ", caster.name)
-	print("║ Caster Groups: ", caster.get_groups())
-	print("║ Effective Damage: ", effective_damage)
-	print("╠════════════════════════════════════════════════════════")
 	
 	var sprite = caster.get_node("Sprite2D")
 	var forward_dir = Vector2.from_angle(sprite.rotation)
@@ -46,12 +32,9 @@ func execute(caster: Node2D, target: Node2D = null, override_damage: float = -1.
 	query.collide_with_areas = true
 	
 	var results = space_state.intersect_shape(query, 32)
-	
-	print("║ PHYSICS QUERY RESULTS: ", results.size(), " colliders found")
-	print("╠════════════════════════════════════════════════════════")
-	
+
 	var hit_count = 0
-	var checked_entities: Array = []  # Track which actual entities we've checked
+	var checked_entities: Array = [] # Track which actual entities we've checked
 	
 	for result in results:
 		var collider = result.collider
@@ -65,10 +48,6 @@ func execute(caster: Node2D, target: Node2D = null, override_damage: float = -1.
 			continue
 		
 		checked_entities.append(entity)
-		
-		print("║ Checking entity: ", entity.name)
-		print("║   • Type: ", entity.get_class())
-		print("║   • Groups: ", entity.get_groups())
 		
 		# Check if entity is in front cone
 		var to_entity = (entity.global_position - caster.global_position).normalized()
@@ -98,10 +77,8 @@ func execute(caster: Node2D, target: Node2D = null, override_damage: float = -1.
 			print("║   ✓ DAMAGE DEALT!")
 		elif can_hit:
 			print("║   ❌ No take_damage method!")
-	
-	print("╠════════════════════════════════════════════════════════")
+
 	print("║ RESULT: Hit ", hit_count, " enemies")
-	print("╚════════════════════════════════════════════════════════\n")
 	
 	_create_cleave_effect(caster, forward_dir)
 
