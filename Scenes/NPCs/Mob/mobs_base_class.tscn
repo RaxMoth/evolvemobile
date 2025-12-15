@@ -15,6 +15,10 @@ attack_cooldown = 1.5
 base_idle_retarget_time = 1.2
 base_idle_wander_radius = 120.0
 base_keep_distance = 20.0
+chase_distance = 400.0
+
+[node name="DetectionArea" parent="." index="3"]
+visible = true
 
 [node name="ToDead" type="Node" parent="StateChart/CompoundState/Idle" index="1"]
 script = ExtResource("3_k2x2f")

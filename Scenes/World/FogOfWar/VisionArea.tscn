@@ -3,7 +3,7 @@
 [ext_resource type="Script" uid="uid://dqioxrcaivvnl" path="res://Scenes/World/FogOfWar/vision_area.gd" id="1_vision"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_vision"]
-radius = 200.0
+radius = 112.04017
 
 [node name="VisionArea" type="Area2D"]
 collision_layer = 0
@@ -11,7 +11,7 @@ collision_mask = 0
 monitoring = false
 monitorable = false
 script = ExtResource("1_vision")
-vision_radius = 120.0
+vision_radius = 100.0
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
 shape = SubResource("CircleShape2D_vision")

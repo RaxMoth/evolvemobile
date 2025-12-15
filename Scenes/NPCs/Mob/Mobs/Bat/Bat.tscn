@@ -71,13 +71,12 @@ animations = [{
 attack_cooldown = 0.5
 xp_value = 20.0
 
-
-[node name="AnimatedSprite2D" parent="." index="2"]
+[node name="AnimatedSprite2D" parent="." index="1"]
 sprite_frames = SubResource("SpriteFrames_2frwa")
 autoplay = "default"
 frame_progress = 0.44241503
 
-[node name="Sprite2D" parent="." index="3"]
+[node name="Sprite2D" parent="." index="2"]
 visible = false
 
 [connection signal="state_exited" from="StateChart/CompoundState/Fight" to="." method="_on_fight_state_exited"]

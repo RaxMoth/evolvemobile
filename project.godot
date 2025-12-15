@@ -41,7 +41,6 @@ folder_colors={
 
 [global_group]
 
-npc=""
 Hero=""
 Enemy=""
 Monster=""

@@ -87,11 +87,3 @@ speed_scale = 0.5
 
 [node name="Sprite2D" parent="." index="4"]
 visible = false
-
-[node name="DetectionArea" parent="." index="5" groups=["Enemy"]]
-
-[node name="CollisionShape2D" parent="DetectionArea" index="0" groups=["npc"]]
-
-[node name="Body" parent="." index="6" groups=["Enemy"]]
-
-[node name="CollisionShape2D" parent="Body" index="0" groups=["Enemy"]]

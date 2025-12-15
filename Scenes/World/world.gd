@@ -9,13 +9,9 @@ func _ready():
 	_setup_exploration_controller()
 
 func _connect_to_game_manager():
-	"""Connect to the autoloaded GameManager singleton"""
-	# GameManager is autoloaded, so we access it directly
 	GameManager.heroes_won.connect(_on_heroes_won)
 	GameManager.monster_won.connect(_on_monster_won)
 	GameManager.match_ended.connect(_on_match_ended)
-	
-	print("✅ Connected to GameManager (autoload)")
 
 func _on_heroes_won():
 	print("🎉 HEROES VICTORY!")
