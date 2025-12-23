@@ -69,7 +69,9 @@ animations = [{
 
 [node name="Bat" groups=["Enemy"] instance=ExtResource("1_u0xgj")]
 attack_cooldown = 0.5
+show_detection_radius = true
 xp_value = 20.0
+max_chase_distance = 100.0
 
 [node name="AnimatedSprite2D" parent="." index="1"]
 sprite_frames = SubResource("SpriteFrames_2frwa")

@@ -10,6 +10,10 @@ class_name EntityBase
 # ============================================
 signal died
 
+@export_group("Detection")
+@export var detection_radius: float = 172.0
+@export var show_detection_radius: bool = false
+
 @export_group("XP System")
 @export var xp_value: float = 0.0
 
@@ -93,11 +97,31 @@ func _ready() -> void:
 	await get_tree().physics_frame
 	await get_tree().physics_frame
 	
+	# Apply detection radius
+	_update_detection_radius()
+	
 	if health_bar:
 		health_bar.max_value = get_health()
 		health_bar.value = get_health()
 	
 	_setup_navigation()
+func _update_detection_radius() -> void:
+	"""Update DetectionArea collision shape radius from export variable"""
+	if not is_instance_valid(detection_area):
+		return
+	
+	var collision_shape = detection_area.get_node_or_null("CollisionShape2D")
+	if not collision_shape:
+		return
+	
+	if collision_shape.shape is CircleShape2D:
+		collision_shape.shape.radius = detection_radius
+		
+		# Visual debug
+		if show_detection_radius:
+			detection_area.visible = true
+	else:
+		push_warning(name + " DetectionArea is not using CircleShape2D!")
 
 func _setup_navigation() -> void:
 	"""Configure navigation agent with tilemap navigation"""
