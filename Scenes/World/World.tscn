@@ -1,10 +1,11 @@
-[gd_scene load_steps=17 format=4 uid="uid://bo3dhj3vnqkrr"]
+[gd_scene load_steps=18 format=4 uid="uid://bo3dhj3vnqkrr"]
 
 [ext_resource type="Texture2D" uid="uid://c8nbsaqetok8o" path="res://Scenes/World/Assets/tf_jungle_tileset.png" id="1_0nbjp"]
 [ext_resource type="Script" uid="uid://dp1dciyhok24n" path="res://Scenes/World/world.gd" id="1_hveh7"]
 [ext_resource type="PackedScene" uid="uid://cfox5ujt4kpt7" path="res://Scenes/NPCs/Hero/Heros/DMG/Vlad/Vlad.tscn" id="2_xf6vi"]
 [ext_resource type="PackedScene" uid="uid://cvit7v54q45mk" path="res://Scenes/NPCs/Monster/Grount/Grount.tscn" id="3_ouhkt"]
 [ext_resource type="PackedScene" uid="uid://dgkgy56ym0l0x" path="res://Scenes/World/MobSpawnArea/MobSpawnArea.tscn" id="4_5jr8x"]
+[ext_resource type="Script" uid="uid://owhi0grvfobr" path="res://Scenes/World/spawns.gd" id="4_ng1ea"]
 [ext_resource type="PackedScene" uid="uid://w7djnpi3ju8u" path="res://Scenes/NPCs/Mob/Mobs/Bat/Bat.tscn" id="5_27jhl"]
 [ext_resource type="PackedScene" uid="uid://7dofwynrx363" path="res://Scenes/NPCs/Hero/Heros/Healer/River/River.tscn" id="5_hveh7"]
 [ext_resource type="PackedScene" uid="uid://weodkoy2l3pv" path="res://Scenes/World/Camera/MainCam.tscn" id="6_hveh7"]
@@ -628,6 +629,7 @@ default_zoom = 2.0
 
 [node name="Spawns" type="Node" parent="."]
 unique_name_in_owner = true
+script = ExtResource("4_ng1ea")
 
 [node name="BatArea" parent="Spawns" instance=ExtResource("4_5jr8x")]
 position = Vector2(899, 1071)
