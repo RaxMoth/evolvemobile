@@ -44,6 +44,7 @@ signal died
 @onready var navigation_agent_2d: NavigationAgent2D = %NavigationAgent2D
 @onready var health_bar: ProgressBar = %HealthBar
 @onready var detection_area: Area2D = %DetectionArea
+@onready var lv_label: Label = %LVLabel
 
 # ============================================
 # SECTION 3: INSTANCE VARIABLES
@@ -104,7 +105,11 @@ func _ready() -> void:
 		health_bar.max_value = get_health()
 		health_bar.value = get_health()
 	
+	if lv_label:
+		lv_label.text = str(_get_entity_level())
+	
 	_setup_navigation()
+	
 func _update_detection_radius() -> void:
 	"""Update DetectionArea collision shape radius from export variable"""
 	if not is_instance_valid(detection_area):
@@ -160,6 +165,10 @@ func get_health() -> float:
 	"""Get current health. Must override in child classes."""
 	push_error("get_health() not implemented in " + name)
 	return 0.0
+
+func _get_entity_level() -> int:
+	"""Get entity level. Override in child classes."""
+	return 1
 
 func _get_move_speed() -> float:
 	"""Get movement speed. Override in child classes."""

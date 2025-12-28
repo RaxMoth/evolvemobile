@@ -57,7 +57,15 @@ func _is_attack_ready() -> bool:
 	var basic_cooldown = ability_system.cooldowns.get(AbilityBase.AbilityType.BASIC_ATTACK, 0.0)
 	return basic_cooldown <= 0.0
 
-	
+func _get_entity_level() -> int:
+	if stats:
+		return stats.level
+	return 1
+
+func _on_level_changed(new_level: int) -> void:
+	if lv_label:
+		lv_label.text = str(new_level)
+
 func _get_move_speed() -> float:
 	return stats.get_move_speed() if stats else 80.0
 

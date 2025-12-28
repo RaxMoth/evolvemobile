@@ -25,7 +25,7 @@ var spawn_position: Vector2 = Vector2.ZERO
 # ============================================
 # STATE TRACKING - Instead of get_active_state()
 # ============================================
-var is_in_combat: bool = false  # Track if in Approach or Fight state
+var is_in_combat: bool = false
 
 func _ready() -> void:
 	_setup_mob_combat_role()
@@ -121,7 +121,8 @@ func _is_attack_ready() -> bool:
 # ============================================
 # EntityBase Overrides
 # ============================================
-
+func _get_entity_level() -> int:
+	return 1
 func _get_move_speed() -> float:
 	return base_move_speed
 

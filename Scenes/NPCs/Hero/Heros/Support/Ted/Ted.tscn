@@ -6,7 +6,7 @@
 [ext_resource type="Resource" uid="uid://c1bxmamqk2cr0" path="res://Scenes/NPCs/Hero/Heros/Support/Ted/Abilities/Passive/ted_passive.tres" id="4_passive"]
 [ext_resource type="Resource" uid="uid://c5example1" path="res://Scenes/NPCs/Hero/Heros/Support/Ted/Abilities/Active/ted_active.tres" id="5_active"]
 [ext_resource type="Resource" uid="uid://c5example2" path="res://Scenes/NPCs/Hero/Heros/Support/Ted/Abilities/Basic_attack/ted_basic_attack.tres" id="6_basic"]
-[ext_resource type="Resource" uid="uid://tedultuid" path="res://Scenes/NPCs/Hero/Heros/Support/Ted/Abilities/Ult/ted_ultimate.tres" id="7_ultimate"]
+[ext_resource type="Resource" uid="uid://bd0lrdfadyflv" path="res://Scenes/NPCs/Hero/Heros/Support/Ted/Abilities/Ult/ted_ultimate.tres" id="7_ultimate"]
 [ext_resource type="Texture2D" uid="uid://bb2dijthjhu1d" path="res://Scenes/NPCs/Hero/Heros/Support/Ted/Assets/down_stand.png" id="8_ly8wu"]
 [ext_resource type="Texture2D" uid="uid://dvlk5kubj3lyi" path="res://Scenes/NPCs/Hero/Heros/Support/Ted/Assets/down_walk1.png" id="9_r4v6i"]
 [ext_resource type="Texture2D" uid="uid://bfqk3tfkrgooa" path="res://Scenes/NPCs/Hero/Heros/Support/Ted/Assets/down_walk2.png" id="10_0likg"]

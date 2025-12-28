@@ -1,14 +1,14 @@
 [gd_resource type="Resource" script_class="HeroStats" load_steps=3 format=3 uid="uid://tedstatsuid"]
 
+[ext_resource type="Texture2D" uid="uid://bkp34raygt486" path="res://Scenes/NPCs/Hero/Heros/Support/Ted/Assets/up_walk1.png" id="1_hqpsv"]
 [ext_resource type="Script" uid="uid://dvs6vqwnqtcd8" path="res://Scenes/NPCs/Hero/hero_stats.gd" id="1_stats"]
-[ext_resource type="Texture2D" uid="uid://0vlvy3mej50h" path="res://Assets/Icon.jpg" id="2_portrait"]
 
 [resource]
 script = ExtResource("1_stats")
 hero_name = "Ted"
 hero_class = "DPS/Pet Master"
 description = "Fights alongside his loyal pet companion for sustained damage"
-portrait = ExtResource("2_portrait")
+portrait = ExtResource("1_hqpsv")
 base_max_health = 95.0
 base_move_speed = 85.0
 base_approach_speed = 115.0

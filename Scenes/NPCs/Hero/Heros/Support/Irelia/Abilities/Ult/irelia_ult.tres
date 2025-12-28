@@ -1,7 +1,7 @@
 [gd_resource type="Resource" script_class="IreliaUltimateTaunt" load_steps=3 format=3 uid="uid://5o6u1y81qi8j"]
 
 [ext_resource type="Script" uid="uid://ds6w22w54lvw0" path="res://Scenes/NPCs/Hero/Heros/Support/Irelia/Abilities/Ult/irelia_ultimate_taunt.gd" id="1_b1fc5"]
-[ext_resource type="Texture2D" uid="uid://0vlvy3mej50h" path="res://Assets/Icon.jpg" id="1_xlwob"]
+[ext_resource type="Texture2D" uid="uid://bk17ahngrcr0" path="res://Scenes/NPCs/Hero/Heros/Support/Irelia/Assets/down_stand.png" id="1_xlwob"]
 
 [resource]
 script = ExtResource("1_b1fc5")

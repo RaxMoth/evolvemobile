@@ -70,7 +70,10 @@ func _apply_stage_configuration(stage: int) -> void:
 	
 	_update_stage_scale(stage)
 
+func _get_entity_level() -> int:
+	return current_stage
 
+	
 func _configure_abilities_for_stage(stage: int) -> void:
 	if ability_1:
 		ability_1.apply_stage_stats(stage)
@@ -178,8 +181,6 @@ func take_damage(amount: float, attacker: Node2D = null) -> void:
 		current_health = 0.0
 		state_chart.send_event("self_dead")
 
-func _get_entity_level() -> int:
-	return current_stage
 
 # ============================================
 # XP & Evolution System (Resource-Driven)
@@ -213,7 +214,9 @@ func _evolve_to_stage(new_stage: int) -> void:
 	# Reset cooldowns on evolution
 	for key in ability_cooldowns.keys():
 		ability_cooldowns[key] = 0.0
-	
+		
+	if lv_label:
+		lv_label.text = str(current_stage)
 	# Visual update
 	_update_stage_visuals(current_stage)
 	
