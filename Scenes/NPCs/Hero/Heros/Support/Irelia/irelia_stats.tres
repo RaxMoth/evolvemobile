@@ -11,7 +11,6 @@ description = "Defensive tank who shields allies and draws enemy attention"
 portrait = ExtResource("1_15hgx")
 base_max_health = 150.0
 base_move_speed = 75.0
-base_approach_speed = 100.0
 base_attack_range = 120.0
 base_attack_damage = 5.0
 idle_retarget_time = 1.8

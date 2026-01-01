@@ -145,9 +145,6 @@ func _get_move_speed() -> float:
 		return 60.0
 	return monster_stats.get_speed_for_stage(current_stage)
 
-func _get_approach_speed() -> float:
-	return _get_move_speed() * 1.4
-
 func _get_attack_range() -> float:
 	return 80.0
 

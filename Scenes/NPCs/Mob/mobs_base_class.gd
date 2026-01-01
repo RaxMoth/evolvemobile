@@ -4,7 +4,6 @@ class_name MobBase
 @export_group("Mob Stats")
 @export var max_health: float = 50.0
 @export var base_move_speed: float = 70.0
-@export var base_approach_speed: float = 90.0
 @export var base_attack_range: float = 40.0
 @export var base_attack_damage: float = 5.0
 @export var attack_cooldown: float = 1.5
@@ -125,9 +124,6 @@ func _get_entity_level() -> int:
 	return 1
 func _get_move_speed() -> float:
 	return base_move_speed
-
-func _get_approach_speed() -> float:
-	return base_approach_speed
 
 func _get_attack_range() -> float:
 	return base_attack_range

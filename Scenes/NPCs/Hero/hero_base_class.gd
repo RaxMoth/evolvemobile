@@ -69,9 +69,6 @@ func _on_level_changed(new_level: int) -> void:
 func _get_move_speed() -> float:
 	return stats.get_move_speed() if stats else 80.0
 
-func _get_approach_speed() -> float:
-	return stats.get_approach_speed() if stats else 110.0
-
 func _get_attack_range() -> float:
 	return stats.get_attack_range() if stats else 50.0
 

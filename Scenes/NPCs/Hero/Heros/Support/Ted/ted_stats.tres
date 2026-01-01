@@ -11,7 +11,6 @@ description = "Fights alongside his loyal pet companion for sustained damage"
 portrait = ExtResource("1_hqpsv")
 base_max_health = 95.0
 base_move_speed = 85.0
-base_approach_speed = 115.0
 base_attack_range = 55.0
 base_attack_damage = 9.0
 idle_retarget_time = 1.3

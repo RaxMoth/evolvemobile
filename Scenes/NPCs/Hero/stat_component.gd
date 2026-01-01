@@ -13,7 +13,6 @@ var current_stats := {
 	"max_health": 0.0,
 	"current_health": 0.0,
 	"move_speed": 0.0,
-	"approach_speed": 0.0,
 	"attack_range": 0.0,
 	"attack_damage": 0.0,
 }
@@ -42,7 +41,6 @@ func _initialize_stats() -> void:
 func _recalculate_all_stats() -> void:
 	_recalculate_stat("max_health", base_stats.base_max_health, base_stats.health_per_level)
 	_recalculate_stat("move_speed", base_stats.base_move_speed, base_stats.speed_per_level)
-	_recalculate_stat("approach_speed", base_stats.base_approach_speed, base_stats.speed_per_level)
 	_recalculate_stat("attack_range", base_stats.base_attack_range, 0.0)
 	_recalculate_stat("attack_damage", base_stats.base_attack_damage, base_stats.damage_per_level)
 
@@ -69,8 +67,6 @@ func get_current_health() -> float:
 func get_move_speed() -> float:
 	return current_stats.move_speed
 
-func get_approach_speed() -> float:
-	return current_stats.approach_speed
 
 func get_attack_range() -> float:
 	return current_stats.attack_range

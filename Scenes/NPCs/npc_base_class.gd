@@ -75,9 +75,6 @@ var _target_reeval_timer: float = 0.0
 var move_speed: float:
 	get: return _get_move_speed()
 
-var approach_speed: float:
-	get: return _get_approach_speed()
-
 var attack_range: float:
 	get: return _get_attack_range()
 
@@ -173,10 +170,6 @@ func _get_entity_level() -> int:
 func _get_move_speed() -> float:
 	"""Get movement speed. Override in child classes."""
 	return 80.0
-
-func _get_approach_speed() -> float:
-	"""Get approach/chase speed. Override in child classes."""
-	return 110.0
 
 func _get_attack_range() -> float:
 	"""Get attack range. Override in child classes."""
@@ -435,7 +428,7 @@ func _melee_combat_behavior(delta: float, distance: float, dir: Vector2) -> void
 		return
 	
 	if distance > preferred_distance + 10.0:
-		_move_toward_target(approach_speed, delta)
+		_move_toward_target(move_speed, delta)
 	elif distance < preferred_distance - 10.0:
 		_move_away_from_target(move_speed * 0.5, delta)
 	else:
@@ -449,7 +442,7 @@ func _ranged_combat_behavior(delta: float, distance: float, dir: Vector2) -> voi
 			return
 	
 	if distance < min_distance:
-		_kite_away_from_target(approach_speed, delta)
+		_kite_away_from_target(move_speed, delta)
 	elif distance < preferred_distance - 20.0:
 		_kite_away_from_target(move_speed, delta)
 	elif distance > preferred_distance + 30.0:
@@ -686,9 +679,9 @@ func _on_approach_state_processing(delta: float) -> void:
 	
 	if is_instance_valid(navigation_agent_2d):
 		navigation_agent_2d.target_position = target.global_position
-		_steer_along_nav(approach_speed, delta)
+		_steer_along_nav(move_speed, delta)
 	else:
-		move_toward_point(target.global_position, approach_speed, delta)
+		move_toward_point(target.global_position, move_speed, delta)
 
 ## Fight State - In combat with target
 
@@ -711,7 +704,6 @@ func _on_fight_state_processing(delta: float) -> void:
 		state_chart.send_event("re_approach")
 		return
 	
-	# Periodic target re-evaluation during combat
 	if enable_smart_targeting:
 		_target_reeval_timer -= delta
 		if _target_reeval_timer <= 0.0:
@@ -721,15 +713,41 @@ func _on_fight_state_processing(delta: float) -> void:
 	var dir := (target.global_position - global_position).normalized()
 	sprite.rotation = dir.angle()
 	
+	if _is_attack_ready():
+		if distance <= attack_range and distance >= min_distance:
+			_on_fight_logic(delta)
+			return
+		else:
+			_reposition_for_attack(delta, distance, dir)
+	else:
+		_reposition_for_attack(delta, distance, dir)
+	_on_fight_logic(delta)
+
+func _reposition_for_attack(delta: float, distance: float, dir: Vector2) -> void:
+	"""Move to ideal attack position when not attacking"""
 	match combat_role:
 		Types.CombatRole.MELEE:
-			_melee_combat_behavior(delta, distance, dir)
+			_melee_reposition(delta, distance)
 		Types.CombatRole.RANGED:
-			_ranged_combat_behavior(delta, distance, dir)
+			_ranged_reposition(delta, distance, dir)
 		Types.CombatRole.SUPPORT:
-			_support_combat_behavior(delta, distance, dir)
-	
-	_on_fight_logic(delta)
+			_ranged_reposition(delta, distance, dir)
+
+func _melee_reposition(delta: float, distance: float) -> void:
+	"""Melee repositioning: get close"""
+	if distance > attack_range:
+		_move_toward_target(move_speed, delta)
+	elif distance < min_distance:
+		_move_away_from_target(move_speed * 0.5, delta)
+
+func _ranged_reposition(delta: float, distance: float, dir: Vector2) -> void:
+	"""Ranged repositioning: maintain distance"""
+	if distance < min_distance:
+		_kite_away_from_target(move_speed, delta)
+	elif distance > preferred_distance + 30.0:
+		_move_toward_target(move_speed * 0.7, delta)
+	elif strafe_enabled:
+		_strafe_around_target(delta, dir)
 
 func _on_fight_logic(_delta: float) -> void:
 	"""Override in child classes to add custom fight logic"""

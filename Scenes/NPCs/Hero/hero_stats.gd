@@ -10,7 +10,6 @@ class_name HeroStats
 @export_group("Base Combat Stats")
 @export var base_max_health: float = 100.0
 @export var base_move_speed: float = 80.0
-@export var base_approach_speed: float = 110.0
 @export var base_attack_range: float = 50.0
 @export var base_attack_damage: float = 10.0
 

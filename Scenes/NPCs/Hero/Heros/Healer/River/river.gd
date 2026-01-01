@@ -103,6 +103,6 @@ func _on_approach_state_processing(delta: float) -> void:
 					var dir: Vector2 = (ally.global_position - global_position).normalized()
 					sprite.rotation = dir.angle()
 				else:
-					move_toward_point(ally.global_position, approach_speed, delta)
+					move_toward_point(ally.global_position, move_speed, delta)
 			else:
 				super._on_approach_state_processing(delta)
