@@ -1,6 +1,7 @@
-[gd_scene load_steps=2 format=3 uid="uid://bst8af4sj80cn"]
+[gd_scene load_steps=3 format=3 uid="uid://bst8af4sj80cn"]
 
 [ext_resource type="Script" uid="uid://dxgygx7gmltw3" path="res://Scenes/UI/HeroContainer/hero_container.gd" id="1_container"]
+[ext_resource type="PackedScene" uid="uid://l0ly3ihc4b8r" path="res://Scenes/World/DEBUGWORLD/fps_counter.tscn" id="2_fj1xq"]
 
 [node name="HeroContainer" type="Control"]
 layout_mode = 3
@@ -233,3 +234,7 @@ custom_minimum_size = Vector2(30, 30)
 layout_mode = 2
 expand_mode = 1
 stretch_mode = 5
+
+[node name="FpsCounter" parent="." instance=ExtResource("2_fj1xq")]
+layout_mode = 0
+anchors_preset = 0

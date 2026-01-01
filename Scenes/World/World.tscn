@@ -1,4 +1,4 @@
-[gd_scene load_steps=18 format=4 uid="uid://bo3dhj3vnqkrr"]
+[gd_scene load_steps=19 format=4 uid="uid://bo3dhj3vnqkrr"]
 
 [ext_resource type="Texture2D" uid="uid://c8nbsaqetok8o" path="res://Scenes/World/Assets/tf_jungle_tileset.png" id="1_0nbjp"]
 [ext_resource type="Script" uid="uid://dp1dciyhok24n" path="res://Scenes/World/world.gd" id="1_hveh7"]
@@ -10,6 +10,7 @@
 [ext_resource type="PackedScene" uid="uid://7dofwynrx363" path="res://Scenes/NPCs/Hero/Heros/Healer/River/River.tscn" id="5_hveh7"]
 [ext_resource type="PackedScene" uid="uid://weodkoy2l3pv" path="res://Scenes/World/Camera/MainCam.tscn" id="6_hveh7"]
 [ext_resource type="PackedScene" uid="uid://bihu6l6qpnho1" path="res://Scenes/NPCs/Hero/Heros/Support/Irelia/Irelia.tscn" id="6_p7pgw"]
+[ext_resource type="PackedScene" uid="uid://cuhwjncpsg4ga" path="res://Scenes/NPCs/Mob/Mobs/Hog/Hog.tscn" id="7_0d0er"]
 [ext_resource type="PackedScene" uid="uid://svw0uhofgkkp" path="res://Scenes/NPCs/Hero/Heros/Support/Ted/Ted.tscn" id="8_kuxid"]
 
 [sub_resource type="NavigationPolygon" id="NavigationPolygon_ouhkt"]
@@ -639,8 +640,8 @@ respawn_time = 40.0
 show_debug_area = true
 
 [node name="BatArea2" parent="Spawns" instance=ExtResource("4_5jr8x")]
-position = Vector2(562, 681)
-mob_scene = ExtResource("5_27jhl")
+position = Vector2(556, 698)
+mob_scene = ExtResource("7_0d0er")
 mob_count = 3
 respawn_time = 40.0
 auto_spawn_on_ready = true
@@ -664,20 +665,13 @@ show_debug_area = true
 
 [node name="BatArea5" parent="Spawns" instance=ExtResource("4_5jr8x")]
 position = Vector2(2197, 397)
-mob_scene = ExtResource("5_27jhl")
+mob_scene = ExtResource("7_0d0er")
 mob_count = 3
 respawn_time = 40.0
 show_debug_area = true
 
 [node name="BatArea6" parent="Spawns" instance=ExtResource("4_5jr8x")]
 position = Vector2(2069, 1186)
-mob_scene = ExtResource("5_27jhl")
-mob_count = 3
-respawn_time = 40.0
-show_debug_area = true
-
-[node name="BatArea7" parent="Spawns" instance=ExtResource("4_5jr8x")]
-position = Vector2(2391, 1146)
 mob_scene = ExtResource("5_27jhl")
 mob_count = 3
 respawn_time = 40.0
@@ -691,8 +685,8 @@ respawn_time = 40.0
 show_debug_area = true
 
 [node name="BatArea9" parent="Spawns" instance=ExtResource("4_5jr8x")]
-position = Vector2(1638, 1481)
-mob_scene = ExtResource("5_27jhl")
+position = Vector2(1577, 1496)
+mob_scene = ExtResource("7_0d0er")
 mob_count = 3
 respawn_time = 40.0
 show_debug_area = true
@@ -713,7 +707,7 @@ show_debug_area = true
 
 [node name="BatArea12" parent="Spawns" instance=ExtResource("4_5jr8x")]
 position = Vector2(1813, 3146)
-mob_scene = ExtResource("5_27jhl")
+mob_scene = ExtResource("7_0d0er")
 mob_count = 3
 respawn_time = 40.0
 show_debug_area = true
@@ -726,14 +720,14 @@ respawn_time = 40.0
 show_debug_area = true
 
 [node name="BatArea14" parent="Spawns" instance=ExtResource("4_5jr8x")]
-position = Vector2(556, 3086)
-mob_scene = ExtResource("5_27jhl")
+position = Vector2(602, 3033)
+mob_scene = ExtResource("7_0d0er")
 mob_count = 3
 respawn_time = 40.0
 show_debug_area = true
 
 [node name="BatArea15" parent="Spawns" instance=ExtResource("4_5jr8x")]
-position = Vector2(500, 3227)
+position = Vector2(490, 3158)
 mob_scene = ExtResource("5_27jhl")
 mob_count = 3
 respawn_time = 40.0
@@ -741,20 +735,13 @@ show_debug_area = true
 
 [node name="BatArea16" parent="Spawns" instance=ExtResource("4_5jr8x")]
 position = Vector2(1108, 3655)
-mob_scene = ExtResource("5_27jhl")
+mob_scene = ExtResource("7_0d0er")
 mob_count = 3
 respawn_time = 40.0
 show_debug_area = true
 
 [node name="BatArea17" parent="Spawns" instance=ExtResource("4_5jr8x")]
 position = Vector2(1725, 3724)
-mob_scene = ExtResource("5_27jhl")
-mob_count = 3
-respawn_time = 40.0
-show_debug_area = true
-
-[node name="BatArea18" parent="Spawns" instance=ExtResource("4_5jr8x")]
-position = Vector2(862, 4414)
 mob_scene = ExtResource("5_27jhl")
 mob_count = 3
 respawn_time = 40.0
@@ -769,7 +756,7 @@ show_debug_area = true
 
 [node name="BatArea20" parent="Spawns" instance=ExtResource("4_5jr8x")]
 position = Vector2(2599, 4413)
-mob_scene = ExtResource("5_27jhl")
+mob_scene = ExtResource("7_0d0er")
 mob_count = 3
 respawn_time = 40.0
 show_debug_area = true
@@ -783,7 +770,7 @@ show_debug_area = true
 
 [node name="BatArea22" parent="Spawns" instance=ExtResource("4_5jr8x")]
 position = Vector2(3552, 4975)
-mob_scene = ExtResource("5_27jhl")
+mob_scene = ExtResource("7_0d0er")
 mob_count = 3
 respawn_time = 40.0
 show_debug_area = true
@@ -811,34 +798,27 @@ show_debug_area = true
 
 [node name="BatArea26" parent="Spawns" instance=ExtResource("4_5jr8x")]
 position = Vector2(4131, 3454)
-mob_scene = ExtResource("5_27jhl")
+mob_scene = ExtResource("7_0d0er")
 mob_count = 3
 respawn_time = 40.0
 show_debug_area = true
 
 [node name="BatArea27" parent="Spawns" instance=ExtResource("4_5jr8x")]
-position = Vector2(5885, 2883)
+position = Vector2(6021, 2861)
 mob_scene = ExtResource("5_27jhl")
 mob_count = 3
 respawn_time = 40.0
 show_debug_area = true
 
 [node name="BatArea28" parent="Spawns" instance=ExtResource("4_5jr8x")]
-position = Vector2(5743, 2019)
-mob_scene = ExtResource("5_27jhl")
-mob_count = 3
-respawn_time = 40.0
-show_debug_area = true
-
-[node name="BatArea29" parent="Spawns" instance=ExtResource("4_5jr8x")]
-position = Vector2(6979, 1804)
+position = Vector2(5792, 1868)
 mob_scene = ExtResource("5_27jhl")
 mob_count = 3
 respawn_time = 40.0
 show_debug_area = true
 
 [node name="BatArea30" parent="Spawns" instance=ExtResource("4_5jr8x")]
-position = Vector2(6111, 2148)
+position = Vector2(6194, 1986)
 mob_scene = ExtResource("5_27jhl")
 mob_count = 3
 respawn_time = 40.0
@@ -893,22 +873,8 @@ mob_count = 3
 respawn_time = 40.0
 show_debug_area = true
 
-[node name="BatArea38" parent="Spawns" instance=ExtResource("4_5jr8x")]
-position = Vector2(6828, 1144)
-mob_scene = ExtResource("5_27jhl")
-mob_count = 3
-respawn_time = 40.0
-show_debug_area = true
-
 [node name="BatArea39" parent="Spawns" instance=ExtResource("4_5jr8x")]
-position = Vector2(6318, 969)
-mob_scene = ExtResource("5_27jhl")
-mob_count = 3
-respawn_time = 40.0
-show_debug_area = true
-
-[node name="BatArea40" parent="Spawns" instance=ExtResource("4_5jr8x")]
-position = Vector2(5563, 1382)
+position = Vector2(6665, 1059)
 mob_scene = ExtResource("5_27jhl")
 mob_count = 3
 respawn_time = 40.0
@@ -929,7 +895,7 @@ respawn_time = 40.0
 show_debug_area = true
 
 [node name="BatArea42" parent="Spawns" instance=ExtResource("4_5jr8x")]
-position = Vector2(4602, 1435)
+position = Vector2(5264, 1229)
 mob_scene = ExtResource("5_27jhl")
 mob_count = 3
 respawn_time = 40.0
