@@ -61,6 +61,10 @@ var strafe_direction: int = 1
 var strafe_timer: float = 0.0
 var strafe_change_interval: float = 2.0
 
+# Lazy navigation - only update target if moved significantly
+var _last_nav_target_pos: Vector2 = Vector2.ZERO
+var _nav_update_threshold: float = 20.0  # Only update if target moves > 20 pixels
+
 # Idle behavior
 var _idle_timer: float = 0.0
 var _idle_goal: Vector2 = Vector2.ZERO
@@ -95,7 +99,6 @@ func _ready() -> void:
 	await get_tree().physics_frame
 	await get_tree().physics_frame
 	
-	# Apply detection radius
 	_update_detection_radius()
 	
 	if health_bar:
@@ -473,6 +476,16 @@ func _steer_along_nav(speed: float, delta: float) -> void:
 	position += dir * speed * delta
 	sprite.rotation = dir.angle()
 
+func _set_nav_target_lazy(target_pos: Vector2) -> void:
+	"""Set navigation target only if it moved significantly (lazy update optimization)"""
+	if not is_instance_valid(navigation_agent_2d):
+		return
+	
+	var distance_moved = target_pos.distance_to(_last_nav_target_pos)
+	if distance_moved > _nav_update_threshold:
+		navigation_agent_2d.target_position = target_pos
+		_last_nav_target_pos = target_pos
+
 func move_toward_point(target_pos: Vector2, speed: float, delta: float) -> void:
 	"""Move directly toward point (no navigation)"""
 	var dir := (target_pos - global_position).normalized()
@@ -486,7 +499,7 @@ func _move_toward_target(speed: float, delta: float) -> void:
 	"""Navigate toward current target"""
 	if not is_target_valid():
 		return
-	navigation_agent_2d.target_position = target.global_position
+	_set_nav_target_lazy(target.global_position)
 	_steer_along_nav(speed, delta)
 
 func _move_away_from_target(speed: float, delta: float) -> void:
@@ -495,7 +508,7 @@ func _move_away_from_target(speed: float, delta: float) -> void:
 		return
 	var away_dir = (global_position - target.global_position).normalized()
 	var away_point = global_position + away_dir * 100.0
-	navigation_agent_2d.target_position = away_point
+	_set_nav_target_lazy(away_point)
 	_steer_along_nav(speed, delta)
 
 func _kite_away_from_target(speed: float, delta: float) -> void:
@@ -506,7 +519,7 @@ func _kite_away_from_target(speed: float, delta: float) -> void:
 	var perpendicular = Vector2(-away_dir.y, away_dir.x) * strafe_direction
 	var kite_dir = (away_dir + perpendicular * 0.3).normalized()
 	var kite_point = global_position + kite_dir * 80.0
-	navigation_agent_2d.target_position = kite_point
+	_set_nav_target_lazy(kite_point)
 	_steer_along_nav(speed, delta)
 
 func _strafe_around_target(delta: float, dir: Vector2) -> void:
@@ -522,7 +535,7 @@ func _strafe_around_target(delta: float, dir: Vector2) -> void:
 	
 	var perpendicular = Vector2(-dir.y, dir.x) * strafe_direction
 	var strafe_point = global_position + perpendicular * strafe_speed * delta
-	navigation_agent_2d.target_position = strafe_point
+	_set_nav_target_lazy(strafe_point)
 	_steer_along_nav(strafe_speed, delta)
 
 # ============================================
@@ -713,15 +726,12 @@ func _on_fight_state_processing(delta: float) -> void:
 	var dir := (target.global_position - global_position).normalized()
 	sprite.rotation = dir.angle()
 	
-	if _is_attack_ready():
-		if distance <= attack_range and distance >= min_distance:
-			_on_fight_logic(delta)
-			return
-		else:
-			_reposition_for_attack(delta, distance, dir)
+	if _is_attack_ready() and distance <= attack_range and distance >= min_distance:
+		# Actually attacking - execute fight logic
+		_on_fight_logic(delta)
 	else:
+		# Not ready or out of range - reposition
 		_reposition_for_attack(delta, distance, dir)
-	_on_fight_logic(delta)
 
 func _reposition_for_attack(delta: float, distance: float, dir: Vector2) -> void:
 	"""Move to ideal attack position when not attacking"""
@@ -753,10 +763,7 @@ func _on_fight_logic(_delta: float) -> void:
 	"""Override in child classes to add custom fight logic"""
 	pass
 
-## Dead State - Entity has died
-
 func _on_dead_state_entered() -> void:
 	died.emit()
-	"""Entered Dead state - grant XP and clean up"""
 	_grant_xp_to_killer()
 	queue_free()

@@ -11,6 +11,7 @@ signal cooldown_updated(ability_type: AbilityBase.AbilityType, time_remaining: f
 
 var owner_entity: Node2D
 var cooldowns: Dictionary = {} # AbilityType -> time_remaining
+var _last_emitted_cooldowns: Dictionary = {} # Track last emitted values to reduce signal spam
 
 func _ready() -> void:
 	owner_entity = get_parent()
@@ -21,6 +22,8 @@ func _initialize_cooldowns() -> void:
 	cooldowns[AbilityBase.AbilityType.ACTIVE] = 0.0
 	cooldowns[AbilityBase.AbilityType.BASIC_ATTACK] = 0.0
 	cooldowns[AbilityBase.AbilityType.ULTIMATE] = 0.0
+	
+	_last_emitted_cooldowns = cooldowns.duplicate()
 
 func _process(delta: float) -> void:
 	# Update cooldowns (apply attack speed modifier from passive)
@@ -36,7 +39,13 @@ func _process(delta: float) -> void:
 			cooldowns[ability_type] -= cooldown_reduction
 			if cooldowns[ability_type] < 0.0:
 				cooldowns[ability_type] = 0.0
-			cooldown_updated.emit(ability_type, cooldowns[ability_type])
+			
+			# Only emit signal when cooldown completes or changes significantly
+			var last_value = _last_emitted_cooldowns.get(ability_type, 0.0)
+			if cooldowns[ability_type] <= 0.0 and last_value > 0.0:
+				# Ability just became ready
+				cooldown_updated.emit(ability_type, 0.0)
+				_last_emitted_cooldowns[ability_type] = 0.0
 	
 	# Update passive ability
 	if passive_ability:
