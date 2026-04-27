@@ -1,7 +1,16 @@
 extends EntityBase
 class_name HeroBase
 
+@export_group("Ultimate Auto-Cast")
 @export var auto_use_ultimate: bool = true
+## Don't auto-fire the ult unless at least this many enemies are within
+## auto_ult_radius. Prevents Vlad from nuking a single bat with Blood Bomb.
+@export var auto_ult_min_enemies: int = 3
+@export var auto_ult_radius: float = 200.0
+## OR: auto-fire if any ally is below this HP fraction (panic ult).
+@export var auto_ult_panic_hp_pct: float = 0.25
+## How often to evaluate the auto-ult conditions. 4 Hz is plenty.
+@export var auto_ult_check_interval: float = 0.25
 
 @onready var stats: HeroStatsComponent = %HeroStats
 @onready var ability_system: AbilitySystem = %AbilitySystem
@@ -12,19 +21,51 @@ var max_health: float:
 var health: float:
 	get: return stats.get_current_health() if stats else 0.0
 
+var _auto_ult_timer: float = 0.0
+
 func _ready() -> void:
 	if not stats or not stats.base_stats:
 		push_error(name + " requires HeroStatsComponent with base_stats!")
 		return
-	
+
 	if stats:
 		stats.health_changed.connect(_on_health_changed)
 	_setup_combat_role_from_stats()
 	super._ready()
 
-func _process(_delta: float) -> void:
-	if auto_use_ultimate and is_ultimate_ready():
+func _process(delta: float) -> void:
+	if not auto_use_ultimate:
+		return
+	# Throttle the ult-check; condition evaluation walks groups.
+	_auto_ult_timer -= delta
+	if _auto_ult_timer > 0.0:
+		return
+	_auto_ult_timer = auto_ult_check_interval
+	if is_ultimate_ready() and _should_auto_use_ultimate():
 		use_ultimate()
+
+func _should_auto_use_ultimate() -> bool:
+	"""Smarter ult auto-cast: fire when worth it, not just because it's ready.
+	Subclasses (River, Ted) can override for healer/support semantics."""
+	# Panic case: any ally critically low → fire even on a single enemy.
+	var team := TeamRegistry.get_team(TeamRegistry.HEROES)
+	if team and team.find_lowest_hp_ally(auto_ult_panic_hp_pct, self) != null:
+		return true
+	# Otherwise: need enough enemies clustered to be worth the cooldown.
+	if not is_target_valid():
+		return false
+	var nearby_enemies := 0
+	var r_sq := auto_ult_radius * auto_ult_radius
+	for enemy in get_tree().get_nodes_in_group("Enemy"):
+		if not is_instance_valid(enemy) or not (enemy is Node2D):
+			continue
+		if enemy.has_method("is_alive") and not enemy.is_alive():
+			continue
+		if target_entity.global_position.distance_squared_to(enemy.global_position) <= r_sq:
+			nearby_enemies += 1
+			if nearby_enemies >= auto_ult_min_enemies:
+				return true
+	return false
 # Add to HeroBase class
 var exploration_target: Vector2 = Vector2.ZERO
 var use_exploration_target: bool = false

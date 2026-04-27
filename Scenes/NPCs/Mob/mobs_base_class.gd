@@ -30,11 +30,17 @@ func _ready() -> void:
 	_setup_mob_combat_role()
 	current_health = max_health
 	attack_timer.wait_time = attack_cooldown
-	
+
 	if health_bar:
 		health_bar.max_value = max_health
 		health_bar.value = current_health
-	
+
+	# Mobs alert nearby pack-mates when they spot a hero. EntityBase reads
+	# alert_allies_radius and broadcasts on aggro. Default 200 = pack feels
+	# coordinated without crossing the map.
+	if alert_allies_radius == 0.0:
+		alert_allies_radius = 200.0
+
 	super._ready()
 
 # ============================================

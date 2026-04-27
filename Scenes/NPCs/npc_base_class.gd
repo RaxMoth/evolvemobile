@@ -34,6 +34,33 @@ signal died
 @export var max_chase_distance: float = 1000.0
 @export var priority_hero_monster: int = 100
 @export var priority_mob: int = 50
+## How much weight to give the team blackboard's threat-against-me when scoring
+## targets. 0 = pure positional/HP scoring (old behavior). 1.0 = same weight as
+## a hero/monster priority bonus. Tanks naturally pull aggro because they
+## generate more threat per damage point (taunt_strength).
+@export var threat_score_weight: float = 1.5
+
+@export_group("Aggro / Tanking")
+## Multiplier on damage→threat. Tanks set 2.0–3.0 to pull aggro from DPS.
+## Healers may set <1.0 so healing doesn't accidentally pull aggro.
+@export var taunt_strength: float = 1.0
+
+@export_group("Awareness")
+## Broadcast my current target to allies within this radius when I aggro.
+## 0 disables. Mobs default to 200; heroes don't usually need it (they
+## coordinate via the team blackboard).
+@export var alert_allies_radius: float = 0.0
+
+@export_group("Feel & Polish")
+## Higher = snappier rotation. ~12 feels natural; 0 = instant (old behavior).
+@export var rotation_smooth_speed: float = 12.0
+## On taking damage, briefly block attacks for this many seconds (flinch).
+## 0 disables. ~0.15 feels weighty without breaking combat flow.
+@export var flinch_duration: float = 0.15
+## Personal preferred-distance jitter at runtime: each entity picks a random
+## offset on _ready so a group fighting one target doesn't all stand on the
+## same circle. Expressed as a fraction (0.15 = ±15%).
+@export var distance_jitter: float = 0.15
 
 # ============================================
 # SECTION 2: ONREADY REFERENCES
@@ -71,6 +98,11 @@ var _idle_goal: Vector2 = Vector2.ZERO
 
 # Smart targeting
 var _target_reeval_timer: float = 0.0
+
+# Phase A polish
+var _personal_distance_offset: float = 0.0  ## Picked once in _ready: ± distance_jitter
+var _flinch_timer: float = 0.0               ## > 0 while flinching from a recent hit
+var _facing_angle: float = 0.0               ## Smoothed sprite rotation target
 
 # ============================================
 # SECTION 4: COMPUTED PROPERTIES
@@ -110,14 +142,40 @@ func _ready() -> void:
 
 	_setup_navigation()
 
+	# Register with the team blackboard so threat / coordination work.
+	TeamRegistry.register(self, TeamRegistry.team_name_of(self))
+
+	# Personal distance jitter — each entity orbits at a slightly different
+	# preferred distance so a group fighting one target doesn't stack.
+	if distance_jitter > 0.0:
+		_personal_distance_offset = randf_range(-distance_jitter, distance_jitter)
+
+	# Initial facing matches the sprite's current rotation so smoothed
+	# turning starts at the right place.
+	if sprite:
+		_facing_angle = sprite.rotation
+
+	# Hook the global damage pipeline so we flinch when hit.
+	EventBus.damage_applied.connect(_on_damage_applied_global)
+
 	# NOTE: A global state-chart event bridge used to live here, forwarding
 	# every chart event into EventBus.entity_state_event. It's removed for now
 	# because there are no consumers yet and the per-event emit overhead
 	# adds up across many entities. Re-enable per-entity (or via an opt-in
-	# flag) when an actual consumer ships. Keep EventBus.notify_state_event
-	# available so systems that *do* want to subscribe can opt in by calling
-	# state_chart.event_received.connect(EventBus.notify_state_event.bind(self))
-	# from their own _ready().
+	# flag) when an actual consumer ships.
+
+func _exit_tree() -> void:
+	# Clean up team membership so dead entities don't linger in threat tables.
+	TeamRegistry.unregister(self, TeamRegistry.team_name_of(self))
+
+func _on_damage_applied_global(packet: DamagePacket) -> void:
+	# Ignore damage that wasn't dealt to me.
+	if packet.target != self:
+		return
+	if flinch_duration > 0.0:
+		_flinch_timer = flinch_duration
+	# Subclasses that want to broadcast a "help!" or react can override this
+	# to add behavior, then call super._on_damage_applied_global(packet).
 
 func _update_detection_radius() -> void:
 	"""Update DetectionArea collision shape radius from export variable"""
@@ -158,8 +216,14 @@ func _setup_navigation() -> void:
 # ============================================
 
 func _is_attack_ready() -> bool:
-	"""Check if attack is off cooldown. Override in child classes."""
+	"""Check if attack is off cooldown. Override in child classes.
+	NOTE: flinch is checked separately at the fight-loop call site (so
+	subclass overrides don't accidentally bypass it)."""
 	return not is_on_cooldown
+
+func _can_act() -> bool:
+	"""Composite gate: attack ready AND not flinching. Used by the fight loop."""
+	return _flinch_timer <= 0.0 and _is_attack_ready()
 
 func is_alive() -> bool:
 	"""Check if entity is alive. Must override in child classes."""
@@ -299,15 +363,15 @@ func _get_distance_score(distance: float) -> float:
 		return -50.0
 
 func _get_threat_score(target_node: Node2D) -> float:
-	"""Calculate threat score based on target behavior"""
+	"""Calculate threat score based on target behavior + team blackboard threat."""
 	var threat = 0.0
-	
+
 	# Is target attacking me?
 	if "target_entity" in target_node:
 		var their_target = target_node.get("target_entity")
 		if their_target == self:
 			threat += 30.0
-	
+
 	# Is target low health?
 	if target_node.has_method("get_health") and target_node.has_method("is_alive"):
 		if target_node.call("is_alive"):
@@ -316,12 +380,21 @@ func _get_threat_score(target_node: Node2D) -> float:
 			var health_percent = current_hp / max_hp if max_hp > 0 else 1.0
 			if health_percent < 0.3:
 				threat += 15.0
-	
+
 	# Is target far away (likely fleeing)?
 	var distance = global_position.distance_to(target_node.global_position)
 	if distance > 400.0 and is_target_valid() and target_entity == target_node:
 		threat -= 20.0
-	
+
+	# Team blackboard threat — pulls aggro toward whoever has been hitting me
+	# the hardest. Tanks generate extra threat per damage point via taunt_strength,
+	# so a tank's attacks naturally drag mob targeting onto them.
+	if threat_score_weight > 0.0:
+		var team := TeamRegistry.team_of(self)
+		if team:
+			var bb_threat: float = team.get_threat_against(self, target_node)
+			threat += bb_threat * threat_score_weight
+
 	return threat
 
 func _should_switch_target(new_target_area: Area2D, threshold: float) -> bool:
@@ -368,12 +441,44 @@ func _check_for_nearby_enemies() -> void:
 	"""Check detection area for any remaining enemies and re-engage"""
 	if not is_instance_valid(detection_area):
 		return
-	
+
 	var best_target_area = _find_best_target()
 	if best_target_area:
 		target = best_target_area
 		target_entity = best_target_area.get_owner()
 		state_chart.send_event(CombatEvents.ENEMY_ENTERED)
+		_broadcast_aggro(target_entity)
+
+func _broadcast_aggro(spotted: Node) -> void:
+	"""Tell allies within alert_allies_radius about this target. Mobs use this
+	to make a pack engage together when one of them spots a hero."""
+	if alert_allies_radius <= 0.0 or not is_instance_valid(spotted):
+		return
+	var team := TeamRegistry.team_of(self)
+	if team == null:
+		return
+	var r_sq := alert_allies_radius * alert_allies_radius
+	for ally in team.members:
+		if ally == self or not is_instance_valid(ally) or not (ally is EntityBase):
+			continue
+		# Only nudge allies that aren't already engaged.
+		var ally_entity := ally as EntityBase
+		if ally_entity.is_target_valid():
+			continue
+		if ally.global_position.distance_squared_to(global_position) > r_sq:
+			continue
+		# Set their target — but only if they CAN target this entity.
+		if not GameUtils.can_entity_target(ally_entity, spotted):
+			continue
+		# Find the spotted entity's body Area2D so the existing target/target_entity
+		# pair is consistent (target = Area2D, target_entity = root entity).
+		var spotted_area: Area2D = null
+		if spotted.has_node("Body"):
+			spotted_area = spotted.get_node("Body") as Area2D
+		ally_entity.target = spotted_area
+		ally_entity.target_entity = spotted
+		if ally_entity.state_chart:
+			ally_entity.state_chart.send_event(CombatEvents.ENEMY_ENTERED)
 
 func _can_target_area(area: Area2D) -> bool:
 	"""Check if we can target this area based on group rules"""
@@ -411,10 +516,12 @@ func _on_detection_area_area_entered(area: Area2D) -> void:
 				target = best_target_area
 				target_entity = best_target_node
 				state_chart.send_event(CombatEvents.ENEMY_ENTERED)
+				_broadcast_aggro(best_target_node)
 	else:
 		target = area
 		target_entity = area.get_parent()
 		state_chart.send_event(CombatEvents.ENEMY_ENTERED)
+		_broadcast_aggro(target_entity)
 
 func _on_detection_area_area_exited(area: Area2D) -> void:
 	"""Called when an area exits detection range"""
@@ -434,10 +541,11 @@ func _melee_combat_behavior(delta: float, distance: float, dir: Vector2) -> void
 	"""Melee combat: Close distance and strafe while on cooldown"""
 	if _is_attack_ready() and distance <= attack_range:
 		return
-	
-	if distance > preferred_distance + 10.0:
+
+	var pref := _effective_preferred_distance()
+	if distance > pref + 10.0:
 		_move_toward_target(move_speed, delta)
-	elif distance < preferred_distance - 10.0:
+	elif distance < pref - 10.0:
 		_move_away_from_target(move_speed * 0.5, delta)
 	else:
 		if strafe_enabled:
@@ -448,12 +556,13 @@ func _ranged_combat_behavior(delta: float, distance: float, dir: Vector2) -> voi
 	if _is_attack_ready():
 		if distance >= min_distance and distance <= attack_range:
 			return
-	
+
+	var pref := _effective_preferred_distance()
 	if distance < min_distance:
 		_kite_away_from_target(move_speed, delta)
-	elif distance < preferred_distance - 20.0:
+	elif distance < pref - 20.0:
 		_kite_away_from_target(move_speed, delta)
-	elif distance > preferred_distance + 30.0:
+	elif distance > pref + 30.0:
 		_move_toward_target(move_speed * 0.7, delta)
 	else:
 		if strafe_enabled:
@@ -467,19 +576,39 @@ func _support_combat_behavior(delta: float, distance: float, dir: Vector2) -> vo
 # SECTION 11: MOVEMENT & NAVIGATION
 # ============================================
 
+func _face(dir: Vector2, delta: float) -> void:
+	"""Rotate the sprite toward `dir` smoothly. Replaces the old
+	instant `sprite.rotation = dir.angle()` — entities now turn instead of snap."""
+	if not sprite or dir.length_squared() < 0.0001:
+		return
+	var target := dir.angle()
+	if rotation_smooth_speed <= 0.0:
+		# Opt-out: instant rotation
+		sprite.rotation = target
+		_facing_angle = target
+		return
+	_facing_angle = lerp_angle(_facing_angle, target, clamp(rotation_smooth_speed * delta, 0.0, 1.0))
+	sprite.rotation = _facing_angle
+
+## Effective preferred distance including this entity's personal jitter.
+## Used by all repositioning code so a group of melees orbits at slightly
+## different radii instead of stacking on top of each other.
+func _effective_preferred_distance() -> float:
+	return preferred_distance * (1.0 + _personal_distance_offset)
+
 func _steer_along_nav(speed: float, delta: float) -> void:
 	"""Follow navigation path at given speed"""
 	if not is_instance_valid(navigation_agent_2d) or navigation_agent_2d.is_navigation_finished():
 		return
-	
+
 	var next_pos := navigation_agent_2d.get_next_path_position()
 	var dir := (next_pos - global_position).normalized()
-	
+
 	if dir.length_squared() < 0.000001:
 		return
-	
+
 	position += dir * speed * delta
-	sprite.rotation = dir.angle()
+	_face(dir, delta)
 
 func _set_nav_target_lazy(target_pos: Vector2) -> void:
 	"""Set navigation target only if it moved significantly (lazy update optimization)"""
@@ -496,9 +625,9 @@ func move_toward_point(target_pos: Vector2, speed: float, delta: float) -> void:
 	var dir := (target_pos - global_position).normalized()
 	if dir.length_squared() < 0.000001:
 		return
-	
+
 	position += dir * speed * delta
-	sprite.rotation = dir.angle()
+	_face(dir, delta)
 
 func _move_toward_target(speed: float, delta: float) -> void:
 	"""Navigate toward current target"""
@@ -726,15 +855,19 @@ func _on_fight_state_processing(delta: float) -> void:
 		if _target_reeval_timer <= 0.0:
 			_target_reeval_timer = target_reeval_interval_fight
 			_reevaluate_current_target(switch_threshold_fight)
-	
+
+	# Decay flinch timer (blocks attacks while > 0).
+	if _flinch_timer > 0.0:
+		_flinch_timer -= delta
+
 	var dir := (target.global_position - global_position).normalized()
-	sprite.rotation = dir.angle()
-	
-	if _is_attack_ready() and distance <= attack_range and distance >= min_distance:
+	_face(dir, delta)
+
+	if _can_act() and distance <= attack_range and distance >= min_distance:
 		# Actually attacking - execute fight logic
 		_on_fight_logic(delta)
 	else:
-		# Not ready or out of range - reposition
+		# Not ready, flinching, or out of range - reposition
 		_reposition_for_attack(delta, distance, dir)
 
 func _reposition_for_attack(delta: float, distance: float, dir: Vector2) -> void:
@@ -756,9 +889,10 @@ func _melee_reposition(delta: float, distance: float) -> void:
 
 func _ranged_reposition(delta: float, distance: float, dir: Vector2) -> void:
 	"""Ranged repositioning: maintain distance"""
+	var pref := _effective_preferred_distance()
 	if distance < min_distance:
 		_kite_away_from_target(move_speed, delta)
-	elif distance > preferred_distance + 30.0:
+	elif distance > pref + 30.0:
 		_move_toward_target(move_speed * 0.7, delta)
 	elif strafe_enabled:
 		_strafe_around_target(delta, dir)

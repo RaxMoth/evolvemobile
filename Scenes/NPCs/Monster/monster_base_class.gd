@@ -33,7 +33,12 @@ func _ready() -> void:
 		return
 	_apply_stage_configuration(1)
 	_setup_monster_combat_role()
-	
+
+	# The monster generates more threat per damage point than a mob — a hero
+	# Tank has to work harder to peel a Stage-3 boss off the squishies.
+	if taunt_strength == 1.0:  # only override the EntityBase default
+		taunt_strength = 1.5
+
 	super._ready()
 
 func _process(delta: float) -> void:

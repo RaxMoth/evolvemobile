@@ -6,11 +6,20 @@ enum WeaponMode {
 	HEAL_STAFF
 }
 
+@export_group("Healer Behavior")
+## Heal targets at or below this HP fraction. River's blackboard query
+## skips fully-healthy allies so she only swaps to staff for real injuries.
+@export var heal_threshold_pct: float = 0.95
+## Maximum range to consider an ally for healing.
+@export var heal_max_range: float = 150.0
+
 var current_weapon_mode: WeaponMode = WeaponMode.SNIPER
 
 func _ready() -> void:
+	# Healer archetype: don't pull threat through healing. The default 1.0
+	# is fine; lower could be set if heals start aggro-ing in playtests.
 	super._ready()
-	
+
 	if ability_system and ability_system.active_ability:
 		ability_system.ability_used.connect(_on_ability_used)
 
@@ -67,28 +76,20 @@ func _on_fight_logic(delta: float) -> void:
 				pass
 
 func _find_nearest_wounded_ally() -> Node2D:
-	var heroes = get_tree().get_nodes_in_group("Hero")
-	var nearest: Node2D = null
-	var nearest_distance := INF
-	
-	for hero in heroes:
-		if hero == self:
-			continue
-		
-		if not hero.has_method("is_alive") or not hero.is_alive():
-			continue
-		
-		if hero.has_method("get_health"):
-			var health_percent = hero.get_health() / hero.max_health
-			if health_percent >= 0.95:  
-				continue
-		
-		var distance = global_position.distance_to(hero.global_position)
-		if distance < nearest_distance and distance <= 150.0:
-			nearest_distance = distance
-			nearest = hero
-	
-	return nearest
+	## Healer target selection via the team blackboard. Picks the lowest-HP
+	## ally below heal_threshold_pct, then verifies they're in range.
+	## Reading from the blackboard means we skip the per-call group walk
+	## (the blackboard's `members` is maintained as entities register/exit).
+	var team := TeamRegistry.get_team(TeamRegistry.HEROES)
+	if team == null:
+		return null
+	var wounded := team.find_lowest_hp_ally(heal_threshold_pct, self)
+	if wounded == null or not (wounded is Node2D):
+		return null
+	var w2d := wounded as Node2D
+	if w2d.global_position.distance_to(global_position) > heal_max_range:
+		return null
+	return w2d
 
 func _on_approach_state_processing(delta: float) -> void:
 	match current_weapon_mode:

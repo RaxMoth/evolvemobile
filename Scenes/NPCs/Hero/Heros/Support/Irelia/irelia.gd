@@ -2,6 +2,9 @@ extends HeroBase
 class_name Irelia
 
 func _ready() -> void:
+	# Tank archetype: pull aggro hard. Threat = damage * taunt_strength, so
+	# 2.5× makes mobs strongly prefer Irelia over the rest of the squad.
+	taunt_strength = 2.5
 	super._ready()
 	# Hook into the damage pipeline so the shield can absorb hits BEFORE the
 	# packet reaches our _receive_damage. This is the canonical pattern for
@@ -24,63 +27,53 @@ func _on_damage_requested(packet: DamagePacket) -> void:
 	if remaining <= 0.0:
 		packet.canceled = true
 
-# Override to prioritize enemies attacking allies
+# Tank behavior: peel for the most-threatened ally. Reads from the team
+# blackboard instead of walking groups manually — same logic, but now uses
+# real damage threat, not just HP%.
 func _on_fight_logic(_delta: float) -> void:
 	if not ability_system:
 		return
-	
-	# Check if any ally is under attack
+
 	var threatened_ally = _find_threatened_ally()
-	
 	if threatened_ally:
-		# Find enemy attacking the ally
 		var attacker = _find_enemy_attacking(threatened_ally)
 		if attacker:
-			# Override target to protect ally
 			target_entity = attacker
 			if attacker.has_node("Body"):
 				target = attacker.get_node("Body")
-	
-	# Attack current target
+
 	if is_target_valid():
 		ability_system.use_basic_attack(target_entity)
 
 func _find_threatened_ally() -> Node2D:
-	var heroes = get_tree().get_nodes_in_group("Hero")
-
-	
-	for hero in heroes:
-		if hero == self:
-			continue
-		
-		if not hero.has_method("is_alive") or not hero.is_alive():
-			continue
-		
-		# Check if hero is at low health
-		if hero.has_method("get_health"):
-			var health_percent = hero.get_health() / hero.max_health
-			if health_percent < 0.4: # Below 40% health
-				return hero
-	
+	## Use the team blackboard's threat table — the ally currently soaking
+	## the most damage is the one Irelia should peel for. Falls back to
+	## "ally below 40% HP" if no threat data yet.
+	var team := TeamRegistry.get_team(TeamRegistry.HEROES)
+	if team:
+		var most_threatened := team.find_most_threatened_ally(1.0, self)
+		if most_threatened and most_threatened is Node2D:
+			return most_threatened
+		# Fallback: low-HP ally
+		var wounded := team.find_lowest_hp_ally(0.4, self)
+		if wounded and wounded is Node2D:
+			return wounded
 	return null
 
 func _find_enemy_attacking(ally: Node2D) -> Node2D:
-	var enemies = get_tree().get_nodes_in_group("Enemy")
-	
-	for enemy in enemies:
-		if enemy.is_in_group("Hero"):
-			continue
-		
-		if not enemy.has_method("is_alive") or not enemy.is_alive():
-			continue
-		
-		# Check if enemy is targeting this ally
-		if "target_entity" in enemy and enemy.target_entity == ally:
-			var distance = global_position.distance_to(enemy.global_position)
-			if distance <= 200.0: # Within reasonable range
-				return enemy
-	
-	return null
+	## Find the enemy currently doing the most threat to `ally`, within range.
+	var team := TeamRegistry.get_team(TeamRegistry.HEROES)
+	if team == null:
+		return null
+	var top_attacker: Node = team.highest_threat_target_for(ally)
+	if top_attacker == null or not (top_attacker is Node2D):
+		return null
+	if not top_attacker.has_method("is_alive") or not top_attacker.is_alive():
+		return null
+	var d2 := global_position.distance_squared_to((top_attacker as Node2D).global_position)
+	if d2 > 200.0 * 200.0:
+		return null
+	return top_attacker as Node2D
 
 # Irelia stays close to allies to protect them
 func _get_idle_wander_radius() -> float:
@@ -115,17 +108,19 @@ func _on_idle_state_processing(delta: float) -> void:
 	_steer_along_nav(move_speed, delta)
 
 func _get_ally_center() -> Vector2:
-	var heroes = get_tree().get_nodes_in_group("Hero")
+	## Use the team blackboard membership instead of a group scan.
+	var team := TeamRegistry.get_team(TeamRegistry.HEROES)
+	if team == null:
+		return Vector2.ZERO
 	var total := Vector2.ZERO
 	var count := 0
-	
-	for hero in heroes:
-		if hero == self:
+	for ally in team.members:
+		if ally == self or not is_instance_valid(ally):
 			continue
-		if not hero.has_method("is_alive") or not hero.is_alive():
+		if not ally.has_method("is_alive") or not ally.call("is_alive"):
 			continue
-		
-		total += hero.global_position
+		if not (ally is Node2D):
+			continue
+		total += (ally as Node2D).global_position
 		count += 1
-	
 	return total / count if count > 0 else Vector2.ZERO
