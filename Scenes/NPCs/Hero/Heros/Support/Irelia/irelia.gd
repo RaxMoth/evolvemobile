@@ -3,28 +3,26 @@ class_name Irelia
 
 func _ready() -> void:
 	super._ready()
+	# Hook into the damage pipeline so the shield can absorb hits BEFORE the
+	# packet reaches our _receive_damage. This is the canonical pattern for
+	# damage modifiers (shields, lifesteal, skill-tree mods all work the same way).
+	EventBus.damage_requested.connect(_on_damage_requested)
 
-# Override take_damage to check for shield
-func take_damage(amount: float) -> void:
-	if not is_alive() or not stats:
+func _on_damage_requested(packet: DamagePacket) -> void:
+	# Only intercept hits aimed at us
+	if packet.target != self:
 		return
-	
-	# Check if we have a shield good outside day 
-	if has_node("Shield"):
-		var shield = get_node("Shield")
-		var remaining_damage = shield.absorb_damage(amount)
-		
-		if remaining_damage > 0:
-			# Shield broken, take remaining damage
-			stats.take_damage(remaining_damage)
-		# else: Shield absorbed all damage
-	else:
-		# No shield, take full damage
-		stats.take_damage(amount)
-	
-	# Check death
-	if not stats.is_alive():
-		state_chart.send_event("self_dead")
+	if not has_node("Shield"):
+		return
+	# Explicit type annotation: get_node returns generic Node so := cannot
+	# infer absorb_damage's return type at parse time.
+	var shield: Shield = get_node("Shield")
+	var remaining: float = shield.absorb_damage(packet.amount)
+	# absorb_damage returns the leftover after the shield ate what it could.
+	packet.amount = remaining
+	packet.add_tag("shielded")
+	if remaining <= 0.0:
+		packet.canceled = true
 
 # Override to prioritize enemies attacking allies
 func _on_fight_logic(_delta: float) -> void:

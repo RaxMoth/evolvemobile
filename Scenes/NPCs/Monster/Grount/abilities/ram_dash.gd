@@ -37,11 +37,9 @@ func execute(caster: Node2D, target: Node2D = null, override_damage: float = -1.
 	
 	is_dashing = true
 	dash_remaining = dash_distance
-	
+
 	# Start dash process
 	caster.get_tree().create_timer(0.0).timeout.connect(_dash_update.bind(caster))
-	
-	print(caster.name + " charges forward with " + str(_effective_damage) + " damage!")
 
 func _dash_update(caster: Node2D) -> void:
 	if not is_dashing or not is_instance_valid(caster):
@@ -97,12 +95,10 @@ func _check_dash_collisions(caster: Node2D, previous_pos: Vector2) -> void:
 		elif entity.is_in_group("Enemy") and not entity.is_in_group("Monster"):
 			can_hit = true # Hit Mobs
 		
-		if can_hit and entity.has_method("take_damage"):
-			entity.take_damage(_effective_damage) # Use effective damage!
+		if can_hit:
+			EventBus.deal_damage(caster, entity, _effective_damage, self)
 			_hit_entities.append(entity) # Mark as hit
-			
+
 			# Apply knockback
 			if entity.has_method("apply_knockback"):
 				entity.apply_knockback(dash_direction * knockback_force)
-			
-			print(caster.name + " rammed " + entity.name + " for " + str(_effective_damage) + " damage!")

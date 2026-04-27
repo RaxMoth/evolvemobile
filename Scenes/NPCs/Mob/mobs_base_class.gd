@@ -83,8 +83,6 @@ func _handle_out_of_bounds() -> void:
 			_reset_to_spawn()
 
 func _reset_to_spawn() -> void:
-	print(name + " leashed back to spawn (too far from home)")
-	
 	global_position = spawn_position
 	target = null
 	target_entity = null
@@ -99,7 +97,7 @@ func _reset_to_spawn() -> void:
 	
 	# Return to idle
 	if state_chart:
-		state_chart.send_event("enemie_exited")
+		state_chart.send_event(CombatEvents.ENEMY_EXITED)
 
 # ============================================
 # Combat Role
@@ -143,18 +141,18 @@ func is_alive() -> bool:
 func get_health() -> float:
 	return current_health
 
-func take_damage(amount: float, attacker: Node2D = null) -> void:
+func _receive_damage(packet: DamagePacket) -> void:
 	if not is_alive():
 		return
-	
-	last_attacker = attacker
-	current_health = max(0.0, current_health - amount)
-	
+
+	last_attacker = packet.source if packet.source is Node2D else null
+	current_health = max(0.0, current_health - packet.amount)
+
 	if health_bar:
 		health_bar.value = current_health
-	
+
 	if current_health <= 0.0:
-		state_chart.send_event("self_dead")
+		state_chart.send_event(CombatEvents.SELF_DEAD)
 
 # ============================================
 # Idle Wandering (Restricted to Spawn Area)
@@ -195,14 +193,14 @@ func _on_fight_logic(_delta: float) -> void:
 		attack_timer.start()
 
 func _perform_basic_attack() -> void:
-	if not target_entity or not target_entity.has_method("take_damage"):
+	if not is_instance_valid(target_entity):
 		attacking = false
 		return
-	
+
 	var distance = global_position.distance_to(target_entity.global_position)
 	if distance <= base_attack_range:
-		target_entity.take_damage(base_attack_damage)
-	
+		EventBus.deal_damage(self, target_entity, base_attack_damage)
+
 	attacking = false
 
 func _on_attack_timer_timeout() -> void:

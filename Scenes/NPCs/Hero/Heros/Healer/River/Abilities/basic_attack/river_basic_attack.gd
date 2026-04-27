@@ -36,9 +36,9 @@ func execute(caster: Node2D, target: Node2D = null, _override_damage: float = -1
 			_execute_heal(caster, target)
 
 func _execute_sniper(caster: Node2D, target: Node2D) -> void:
-	if not target or not target.has_method("take_damage"):
+	if not is_instance_valid(target) or not is_instance_valid(caster):
 		return
-	
+
 	var distance = caster.global_position.distance_to(target.global_position)
 	if distance <= sniper_range:
 		# Apply damage with modifier
@@ -46,13 +46,13 @@ func _execute_sniper(caster: Node2D, target: Node2D) -> void:
 		if caster.has_node("AbilitySystem"):
 			var ability_system = caster.get_node("AbilitySystem")
 			damage_mult = ability_system.get_damage_multiplier()
-		
+
 		var final_damage = sniper_damage * damage_mult
-		target.take_damage(final_damage)
-		
+		EventBus.deal_damage(caster, target, final_damage, self)
+
 		# Visual feedback
 		_create_sniper_effect(caster, target)
-		
+
 		# Update cooldown to sniper speed
 		cooldown = sniper_cooldown
 

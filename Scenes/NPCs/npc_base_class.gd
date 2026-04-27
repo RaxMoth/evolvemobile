@@ -98,18 +98,27 @@ var keep_distance: float:
 func _ready() -> void:
 	await get_tree().physics_frame
 	await get_tree().physics_frame
-	
+
 	_update_detection_radius()
-	
+
 	if health_bar:
 		health_bar.max_value = get_health()
 		health_bar.value = get_health()
-	
+
 	if lv_label:
 		lv_label.text = str(_get_entity_level())
-	
+
 	_setup_navigation()
-	
+
+	# NOTE: A global state-chart event bridge used to live here, forwarding
+	# every chart event into EventBus.entity_state_event. It's removed for now
+	# because there are no consumers yet and the per-event emit overhead
+	# adds up across many entities. Re-enable per-entity (or via an opt-in
+	# flag) when an actual consumer ships. Keep EventBus.notify_state_event
+	# available so systems that *do* want to subscribe can opt in by calling
+	# state_chart.event_received.connect(EventBus.notify_state_event.bind(self))
+	# from their own _ready().
+
 func _update_detection_radius() -> void:
 	"""Update DetectionArea collision shape radius from export variable"""
 	if not is_instance_valid(detection_area):
@@ -157,9 +166,10 @@ func is_alive() -> bool:
 	push_error("is_alive() not implemented in " + name)
 	return false
 
-func take_damage(_amount: float) -> void:
-	"""Handle taking damage. Must override in child classes."""
-	push_error("take_damage() not implemented in " + name)
+func _receive_damage(_packet: DamagePacket) -> void:
+	"""Apply a fully-resolved DamagePacket. Must override in child classes.
+	Called by EventBus._route_packet after damage_requested listeners have run."""
+	push_error("_receive_damage() not implemented in " + name)
 
 func get_health() -> float:
 	"""Get current health. Must override in child classes."""
@@ -342,7 +352,7 @@ func _reevaluate_current_target(threshold: float) -> void:
 		if is_target_valid():
 			target = null
 			target_entity = null
-			state_chart.send_event("enemie_exited")
+			state_chart.send_event(CombatEvents.ENEMY_EXITED)
 		return
 	
 	var best_target_node = best_target_area.get_owner() if best_target_area else null
@@ -351,10 +361,6 @@ func _reevaluate_current_target(threshold: float) -> void:
 		return
 	
 	if _should_switch_target(best_target_area, threshold):
-		var old_name: String = "none"
-		if is_instance_valid(target_entity):
-			old_name = str(target_entity.name)
-		print(name + " switching from " + old_name + " to " + best_target_node.name)
 		target = best_target_area
 		target_entity = best_target_node
 
@@ -367,8 +373,7 @@ func _check_for_nearby_enemies() -> void:
 	if best_target_area:
 		target = best_target_area
 		target_entity = best_target_area.get_owner()
-		state_chart.send_event("enemie_entered")
-		print(name + " found remaining enemy: " + target_entity.name)
+		state_chart.send_event(CombatEvents.ENEMY_ENTERED)
 
 func _can_target_area(area: Area2D) -> bool:
 	"""Check if we can target this area based on group rules"""
@@ -405,11 +410,11 @@ func _on_detection_area_area_entered(area: Area2D) -> void:
 			if is_instance_valid(best_target_node):
 				target = best_target_area
 				target_entity = best_target_node
-				state_chart.send_event("enemie_entered")
+				state_chart.send_event(CombatEvents.ENEMY_ENTERED)
 	else:
 		target = area
 		target_entity = area.get_parent()
-		state_chart.send_event("enemie_entered")
+		state_chart.send_event(CombatEvents.ENEMY_ENTERED)
 
 func _on_detection_area_area_exited(area: Area2D) -> void:
 	"""Called when an area exits detection range"""
@@ -419,7 +424,7 @@ func _on_detection_area_area_exited(area: Area2D) -> void:
 		else:
 			target = null
 			target_entity = null
-			state_chart.send_event("enemie_exited")
+			state_chart.send_event(CombatEvents.ENEMY_EXITED)
 
 # ============================================
 # SECTION 10: COMBAT BEHAVIORS
@@ -637,7 +642,6 @@ func _grant_xp_to_killer() -> void:
 	
 	if xp_value > 0:
 		target_entity.gain_xp(xp_value)
-		print(name + " granted " + str(xp_value) + " XP to " + target_entity.name)
 
 # ============================================
 # SECTION 14: STATE CHART HANDLERS
@@ -676,11 +680,11 @@ func _on_approach_state_entered() -> void:
 func _on_approach_state_processing(delta: float) -> void:
 	"""Process Approach state - chase target and periodically re-evaluate"""
 	if not is_target_valid():
-		state_chart.send_event("enemie_exited")
+		state_chart.send_event(CombatEvents.ENEMY_EXITED)
 		return
-	
+
 	if distance_to_target() <= max(attack_range, keep_distance):
-		state_chart.send_event("enemy_fight")
+		state_chart.send_event(CombatEvents.ENEMY_FIGHT)
 		return
 	
 	# Periodic target re-evaluation while chasing
@@ -701,20 +705,20 @@ func _on_approach_state_processing(delta: float) -> void:
 func _on_fight_state_entered() -> void:
 	"""Entered Fight state - initialize re-evaluation timer"""
 	_target_reeval_timer = target_reeval_interval_fight
-	
+
 	if not is_target_valid():
-		state_chart.send_event("target_lost")
+		state_chart.send_event(CombatEvents.TARGET_LOST)
 
 func _on_fight_state_processing(delta: float) -> void:
 	"""Process Fight state - combat and periodic re-evaluation"""
 	if not is_target_valid():
-		state_chart.send_event("target_lost")
+		state_chart.send_event(CombatEvents.TARGET_LOST)
 		return
-	
+
 	var distance = distance_to_target()
-	
+
 	if distance > max_distance:
-		state_chart.send_event("re_approach")
+		state_chart.send_event(CombatEvents.RE_APPROACH)
 		return
 	
 	if enable_smart_targeting:
@@ -765,5 +769,6 @@ func _on_fight_logic(_delta: float) -> void:
 
 func _on_dead_state_entered() -> void:
 	died.emit()
+	EventBus.notify_died(self, last_attacker)
 	_grant_xp_to_killer()
 	queue_free()

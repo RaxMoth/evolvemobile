@@ -14,9 +14,9 @@ func can_use(caster: Node2D) -> bool:
 	return caster.has_method("is_alive") and caster.is_alive()
 
 func execute(caster: Node2D, target: Node2D = null, _override_damage: float = -1.0) -> void:
-	if not target or not target.has_method("take_damage"):
+	if not is_instance_valid(target) or not is_instance_valid(caster):
 		return
-	
+
 	var distance = caster.global_position.distance_to(target.global_position)
 	if distance <= ability_range:
 		# Apply damage with modifier
@@ -24,15 +24,15 @@ func execute(caster: Node2D, target: Node2D = null, _override_damage: float = -1
 		if caster.has_node("AbilitySystem"):
 			var ability_system = caster.get_node("AbilitySystem")
 			damage_mult = ability_system.get_damage_multiplier()
-		
+
 		# Also apply attack speed boost if active
 		var attack_speed_mult = 1.0
 		if caster.has_method("get_attack_speed_boost"):
 			attack_speed_mult = caster.get_attack_speed_boost()
-		
+
 		var final_damage = damage * damage_mult
-		target.take_damage(final_damage)
-		
+		EventBus.deal_damage(caster, target, final_damage, self)
+
 		# Visual effect
 		_create_attack_effect(caster, target)
 

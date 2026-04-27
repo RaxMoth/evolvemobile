@@ -52,33 +52,20 @@ func execute(caster: Node2D, target: Node2D = null, override_damage: float = -1.
 		# Check if entity is in front cone
 		var to_entity = (entity.global_position - caster.global_position).normalized()
 		var angle_to_entity = forward_dir.angle_to(to_entity)
-		
+
 		if abs(angle_to_entity) > deg_to_rad(cone_angle / 2.0):
-			print("║   ❌ NOT IN CONE")
 			continue
-		
-		print("║   ✓ IN CONE")
-		
+
 		# Check targeting
-		var can_hit = false
+		var can_hit := false
 		if entity.is_in_group("Hero"):
 			can_hit = true
-			print("║   ✓ CAN HIT (Hero)")
 		elif entity.is_in_group("Enemy") and not entity.is_in_group("Monster"):
 			can_hit = true
-			print("║   ✓ CAN HIT (Mob)")
-		else:
-			print("║   ❌ CANNOT HIT")
-		
-		if can_hit and entity.has_method("take_damage"):
-			print("║   💥 DEALING ", effective_damage, " DAMAGE")
-			entity.take_damage(effective_damage)
-			hit_count += 1
-			print("║   ✓ DAMAGE DEALT!")
-		elif can_hit:
-			print("║   ❌ No take_damage method!")
 
-	print("║ RESULT: Hit ", hit_count, " enemies")
+		if can_hit:
+			EventBus.deal_damage(caster, entity, effective_damage, self)
+			hit_count += 1
 	
 	_create_cleave_effect(caster, forward_dir)
 

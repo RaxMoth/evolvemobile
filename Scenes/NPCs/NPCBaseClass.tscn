@@ -88,7 +88,6 @@ shape = SubResource("CircleShape2D_o028b")
 [node name="NavigationAgent2D" type="NavigationAgent2D" parent="."]
 unique_name_in_owner = true
 path_max_distance = 50.0
-debug_enabled = true
 
 [node name="Movetimer" type="Timer" parent="."]
 unique_name_in_owner = true
@@ -113,7 +112,7 @@ script = ExtResource("5_4yoai")
 [node name="ToApproach" type="Node" parent="StateChart/CompoundState/Idle"]
 script = ExtResource("6_1wtkv")
 to = NodePath("../../Approach")
-event = &"enemie_entered"
+event = &"enemy_entered"
 delay_in_seconds = "0.0"
 
 [node name="Approach" type="Node" parent="StateChart/CompoundState"]
@@ -122,7 +121,7 @@ script = ExtResource("5_4yoai")
 [node name="ToIdle" type="Node" parent="StateChart/CompoundState/Approach"]
 script = ExtResource("6_1wtkv")
 to = NodePath("../../Idle")
-event = &"enemie_exited"
+event = &"enemy_exited"
 delay_in_seconds = "0.0"
 
 [node name="ToFight" type="Node" parent="StateChart/CompoundState/Approach"]

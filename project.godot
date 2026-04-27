@@ -20,6 +20,8 @@ config/icon="uid://0vlvy3mej50h"
 Globals="*res://Scripts/globals.gd"
 Types="*res://Scripts/types.gd"
 GameUtils="*res://Scripts/game_utils.gd"
+CombatEvents="*res://Scripts/combat_events.gd"
+EventBus="*res://Scripts/event_bus.gd"
 GameManager="*res://Scripts/game_manager.gd"
 
 [display]

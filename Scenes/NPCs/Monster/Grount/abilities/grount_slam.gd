@@ -87,8 +87,6 @@ func _perform_slam(caster: Node2D) -> void:
 		elif entity.is_in_group("Enemy") and not entity.is_in_group("Monster"):
 			can_hit = true # Hit Mobs
 		
-		if can_hit and entity.has_method("take_damage"):
-			entity.take_damage(_effective_damage) # Use effective damage!
+		if can_hit:
+			EventBus.deal_damage(caster, entity, _effective_damage, self)
 			hit_count += 1
-	
-	print("Ground Slam hit " + str(hit_count) + " enemies for " + str(_effective_damage) + " damage each!")

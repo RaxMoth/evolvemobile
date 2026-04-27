@@ -21,7 +21,10 @@ func execute(caster: Node2D, target: Node2D = null, _override_damage: float = -1
 	
 	for result in results:
 		var collider = result.collider
-		if collider != caster and collider.has_method("take_damage"):
-			collider.take_damage(damage)
-	
+		if collider == caster:
+			continue
+		var entity = Globals.get_entity_from_collider(collider)
+		if entity and entity != caster:
+			EventBus.deal_damage(caster, entity, damage, self)
+
 	print(caster.name + " used ultimate! Hit " + str(results.size()) + " targets")

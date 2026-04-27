@@ -164,19 +164,19 @@ func is_alive() -> bool:
 func get_health() -> float:
 	return monster_stats.get_health_for_stage(current_stage) if monster_stats else current_health
 
-func take_damage(amount: float, attacker: Node2D = null) -> void:
+func _receive_damage(packet: DamagePacket) -> void:
 	if not is_alive():
 		return
-	
-	last_attacker = attacker
-	current_health -= amount
-	
+
+	last_attacker = packet.source if packet.source is Node2D else null
+	current_health -= packet.amount
+
 	if health_bar:
 		health_bar.value = current_health
-	
+
 	if current_health <= 0.0:
 		current_health = 0.0
-		state_chart.send_event("self_dead")
+		state_chart.send_event(CombatEvents.SELF_DEAD)
 
 
 # ============================================
@@ -185,10 +185,6 @@ func take_damage(amount: float, attacker: Node2D = null) -> void:
 
 func gain_xp(amount: float) -> void:
 	current_xp += amount
-	
-	var next_threshold = _get_next_evolution_threshold()
-	print(name + " gained " + str(amount) + " XP (Total: " + str(current_xp) + "/" + str(next_threshold) + ")")
-	
 	_check_evolution()
 
 func _check_evolution() -> void:
@@ -325,14 +321,15 @@ func _choose_and_use_ability() -> void:
 func _try_use_ability(ability_name: String, ability: AbilityBase) -> bool:
 	if not ability or ability_cooldowns.get(ability_name, 0.0) > 0.0:
 		return false
-	
+
 	if ability.can_use(self):
 		# Apply damage multiplier from resource
 		var effective_damage = ability.damage * damage_multiplier
 		ability.execute(self, target_entity, effective_damage)
 		ability_cooldowns[ability_name] = ability.cooldown
+		EventBus.notify_ability_cast(self, ability, target_entity)
 		return true
-	
+
 	return false
 
 # ============================================

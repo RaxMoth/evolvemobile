@@ -168,15 +168,14 @@ func _navigate_to_position(target_pos: Vector2, speed: float, delta: float) -> v
 func _perform_attack() -> void:
 	if not is_instance_valid(current_target):
 		return
-	
-	if current_target.has_method("take_damage"):
-		current_target.take_damage(attack_damage)
+	EventBus.deal_damage(self, current_target, attack_damage, null)
 
-func take_damage(amount: float) -> void:
-	current_health -= amount
-	
+func _receive_damage(packet: DamagePacket) -> void:
+	current_health -= packet.amount
+
 	if current_health <= 0.0:
 		died.emit()
+		EventBus.notify_died(self, packet.source)
 		queue_free()
 
 func is_alive() -> bool:

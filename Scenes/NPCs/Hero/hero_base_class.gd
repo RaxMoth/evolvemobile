@@ -87,14 +87,15 @@ func is_alive() -> bool:
 func get_health() -> float:
 	return stats.get_current_health() if stats else 0.0
 
-func take_damage(amount: float) -> void:
+func _receive_damage(packet: DamagePacket) -> void:
 	if not is_alive() or not stats:
 		return
-	
-	stats.take_damage(amount)
-	
+
+	last_attacker = packet.source if packet.source is Node2D else null
+	stats.take_damage(packet.amount)
+
 	if not stats.is_alive():
-		state_chart.send_event("self_dead")
+		state_chart.send_event(CombatEvents.SELF_DEAD)
 
 func _on_health_changed(current: float, max_hp: float) -> void:
 	if health_bar:

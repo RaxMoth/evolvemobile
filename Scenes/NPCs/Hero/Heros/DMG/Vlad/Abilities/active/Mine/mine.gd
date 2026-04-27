@@ -99,9 +99,9 @@ func _explode() -> void:
 		if entity == owner_entity:
 			continue
 		
-		if entity and entity.is_in_group("Enemy") and entity.has_method("take_damage"):
-			entity.take_damage(damage)
-			print("Mine hit " + entity.name + " for " + str(damage) + " damage")
+		if entity and entity.is_in_group("Enemy"):
+			# The mine acts as the source — owner_entity is the placer for attribution
+			EventBus.deal_damage(owner_entity, entity, damage, null)
 	
 	# Destroy mine
 	await get_tree().create_timer(0.2).timeout

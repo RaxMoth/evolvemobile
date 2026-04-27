@@ -43,8 +43,8 @@ func execute(caster: Node2D, _target: Node2D = null, _override_damage: float = -
 			continue
 		
 		# Check if it's an enemy
-		if entity and entity.is_in_group("Enemy") and entity.has_method("take_damage"):
-			entity.take_damage(damage)
+		if entity and entity.is_in_group("Enemy"):
+			EventBus.deal_damage(caster, entity, damage, self)
 			hit_count += 1
 	
 	print(caster.name + " used Blood Bomb! Hit " + str(hit_count) + " targets")

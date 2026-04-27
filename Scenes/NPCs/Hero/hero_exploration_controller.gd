@@ -400,8 +400,6 @@ func _check_stuck_heroes(delta: float) -> void:
 		hero_last_positions[hero] = current_pos
 
 func _unstuck_hero(hero: Node2D) -> void:
-	print(hero.name + " is stuck! Finding new path...")
-	
 	# Try to find an unexplored area nearby
 	var new_target = Vector2.ZERO
 	
@@ -470,7 +468,6 @@ func _check_for_monsters() -> void:
 func set_hero_mode(hero: Node2D, solo_mode: bool) -> void:
 	if hero in hero_solo_mode:
 		hero_solo_mode[hero] = solo_mode
-		print(hero.name, " set to ", "SOLO" if solo_mode else "GROUP", " mode")
 
 func get_hero_mode(hero: Node2D) -> bool:
 	return hero_solo_mode.get(hero, false)

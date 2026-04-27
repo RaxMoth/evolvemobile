@@ -66,13 +66,14 @@ func use_ultimate(target: Node2D = null) -> bool:
 func _use_ability(ability: AbilityBase, ability_type: AbilityBase.AbilityType, target: Node2D = null) -> bool:
 	if not ability:
 		return false
-	
+
 	if not is_on_cooldown(ability_type) and ability.can_use(owner_entity):
 		ability.execute(owner_entity, target)
 		cooldowns[ability_type] = ability.cooldown
 		ability_used.emit(ability)
+		EventBus.notify_ability_cast(owner_entity, ability, target)
 		return true
-	
+
 	return false
 
 func is_on_cooldown(ability_type: AbilityBase.AbilityType) -> bool:

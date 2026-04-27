@@ -26,13 +26,15 @@ func _on_match_ended(winner: String, time: float):
 	# TODO: Display stats, transition to menu, etc.
 
 func _setup_fog():
-	var fog = preload("res://Scenes/World/FogOfWar/FogOfWarSystem.tscn").instantiate()
+	# Explicit type so the parser knows the script's exported properties
+	# (the .tscn root is a Node2D, the class_name is on the attached script).
+	var fog: FogOfWarSystem = preload("res://Scenes/World/FogOfWar/FogOfWarSystem.tscn").instantiate()
 	fog.name = "FogOfWar"
 	fog.world_size = Vector2(7500, 6000)
 	fog.world_offset = Vector2(0, 0)
 	fog.tile_size = 32
 	fog.fog_color = Color(0, 0, 0, 0.85)
-	
+
 	add_child(fog)
 
 func _setup_hero_vision():
@@ -134,12 +136,10 @@ func _debug_kill_heroes():
 	print("DEBUG: Killing all heroes")
 	var heroes = get_tree().get_nodes_in_group("Hero")
 	for hero in heroes:
-		if hero.has_method("take_damage"):
-			hero.take_damage(999999)
+		EventBus.deal_damage(null, hero, 999999.0, null, DamagePacket.DamageType.TRUE)
 
 func _debug_kill_monster():
 	print("DEBUG: Killing monster")
 	var monsters = get_tree().get_nodes_in_group("Monster")
 	for monster in monsters:
-		if monster.has_method("take_damage"):
-			monster.take_damage(999999)
+		EventBus.deal_damage(null, monster, 999999.0, null, DamagePacket.DamageType.TRUE)
