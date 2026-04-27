@@ -1,0 +1,9 @@
+[gd_scene load_steps=2 format=3 uid="uid://cpxp7p1b1p05y"]
+
+[ext_resource type="Script" path="res://Scenes/World/Camera/debug_overlay.gd" id="1_overlay"]
+
+[node name="DebugOverlay" type="Node2D"]
+visible = false
+top_level = true
+z_index = 1000
+script = ExtResource("1_overlay")

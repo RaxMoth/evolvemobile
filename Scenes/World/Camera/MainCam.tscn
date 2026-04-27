@@ -1,7 +1,8 @@
-[gd_scene load_steps=3 format=3 uid="uid://weodkoy2l3pv"]
+[gd_scene load_steps=4 format=3 uid="uid://weodkoy2l3pv"]
 
 [ext_resource type="Script" uid="uid://brotennmld4rf" path="res://Scenes/World/Camera/main_cam.gd" id="1_yiek2"]
 [ext_resource type="PackedScene" uid="uid://bst8af4sj80cn" path="res://Scenes/UI/HeroContainer/HeroContainer.tscn" id="2_hero_ui"]
+[ext_resource type="PackedScene" uid="uid://cdebugoverlay001" path="res://Scenes/World/Camera/DebugOverlay.tscn" id="3_debug"]
 
 [node name="MainCam" type="Camera2D"]
 script = ExtResource("1_yiek2")
@@ -10,3 +11,5 @@ script = ExtResource("1_yiek2")
 
 [node name="HeroContainer" parent="CanvasLayer" instance=ExtResource("2_hero_ui")]
 unique_name_in_owner = true
+
+[node name="DebugOverlay" parent="CanvasLayer" instance=ExtResource("3_debug")]
