@@ -100,11 +100,14 @@ func _update_stage_scale(stage: int) -> void:
 		return
 	
 	var target_scale = monster_stats.get_scale_for_stage(stage)
-	
+
 	var tween = create_tween()
 	tween.tween_property(self, "scale", target_scale, 0.5) \
 		.set_trans(Tween.TRANS_BACK) \
 		.set_ease(Tween.EASE_OUT)
+	# Re-pin the HUD Control after each stage scale change so the floating
+	# HP bar stays at a constant pixel size even as the monster grows.
+	tween.tween_callback(_apply_ui_counter_scale)
 
 # ============================================
 # Combat Setup (Resource-Driven)

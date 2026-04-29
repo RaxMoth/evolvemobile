@@ -18,7 +18,10 @@ extends Node
 # --- Damage pipeline ---
 signal damage_requested(packet: DamagePacket)   ## Emitted before the hit lands. Mutate the packet here.
 signal damage_applied(packet: DamagePacket)     ## Emitted after the hit lands. For VFX/UI/audio.
-signal heal_applied(packet: DamagePacket)       ## Emitted after a heal lands.
+## Emitted after a heal lands. Reserved for the future heal pipeline; not
+## emitted by anything yet, but listeners can already subscribe.
+@warning_ignore("unused_signal")
+signal heal_applied(packet: DamagePacket)
 
 # --- Lifecycle ---
 signal entity_died(entity: Node, killer: Node)

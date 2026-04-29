@@ -1,31 +1,32 @@
 [gd_scene load_steps=4 format=3 uid="uid://dgkgy56ym0l0x"]
 
 [ext_resource type="Script" uid="uid://c137bi03yc167" path="res://Scenes/World/MobSpawnArea/mob_spawn_area.gd" id="1_12uab"]
-[ext_resource type="Script" path="res://Scripts/spawn_zone.gd" id="2_zone"]
+[ext_resource type="Script" uid="uid://dosqm2ms8pvcx" path="res://Scripts/spawn_zone.gd" id="2_zone"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_12uab"]
 radius = 74.0
 
 [node name="MobSpawnArea" type="Area2D"]
 script = ExtResource("1_12uab")
+leash_distance = 100.0
+activation_radius = 200.0
+deactivation_radius = 300.0
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
 shape = SubResource("CircleShape2D_12uab")
 
 [node name="LeashZone" type="Node2D" parent="."]
 script = ExtResource("2_zone")
-radius = 500.0
-color = Color(1, 0.85, 0.2, 0.9)
+radius = 100.0
 label = "Leash"
 
 [node name="ActivationZone" type="Node2D" parent="."]
 script = ExtResource("2_zone")
-radius = 900.0
 color = Color(0.3, 1, 0.4, 0.9)
 label = "Activate"
 
 [node name="DeactivationZone" type="Node2D" parent="."]
 script = ExtResource("2_zone")
-radius = 1200.0
+radius = 300.0
 color = Color(1, 0.4, 0.3, 0.9)
 label = "Deactivate"

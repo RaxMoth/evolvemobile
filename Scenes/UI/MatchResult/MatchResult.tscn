@@ -1,0 +1,186 @@
+[gd_scene load_steps=2 format=3 uid="uid://cmatchres0001"]
+
+[ext_resource type="Script" path="res://Scenes/UI/MatchResult/match_result.gd" id="1_result"]
+
+[node name="MatchResult" type="CanvasLayer"]
+layer = 200
+script = ExtResource("1_result")
+
+[node name="DimBackground" type="ColorRect" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0.65)
+
+[node name="CenterContainer" type="CenterContainer" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Panel" type="PanelContainer" parent="CenterContainer"]
+custom_minimum_size = Vector2(380, 0)
+
+[node name="Margin" type="MarginContainer" parent="CenterContainer/Panel"]
+layout_mode = 2
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_top = 24
+theme_override_constants/margin_right = 24
+theme_override_constants/margin_bottom = 24
+
+[node name="VBox" type="VBoxContainer" parent="CenterContainer/Panel/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="OutcomeLabel" type="Label" parent="CenterContainer/Panel/Margin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 36
+text = "VICTORY"
+horizontal_alignment = 1
+
+[node name="HSep1" type="HSeparator" parent="CenterContainer/Panel/Margin/VBox"]
+layout_mode = 2
+
+[node name="StatsLabel" type="Label" parent="CenterContainer/Panel/Margin/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "Round Stats"
+horizontal_alignment = 1
+
+[node name="DurationRow" type="HBoxContainer" parent="CenterContainer/Panel/Margin/VBox"]
+layout_mode = 2
+
+[node name="DurationLabel" type="Label" parent="CenterContainer/Panel/Margin/VBox/DurationRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Duration"
+
+[node name="DurationValue" type="Label" parent="CenterContainer/Panel/Margin/VBox/DurationRow"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "0:00"
+horizontal_alignment = 2
+
+[node name="KillsRow" type="HBoxContainer" parent="CenterContainer/Panel/Margin/VBox"]
+layout_mode = 2
+
+[node name="KillsLabel" type="Label" parent="CenterContainer/Panel/Margin/VBox/KillsRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Mobs killed"
+
+[node name="KillsValue" type="Label" parent="CenterContainer/Panel/Margin/VBox/KillsRow"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "0"
+horizontal_alignment = 2
+
+[node name="SurvivorsRow" type="HBoxContainer" parent="CenterContainer/Panel/Margin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="SurvivorsLabel" type="Label" parent="CenterContainer/Panel/Margin/VBox/SurvivorsRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Heroes alive"
+
+[node name="SurvivorsValue" type="Label" parent="CenterContainer/Panel/Margin/VBox/SurvivorsRow"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "0 / 4"
+horizontal_alignment = 2
+
+[node name="StageRow" type="HBoxContainer" parent="CenterContainer/Panel/Margin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+visible = false
+
+[node name="StageLabel" type="Label" parent="CenterContainer/Panel/Margin/VBox/StageRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Monster reached"
+
+[node name="StageValue" type="Label" parent="CenterContainer/Panel/Margin/VBox/StageRow"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Stage 1"
+horizontal_alignment = 2
+
+[node name="HSep2" type="HSeparator" parent="CenterContainer/Panel/Margin/VBox"]
+layout_mode = 2
+
+[node name="RewardsLabel" type="Label" parent="CenterContainer/Panel/Margin/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "Rewards"
+horizontal_alignment = 1
+
+[node name="SteelRow" type="HBoxContainer" parent="CenterContainer/Panel/Margin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="SteelLabel" type="Label" parent="CenterContainer/Panel/Margin/VBox/SteelRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Steel"
+
+[node name="SteelValue" type="Label" parent="CenterContainer/Panel/Margin/VBox/SteelRow"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "+0"
+horizontal_alignment = 2
+
+[node name="LeavesRow" type="HBoxContainer" parent="CenterContainer/Panel/Margin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+visible = false
+
+[node name="LeavesLabel" type="Label" parent="CenterContainer/Panel/Margin/VBox/LeavesRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Leaves"
+
+[node name="LeavesValue" type="Label" parent="CenterContainer/Panel/Margin/VBox/LeavesRow"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "+0"
+horizontal_alignment = 2
+
+[node name="GoldRow" type="HBoxContainer" parent="CenterContainer/Panel/Margin/VBox"]
+layout_mode = 2
+
+[node name="GoldLabel" type="Label" parent="CenterContainer/Panel/Margin/VBox/GoldRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Gold"
+
+[node name="GoldValue" type="Label" parent="CenterContainer/Panel/Margin/VBox/GoldRow"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "+0"
+horizontal_alignment = 2
+
+[node name="HSep3" type="HSeparator" parent="CenterContainer/Panel/Margin/VBox"]
+layout_mode = 2
+
+[node name="ButtonRow" type="HBoxContainer" parent="CenterContainer/Panel/Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="PlayAgainButton" type="Button" parent="CenterContainer/Panel/Margin/VBox/ButtonRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Play Again"
+
+[node name="MainMenuButton" type="Button" parent="CenterContainer/Panel/Margin/VBox/ButtonRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Main Menu"

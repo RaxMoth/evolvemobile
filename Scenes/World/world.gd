@@ -3,10 +3,25 @@ extends Node2D
 var exploration_controller: HeroExplorationController
 
 func _ready():
+	# Tell GameManager a fresh match has started. This resets per-match
+	# state (kills, timer, end-flag) — critical because GameManager is an
+	# autoload and its _ready only fires once per game launch, not per match.
+	GameManager.start_new_match()
 	_connect_to_game_manager()
 	_setup_fog()
-	_setup_hero_vision()
+	_setup_player_vision()
 	_setup_exploration_controller()
+
+
+func _setup_player_vision():
+	## Vision = which entity reveals the fog of war as it moves. Whoever
+	## the player is controlling sees through their avatar's eyes. The
+	## OTHER side stays AI-controlled but doesn't carry vision components,
+	## so they appear fogged-out to the player when out of sight.
+	if GameManager.chosen_side == MatchRewards.Side.MONSTER:
+		_setup_monster_vision()
+	else:
+		_setup_hero_vision()
 
 func _connect_to_game_manager():
 	GameManager.heroes_won.connect(_on_heroes_won)
@@ -38,34 +53,57 @@ func _setup_fog():
 	add_child(fog)
 
 func _setup_hero_vision():
+	## Hero-side: each hero gets their own VisionArea so the team's combined
+	## vision drives fog reveal. River sees furthest (scout), Irelia closest.
 	await get_tree().process_frame
-	
+
 	var heroes = get_tree().get_nodes_in_group("Hero")
-	print("Found ", heroes.size(), " heroes")
-	
 	if heroes.is_empty():
 		push_warning("No heroes found! Make sure heroes are in 'Hero' group")
 		return
-	
+
 	var vision_map = {
 		"river": 300.0,
 		"vlad": 250.0,
 		"ted": 220.0,
 		"irelia": 200.0
 	}
-	
+
 	for hero in heroes:
 		if not hero is Node2D:
 			continue
-		
+		# Skip Ted's pet (also in Hero group but isn't a HeroBase).
+		if not (hero is HeroBase):
+			continue
+
 		var vision = 200.0
 		var hero_name = hero.name.to_lower()
-		
+
 		for key in vision_map:
 			if key in hero_name:
 				vision = vision_map[key]
 				break
 		FogOfWarHelper.add_vision_to_hero(hero, vision)
+
+
+func _setup_monster_vision():
+	## Monster-side: the monster IS the player's avatar — fog reveals
+	## around it. Heroes are now the unseen AI threats; the player only
+	## spots them when they wander into the monster's vision cone.
+	## Wider radius than any single hero (the monster is the apex predator).
+	await get_tree().process_frame
+
+	var monsters = get_tree().get_nodes_in_group("Monster")
+	if monsters.is_empty():
+		push_warning("Monster-side play but no monster found in 'Monster' group!")
+		return
+
+	for monster in monsters:
+		if not (monster is MonsterBase):
+			continue
+		# Vision scales loosely with hunt-distance budget. 350 is a comfortable
+		# hunting cone that still leaves the map feeling explore-able.
+		FogOfWarHelper.add_vision_to_hero(monster, 350.0)
 
 func _setup_exploration_controller():
 	await get_tree().process_frame

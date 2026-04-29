@@ -29,9 +29,10 @@ func _ready() -> void:
 	# One global subscription routes every damage event into the right team.
 	EventBus.damage_applied.connect(_on_damage_applied)
 
-func _make_team(name: StringName) -> TeamBlackboard:
+func _make_team(team_name: StringName) -> TeamBlackboard:
+	# Param renamed from `name` so it doesn't shadow Node.name.
 	var t: TeamBlackboard = TeamBlackboard.new()
-	t.team_name = name
+	t.team_name = team_name
 	return t
 
 func _process(delta: float) -> void:

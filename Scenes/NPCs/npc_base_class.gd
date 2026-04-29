@@ -136,11 +136,14 @@ func _ready() -> void:
 	if health_bar:
 		health_bar.max_value = get_health()
 		health_bar.value = get_health()
+		_pin_health_bar_visuals()
 
 	if lv_label:
 		lv_label.text = str(_get_entity_level())
+		_pin_lv_label()
 
 	_setup_navigation()
+	_apply_ui_counter_scale()
 
 	# Register with the team blackboard so threat / coordination work.
 	TeamRegistry.register(self, TeamRegistry.team_name_of(self))
@@ -167,6 +170,74 @@ func _ready() -> void:
 func _exit_tree() -> void:
 	# Clean up team membership so dead entities don't linger in threat tables.
 	TeamRegistry.unregister(self, TeamRegistry.team_name_of(self))
+
+
+# ============================================
+# SECTION 5b: HUD-PIN HELPERS (in-world HP bar consistency)
+# ============================================
+
+# Pixel dimensions every entity's floating HP bar is forced to. This is
+# what guarantees all heroes (and the monster across stages) display the
+# same-looking bar regardless of their max HP or sprite scale.
+const HP_BAR_SIZE := Vector2(50, 6)
+const LV_LABEL_MIN_SIZE := Vector2(22, 0)
+
+func _pin_health_bar_visuals() -> void:
+	## Forces a fixed pixel size + a visible background StyleBox onto the
+	## floating HP bar. Without this:
+	##  • size_flags_horizontal=EXPAND lets the LVLabel (whose width depends
+	##    on level digit count) squeeze the bar.
+	##  • the default ProgressBar background is often nearly transparent,
+	##    making the empty portion invisible — so a 30% HP bar LOOKS 30%
+	##    as wide as a full one.
+	health_bar.custom_minimum_size = HP_BAR_SIZE
+	health_bar.size_flags_horizontal = Control.SIZE_FILL  # no EXPAND
+	health_bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	health_bar.show_percentage = false
+
+	# Visible background — empty portion of the bar.
+	var bg := StyleBoxFlat.new()
+	bg.bg_color = Color(0.08, 0.08, 0.10, 0.85)
+	bg.corner_radius_top_left = 2
+	bg.corner_radius_top_right = 2
+	bg.corner_radius_bottom_left = 2
+	bg.corner_radius_bottom_right = 2
+	bg.border_width_left = 1
+	bg.border_width_right = 1
+	bg.border_width_top = 1
+	bg.border_width_bottom = 1
+	bg.border_color = Color(0, 0, 0, 0.7)
+	health_bar.add_theme_stylebox_override("background", bg)
+
+	# Visible fill — green by default; subclasses can swap colors via theme.
+	var fill := StyleBoxFlat.new()
+	fill.bg_color = Color(0.35, 0.85, 0.35, 1.0)
+	fill.corner_radius_top_left = 2
+	fill.corner_radius_top_right = 2
+	fill.corner_radius_bottom_left = 2
+	fill.corner_radius_bottom_right = 2
+	health_bar.add_theme_stylebox_override("fill", fill)
+
+func _pin_lv_label() -> void:
+	## Pin LV label so its text width doesn't pull pixels from the HP bar
+	## when the level reaches double digits.
+	lv_label.custom_minimum_size = LV_LABEL_MIN_SIZE
+	lv_label.size_flags_horizontal = Control.SIZE_FILL
+	lv_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+
+func _apply_ui_counter_scale() -> void:
+	## The HUD Control inherits the entity's transform — when the monster
+	## grows per evolution stage, its HP bar would grow with it. Counter-
+	## scaling the parent Control by 1 / entity.scale keeps the bar at a
+	## fixed visual size. Heroes (scale=1) get an effective no-op.
+	## MonsterBase calls this again after each stage tween completes so
+	## the bar stays pinned through evolution.
+	var hud: Control = get_node_or_null("Control") as Control
+	if hud == null:
+		return
+	var sx: float = scale.x if scale.x != 0.0 else 1.0
+	var sy: float = scale.y if scale.y != 0.0 else 1.0
+	hud.scale = Vector2(1.0 / sx, 1.0 / sy)
 
 func _on_damage_applied_global(packet: DamagePacket) -> void:
 	# Ignore damage that wasn't dealt to me.

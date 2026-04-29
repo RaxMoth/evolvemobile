@@ -155,8 +155,14 @@ func _on_hero_selected(hero: Node) -> void:
 
 
 func _auto_find_target() -> void:
-	var heroes := get_tree().get_nodes_in_group("Hero")
-	for h in heroes:
+	# Follow whoever the player is controlling (set by MainMenu).
+	if GameManager.chosen_side == MatchRewards.Side.MONSTER:
+		for m in get_tree().get_nodes_in_group("Monster"):
+			if m is MonsterBase and is_instance_valid(m):
+				follow_target = m
+				return
+	# Fallback / hero side: first live hero.
+	for h in get_tree().get_nodes_in_group("Hero"):
 		if h is HeroBase and is_instance_valid(h):
 			follow_target = h
 			return

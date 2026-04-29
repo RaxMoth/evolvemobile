@@ -22,6 +22,13 @@ var active_hero: Node = null
 
 
 func _ready() -> void:
+	# When the player chose to play as the Monster, the hero roster panel
+	# is meaningless — hide the whole thing. (Phase 3 will replace this
+	# with a monster-side ability bar.)
+	if GameManager.chosen_side == MatchRewards.Side.MONSTER:
+		visible = false
+		return
+
 	# Two frames so heroes have time to finish their own _ready (which awaits
 	# physics frames) before we try to read their stats.
 	await get_tree().process_frame

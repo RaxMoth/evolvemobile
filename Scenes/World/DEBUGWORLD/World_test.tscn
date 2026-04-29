@@ -341,9 +341,9 @@ mob_scene = ExtResource("5_27jhl")
 mob_count = 5
 respawn_time = 4.0
 lazy_spawning = false
-leash_distance = 200.0
-activation_radius = 222.0
-deactivation_radius = 233.0
+leash_distance = 80.0
+activation_radius = 90.0
+deactivation_radius = 100.0
 show_debug_area = true
 
 [node name="BatArea2" parent="Spawns" instance=ExtResource("4_5jr8x")]
@@ -351,9 +351,10 @@ position = Vector2(226, 307)
 mob_scene = ExtResource("5_27jhl")
 mob_count = 5
 respawn_time = 2.0
-leash_distance = 200.0
-activation_radius = 500.0
-deactivation_radius = 233.0
+lazy_spawning = false
+leash_distance = 70.0
+activation_radius = 80.0
+deactivation_radius = 100.0
 show_debug_area = true
 
 [node name="Heros" type="Node" parent="."]
