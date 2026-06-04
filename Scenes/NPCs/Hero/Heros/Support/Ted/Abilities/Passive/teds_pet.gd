@@ -21,7 +21,8 @@ var navigation_agent: NavigationAgent2D = null
 
 func _ready() -> void:
 	current_health = max_health
-	add_to_group("Hero")
+	# NOTE: "Hero" group is declared in TedsPet.tscn (`groups=["Hero"]`).
+	# No add_to_group() call is needed here.
 	
 	# CRITICAL: Set up navigation agent
 	_setup_navigation_agent()

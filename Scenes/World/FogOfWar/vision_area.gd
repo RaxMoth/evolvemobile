@@ -10,21 +10,13 @@ var revealed_cells: Dictionary = {}  # Track what this hero has revealed
 var update_timer: float = 0.0
 
 func _ready() -> void:
-	# Setup collision shape
-	if not has_node("CollisionShape2D"):
-		var collision = CollisionShape2D.new()
-		collision.name = "CollisionShape2D"
-		add_child(collision)
-		
-		var circle = CircleShape2D.new()
-		circle.radius = vision_radius
-		collision.shape = circle
-	
-	# Configure area
-	collision_layer = 0  # Don't collide with anything
-	collision_mask = 0   # We'll do manual detection
-	monitorable = false
-	monitoring = false
+	# CollisionShape2D + Area2D collision flags (layer 0, mask 0, monitoring
+	# off, monitorable off) are all declared in VisionArea.tscn. We just
+	# sync the shape's radius to the @export vision_radius — callers
+	# (FogOfWarHelper.add_vision_to_hero) override the radius per-hero.
+	var collision := get_node_or_null("CollisionShape2D") as CollisionShape2D
+	if collision and collision.shape is CircleShape2D:
+		(collision.shape as CircleShape2D).radius = vision_radius
 
 func _process(delta: float) -> void:
 	update_timer -= delta

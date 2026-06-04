@@ -5,11 +5,24 @@
 
 [resource]
 script = ExtResource("1_us2jm")
+dash_distance = 300.0
+dash_speed = 500.0
+knockback_force = 200.0
 ability_name = "Ram Dash"
+ability_type = 1
 icon = ExtResource("1_nrmkh")
 description = "Charges forward damaging enemies (Stage 1: 18 dmg, Stage 2: 25 dmg, Stage 3: 36 dmg)"
 damage = 18.0
 cooldown = 12.0
+ability_range = 100.0
+duration = 0.0
+heal_amount = 0.0
+area_of_effect = 0.0
 damage_per_stage = Array[float]([12.0, 24.0, 36.0])
 cooldown_per_stage = Array[float]([12.0, 8.0, 4.0])
+range_per_stage = Array[float]([])
+aoe_per_stage = Array[float]([])
+speed_modifier = 1.0
+damage_modifier = 1.0
+attack_speed_modifier = 1.0
 metadata/_custom_type_script = "uid://bbl84wvqrtqij"

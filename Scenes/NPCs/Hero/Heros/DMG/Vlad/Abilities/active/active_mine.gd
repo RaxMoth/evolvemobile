@@ -28,7 +28,7 @@ func execute(caster: Node2D, _target: Node2D = null, _override_damage: float = -
 	if "damage" in mine:
 		mine.damage = damage
 	if "detection_radius" in mine:
-		mine.detection_radius = range
+		mine.detection_radius = ability_range  # was bare `range` (GDScript builtin Callable)
 	if "owner_entity" in mine:
 		mine.owner_entity = caster
 	

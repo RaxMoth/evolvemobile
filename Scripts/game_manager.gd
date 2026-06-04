@@ -40,7 +40,8 @@ func _ready() -> void:
 	# One-time setup. GameManager is autoload, so _ready fires ONCE per game
 	# launch — never on scene reload. Per-match state is reset by
 	# start_new_match() which world.gd calls on each World _ready.
-	add_to_group("GameManager")
+	# NOTE: GameManager is reachable directly as an autoload (`GameManager.x`)
+	# from anywhere — no group is needed, so we don't add_to_group here.
 	process_mode = Node.PROCESS_MODE_ALWAYS  # timer ticks even during brief pauses
 	EventBus.entity_died.connect(_on_entity_died)
 	# Initial match — in case the player launched straight into World.tscn.

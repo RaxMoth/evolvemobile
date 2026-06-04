@@ -43,12 +43,14 @@ var explored_targets: Array[Vector2] = []
 var current_exploration_zone: Vector2 = Vector2.ZERO
 
 func _ready() -> void:
-	add_to_group("HeroExplorationController") # NEW: Add to group so it can be found
+	# NOTE: Group "HeroExplorationController" is declared in
+	# HeroExplorationController.tscn (`groups=[...]`) so no add_to_group()
+	# call is needed here. world.gd instantiates that scene.
 	await get_tree().process_frame
 	_find_heroes()
 	_find_fog_system()
 	_setup_formation()
-	
+
 	if heroes.size() > 0:
 		current_group_target = _calculate_group_center()
 

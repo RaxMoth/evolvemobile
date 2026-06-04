@@ -1,0 +1,10 @@
+[gd_scene load_steps=2 format=3 uid="uid://cheroexplctl001"]
+
+[ext_resource type="Script" path="res://Scenes/NPCs/Hero/hero_exploration_controller.gd" id="1_explctrl"]
+
+[node name="HeroExplorationController" type="Node" groups=["HeroExplorationController"]]
+script = ExtResource("1_explctrl")
+group_exploration_enabled = true
+group_cohesion_radius = 150.0
+exploration_update_interval = 2.0
+exploration_tile_size = 32

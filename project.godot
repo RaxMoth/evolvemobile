@@ -12,7 +12,7 @@ config_version=5
 
 config/name="EvolveMobile"
 run/main_scene="uid://c4f6o83nq8xnv"
-config/features=PackedStringArray("4.5", "GL Compatibility")
+config/features=PackedStringArray("4.4", "GL Compatibility")
 config/icon="uid://0vlvy3mej50h"
 
 [autoload]
@@ -24,6 +24,7 @@ CombatEvents="*res://Scripts/combat_events.gd"
 EventBus="*res://Scripts/event_bus.gd"
 TeamRegistry="*res://Scripts/team_registry.gd"
 PersistedData="*res://Scripts/persisted_data.gd"
+MetaSkillManager="*res://Scripts/MetaSkills/meta_skill_manager.gd"
 GameManager="*res://Scripts/game_manager.gd"
 
 [display]

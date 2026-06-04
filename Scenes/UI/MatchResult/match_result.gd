@@ -21,19 +21,16 @@ const MAIN_MENU_SCENE: PackedScene = preload("res://Scenes/UI/MainMenu/MainMenu.
 @onready var leaves_row: HBoxContainer = %LeavesRow
 @onready var leaves_value: Label = %LeavesValue
 @onready var gold_value: Label = %GoldValue
-@onready var play_again_btn: Button = %PlayAgainButton
-@onready var main_menu_btn: Button = %MainMenuButton
+## Button @onready refs removed — `pressed` signals are wired scene-side
+## via [connection] entries in MatchResult.tscn.
 
 
 func _ready() -> void:
-	# Stay responsive while the world is paused. Explicitly mark the buttons
-	# too — relying on PROCESS_MODE_INHERIT through the CenterContainer →
-	# PanelContainer chain has bitten us before. Belt-and-suspenders.
-	process_mode = Node.PROCESS_MODE_ALWAYS
-	play_again_btn.process_mode = Node.PROCESS_MODE_ALWAYS
-	main_menu_btn.process_mode = Node.PROCESS_MODE_ALWAYS
-	play_again_btn.pressed.connect(_on_play_again)
-	main_menu_btn.pressed.connect(_on_main_menu)
+	# process_mode = ALWAYS is set in the .tscn on the CanvasLayer and both
+	# Buttons so the screen stays responsive while the world is paused.
+	# Button `pressed` signals are connected scene-side too — see the
+	# [connection] entries at the bottom of MatchResult.tscn.
+	pass
 
 
 func populate(result: MatchRewards.Result) -> void:

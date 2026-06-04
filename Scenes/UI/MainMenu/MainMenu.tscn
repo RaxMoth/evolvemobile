@@ -1,14 +1,166 @@
-[gd_scene load_steps=3 format=3 uid="uid://cg6pdl50qcrj7"]
+[gd_scene load_steps=15 format=3 uid="uid://cg6pdl50qcrj7"]
 
 [ext_resource type="Script" uid="uid://bbkt6yiwjqj3y" path="res://Scenes/UI/MainMenu/main_menu.gd" id="1_7rqq1"]
-[ext_resource type="Texture2D" uid="uid://b8hlhq44dx3qv" path="res://Assets/icon.svg" id="1_les83"]
+[ext_resource type="Theme" uid="uid://buihunttheme01" path="res://Scenes/UI/Theme/ui_theme.tres" id="2_theme"]
+
+[sub_resource type="Gradient" id="grad_bg"]
+offsets = PackedFloat32Array(0, 0.5, 1)
+colors = PackedColorArray(0.086, 0.137, 0.118, 1, 0.043, 0.071, 0.063, 1, 0.012, 0.027, 0.022, 1)
+
+[sub_resource type="GradientTexture2D" id="gradtex_bg"]
+gradient = SubResource("grad_bg")
+width = 72
+height = 128
+fill_from = Vector2(0.2, 0)
+fill_to = Vector2(0.8, 1)
+
+[sub_resource type="StyleBoxFlat" id="chip_pill"]
+content_margin_left = 14.0
+content_margin_top = 6.0
+content_margin_right = 14.0
+content_margin_bottom = 6.0
+bg_color = Color(0.063, 0.09, 0.082, 0.92)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.85, 0.682, 0.318, 0.35)
+corner_radius_top_left = 20
+corner_radius_top_right = 20
+corner_radius_bottom_right = 20
+corner_radius_bottom_left = 20
+
+[sub_resource type="StyleBoxFlat" id="heroes_card"]
+content_margin_left = 20.0
+content_margin_top = 22.0
+content_margin_right = 20.0
+content_margin_bottom = 22.0
+bg_color = Color(0.063, 0.094, 0.122, 0.9)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.38, 0.62, 0.85, 0.55)
+corner_radius_top_left = 20
+corner_radius_top_right = 20
+corner_radius_bottom_right = 20
+corner_radius_bottom_left = 20
+shadow_color = Color(0, 0, 0, 0.5)
+shadow_size = 12
+shadow_offset = Vector2(0, 5)
+
+[sub_resource type="StyleBoxFlat" id="monster_card"]
+content_margin_left = 20.0
+content_margin_top = 22.0
+content_margin_right = 20.0
+content_margin_bottom = 22.0
+bg_color = Color(0.122, 0.067, 0.063, 0.9)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.82, 0.34, 0.32, 0.55)
+corner_radius_top_left = 20
+corner_radius_top_right = 20
+corner_radius_bottom_right = 20
+corner_radius_bottom_left = 20
+shadow_color = Color(0, 0, 0, 0.5)
+shadow_size = 12
+shadow_offset = Vector2(0, 5)
+
+[sub_resource type="StyleBoxFlat" id="hero_play_normal"]
+content_margin_left = 14.0
+content_margin_top = 14.0
+content_margin_right = 14.0
+content_margin_bottom = 14.0
+bg_color = Color(0.235, 0.451, 0.671, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+shadow_color = Color(0.235, 0.451, 0.671, 0.35)
+shadow_size = 8
+
+[sub_resource type="StyleBoxFlat" id="hero_play_hover"]
+content_margin_left = 14.0
+content_margin_top = 14.0
+content_margin_right = 14.0
+content_margin_bottom = 14.0
+bg_color = Color(0.32, 0.56, 0.8, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+shadow_color = Color(0.4, 0.65, 0.9, 0.5)
+shadow_size = 12
+
+[sub_resource type="StyleBoxFlat" id="hero_play_pressed"]
+content_margin_left = 14.0
+content_margin_top = 14.0
+content_margin_right = 14.0
+content_margin_bottom = 14.0
+bg_color = Color(0.18, 0.36, 0.55, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[sub_resource type="StyleBoxFlat" id="monster_play_normal"]
+content_margin_left = 14.0
+content_margin_top = 14.0
+content_margin_right = 14.0
+content_margin_bottom = 14.0
+bg_color = Color(0.671, 0.255, 0.235, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+shadow_color = Color(0.671, 0.255, 0.235, 0.35)
+shadow_size = 8
+
+[sub_resource type="StyleBoxFlat" id="monster_play_hover"]
+content_margin_left = 14.0
+content_margin_top = 14.0
+content_margin_right = 14.0
+content_margin_bottom = 14.0
+bg_color = Color(0.8, 0.34, 0.31, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+shadow_color = Color(0.9, 0.42, 0.38, 0.5)
+shadow_size = 12
+
+[sub_resource type="StyleBoxFlat" id="monster_play_pressed"]
+content_margin_left = 14.0
+content_margin_top = 14.0
+content_margin_right = 14.0
+content_margin_bottom = 14.0
+bg_color = Color(0.52, 0.19, 0.17, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
 
 [node name="MainMenu" type="Node2D"]
 script = ExtResource("1_7rqq1")
 
+[node name="Background" type="CanvasLayer" parent="."]
+layer = -1
+
+[node name="GradientBG" type="TextureRect" parent="Background"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = SubResource("gradtex_bg")
+expand_mode = 1
+stretch_mode = 6
+
 [node name="UILayer" type="CanvasLayer" parent="."]
 
-[node name="Control" type="Control" parent="UILayer"]
+[node name="Root" type="Control" parent="UILayer"]
 unique_name_in_owner = true
 layout_mode = 3
 anchors_preset = 15
@@ -16,194 +168,262 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+theme = ExtResource("2_theme")
 
-[node name="HSplitContainer" type="HBoxContainer" parent="UILayer/Control"]
+[node name="Margin" type="MarginContainer" parent="UILayer/Root"]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_top = 20
+theme_override_constants/margin_right = 24
+theme_override_constants/margin_bottom = 24
 
-[node name="HeroSide" type="Control" parent="UILayer/Control/HSplitContainer"]
-unique_name_in_owner = true
+[node name="VBox" type="VBoxContainer" parent="UILayer/Root/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 18
+
+[node name="TopBar" type="HBoxContainer" parent="UILayer/Root/Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Spacer" type="Control" parent="UILayer/Root/Margin/VBox/TopBar"]
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="HBoxContainer" type="HBoxContainer" parent="UILayer/Control/HSplitContainer/HeroSide"]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-
-[node name="ButtonContainer" type="MarginContainer" parent="UILayer/Control/HSplitContainer/HeroSide/HBoxContainer"]
+[node name="SteelChip" type="PanelContainer" parent="UILayer/Root/Margin/VBox/TopBar"]
 layout_mode = 2
-size_flags_horizontal = 3
-theme_override_constants/margin_top = 256
-theme_override_constants/margin_bottom = 256
+theme_override_styles/panel = SubResource("chip_pill")
 
-[node name="Container" type="VBoxContainer" parent="UILayer/Control/HSplitContainer/HeroSide/HBoxContainer/ButtonContainer"]
+[node name="HBox" type="HBoxContainer" parent="UILayer/Root/Margin/VBox/TopBar/SteelChip"]
 layout_mode = 2
-size_flags_horizontal = 3
-theme_override_constants/separation = 32
+theme_override_constants/separation = 6
 
-[node name="HeroSkills" type="Button" parent="UILayer/Control/HSplitContainer/HeroSide/HBoxContainer/ButtonContainer/Container"]
+[node name="Dot" type="Label" parent="UILayer/Root/Margin/VBox/TopBar/SteelChip/HBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.55, 0.7, 0.85, 1)
+text = "●"
+
+[node name="Name" type="Label" parent="UILayer/Root/Margin/VBox/TopBar/SteelChip/HBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.62, 0.66, 0.62, 1)
+theme_override_font_sizes/font_size = 14
+text = "Steel"
+
+[node name="SteelValue" type="Label" parent="UILayer/Root/Margin/VBox/TopBar/SteelChip/HBox"]
 unique_name_in_owner = true
 layout_mode = 2
-size_flags_vertical = 6
-text = "Skills"
+theme_override_font_sizes/font_size = 14
+text = "0"
 
-[node name="HeroUpdates" type="Button" parent="UILayer/Control/HSplitContainer/HeroSide/HBoxContainer/ButtonContainer/Container"]
+[node name="LeavesChip" type="PanelContainer" parent="UILayer/Root/Margin/VBox/TopBar"]
+layout_mode = 2
+theme_override_styles/panel = SubResource("chip_pill")
+
+[node name="HBox" type="HBoxContainer" parent="UILayer/Root/Margin/VBox/TopBar/LeavesChip"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="Dot" type="Label" parent="UILayer/Root/Margin/VBox/TopBar/LeavesChip/HBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.45, 0.78, 0.42, 1)
+text = "●"
+
+[node name="Name" type="Label" parent="UILayer/Root/Margin/VBox/TopBar/LeavesChip/HBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.62, 0.66, 0.62, 1)
+theme_override_font_sizes/font_size = 14
+text = "Leaves"
+
+[node name="LeavesValue" type="Label" parent="UILayer/Root/Margin/VBox/TopBar/LeavesChip/HBox"]
 unique_name_in_owner = true
 layout_mode = 2
-size_flags_vertical = 6
-text = "Updates"
+theme_override_font_sizes/font_size = 14
+text = "0"
 
-[node name="PlayAsHero" type="Button" parent="UILayer/Control/HSplitContainer/HeroSide/HBoxContainer/ButtonContainer/Container"]
+[node name="GoldChip" type="PanelContainer" parent="UILayer/Root/Margin/VBox/TopBar"]
+layout_mode = 2
+theme_override_styles/panel = SubResource("chip_pill")
+
+[node name="HBox" type="HBoxContainer" parent="UILayer/Root/Margin/VBox/TopBar/GoldChip"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="Dot" type="Label" parent="UILayer/Root/Margin/VBox/TopBar/GoldChip/HBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.95, 0.78, 0.32, 1)
+text = "●"
+
+[node name="Name" type="Label" parent="UILayer/Root/Margin/VBox/TopBar/GoldChip/HBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.62, 0.66, 0.62, 1)
+theme_override_font_sizes/font_size = 14
+text = "Gold"
+
+[node name="GoldValue" type="Label" parent="UILayer/Root/Margin/VBox/TopBar/GoldChip/HBox"]
 unique_name_in_owner = true
 layout_mode = 2
-size_flags_vertical = 6
-text = "Play"
+theme_override_font_sizes/font_size = 14
+text = "0"
 
-[node name="HeroSelectorContainer" type="MarginContainer" parent="UILayer/Control/HSplitContainer/HeroSide/HBoxContainer"]
+[node name="TitleBlock" type="VBoxContainer" parent="UILayer/Root/Margin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 2
+alignment = 1
+
+[node name="TitleLabel" type="Label" parent="UILayer/Root/Margin/VBox/TitleBlock"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.97, 0.85, 0.45, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 0.55)
+theme_override_constants/outline_size = 8
+theme_override_font_sizes/font_size = 52
+text = "BETTER HUNT"
+horizontal_alignment = 1
+
+[node name="Tagline" type="Label" parent="UILayer/Root/Margin/VBox/TitleBlock"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.6, 0.72, 0.64, 0.85)
+theme_override_font_sizes/font_size = 16
+text = "The Asymmetric Hunt"
+horizontal_alignment = 1
+
+[node name="CardsRow" type="HBoxContainer" parent="UILayer/Root/Margin/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 16
+
+[node name="HeroesCard" type="PanelContainer" parent="UILayer/Root/Margin/VBox/CardsRow"]
+unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_constants/margin_top = 256
-theme_override_constants/margin_bottom = 256
+size_flags_vertical = 3
+theme_override_styles/panel = SubResource("heroes_card")
 
-[node name="VBoxContainer" type="VBoxContainer" parent="UILayer/Control/HSplitContainer/HeroSide/HBoxContainer/HeroSelectorContainer"]
+[node name="VBox" type="VBoxContainer" parent="UILayer/Root/Margin/VBox/CardsRow/HeroesCard"]
 layout_mode = 2
+theme_override_constants/separation = 12
 
-[node name="ClassSelector" type="MarginContainer" parent="UILayer/Control/HSplitContainer/HeroSide/HBoxContainer/HeroSelectorContainer/VBoxContainer"]
+[node name="Emblem" type="Label" parent="UILayer/Root/Margin/VBox/CardsRow/HeroesCard/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.5, 0.72, 0.95, 1)
+theme_override_font_sizes/font_size = 48
+text = "⚔"
+horizontal_alignment = 1
+
+[node name="Header" type="Label" parent="UILayer/Root/Margin/VBox/CardsRow/HeroesCard/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.62, 0.78, 0.96, 1)
+theme_override_font_sizes/font_size = 26
+text = "HEROES"
+horizontal_alignment = 1
+
+[node name="Desc" type="Label" parent="UILayer/Root/Margin/VBox/CardsRow/HeroesCard/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.66, 0.7, 0.74, 0.9)
+theme_override_font_sizes/font_size = 13
+text = "Command a team of 4. Hunt the beast before it evolves."
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="Filler" type="Control" parent="UILayer/Root/Margin/VBox/CardsRow/HeroesCard/VBox"]
 layout_mode = 2
 size_flags_vertical = 3
 
-[node name="HBoxContainer" type="HBoxContainer" parent="UILayer/Control/HSplitContainer/HeroSide/HBoxContainer/HeroSelectorContainer/VBoxContainer/ClassSelector"]
+[node name="PlayAsHero" type="Button" parent="UILayer/Root/Margin/VBox/CardsRow/HeroesCard/VBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 52)
 layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 20
+theme_override_styles/normal = SubResource("hero_play_normal")
+theme_override_styles/hover = SubResource("hero_play_hover")
+theme_override_styles/pressed = SubResource("hero_play_pressed")
+text = "PLAY"
 
-[node name="HeroClassBackButton" type="Button" parent="UILayer/Control/HSplitContainer/HeroSide/HBoxContainer/HeroSelectorContainer/VBoxContainer/ClassSelector/HBoxContainer"]
+[node name="HeroSkills" type="Button" parent="UILayer/Root/Margin/VBox/CardsRow/HeroesCard/VBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 40)
+layout_mode = 2
+text = "Skills"
+
+[node name="HeroUpdates" type="Button" parent="UILayer/Root/Margin/VBox/CardsRow/HeroesCard/VBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 40)
+layout_mode = 2
+text = "Roster"
+
+[node name="MonsterCard" type="PanelContainer" parent="UILayer/Root/Margin/VBox/CardsRow"]
 unique_name_in_owner = true
 layout_mode = 2
-size_flags_vertical = 4
-text = "zurück"
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_styles/panel = SubResource("monster_card")
 
-[node name="HeroClassLabel" type="Label" parent="UILayer/Control/HSplitContainer/HeroSide/HBoxContainer/HeroSelectorContainer/VBoxContainer/ClassSelector/HBoxContainer"]
-unique_name_in_owner = true
+[node name="VBox" type="VBoxContainer" parent="UILayer/Root/Margin/VBox/CardsRow/MonsterCard"]
 layout_mode = 2
-text = "Class name"
+theme_override_constants/separation = 12
 
-[node name="HeroClassForward" type="Button" parent="UILayer/Control/HSplitContainer/HeroSide/HBoxContainer/HeroSelectorContainer/VBoxContainer/ClassSelector/HBoxContainer"]
-unique_name_in_owner = true
+[node name="Emblem" type="Label" parent="UILayer/Root/Margin/VBox/CardsRow/MonsterCard/VBox"]
 layout_mode = 2
-size_flags_vertical = 4
-text = "Vor"
+theme_override_colors/font_color = Color(0.95, 0.5, 0.45, 1)
+theme_override_font_sizes/font_size = 48
+text = "☠"
+horizontal_alignment = 1
 
-[node name="HeroSelector" type="MarginContainer" parent="UILayer/Control/HSplitContainer/HeroSide/HBoxContainer/HeroSelectorContainer/VBoxContainer"]
-unique_name_in_owner = true
+[node name="Header" type="Label" parent="UILayer/Root/Margin/VBox/CardsRow/MonsterCard/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.96, 0.62, 0.58, 1)
+theme_override_font_sizes/font_size = 26
+text = "MONSTER"
+horizontal_alignment = 1
+
+[node name="Desc" type="Label" parent="UILayer/Root/Margin/VBox/CardsRow/MonsterCard/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.74, 0.68, 0.66, 0.9)
+theme_override_font_sizes/font_size = 13
+text = "Become the apex predator. Farm, evolve, and devour."
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="Filler" type="Control" parent="UILayer/Root/Margin/VBox/CardsRow/MonsterCard/VBox"]
 layout_mode = 2
 size_flags_vertical = 3
 
-[node name="HBoxContainer" type="HBoxContainer" parent="UILayer/Control/HSplitContainer/HeroSide/HBoxContainer/HeroSelectorContainer/VBoxContainer/HeroSelector"]
-layout_mode = 2
-
-[node name="HeroSelectorBack" type="Button" parent="UILayer/Control/HSplitContainer/HeroSide/HBoxContainer/HeroSelectorContainer/VBoxContainer/HeroSelector/HBoxContainer"]
+[node name="PlayAsMonster" type="Button" parent="UILayer/Root/Margin/VBox/CardsRow/MonsterCard/VBox"]
 unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 52)
 layout_mode = 2
-size_flags_vertical = 4
-text = "Zurück
-"
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 20
+theme_override_styles/normal = SubResource("monster_play_normal")
+theme_override_styles/hover = SubResource("monster_play_hover")
+theme_override_styles/pressed = SubResource("monster_play_pressed")
+text = "PLAY"
 
-[node name="SelectedHero" type="TextureRect" parent="UILayer/Control/HSplitContainer/HeroSide/HBoxContainer/HeroSelectorContainer/VBoxContainer/HeroSelector/HBoxContainer"]
+[node name="MonsterSkills" type="Button" parent="UILayer/Root/Margin/VBox/CardsRow/MonsterCard/VBox"]
 unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 40)
 layout_mode = 2
-size_flags_vertical = 4
-texture = ExtResource("1_les83")
-stretch_mode = 2
-
-[node name="HeroSelectorForward" type="Button" parent="UILayer/Control/HSplitContainer/HeroSide/HBoxContainer/HeroSelectorContainer/VBoxContainer/HeroSelector/HBoxContainer"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 4
-size_flags_vertical = 4
-text = "Vor"
-
-[node name="VSeparator" type="VSeparator" parent="UILayer/Control/HSplitContainer"]
-unique_name_in_owner = true
-layout_mode = 2
-
-[node name="MonsterSide" type="Control" parent="UILayer/Control/HSplitContainer"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 3
-
-[node name="HBoxContainer" type="HBoxContainer" parent="UILayer/Control/HSplitContainer/MonsterSide"]
-unique_name_in_owner = true
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-
-[node name="ButtonContainer" type="MarginContainer" parent="UILayer/Control/HSplitContainer/MonsterSide/HBoxContainer"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_constants/margin_top = 256
-theme_override_constants/margin_bottom = 256
-
-[node name="Container" type="VBoxContainer" parent="UILayer/Control/HSplitContainer/MonsterSide/HBoxContainer/ButtonContainer"]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_constants/separation = 32
-
-[node name="MonsterSkills" type="Button" parent="UILayer/Control/HSplitContainer/MonsterSide/HBoxContainer/ButtonContainer/Container"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_vertical = 6
 text = "Skills"
 
-[node name="MonsterUpdates" type="Button" parent="UILayer/Control/HSplitContainer/MonsterSide/HBoxContainer/ButtonContainer/Container"]
+[node name="MonsterUpdates" type="Button" parent="UILayer/Root/Margin/VBox/CardsRow/MonsterCard/VBox"]
 unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 40)
 layout_mode = 2
-size_flags_vertical = 6
-text = "Updates"
+text = "Roster"
 
-[node name="PlayAsMonster" type="Button" parent="UILayer/Control/HSplitContainer/MonsterSide/HBoxContainer/ButtonContainer/Container"]
-unique_name_in_owner = true
+[node name="Footer" type="HBoxContainer" parent="UILayer/Root/Margin/VBox"]
 layout_mode = 2
-size_flags_vertical = 6
-text = "Play"
 
-[node name="MonsterSelectorContainer" type="MarginContainer" parent="UILayer/Control/HSplitContainer/MonsterSide/HBoxContainer"]
-unique_name_in_owner = true
+[node name="VersionLabel" type="Label" parent="UILayer/Root/Margin/VBox/Footer"]
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_constants/margin_top = 256
-theme_override_constants/margin_bottom = 256
-
-[node name="HBoxContainer" type="HBoxContainer" parent="UILayer/Control/HSplitContainer/MonsterSide/HBoxContainer/MonsterSelectorContainer"]
-layout_mode = 2
-
-[node name="MonsterBack" type="Button" parent="UILayer/Control/HSplitContainer/MonsterSide/HBoxContainer/MonsterSelectorContainer/HBoxContainer"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_vertical = 4
-text = "Zurück
-"
-
-[node name="Monster" type="TextureRect" parent="UILayer/Control/HSplitContainer/MonsterSide/HBoxContainer/MonsterSelectorContainer/HBoxContainer"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 4
-size_flags_vertical = 4
-texture = ExtResource("1_les83")
-stretch_mode = 2
-
-[node name="MonsterForward" type="Button" parent="UILayer/Control/HSplitContainer/MonsterSide/HBoxContainer/MonsterSelectorContainer/HBoxContainer"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_vertical = 4
-text = "Vor"
+theme_override_colors/font_color = Color(0.45, 0.5, 0.47, 0.7)
+theme_override_font_sizes/font_size = 12
+text = "v0.2  ·  Pre-Alpha"

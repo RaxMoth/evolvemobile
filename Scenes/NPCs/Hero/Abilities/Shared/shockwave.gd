@@ -12,7 +12,7 @@ func execute(caster: Node2D, target: Node2D = null, _override_damage: float = -1
 	var space_state = caster.get_world_2d().direct_space_state
 	var query = PhysicsShapeQueryParameters2D.new()
 	var shape = CircleShape2D.new()
-	shape.radius = range
+	shape.radius = ability_range  # bare `range` was GDScript's builtin Callable, not the @export
 	query.shape = shape
 	query.transform = Transform2D(0, caster.global_position)
 	query.collision_mask = 1 # Adjust based on your collision layers

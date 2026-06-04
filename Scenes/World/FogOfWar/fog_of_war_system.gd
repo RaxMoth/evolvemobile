@@ -19,7 +19,8 @@ var _camera: Camera2D = null
 var _texture_dirty: bool = false
 
 func _ready() -> void:
-	add_to_group("FogOfWar")
+	# NOTE: Group "FogOfWar" is declared in FogOfWarSystem.tscn (`groups=["FogOfWar"]`),
+	# so no add_to_group() call is needed here.
 	grid_width = int(ceil(world_size.x / tile_size))
 	grid_height = int(ceil(world_size.y / tile_size))
 

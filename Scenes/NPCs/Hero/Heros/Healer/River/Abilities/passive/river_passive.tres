@@ -5,8 +5,23 @@
 
 [resource]
 script = ExtResource("1_passive")
+speed_boost_multiplier = 1.5
+boost_duration = 3.0
 ability_name = "Adaptive Movement"
 ability_type = 0
 icon = ExtResource("1_8p277")
 description = "After taking damage, gain 50% movement speed for 3 seconds"
+damage = 0.0
+cooldown = 1.0
+ability_range = 100.0
+duration = 0.0
+heal_amount = 0.0
+area_of_effect = 0.0
+damage_per_stage = Array[float]([])
+cooldown_per_stage = Array[float]([])
+range_per_stage = Array[float]([])
+aoe_per_stage = Array[float]([])
+speed_modifier = 1.0
+damage_modifier = 1.0
+attack_speed_modifier = 1.0
 metadata/_custom_type_script = "uid://c7nxl1d3yafbk"

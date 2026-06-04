@@ -36,23 +36,16 @@ func _setup_hero_vision():
 				break
 		FogOfWarHelper.add_vision_to_hero(hero, vision)
 
+const HERO_EXPL_CTRL_SCENE: PackedScene = preload("res://Scenes/NPCs/Hero/HeroExplorationController.tscn")
+
 func _setup_exploration_controller():
 	await get_tree().process_frame
-	
-	exploration_controller = HeroExplorationController.new()
-	exploration_controller.name = "HeroExplorationController"
-	exploration_controller.group_exploration_enabled = true
-	exploration_controller.group_cohesion_radius = 150.0
-	exploration_controller.exploration_update_interval = 2.0
-	exploration_controller.exploration_tile_size = 32
-	
+	# Scene-based instantiation — same defaults as in world.gd. See
+	# HeroExplorationController.tscn for the tunables.
+	exploration_controller = HERO_EXPL_CTRL_SCENE.instantiate() as HeroExplorationController
 	add_child(exploration_controller)
-	
-	# Connect signals
 	exploration_controller.exploration_target_reached.connect(_on_exploration_target_reached)
 	exploration_controller.monster_detected.connect(_on_monster_detected)
-	
-	print("Exploration controller initialized")
 
 func _on_exploration_target_reached(position: Vector2) -> void:
 	pass

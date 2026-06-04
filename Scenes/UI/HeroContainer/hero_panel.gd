@@ -34,11 +34,9 @@ const VISUAL_LERP_SPEED: float = 12.0
 
 
 func _ready() -> void:
-	# PanelContainer needs `mouse_filter = MOUSE_FILTER_STOP` to receive clicks.
-	mouse_filter = Control.MOUSE_FILTER_STOP
-	gui_input.connect(_on_gui_input)
-	mouse_entered.connect(_on_mouse_entered)
-	mouse_exited.connect(_on_mouse_exited)
+	# mouse_filter, gui_input/mouse_entered/mouse_exited connections are
+	# all set in HeroPanel.tscn (scene-side). This script only handles
+	# runtime state like the visual snap.
 	_update_visual_state(true)  # start in idle state
 
 

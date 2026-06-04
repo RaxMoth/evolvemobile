@@ -1,9 +1,11 @@
-[gd_scene load_steps=2 format=3 uid="uid://cmatchres0001"]
+[gd_scene load_steps=3 format=3 uid="uid://cmatchres0001"]
 
 [ext_resource type="Script" path="res://Scenes/UI/MatchResult/match_result.gd" id="1_result"]
+[ext_resource type="Theme" uid="uid://buihunttheme01" path="res://Scenes/UI/Theme/ui_theme.tres" id="2_theme"]
 
 [node name="MatchResult" type="CanvasLayer"]
 layer = 200
+process_mode = 3
 script = ExtResource("1_result")
 
 [node name="DimBackground" type="ColorRect" parent="."]
@@ -20,6 +22,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+theme = ExtResource("2_theme")
 
 [node name="Panel" type="PanelContainer" parent="CenterContainer"]
 custom_minimum_size = Vector2(380, 0)
@@ -176,6 +179,7 @@ unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 48)
 layout_mode = 2
 size_flags_horizontal = 3
+process_mode = 3
 text = "Play Again"
 
 [node name="MainMenuButton" type="Button" parent="CenterContainer/Panel/Margin/VBox/ButtonRow"]
@@ -183,4 +187,8 @@ unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 48)
 layout_mode = 2
 size_flags_horizontal = 3
+process_mode = 3
 text = "Main Menu"
+
+[connection signal="pressed" from="CenterContainer/Panel/Margin/VBox/ButtonRow/PlayAgainButton" to="." method="_on_play_again"]
+[connection signal="pressed" from="CenterContainer/Panel/Margin/VBox/ButtonRow/MainMenuButton" to="." method="_on_main_menu"]

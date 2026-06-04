@@ -9,6 +9,10 @@
 [node name="Hero" groups=["Hero"] instance=ExtResource("1_py7br")]
 script = ExtResource("2_385or")
 auto_use_ultimate = true
+auto_ult_min_enemies = 3
+auto_ult_radius = 200.0
+auto_ult_panic_hp_pct = 0.25
+auto_ult_check_interval = 0.25
 
 [node name="HeroStats" type="Node" parent="." index="0"]
 unique_name_in_owner = true

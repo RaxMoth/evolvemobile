@@ -362,33 +362,17 @@ unique_name_in_owner = true
 
 [node name="Irelia" parent="Heros" instance=ExtResource("6_p7pgw")]
 position = Vector2(272, 31)
-auto_ult_min_enemies = 3
-auto_ult_radius = 200.0
-auto_ult_panic_hp_pct = 0.25
-auto_ult_check_interval = 0.25
 
 [node name="River" parent="Heros" instance=ExtResource("5_hveh7")]
 position = Vector2(56, -4)
 heal_threshold_pct = 0.95
 heal_max_range = 150.0
-auto_ult_min_enemies = 3
-auto_ult_radius = 200.0
-auto_ult_panic_hp_pct = 0.25
-auto_ult_check_interval = 0.25
 
 [node name="Vlad" parent="Heros" instance=ExtResource("2_xf6vi")]
 position = Vector2(10, 8)
-auto_ult_min_enemies = 3
-auto_ult_radius = 200.0
-auto_ult_panic_hp_pct = 0.25
-auto_ult_check_interval = 0.25
 
 [node name="Ted" parent="Heros" instance=ExtResource("8_kuxid")]
 position = Vector2(423, 226)
-auto_ult_min_enemies = 3
-auto_ult_radius = 200.0
-auto_ult_panic_hp_pct = 0.25
-auto_ult_check_interval = 0.25
 
 [node name="Grount" parent="." instance=ExtResource("3_ouhkt")]
 position = Vector2(1141, 113)

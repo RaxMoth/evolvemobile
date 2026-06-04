@@ -1,0 +1,95 @@
+[gd_scene load_steps=3 format=3 uid="uid://cmetaskill0001"]
+
+[ext_resource type="Script" path="res://Scenes/UI/MetaSkills/meta_skill_screen.gd" id="1_meta"]
+[ext_resource type="Theme" uid="uid://buihunttheme01" path="res://Scenes/UI/Theme/ui_theme.tres" id="2_theme"]
+
+[node name="MetaSkillScreen" type="Control"]
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 1
+theme = ExtResource("2_theme")
+script = ExtResource("1_meta")
+
+[node name="DimBackground" type="ColorRect" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0.75)
+
+[node name="Margin" type="MarginContainer" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_top = 24
+theme_override_constants/margin_right = 24
+theme_override_constants/margin_bottom = 24
+
+[node name="VBox" type="VBoxContainer" parent="Margin"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="HeaderRow" type="HBoxContainer" parent="Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="TitleLabel" type="Label" parent="Margin/VBox/HeaderRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 28
+text = "Skill Tree"
+
+[node name="TreePicker" type="OptionButton" parent="Margin/VBox/HeaderRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(220, 40)
+layout_mode = 2
+
+[node name="CloseButton" type="Button" parent="Margin/VBox/HeaderRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(80, 40)
+layout_mode = 2
+text = "Close"
+
+[node name="SubHeader" type="HBoxContainer" parent="Margin/VBox"]
+layout_mode = 2
+
+[node name="DescriptionLabel" type="Label" parent="Margin/VBox/SubHeader"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 14
+text = ""
+autowrap_mode = 3
+
+[node name="CurrencyLabel" type="Label" parent="Margin/VBox/SubHeader"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "Steel 0   Leaves 0   Gold 0"
+horizontal_alignment = 2
+
+[node name="HSep" type="HSeparator" parent="Margin/VBox"]
+layout_mode = 2
+
+[node name="Scroll" type="ScrollContainer" parent="Margin/VBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="TiersBox" type="VBoxContainer" parent="Margin/VBox/Scroll"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 12
+
+[connection signal="pressed" from="Margin/VBox/HeaderRow/CloseButton" to="." method="_on_close_pressed"]
+[connection signal="item_selected" from="Margin/VBox/HeaderRow/TreePicker" to="." method="_on_tree_picker_selected"]

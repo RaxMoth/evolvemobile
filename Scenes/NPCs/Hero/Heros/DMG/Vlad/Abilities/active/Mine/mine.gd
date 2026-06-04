@@ -9,22 +9,19 @@ class_name Mine
 var owner_entity: Node2D = null
 var has_exploded: bool = false
 
+
 func _ready() -> void:
-	# Setup collision shape
-	var collision_shape = CollisionShape2D.new()
-	var circle = CircleShape2D.new()
-	circle.radius = detection_radius
-	collision_shape.shape = circle
-	add_child(collision_shape)
-	
-	# Visual representation (simple red circle for now)
-	queue_redraw()
-	
-	# Connect signals
-	area_entered.connect(_on_area_entered)
-	body_entered.connect(_on_body_entered)
-	
-	# Auto-destroy after lifetime
+	# CollisionShape2D + Sprite2D + signal connections all live in Mine.tscn.
+	# This script only handles runtime state. We still sync the shape's
+	# radius to the @export detection_radius at spawn so callers can
+	# customize it (active_mine.gd does this).
+	var cs := $CollisionShape2D as CollisionShape2D
+	if cs and cs.shape is CircleShape2D:
+		(cs.shape as CircleShape2D).radius = detection_radius
+
+	queue_redraw()  # for the runtime _draw overlay
+
+	# Auto-destroy after lifetime.
 	await get_tree().create_timer(lifetime).timeout
 	if not has_exploded:
 		queue_free()

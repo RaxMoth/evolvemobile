@@ -105,23 +105,18 @@ func _setup_monster_vision():
 		# hunting cone that still leaves the map feeling explore-able.
 		FogOfWarHelper.add_vision_to_hero(monster, 350.0)
 
+const HERO_EXPL_CTRL_SCENE: PackedScene = preload("res://Scenes/NPCs/Hero/HeroExplorationController.tscn")
+
 func _setup_exploration_controller():
 	await get_tree().process_frame
-	
-	exploration_controller = HeroExplorationController.new()
-	exploration_controller.name = "HeroExplorationController"
-	exploration_controller.group_exploration_enabled = true
-	exploration_controller.group_cohesion_radius = 150.0
-	exploration_controller.exploration_update_interval = 2.0
-	exploration_controller.exploration_tile_size = 32
-	
+	# Scene-based instantiation: defaults (cohesion radius, update interval,
+	# tile size, group registration) live in HeroExplorationController.tscn
+	# — no per-property setup needed here. Override anything per-world in
+	# this scene's instance if you ever want different defaults per map.
+	exploration_controller = HERO_EXPL_CTRL_SCENE.instantiate() as HeroExplorationController
 	add_child(exploration_controller)
-	
-	# Connect signals
 	exploration_controller.exploration_target_reached.connect(_on_exploration_target_reached)
 	exploration_controller.monster_detected.connect(_on_monster_detected)
-	
-	print("Exploration controller initialized")
 
 func _on_exploration_target_reached(position: Vector2) -> void:
 	pass

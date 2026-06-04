@@ -31,6 +31,12 @@ func _ready() -> void:
 	if stats:
 		stats.health_changed.connect(_on_health_changed)
 	_setup_combat_role_from_stats()
+
+	# Apply permanent meta-skill upgrades to this hero's stats BEFORE
+	# super._ready() so the EntityBase HUD setup reads the post-bonus
+	# max_health for the floating HP bar.
+	MetaSkillManager.apply_unlocked_to_hero(self)
+
 	super._ready()
 
 func _process(delta: float) -> void:

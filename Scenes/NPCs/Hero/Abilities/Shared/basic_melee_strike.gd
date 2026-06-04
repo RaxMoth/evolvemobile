@@ -15,5 +15,5 @@ func execute(caster: Node2D, target: Node2D = null, _override_damage: float = -1
 		return
 
 	var distance = caster.global_position.distance_to(target.global_position)
-	if distance <= range:
+	if distance <= ability_range:  # bare `range` was GDScript's builtin Callable, not the @export
 		EventBus.deal_damage(caster, target, damage, self)

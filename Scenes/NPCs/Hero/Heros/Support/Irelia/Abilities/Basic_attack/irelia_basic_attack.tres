@@ -5,11 +5,21 @@
 
 [resource]
 script = ExtResource("1_ixuuq")
+ability_name = "Unnamed Ability"
 ability_type = 2
 icon = ExtResource("1_baakk")
 description = "swsws"
 damage = 2.0
+cooldown = 1.0
+ability_range = 100.0
 duration = 2.0
 heal_amount = 2.0
 area_of_effect = 2.0
+damage_per_stage = Array[float]([])
+cooldown_per_stage = Array[float]([])
+range_per_stage = Array[float]([])
+aoe_per_stage = Array[float]([])
+speed_modifier = 1.0
+damage_modifier = 1.0
+attack_speed_modifier = 1.0
 metadata/_custom_type_script = "uid://csqf7qfehc1io"

@@ -4,15 +4,19 @@
 [ext_resource type="Texture2D" uid="uid://b8hlhq44dx3qv" path="res://Assets/icon.svg" id="2_mk5k4"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_qc3ms"]
-radius = 327.03824
+radius = 100.0
 
-[node name="Mine" type="Node2D"]
+[node name="Mine" type="Area2D"]
+collision_layer = 2
+collision_mask = 3
 script = ExtResource("1_qc3ms")
 
-[node name="Area2D" type="Area2D" parent="."]
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="Area2D"]
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
 shape = SubResource("CircleShape2D_qc3ms")
 
 [node name="Sprite2D" type="Sprite2D" parent="."]
+scale = Vector2(0.05, 0.05)
 texture = ExtResource("2_mk5k4")
+
+[connection signal="area_entered" from="." to="." method="_on_area_entered"]
+[connection signal="body_entered" from="." to="." method="_on_body_entered"]

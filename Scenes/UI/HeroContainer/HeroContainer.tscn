@@ -36,3 +36,9 @@ theme_override_constants/separation = 10
 [node name="FpsCounter" parent="." instance=ExtResource("2_fj1xq")]
 layout_mode = 0
 anchors_preset = 0
+anchor_right = 0.0
+anchor_bottom = 0.0
+offset_right = 1.0
+offset_bottom = 23.0
+grow_horizontal = 1
+grow_vertical = 1
