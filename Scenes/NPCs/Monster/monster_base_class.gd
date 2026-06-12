@@ -21,6 +21,17 @@ var current_health: float
 var current_xp: float = 0.0
 var damage_multiplier: float = 1.0
 
+# Permanent meta-skill multipliers (from MetaSkillManager.collect_monster_modifiers).
+# 1.0 = no upgrade purchased. Loaded once in _ready before stage config so the
+# Monster Base skill tree actually affects gameplay (was previously seeded +
+# purchasable but never consumed).
+var _meta_health_mult: float = 1.0
+var _meta_damage_mult: float = 1.0
+var _meta_speed_mult: float = 1.0
+var _meta_xp_mult: float = 1.0
+var _meta_evo_threshold_mult: float = 1.0
+var _meta_range_mult: float = 1.0
+
 var ability_cooldowns := {
 	"ability_1": 0.0,
 	"ability_2": 0.0,
@@ -31,6 +42,9 @@ func _ready() -> void:
 	if not monster_stats:
 		push_error(name + " missing MonsterStats resource!")
 		return
+	# Load permanent upgrades BEFORE stage config so stage-1 health/damage
+	# already reflect any purchased Monster Base skills.
+	_load_meta_modifiers()
 	_apply_stage_configuration(1)
 	_setup_monster_combat_role()
 
@@ -57,14 +71,14 @@ func _apply_stage_configuration(stage: int) -> void:
 	print("\n▶ Applying Stage ", stage, " Configuration for ", name)
 	
 	var old_max = current_health if stage > 1 else 0.0
-	var new_health = monster_stats.get_health_for_stage(stage)
-	
+	var new_health = monster_stats.get_health_for_stage(stage) * _meta_health_mult
+
 	if stage == 1:
 		current_health = new_health
 	else:
 		current_health += (new_health - old_max)
-	
-	damage_multiplier = monster_stats.get_damage_mult_for_stage(stage)
+
+	damage_multiplier = monster_stats.get_damage_mult_for_stage(stage) * _meta_damage_mult
 	xp_value = monster_stats.get_xp_value_for_stage(stage)
 	
 	_configure_abilities_for_stage(stage)
@@ -151,10 +165,10 @@ func _on_stage_entered(new_stage: int, _old_stage: int) -> void:
 func _get_move_speed() -> float:
 	if not monster_stats:
 		return 60.0
-	return monster_stats.get_speed_for_stage(current_stage)
+	return monster_stats.get_speed_for_stage(current_stage) * _meta_speed_mult
 
 func _get_attack_range() -> float:
-	return 80.0
+	return 80.0 * _meta_range_mult
 
 func _get_idle_retarget_time() -> float:
 	return 2.0
@@ -170,7 +184,7 @@ func is_alive() -> bool:
 	return current_health > 0.0
 
 func get_health() -> float:
-	return monster_stats.get_health_for_stage(current_stage) if monster_stats else current_health
+	return monster_stats.get_health_for_stage(current_stage) * _meta_health_mult if monster_stats else current_health
 
 func _receive_damage(packet: DamagePacket) -> void:
 	if not is_alive():
@@ -192,7 +206,7 @@ func _receive_damage(packet: DamagePacket) -> void:
 # ============================================
 
 func gain_xp(amount: float) -> void:
-	current_xp += amount
+	current_xp += amount * _meta_xp_mult
 	_check_evolution()
 
 func _check_evolution() -> void:
@@ -230,8 +244,22 @@ func _evolve_to_stage(new_stage: int) -> void:
 func _get_next_evolution_threshold() -> int:
 	if not monster_stats:
 		return 999999
-	
-	return monster_stats.get_xp_threshold_for_stage(current_stage + 1)
+
+	# Lower threshold = faster evolution (Quick Evolution skill = 0.90).
+	return int(monster_stats.get_xp_threshold_for_stage(current_stage + 1) * _meta_evo_threshold_mult)
+
+
+func _load_meta_modifiers() -> void:
+	## Pull the player's purchased Monster Base upgrades from MetaSkillManager.
+	## Keys default to 1.0 when no matching skill is unlocked, so an un-upgraded
+	## monster behaves exactly as before.
+	var mods: Dictionary = MetaSkillManager.collect_monster_modifiers()
+	_meta_health_mult = float(mods.get("monster_health_mult", 1.0))
+	_meta_damage_mult = float(mods.get("monster_damage_mult", 1.0))
+	_meta_speed_mult = float(mods.get("monster_speed_mult", 1.0))
+	_meta_xp_mult = float(mods.get("monster_xp_mult", 1.0))
+	_meta_evo_threshold_mult = float(mods.get("monster_evo_threshold", 1.0))
+	_meta_range_mult = float(mods.get("monster_range_mult", 1.0))
 
 # ============================================
 # Stage Visuals
