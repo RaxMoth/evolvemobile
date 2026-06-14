@@ -1,4 +1,4 @@
-[gd_scene load_steps=2 format=3 uid="uid://cheroexplctl001"]
+[gd_scene load_steps=2 format=3 uid="uid://dwf0mgw225dvc"]
 
 [ext_resource type="Script" path="res://Scenes/NPCs/Hero/hero_exploration_controller.gd" id="1_explctrl"]
 
