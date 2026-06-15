@@ -893,7 +893,12 @@ func _on_approach_state_processing(delta: float) -> void:
 		if _target_reeval_timer <= 0.0:
 			_target_reeval_timer = target_reeval_interval_approach
 			_reevaluate_current_target(switch_threshold_approach)
-	
+			# Re-eval may have cleared target (and queued ENEMY_EXITED); the
+			# state transition is deferred to next frame, so bail now before
+			# dereferencing the now-null target below.
+			if not is_target_valid():
+				return
+
 	if is_instance_valid(navigation_agent_2d):
 		navigation_agent_2d.target_position = target.global_position
 		_steer_along_nav(move_speed, delta)
@@ -926,6 +931,11 @@ func _on_fight_state_processing(delta: float) -> void:
 		if _target_reeval_timer <= 0.0:
 			_target_reeval_timer = target_reeval_interval_fight
 			_reevaluate_current_target(switch_threshold_fight)
+			# Re-eval may have cleared target (and queued ENEMY_EXITED); the
+			# state transition is deferred to next frame, so bail now before
+			# dereferencing the now-null target below.
+			if not is_target_valid():
+				return
 
 	# Decay flinch timer (blocks attacks while > 0).
 	if _flinch_timer > 0.0:

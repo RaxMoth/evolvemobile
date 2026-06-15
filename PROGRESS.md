@@ -1,6 +1,6 @@
 # Progress Tracker
 
-Last loop run: 2026-06-09
+Last loop run: 2026-06-09 (iteration 2)
 Stack: godot
 
 Spec source: `README.md` + `Docs/INSTRUCTOR.md` (roadmap, "Current Status & Roadmap",
@@ -28,7 +28,9 @@ Spec source: `README.md` + `Docs/INSTRUCTOR.md` (roadmap, "Current Status & Road
 - [x] Beautified Main Menu — ui_theme.tres, portrait layout, gradient bg, title, currency chips,
       themed side cards with intro/hover animations
 - [x] **Monster Base skill tree now consumed by MonsterBase** — health/damage/speed/xp/evo-threshold/range
-      multipliers applied on spawn (this run — see Changelog)
+      multipliers applied on spawn — `fdb36c6`
+- [x] **Crash fix: null-target deref in Approach/Fight processing** — re-eval can clear target mid-frame;
+      added validity-bail guards (iteration 2 — see Changelog)
 
 ## In Progress
 
@@ -65,6 +67,19 @@ Spec source: `README.md` + `Docs/INSTRUCTOR.md` (roadmap, "Current Status & Road
       shipped MetaSkill system — confirm dead and remove, or wire it to in-round leveling.
 
 ## Changelog
+
+### 2026-06-09 (iteration 2) — fix: null-target dereference in Approach/Fight state processing
+- `Scenes/NPCs/npc_base_class.gd`: `_reevaluate_current_target()` can clear `target`/`target_entity`
+  and queue `ENEMY_EXITED` when no valid target remains, but the state transition is deferred to the
+  next frame — so `_on_approach_state_processing` / `_on_fight_state_processing` continued and
+  dereferenced the now-null `target` (`Invalid access to 'global_position' on Nil`). Added an
+  `if not is_target_valid(): return` bail immediately after each re-eval call. The detection-area-exited
+  re-eval site (line ~601) was already safe (returns without touching target).
+- `project.godot`: editor bumped `config/features` 4.4 → 4.5 (matches documented engine target).
+- Surfaced more often post the earlier state-event typo fix, since combat now transitions reliably and
+  targets are re-evaluated mid-chase more frequently.
+- Verified: guards confirmed at all three re-eval call sites; Godot CLI not installed locally so
+  parse-checked manually.
 
 ### 2026-06-09 — feat: Monster Base meta-skill tree now affects gameplay
 - `Scenes/NPCs/Monster/monster_base_class.gd`: added 6 cached meta multipliers
