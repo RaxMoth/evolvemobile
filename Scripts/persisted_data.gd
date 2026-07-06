@@ -16,6 +16,7 @@ extends Node
 
 signal currency_changed(currency: StringName, new_amount: int)
 signal hero_xp_changed(hero_id: StringName, new_xp: int)
+signal monster_xp_changed(monster_id: StringName, new_xp: int)
 signal data_loaded
 signal data_saved
 
@@ -143,6 +144,7 @@ func add_monster_xp(monster_id: StringName, amount: int) -> void:
 		return
 	var new_total := get_monster_xp(monster_id) + amount
 	_config.set_value(SECTION_MONSTER_XP, monster_id, new_total)
+	monster_xp_changed.emit(monster_id, new_total)
 
 
 # ============================================

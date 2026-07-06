@@ -37,6 +37,10 @@ class Result:
 	var leaves: int = 0
 	var gold: int = 0
 
+	# Permanent XP earned this match. Awarded to each participating character
+	# on the played side (per-hero XP for heroes, monster XP for the monster).
+	var xp: int = 0
+
 	## True if any currency was earned (formula always grants something on
 	## win/loss, but if a future code path passes weird inputs we want a
 	## clean signal).
@@ -77,6 +81,15 @@ static func compute(
 		var stage_bonus := r.monster_stage * 25
 		r.leaves = base_currency + kills_bonus + time_bonus + stage_bonus
 		r.gold = base_gold
+
+	# Permanent XP — a flat per-match chunk scaled by performance. Each
+	# participating character on the played side receives this amount.
+	var xp_base := 25 if won else 10
+	r.xp = xp_base + r.mob_kills * 2 + int(duration_sec / 60.0) * 3
+	if side == Side.HEROES:
+		r.xp += r.heroes_alive * 5
+	else:
+		r.xp += r.monster_stage * 10
 
 	return r
 

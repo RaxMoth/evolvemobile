@@ -35,6 +35,14 @@ var monster_alive: bool = false
 var monster_stage_reached: int = 1
 var mob_kills: int = 0
 
+# Characters that participated this match, captured at census so permanent XP
+# can be awarded even after their nodes are freed by match end.
+var _participating_hero_ids: Array[StringName] = []
+var _monster_id: StringName = &"grount"
+
+# Substrings identifying each hero by node name (mirrors world.gd vision_map).
+const KNOWN_HERO_IDS: Array[StringName] = [&"river", &"vlad", &"ted", &"irelia"]
+
 
 func _ready() -> void:
 	# One-time setup. GameManager is autoload, so _ready fires ONCE per game
@@ -58,6 +66,7 @@ func start_new_match() -> void:
 	monster_alive = false
 	monster_stage_reached = 1
 	mob_kills = 0
+	_participating_hero_ids.clear()
 
 	await get_tree().process_frame
 	await get_tree().process_frame
@@ -85,15 +94,30 @@ func _elapsed() -> float:
 
 func _initial_census() -> void:
 	heroes_alive = 0
+	_participating_hero_ids.clear()
 	for node in get_tree().get_nodes_in_group("Hero"):
 		if node is HeroBase:
 			heroes_alive += 1
+			var hero_id := _hero_id_from(node)
+			if hero_id not in _participating_hero_ids:
+				_participating_hero_ids.append(hero_id)
 
 	var monster_count := 0
 	for node in get_tree().get_nodes_in_group("Monster"):
 		if node is MonsterBase:
 			monster_count += 1
+			_monster_id = StringName(node.name.to_lower())
 	monster_alive = monster_count > 0
+
+
+func _hero_id_from(node: Node) -> StringName:
+	## Maps a hero node to its persistent character id via name substring —
+	## same convention world.gd uses for per-hero vision ranges.
+	var lowered := node.name.to_lower()
+	for known in KNOWN_HERO_IDS:
+		if String(known) in lowered:
+			return known
+	return StringName(lowered)
 
 
 func _on_entity_died(entity: Node, _killer: Node) -> void:
@@ -165,6 +189,15 @@ func _apply_rewards_to_save(result: MatchRewards.Result) -> void:
 		PersistedData.add_currency(PersistedData.LEAVES, result.leaves)
 	if result.gold > 0:
 		PersistedData.add_currency(PersistedData.GOLD, result.gold)
+
+	# Permanent XP — persisted per participating character on the played side.
+	if result.xp > 0:
+		if result.side == MatchRewards.Side.HEROES:
+			for hero_id in _participating_hero_ids:
+				PersistedData.add_hero_xp(hero_id, result.xp)
+		else:
+			PersistedData.add_monster_xp(_monster_id, result.xp)
+
 	PersistedData.record_match_played()
 	PersistedData.save_data()
 
