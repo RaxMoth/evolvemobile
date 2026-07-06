@@ -23,6 +23,12 @@ signal data_saved
 const SAVE_PATH := "user://save.cfg"
 const CURRENT_SAVE_VERSION := 1
 
+# --- Permanent-level curve ---
+# Level starts at 1. The cost to advance from level L to L+1 is
+# XP_PER_LEVEL_STEP * L, so cumulative XP grows quadratically
+# (100, 300, 600, 1000, ...). Shared by heroes and the monster.
+const XP_PER_LEVEL_STEP := 100
+
 # --- Currency keys (used as ConfigFile keys + signal payloads) ---
 const STEEL: StringName = &"steel"
 const LEAVES: StringName = &"leaves"
@@ -145,6 +151,29 @@ func add_monster_xp(monster_id: StringName, amount: int) -> void:
 	var new_total := get_monster_xp(monster_id) + amount
 	_config.set_value(SECTION_MONSTER_XP, monster_id, new_total)
 	monster_xp_changed.emit(monster_id, new_total)
+
+
+# ============================================
+# Level curve (derived from permanent XP)
+# ============================================
+
+## Highest level fully reached with `total_xp` (level 1 at 0 XP).
+func level_from_xp(total_xp: int) -> int:
+	return level_progress(total_xp).level
+
+
+## Breaks a raw XP total into its level and progress toward the next level.
+## Returns {level: int, into: int, needed: int} where `into` is XP earned
+## inside the current level and `needed` is the cost of the next level.
+func level_progress(total_xp: int) -> Dictionary:
+	var level := 1
+	var remaining := maxi(total_xp, 0)
+	var cost := XP_PER_LEVEL_STEP
+	while remaining >= cost:
+		remaining -= cost
+		level += 1
+		cost = XP_PER_LEVEL_STEP * level
+	return {"level": level, "into": remaining, "needed": cost}
 
 
 # ============================================

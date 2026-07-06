@@ -25,6 +25,16 @@ const META_SKILL_SCREEN: PackedScene = preload("res://Scenes/UI/MetaSkills/MetaS
 @onready var leaves_value: Label = %LeavesValue
 @onready var gold_value: Label = %GoldValue
 
+# Per-hero level labels (hero_id -> Label), built in code and refreshed from
+# the PersistedData XP signals. The monster side has a single character.
+var _hero_level_labels: Dictionary = {}
+var _monster_level_label: Label = null
+var _monster_progress_bar: ProgressBar = null
+
+const _HERO_ACCENT := Color(0.62, 0.78, 0.96, 0.92)
+const _MONSTER_ACCENT := Color(0.96, 0.62, 0.58, 0.92)
+const _ROW_MUTED := Color(0.66, 0.7, 0.74, 0.85)
+
 
 func _ready() -> void:
 	# Clear any leftover pause from a previous match's result screen.
@@ -36,6 +46,10 @@ func _ready() -> void:
 	_setup_card_hover(monster_card)
 	_refresh_currency()
 	PersistedData.currency_changed.connect(_on_currency_changed)
+
+	_build_progression()
+	PersistedData.hero_xp_changed.connect(_on_hero_xp_changed)
+	PersistedData.monster_xp_changed.connect(_on_monster_xp_changed)
 
 	_play_intro()
 
@@ -143,6 +157,101 @@ func _on_play_as_hero() -> void:
 func _on_play_as_monster() -> void:
 	GameManager.chosen_side = MatchRewards.Side.MONSTER
 	get_tree().change_scene_to_packed.call_deferred(WORLD_SCENE)
+
+
+# ============================================
+# Permanent progression (per-character levels)
+# ============================================
+
+## Builds a compact "Progression" strip on each side card, inserted just above
+## the Filler spacer so it sits under the description. Labels are cached so the
+## PersistedData XP signals can update them in place without a rebuild.
+func _build_progression() -> void:
+	_hero_level_labels.clear()
+
+	var hero_panel := _make_progression_panel(_HERO_ACCENT)
+	for hero_id in GameManager.KNOWN_HERO_IDS:
+		var value := _add_level_row(hero_panel, _display_name(hero_id))
+		value.text = "Lv %d" % PersistedData.level_from_xp(PersistedData.get_hero_xp(hero_id))
+		_hero_level_labels[hero_id] = value
+	_insert_before_filler(heroes_card, hero_panel)
+
+	var monster_panel := _make_progression_panel(_MONSTER_ACCENT)
+	var monster_id: StringName = GameManager.DEFAULT_MONSTER_ID
+	_monster_level_label = _add_level_row(monster_panel, _display_name(monster_id))
+	_monster_progress_bar = ProgressBar.new()
+	_monster_progress_bar.custom_minimum_size = Vector2(0, 6)
+	_monster_progress_bar.show_percentage = false
+	_monster_progress_bar.modulate = _MONSTER_ACCENT
+	monster_panel.add_child(_monster_progress_bar)
+	_refresh_monster_progress(PersistedData.get_monster_xp(monster_id))
+	_insert_before_filler(monster_card, monster_panel)
+
+
+func _make_progression_panel(accent: Color) -> VBoxContainer:
+	var panel := VBoxContainer.new()
+	panel.add_theme_constant_override("separation", 4)
+	var header := Label.new()
+	header.text = "PROGRESSION"
+	header.add_theme_font_size_override("font_size", 11)
+	header.add_theme_color_override("font_color", Color(accent.r, accent.g, accent.b, 0.55))
+	header.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	panel.add_child(header)
+	return panel
+
+
+## Adds a "Name .......... Lv N" row and returns the (right-aligned) value Label.
+func _add_level_row(panel: VBoxContainer, character_name: String) -> Label:
+	var row := HBoxContainer.new()
+	var name_label := Label.new()
+	name_label.text = character_name
+	name_label.add_theme_font_size_override("font_size", 13)
+	name_label.add_theme_color_override("font_color", _ROW_MUTED)
+	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(name_label)
+
+	var value_label := Label.new()
+	value_label.add_theme_font_size_override("font_size", 13)
+	value_label.add_theme_color_override("font_color", _ROW_MUTED)
+	value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	row.add_child(value_label)
+
+	panel.add_child(row)
+	return value_label
+
+
+## Inserts `panel` into a side card's VBox just above its Filler spacer.
+func _insert_before_filler(card: Control, panel: Control) -> void:
+	var vbox := card.get_node("VBox") as VBoxContainer
+	vbox.add_child(panel)
+	var filler := vbox.get_node_or_null("Filler")
+	if filler:
+		vbox.move_child(panel, filler.get_index())
+
+
+func _display_name(character_id: StringName) -> String:
+	return String(character_id).capitalize()
+
+
+func _refresh_monster_progress(total_xp: int) -> void:
+	if _monster_level_label == null:
+		return
+	var prog := PersistedData.level_progress(total_xp)
+	_monster_level_label.text = "Lv %d" % int(prog.level)
+	if _monster_progress_bar:
+		_monster_progress_bar.max_value = maxf(1.0, float(prog.needed))
+		_monster_progress_bar.value = float(prog.into)
+
+
+func _on_hero_xp_changed(hero_id: StringName, new_xp: int) -> void:
+	if _hero_level_labels.has(hero_id):
+		var value: Label = _hero_level_labels[hero_id]
+		value.text = "Lv %d" % PersistedData.level_from_xp(new_xp)
+
+
+func _on_monster_xp_changed(monster_id: StringName, new_xp: int) -> void:
+	if monster_id == GameManager.DEFAULT_MONSTER_ID:
+		_refresh_monster_progress(new_xp)
 
 
 # ============================================

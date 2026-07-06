@@ -38,10 +38,12 @@ var mob_kills: int = 0
 # Characters that participated this match, captured at census so permanent XP
 # can be awarded even after their nodes are freed by match end.
 var _participating_hero_ids: Array[StringName] = []
-var _monster_id: StringName = &"grount"
+var _monster_id: StringName = DEFAULT_MONSTER_ID
 
 # Substrings identifying each hero by node name (mirrors world.gd vision_map).
 const KNOWN_HERO_IDS: Array[StringName] = [&"river", &"vlad", &"ted", &"irelia"]
+# The single monster the build ships with; used as the persistent XP key.
+const DEFAULT_MONSTER_ID: StringName = &"grount"
 
 
 func _ready() -> void:

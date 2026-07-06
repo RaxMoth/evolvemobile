@@ -1,6 +1,6 @@
 # Progress Tracker
 
-Last loop run: 2026-07-06 (iteration 3)
+Last loop run: 2026-07-06 (iteration 4)
 Stack: godot
 
 Spec source: `README.md` + `Docs/INSTRUCTOR.md` (roadmap, "Current Status & Roadmap",
@@ -32,14 +32,14 @@ Spec source: `README.md` + `Docs/INSTRUCTOR.md` (roadmap, "Current Status & Road
 - [x] **Crash fix: null-target deref in Approach/Fight processing** — re-eval can clear target mid-frame;
       added validity-bail guards (iteration 2 — see Changelog)
 - [x] **Permanent XP awarded & persisted on match end** — data slice of the Permanent XP System —
-      `eeb2234` (XP-bar UI still pending, see In Progress)
+      `eeb2234`
+- [x] **Permanent XP System — level readout on Main Menu cards** — quadratic level curve in
+      PersistedData + per-hero + monster "Progression" strips that react live to the `*_xp_changed`
+      signals (iteration 4 — see Changelog)
 
 ## In Progress
 
-- [ ] Permanent XP System — **XP-bar UI slice remaining**. Persistence done (`eeb2234`): matches now
-      award per-character permanent XP via PersistedData. Still needed: an XP bar / level readout
-      (Main Menu side cards or a character screen) reading `get_hero_xp`/`get_monster_xp` and reacting
-      to the `hero_xp_changed`/`monster_xp_changed` signals; optionally a `+XP` line on MatchResult.
+- (none)
 
 ## Backlog (from spec, not started)
 - [ ] Per-hero skill trees (Steel) + per-monster trees (Leaves) — only the universal Base trees exist
@@ -69,6 +69,27 @@ Spec source: `README.md` + `Docs/INSTRUCTOR.md` (roadmap, "Current Status & Road
       shipped MetaSkill system — confirm dead and remove, or wire it to in-round leveling.
 
 ## Changelog
+
+### 2026-07-06 (iteration 4) — feat: Main Menu shows permanent character levels
+- Closed the last slice of the Permanent XP System (In Progress → Done). The XP data has been
+  written & persisted since `eeb2234`; now it is finally surfaced to the player.
+- `Scripts/persisted_data.gd`: added the shared permanent-level curve. `XP_PER_LEVEL_STEP = 100`;
+  level L→L+1 costs `100*L` (cumulative 100/300/600/1000…). New `level_from_xp(total)` and
+  `level_progress(total) -> {level, into, needed}` — pure helpers, no side effects, used by both
+  heroes and the monster.
+- `Scripts/game_manager.gd`: promoted the monster's default id to a public const
+  `DEFAULT_MONSTER_ID = &"grount"` (was a bare `&"grount"` literal on `_monster_id`) so the menu and
+  the reward code share one source of truth for the monster XP key.
+- `Scenes/UI/MainMenu/main_menu.gd`: builds a compact "PROGRESSION" strip in code on each side card
+  (inserted above the Filler spacer, matching the existing "awkward-in-scene bits live in the script"
+  pattern). Heroes card lists all four `KNOWN_HERO_IDS` as `Name … Lv N` rows; monster card shows
+  `Grount … Lv N` plus a thin progress bar toward the next level. Labels are cached and updated in
+  place by new `_on_hero_xp_changed` / `_on_monster_xp_changed` handlers wired to the PersistedData
+  signals — no rebuild, so a match that awards XP is reflected the moment the player returns to menu.
+- Verified: headless editor compile (Godot at `/Applications/Godot 6.app`) — 0 script errors,
+  0 GDScript warnings on the three changed files.
+- Optional future polish (not blocking): a `+XP` row on the MatchResult screen (result already
+  carries `result.xp`); left out to keep this iteration to a single scene surface.
 
 ### 2026-07-06 (iteration 3) — feat: award permanent hero/monster XP on match end (`eeb2234`)
 - Delivered the persistence slice of the Permanent XP System backlog item (the XP-bar UI is split off
