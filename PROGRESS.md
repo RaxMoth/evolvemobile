@@ -1,6 +1,6 @@
 # Progress Tracker
 
-Last loop run: 2026-06-09 (iteration 2)
+Last loop run: 2026-07-06 (iteration 3)
 Stack: godot
 
 Spec source: `README.md` + `Docs/INSTRUCTOR.md` (roadmap, "Current Status & Roadmap",
@@ -31,15 +31,17 @@ Spec source: `README.md` + `Docs/INSTRUCTOR.md` (roadmap, "Current Status & Road
       multipliers applied on spawn — `fdb36c6`
 - [x] **Crash fix: null-target deref in Approach/Fight processing** — re-eval can clear target mid-frame;
       added validity-bail guards (iteration 2 — see Changelog)
+- [x] **Permanent XP awarded & persisted on match end** — data slice of the Permanent XP System —
+      `eeb2234` (XP-bar UI still pending, see In Progress)
 
 ## In Progress
 
-- (none)
+- [ ] Permanent XP System — **XP-bar UI slice remaining**. Persistence done (`eeb2234`): matches now
+      award per-character permanent XP via PersistedData. Still needed: an XP bar / level readout
+      (Main Menu side cards or a character screen) reading `get_hero_xp`/`get_monster_xp` and reacting
+      to the `hero_xp_changed`/`monster_xp_changed` signals; optionally a `+XP` line on MatchResult.
 
 ## Backlog (from spec, not started)
-
-- [ ] Permanent XP System — PersistedData has hero/monster XP slots, but matches don't award permanent XP
-      on end, and there's no XP bar UI. (README v0.2 high priority)
 - [ ] Per-hero skill trees (Steel) + per-monster trees (Leaves) — only the universal Base trees exist
 - [ ] Pre-Round Setup screen — strategy sliders (aggression/farming/exploration), formation select
 - [ ] Settings menu — master/music/sfx volume, vibration, language; load/save via PersistedData settings
@@ -67,6 +69,25 @@ Spec source: `README.md` + `Docs/INSTRUCTOR.md` (roadmap, "Current Status & Road
       shipped MetaSkill system — confirm dead and remove, or wire it to in-round leveling.
 
 ## Changelog
+
+### 2026-07-06 (iteration 3) — feat: award permanent hero/monster XP on match end (`eeb2234`)
+- Delivered the persistence slice of the Permanent XP System backlog item (the XP-bar UI is split off
+  into In Progress). Prior loops had the PersistedData XP slots but nothing wrote to them.
+- `Scripts/match_rewards.gd`: `Result` gains an `xp: int` field; `compute()` derives a per-match XP
+  chunk — `(25 win / 10 loss) + mob_kills*2 + minutes*3`, plus `heroes_alive*5` (hero side) or
+  `monster_stage*10` (monster side). Pure logic, no side effects (mirrors the currency formula).
+- `Scripts/game_manager.gd`: captures participating characters at `_initial_census` —
+  `_participating_hero_ids` (new `_hero_id_from()` maps node name → id via substring, same convention
+  as world.gd's vision_map) and `_monster_id` (monster node name). Captured at census so XP survives
+  the nodes being freed at match end. `_apply_rewards_to_save` now awards `result.xp` to each hero id
+  (hero side) or the monster id (monster side) via PersistedData, alongside the existing currency.
+- `Scripts/persisted_data.gd`: added `monster_xp_changed` signal + emit in `add_monster_xp`, symmetric
+  with the existing `hero_xp_changed` — completes the data layer for the future XP-bar UI.
+- Verified: full headless editor compile (Godot 4.4, found at `/Applications/Godot 6.app`) — rc=0,
+  0 script errors, 0 GDScript warnings. (Earlier "clean" runs were false — the machine has no
+  `timeout` binary, so the wrapped command silently no-op'd; re-ran unwrapped to confirm.)
+- Next run: the XP-bar UI slice (In Progress) — surface levels on the Main Menu side cards or a
+  character screen using the `*_xp_changed` signals; optionally add a `+XP` row to MatchResult.
 
 ### 2026-06-09 (iteration 2) — fix: null-target dereference in Approach/Fight state processing
 - `Scenes/NPCs/npc_base_class.gd`: `_reevaluate_current_target()` can clear `target`/`target_entity`
