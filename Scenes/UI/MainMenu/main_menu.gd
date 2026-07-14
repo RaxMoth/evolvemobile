@@ -25,6 +25,8 @@ const META_SKILL_SCREEN: PackedScene = preload("res://Scenes/UI/MetaSkills/MetaS
 @onready var leaves_value: Label = %LeavesValue
 @onready var gold_value: Label = %GoldValue
 
+@onready var settings_btn: Button = %SettingsButton
+
 # Per-hero level labels (hero_id -> Label), built in code and refreshed from
 # the PersistedData XP signals. The monster side has a single character.
 var _hero_level_labels: Dictionary = {}
@@ -42,6 +44,8 @@ func _ready() -> void:
 
 	_wire_play_buttons()
 	_wire_skill_buttons()
+	if settings_btn:
+		settings_btn.pressed.connect(_open_settings)
 	_setup_card_hover(heroes_card)
 	_setup_card_hover(monster_card)
 	_refresh_currency()
@@ -147,6 +151,10 @@ func _open_meta_skills(preselect_tree_id: StringName) -> void:
 			screen.tree_picker.select(i)
 			screen._show_tree(preselect_tree_id)
 			break
+
+
+func _open_settings() -> void:
+	add_child(SettingsScreen.new())
 
 
 func _on_play_as_hero() -> void:
