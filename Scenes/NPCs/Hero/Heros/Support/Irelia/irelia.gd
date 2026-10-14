@@ -103,7 +103,7 @@ func _on_idle_state_processing(delta: float) -> void:
 			var dist := randf_range(idle_wander_radius * 0.2, idle_wander_radius)
 			_idle_goal = global_position + dir * dist
 		
-		navigation_agent_2d.target_position = _idle_goal
+		_set_nav_target(_idle_goal)
 	
 	_steer_along_nav(move_speed, delta)
 

@@ -7,6 +7,9 @@
 radius = 74.0
 
 [node name="MobSpawnArea" type="Area2D"]
+collision_layer = 0
+collision_mask = 4
+monitorable = false
 script = ExtResource("1_12uab")
 leash_distance = 100.0
 activation_radius = 200.0

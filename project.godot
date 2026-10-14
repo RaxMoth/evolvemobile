@@ -88,6 +88,14 @@ toggle_camera_debug={
 ]
 }
 
+[layer_names]
+
+2d_physics/layer_1="world"
+2d_physics/layer_2="body_hero"
+2d_physics/layer_3="body_mob"
+2d_physics/layer_4="body_monster"
+2d_physics/layer_5="ability_zone"
+
 [rendering]
 
 renderer/rendering_method="mobile"

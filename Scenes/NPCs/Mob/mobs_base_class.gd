@@ -191,7 +191,7 @@ func _on_idle_state_processing(delta: float) -> void:
 			if spawn_area and spawn_area.has_method("clamp_position_to_area"):
 				_idle_goal = spawn_area.clamp_position_to_area(_idle_goal)
 		
-		navigation_agent_2d.target_position = _idle_goal
+		_set_nav_target(_idle_goal)
 
 	_steer_along_nav(move_speed, delta)
 

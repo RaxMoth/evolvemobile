@@ -74,6 +74,8 @@ func _check_dash_collisions(caster: Node2D, previous_pos: Vector2) -> void:
 	query.shape = shape
 	query.transform = Transform2D(0, caster.global_position)
 	query.collide_with_areas = true
+	query.collide_with_bodies = false
+	query.collision_mask = GameUtils.MASK_MONSTER_TARGETS
 	
 	var results = space_state.intersect_shape(query, 32)
 	

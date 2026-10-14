@@ -1,4 +1,20 @@
-extends Node 
+extends Node
+
+## 2D physics layer bits — keep in sync with project.godot [layer_names].
+## Entities expose ONE monitorable Area2D ("Body", r≈31) on their faction
+## layer; their DetectionArea is on no layer and masks only enemy bodies, so
+## mob-vs-mob areas never pair up and AoE queries see each entity once.
+const LAYER_WORLD: int = 1
+const LAYER_BODY_HERO: int = 2
+const LAYER_BODY_MOB: int = 4
+const LAYER_BODY_MONSTER: int = 8
+const LAYER_ABILITY_ZONE: int = 16
+## What each faction may hit (mirrors can_entity_target below).
+const MASK_HERO_TARGETS: int = LAYER_BODY_MOB | LAYER_BODY_MONSTER
+const MASK_MOB_TARGETS: int = LAYER_BODY_HERO | LAYER_BODY_MONSTER
+const MASK_MONSTER_TARGETS: int = LAYER_BODY_HERO | LAYER_BODY_MOB
+const MASK_HEROES: int = LAYER_BODY_HERO
+
 
 func angle_difference(from: float, to: float) -> float:
 	var diff = fmod(to - from, TAU)

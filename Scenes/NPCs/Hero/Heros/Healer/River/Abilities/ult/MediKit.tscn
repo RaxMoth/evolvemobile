@@ -7,6 +7,9 @@ resource_local_to_scene = true
 radius = 50.0
 
 [node name="MediKit" type="Area2D"]
+collision_layer = 16
+collision_mask = 2
+monitorable = false
 script = ExtResource("1_script")
 heal_amount = 30.0
 detection_radius = 50.0

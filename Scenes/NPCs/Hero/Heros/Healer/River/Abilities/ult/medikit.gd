@@ -91,7 +91,8 @@ func _check_if_should_disappear() -> void:
 	query.shape = shape
 	query.transform = Transform2D(0, global_position)
 	query.collide_with_areas = true
-	query.collide_with_bodies = true
+	query.collide_with_bodies = false
+	query.collision_mask = GameUtils.MASK_HEROES
 	
 	var results = space_state.intersect_shape(query, 32)
 	var heroes_in_range = 0

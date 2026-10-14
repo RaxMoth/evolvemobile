@@ -30,6 +30,8 @@ func execute(caster: Node2D, target: Node2D = null, override_damage: float = -1.
 	query.shape = shape
 	query.transform = Transform2D(0, caster.global_position)
 	query.collide_with_areas = true
+	query.collide_with_bodies = false
+	query.collision_mask = GameUtils.MASK_MONSTER_TARGETS
 	
 	var results = space_state.intersect_shape(query, 32)
 

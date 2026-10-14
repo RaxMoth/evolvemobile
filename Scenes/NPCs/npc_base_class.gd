@@ -89,7 +89,7 @@ var strafe_timer: float = 0.0
 var strafe_change_interval: float = 2.0
 
 # Lazy navigation - only update target if moved significantly
-var _last_nav_target_pos: Vector2 = Vector2.ZERO
+var _last_nav_target_pos: Vector2 = Vector2(INF, INF)  # INF = "never set" so the first lazy call always paths
 var _nav_update_threshold: float = 20.0  # Only update if target moves > 20 pixels
 
 # Idle behavior
@@ -700,6 +700,14 @@ func _set_nav_target_lazy(target_pos: Vector2) -> void:
 		navigation_agent_2d.target_position = target_pos
 		_last_nav_target_pos = target_pos
 
+func _set_nav_target(target_pos: Vector2) -> void:
+	"""Set the navigation target unconditionally and keep the lazy cache in
+	sync (idle goals, kiting points — anything that is not a moving target)."""
+	if not is_instance_valid(navigation_agent_2d):
+		return
+	navigation_agent_2d.target_position = target_pos
+	_last_nav_target_pos = target_pos
+
 func move_toward_point(target_pos: Vector2, speed: float, delta: float) -> void:
 	"""Move directly toward point (no navigation)"""
 	var dir := (target_pos - global_position).normalized()
@@ -747,10 +755,11 @@ func _strafe_around_target(delta: float, dir: Vector2) -> void:
 		if randf() > 0.5:
 			strafe_direction *= -1
 	
-	var perpendicular = Vector2(-dir.y, dir.x) * strafe_direction
-	var strafe_point = global_position + perpendicular * strafe_speed * delta
-	_set_nav_target_lazy(strafe_point)
-	_steer_along_nav(strafe_speed, delta)
+	# Direct move: the old code pushed a ~1 px nav target that the lazy helper
+	# swallowed, so strafing barely moved. Rate-independent now (no delta in
+	# the aim point; move_toward_point applies speed * delta).
+	var perpendicular := Vector2(-dir.y, dir.x) * strafe_direction
+	move_toward_point(global_position + perpendicular * 32.0, strafe_speed, delta)
 
 # ============================================
 # SECTION 12: IDLE EXPLORATION
@@ -873,7 +882,7 @@ func _on_idle_state_processing(delta: float) -> void:
 	if _idle_timer <= 0.0 or global_position.distance_squared_to(_idle_goal) < 64.0:
 		_idle_timer = idle_retarget_time
 		_idle_goal = _get_smart_idle_destination()
-		navigation_agent_2d.target_position = _idle_goal
+		_set_nav_target(_idle_goal)
 	
 	_steer_along_nav(move_speed, delta)
 
@@ -882,6 +891,9 @@ func _on_idle_state_processing(delta: float) -> void:
 func _on_approach_state_entered() -> void:
 	"""Entered Approach state - initialize re-evaluation timer"""
 	_target_reeval_timer = target_reeval_interval_approach
+	# Force a fresh path on the first approach tick even if the target is
+	# within the lazy threshold of wherever we last pathed to.
+	_last_nav_target_pos = Vector2(INF, INF)
 	
 	if not is_target_valid():
 		_check_for_nearby_enemies()
@@ -909,7 +921,9 @@ func _on_approach_state_processing(delta: float) -> void:
 				return
 
 	if is_instance_valid(navigation_agent_2d):
-		navigation_agent_2d.target_position = target.global_position
+		# Lazy: only re-path when the target moved > _nav_update_threshold.
+		# Writing target_position every frame recomputed the path per mob per frame.
+		_set_nav_target_lazy(target.global_position)
 		_steer_along_nav(move_speed, delta)
 	else:
 		move_toward_point(target.global_position, move_speed, delta)

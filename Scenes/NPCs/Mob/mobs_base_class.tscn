@@ -17,4 +17,8 @@ chase_distance = 400.0
 
 [node name="DetectionArea" parent="." index="3"]
 visible = true
+collision_mask = 10
+
+[node name="Body" parent="." index="4"]
+collision_layer = 4
 

@@ -1,6 +1,6 @@
 # Progress Tracker
 
-Last loop run: 2026-10-14 (performance pass P0)
+Last loop run: 2026-10-14 (performance pass P1)
 Stack: godot
 
 Spec source: `README.md` + `Docs/INSTRUCTOR.md` (roadmap, "Current Status & Roadmap",
@@ -40,9 +40,9 @@ Spec source: `README.md` + `Docs/INSTRUCTOR.md` (roadmap, "Current Status & Road
 ## In Progress
 
 - [ ] **Performance pass (plan: 60 FPS @ ~150 live mobs on a mid-range phone)** — phases P0→P5.
-      P0 done (correctness + measurement HUD). Next: P1 collision-layer split + orphan connections +
-      lazy approach nav; P2 targeted damage notify; P3 EntityRegistry; P4 TickScheduler/LOD via
-      `StateChart.step()`; P5 HpBar2D + mob pooling + raycast-free idle scoring.
+      P0 (correctness + measurement HUD) and P1 (faction collision layers, orphan connections,
+      Movetimer, lazy approach nav) done. Next: P2 targeted damage notify; P3 EntityRegistry;
+      P4 TickScheduler/LOD via `StateChart.step()`; P5 HpBar2D + mob pooling + raycast-free idle scoring.
       Baseline F3 numbers (stress config, see Changelog) still to be captured in the editor.
 
 ## Backlog (from spec, not started)
@@ -74,6 +74,39 @@ Spec source: `README.md` + `Docs/INSTRUCTOR.md` (roadmap, "Current Status & Road
       shipped MetaSkill system — confirm dead and remove, or wire it to in-round leveling.
 
 ## Changelog
+
+### 2026-10-14 — perf: P1 faction collision layers + orphan connections + lazy approach nav
+- **Collision layers split per faction** (`project.godot` `[layer_names]`: world / body_hero /
+  body_mob / body_monster / ability_zone; constants in `GameUtils.LAYER_*` / `MASK_*`). Every entity
+  had TWO Area2Ds (DetectionArea r=172 + Body r=31) on layer 3 / mask 3, all monitoring AND
+  monitorable → 300 mutually-pairing areas at 150 mobs, `area_entered` storms for mob-vs-mob, and AoE
+  queries seeing each entity twice. Now: `Body` is the only monitorable area (faction layer, mask 0,
+  monitoring off); `DetectionArea` is on no layer, masks enemy bodies only, not monitorable.
+  Hero 2/12, Mob 4/10, Monster 8/6 set scene-side in the three base scenes.
+- Consumers moved with it: Mine/MediKit/TrapCage → layer 16 (ability_zone), faction masks,
+  monitorable off (Mine was on layer 2 = the new hero bit); MobSpawnArea → layer 0, mask body_mob;
+  all 7 `intersect_shape` sites set an explicit `collision_mask` + `collide_with_bodies = false`
+  (they used the all-layers default and `max_results = 32`); `ult_bomb` / `mine` / `grount_slam`
+  now dedupe per entity; `trap_cage._get_entity` resolved the collider Area2D itself (it IS a Node2D)
+  so the cage teleported collision shapes, not mobs — fixed to resolve the EntityBase root.
+  Deleted `shockwave.gd` (`UltimateAreaDamage`): unreferenced, and with `collide_with_areas=false`
+  + mask 1 it could only ever hit Ted's pet.
+- **Balance change (user decision: adopt intended values, retune later):** aggro 172+172≈344 px →
+  172+31≈203 px; AoE reach radius+172 → radius+31 and single hits (ult_bomb/mine/grount_slam lose
+  the accidental double damage); Mine/MediKit/TrapCage trigger on Body overlap (−141 px);
+  leash fires once per mob. Retune item added to Tech Debt.
+- Orphan scene connections removed: Bat/Hog `state_physics_processing` → nonexistent
+  `_on_fight_state_physics_processing` (the addon enabled `_physics_process` on Fight purely
+  because a connection existed → one error print per fighting mob per physics frame) and
+  `state_exited`; NPCBase `child_entered_tree → _on_to_fight_child_entered_tree`.
+  `Movetimer` (autostart, no handler, ×150) deleted; VisionArea indices re-based.
+- Approach state now uses `_set_nav_target_lazy` (was `target_position =` every frame → path
+  recompute per approaching mob per frame); new `_set_nav_target()` forced sibling keeps the lazy
+  cache in sync at the idle-goal sites (EntityBase/MobBase/Irelia); cache seeded with INF so the
+  first call always paths; strafe moves directly (the ~1 px nav target it pushed was swallowed by
+  the lazy helper) and is rate-independent. `GameManager.match_timer_changed` emitted at 4 Hz.
+- Verified: headless 4.7.2 import + load of 79 scripts / 60 resources — 0 errors; greps: 0 orphan
+  names, every `intersect_shape` file sets a mask, `target_position =` only in the two nav helpers.
 
 ### 2026-10-14 — fix: P0 correctness fixes + measurement baseline (performance pass, phase 0)
 - Adversarially-verified plan (14 claims × 2 refuters + completeness critic) found correctness bugs

@@ -67,13 +67,14 @@ func _scan_for_enemies() -> void:
 	query.shape = shape
 	query.transform = Transform2D(0, global_position)
 	query.collide_with_areas = true
-	query.collide_with_bodies = true
+	query.collide_with_bodies = false
+	query.collision_mask = GameUtils.MASK_HERO_TARGETS
 	
 	var results = space_state.intersect_shape(query, 32)
 	
 	for result in results:
 		var entity = _get_entity(result.collider)
-		if entity and _is_valid_target(entity):
+		if entity and not trapped_enemies.has(entity) and _is_valid_target(entity):
 			trapped_enemies.append(entity)
 			_apply_trap_effect(entity)
 
@@ -119,13 +120,19 @@ func _is_valid_target(entity: Node) -> bool:
 	return false
 
 func _get_entity(node: Node) -> Node2D:
-	# Return as Node2D if valid, otherwise null
-	if node is Node2D:
+	# Resolve the ENTITY ROOT from a collider (the entity's Body Area2D) or
+	# from the root itself. The old version returned the Area2D (it is a
+	# Node2D too), so the cage was teleporting collision shapes, not mobs.
+	if node == null:
+		return null
+	if node is EntityBase:
 		return node
-	elif node.has_method("get_parent") and node.get_parent() is Node2D:
-		return node.get_parent()
-	elif node.has_method("get_owner") and node.get_owner() is Node2D:
-		return node.get_owner()
+	var by_owner := node.get_owner()
+	if by_owner is EntityBase:
+		return by_owner
+	var by_parent := node.get_parent()
+	if by_parent is EntityBase:
+		return by_parent
 	return null
 
 func _expire() -> void:

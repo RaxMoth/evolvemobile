@@ -31,6 +31,9 @@ var match_start_time: float
 var match_ended_flag: bool = false  # idempotency guard for _end_match
 
 var heroes_alive: int = 0
+## match_timer_changed is a UI signal; 4 Hz is plenty and keeps _process cheap.
+const TIMER_EMIT_INTERVAL: float = 0.25
+var _timer_emit_accum: float = 0.0
 var monster_alive: bool = false
 var monster_stage_reached: int = 1
 var mob_kills: int = 0
@@ -75,13 +78,16 @@ func start_new_match() -> void:
 	_initial_census()
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	if match_ended_flag:
 		return
-	# Tick the visible match timer + check the hard cap.
+	# Check the hard cap every frame; emit the visible timer at 4 Hz.
 	var elapsed: float = _elapsed()
 	var remaining: float = maxf(0.0, max_match_duration - elapsed)
-	match_timer_changed.emit(remaining)
+	_timer_emit_accum -= delta
+	if _timer_emit_accum <= 0.0:
+		_timer_emit_accum += TIMER_EMIT_INTERVAL
+		match_timer_changed.emit(remaining)
 	if remaining <= 0.0:
 		_end_match_timeout()
 

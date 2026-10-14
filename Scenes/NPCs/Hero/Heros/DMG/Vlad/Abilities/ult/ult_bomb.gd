@@ -21,10 +21,12 @@ func execute(caster: Node2D, _target: Node2D = null, _override_damage: float = -
 	query.shape = shape
 	query.transform = Transform2D(0, caster.global_position)
 	query.collide_with_areas = true
-	query.collide_with_bodies = true
+	query.collide_with_bodies = false
+	query.collision_mask = GameUtils.MASK_HERO_TARGETS
 	
 	var results = space_state.intersect_shape(query, 32)
 	var hit_count = 0
+	var hit_entities: Array = []
 	
 	for result in results:
 		var collider = result.collider
@@ -42,8 +44,9 @@ func execute(caster: Node2D, _target: Node2D = null, _override_damage: float = -
 		if entity == caster:
 			continue
 		
-		# Check if it's an enemy
-		if entity and entity.is_in_group("Enemy"):
+		# Check if it's an enemy (dedupe: never hit one entity twice per cast)
+		if entity and entity.is_in_group("Enemy") and not hit_entities.has(entity):
+			hit_entities.append(entity)
 			EventBus.deal_damage(caster, entity, damage, self)
 			hit_count += 1
 	

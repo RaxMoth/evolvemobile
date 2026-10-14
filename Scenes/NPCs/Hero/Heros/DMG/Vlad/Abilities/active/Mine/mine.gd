@@ -78,9 +78,11 @@ func _explode() -> void:
 	query.shape = shape
 	query.transform = Transform2D(0, global_position)
 	query.collide_with_areas = true
-	query.collide_with_bodies = true
+	query.collide_with_bodies = false
+	query.collision_mask = GameUtils.MASK_HERO_TARGETS
 	
 	var results = space_state.intersect_shape(query, 32)
+	var hit_entities: Array = []
 	
 	for result in results:
 		var collider = result.collider
@@ -96,7 +98,8 @@ func _explode() -> void:
 		if entity == owner_entity:
 			continue
 		
-		if entity and entity.is_in_group("Enemy"):
+		if entity and entity.is_in_group("Enemy") and not hit_entities.has(entity):
+			hit_entities.append(entity)
 			# The mine acts as the source — owner_entity is the placer for attribution
 			EventBus.deal_damage(owner_entity, entity, damage, null)
 	
