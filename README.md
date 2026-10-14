@@ -168,8 +168,8 @@ Power Level
 | **HP**           | 800                  | 1400 (+600 heal)    | 2200 (+800 heal)        |
 | **Speed**        | 60                   | 80 (+33%)           | 110 (+83%)              |
 | **Damage Mult**  | 1.0x                 | 1.4x                | 2.0x                    |
-| **Attack Range** | 60                   | 60                  | 70                      |
-| **XP Required**  | Start                | 150 XP              | 400 XP                  |
+| **Attack Range** | 80 (flat × Monster Base range skill) | 80 | 80                 |
+| **XP Required**  | Start                | 100 XP              | 300 XP                  |
 
 ### Abilities
 
@@ -267,9 +267,9 @@ Power Level
 
 ### Spawn System
 
-- **MobSpawnArea**: Circular areas that spawn mobs
-- **Respawn Time**: Bat (10s), Hog (15s)
-- **Leash Distance**: Mobs return if heroes run too far
+- **MobSpawnArea**: 39 circular camps (116 mobs configured). `SpawnManager` picks 26–30 of them as world-eligible per match and only instantiates a camp while a hero is inside its activation ring (200 px; despawn beyond 300 px)
+- **Respawn Time**: 40 s on every camp in `World.tscn` (prefab default 10 s). Dead and despawned mobs are recycled from a pool instead of re-instantiated
+- **Leash Distance**: Mobs return if heroes run too far (100 px from the camp centre)
 - **Camp Clearing**: Important strategic decision (delay monster vs gain XP)
 
 ---
@@ -491,9 +491,11 @@ Methods:
 **States**:
 
 - Idle: Wander, retarget
-- Move: Navigate to target
+- Approach: Navigate to target
 - Fight: In combat, use abilities
-- Dead: Death animation, cleanup
+- Dead: Cleanup (mobs return to the spawn pool; a `reset` event brings them back to Idle)
+
+The chart owns all state. Its active state is **stepped** by the `TickScheduler` autoload (`StateChart.step()` → `state_stepped`) at a per-entity LOD rate instead of running `state_processing` every frame.
 
 ### Resource Architecture
 
@@ -798,29 +800,26 @@ Max out hero trees → Unlock new heroes → Compete on leaderboards
 - [x] Bat/Hog/Elite mob camps
 - [x] XP award system
 
+**Meta & Flow** (since v0.1):
+
+- [x] Main Menu with side selection, Settings (volumes) and the Meta Skill screen
+- [x] Match result screen (stats, currency + permanent XP rewards, Play Again / Main Menu)
+- [x] Hero Base + Monster Base skill trees (MetaSkillManager, applied on spawn), ConfigFile save
+- [x] Permanent XP per hero/monster with level readout on the menu cards
+- [x] 10-minute match cap (loss-condition timer)
+- [x] Side-aware fog/vision (playing the monster reveals for the monster)
+- [x] Performance pass: faction collision layers, EntityRegistry, TickScheduler AI LOD, HpBar2D, mob pooling
+
 ---
 
 ### 🚧 In Development (v0.2 - Next 2 Months)
 
 **High Priority**:
 
-- [ ] **Victory/Defeat Screen** (2 weeks)
-    - Battle summary (kills, damage, time)
-    - Currency rewards breakdown
-    - Play again / Main menu options
-- [ ] **Main Menu** (1 week)
-    - Side selection (Heroes / Monster)
-    - Hero roster display (locked/unlocked)
-    - Settings menu
-- [ ] **Basic Skill Trees** (3 weeks)
-    - Hero Base Tree (Tier 1-2)
-    - Grount Tree (Tier 1-2)
-    - Currency display and spending UI
-    - Save/load progression
-- [ ] **Permanent XP System** (1 week)
-    - Per-character XP tracking
-    - XP bar in UI
-    - Level milestones
+- [ ] **Per-hero / per-monster skill trees** (Steel / Leaves) — only the universal Base trees exist
+- [ ] **Device build** — export presets, measure the perf pass on a mid-range phone, retune the
+      shrunken aggro / AoE ranges from the collision-layer split
+- [ ] **Test harness** (GUT) for rewards, save/level curve, tier gating, damage pipeline, death from any state
 
 **Medium Priority**:
 
@@ -836,8 +835,8 @@ Max out hero trees → Unlock new heroes → Compete on leaderboards
 **Low Priority** (v0.2):
 
 - [ ] Minimap with fog overlay
-- [ ] Monster vision range system
-- [ ] Audio (BGM, SFX placeholders)
+- [ ] Audio content (buses + volume settings exist; no music/SFX assets yet)
+- [ ] Save-file migration, touch-input audit, `print()` gating
 
 ---
 
@@ -892,8 +891,9 @@ Max out hero trees → Unlock new heroes → Compete on leaderboards
 
 **Performance**:
 
-- [ ] 100+ mobs on screen causes FPS drops (target: 60fps with 150 mobs)
-- [ ] Fog of war shader could be optimized (current: recalculates every frame)
+- [ ] 60 fps @ 150 mobs on a mid-range phone — code side landed 2026-10-14 (see `PROGRESS.md`); device
+      measurement and the balance retune of the now-smaller aggro / AoE ranges are pending
+- [x] Fog of war recalculated every frame — fixed (dirty flag, one texture update per frame)
 
 **Balance**:
 
@@ -903,7 +903,7 @@ Max out hero trees → Unlock new heroes → Compete on leaderboards
 
 **Design Debt**:
 
-- [ ] No clear "loss condition timer" (matches can theoretically last forever)
+- [x] Loss-condition timer — 10-minute match cap in `GameManager`
 - [ ] Hero composition is fixed (can't choose which 4 heroes yet)
 - [ ] Monster spawn location is random (should be strategic choice?)
 

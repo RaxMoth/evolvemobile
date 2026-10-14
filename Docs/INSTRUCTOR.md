@@ -96,10 +96,15 @@ res://
 │   └── UI/
 │       ├── HeroContainer/ (hero UI with ability cooldowns)
 │       └── MainMenu.tscn
-└── Scripts/
-    └── Systems/
-        ├── game_manager.gd (victory detection)
-        └── hero_exploration_controller.gd (group pathfinding)
+└── Scripts/ (autoloads + shared systems)
+    ├── globals.gd, types.gd, game_utils.gd (layer/mask constants, targeting rules)
+    ├── combat_events.gd, event_bus.gd, damage_packet.gd (damage pipeline)
+    ├── team_registry.gd + team_blackboard.gd (threat tables)
+    ├── entity_registry.gd (cached faction lists), tick_scheduler.gd (AI LOD)
+    ├── hp_bar_2d.gd (in-world HP bar)
+    ├── persisted_data.gd, MetaSkills/ (save + meta skill trees)
+    └── game_manager.gd, match_rewards.gd (match flow, rewards)
+    (hero_exploration_controller.gd lives in Scenes/NPCs/Hero/)
 ```
 
 ### Class Hierarchy
@@ -251,23 +256,26 @@ func use_basic_attack(target: Node2D = null) -> bool:
 
 ```gdscript
 // ✅ CORRECT - State machine transitions
-States: Idle → Approach → Fight → Dead
+States: Idle → Approach → Fight → Dead   (+ Dead → Idle on CombatEvents.RESET for pooled mobs)
 
-# EntityBase
+# EntityBase. The chart's active state is STEPPED by the TickScheduler autoload
+# (EntityBase._tick -> StateChart.step() -> state_stepped, wired scene-side in
+# NPCBaseClass.tscn). `delta` is the time since this entity's last tick, so a
+# far-away mob at 3 Hz moves the same distance per second as one at 60 Hz.
 func _on_idle_state_processing(delta: float):
     # Wander, look for enemies
     if enemy_detected:
-        state_chart.send_event("enemie_entered")
+        state_chart.send_event(CombatEvents.ENEMY_ENTERED)
 
 func _on_approach_state_processing(delta: float):
     # Chase enemy
     if distance <= attack_range:
-        state_chart.send_event("enemy_fight")
+        state_chart.send_event(CombatEvents.ENEMY_FIGHT)
 
 func _on_fight_state_processing(delta: float):
     # Combat
     if not is_target_valid():
-        state_chart.send_event("target_lost")
+        state_chart.send_event(CombatEvents.TARGET_LOST)
 
 // ❌ WRONG - Manual state flags
 var is_idle = true
@@ -518,54 +526,63 @@ Spawn Debt System:
 
 ## ⚡ Performance Systems
 
-### 1. Lazy Spawning/Despawning
+Measured with the **F3 debug overlay** (FPS, process/physics ms, node count, Phys2D objects and
+collision pairs, registry counts, LOD bucket counts). Stress config for profiling: `SpawnManager`
+`min/max_active_spawns = 39`, `enable_lazy_activation = false`, `stress_mob_multiplier = 2`.
 
-**MobSpawnArea Optimization**:
+### 1. Lazy Spawning / Despawning (`SpawnManager` + `MobSpawnArea`)
+
 ```gdscript
-@export var enable_lazy_spawning: bool = true
-@export var activation_range: float = 800.0
-@export var despawn_range: float = 1200.0
-
-# Only 5-8 of 42 spawn areas active at once
-# ~20-30 mobs instead of ~126
+# MobSpawnArea exports (per camp, visualised by the SpawnZone children)
+@export var lazy_spawning: bool = true
+@export var activation_radius: float   # World camps: 200 px
+@export var deactivation_radius: float # World camps: 300 px (hysteresis)
+# SpawnManager: 26–30 of 39 camps are world-eligible; a camp only holds a
+# virtual_count until a hero (EntityRegistry.hero_side) is inside its ring.
 ```
 
-**Impact**: +15-25 FPS
+### 2. AI LOD (`Scripts/tick_scheduler.gd`)
 
-### 2. LOD (Level of Detail) System
+Entities register from `_enter_tree`. The scheduler calls `EntityBase._tick(delta)` which runs
+`StateChart.step()`; the chart still owns every state and transition — only the cadence moved.
 
-**EntityBase LOD**:
-```gdscript
-@export var enable_lod: bool = true
-@export var lod_distance_full: float = 600.0      # Every frame
-@export var lod_distance_reduced: float = 1000.0  # Every 2nd frame
-@export var lod_distance_minimal: float = 1500.0  # Every 5th frame
-# Beyond 1500m: Frozen (no processing)
-```
+| Bucket | Rate | Who |
+|---|---|---|
+| FULL | every frame | heroes, monster (`_is_always_full_rate`), anything on screen |
+| NEAR | 20 Hz | has a target, or < 450 px from the nearest hero / pet / monster |
+| MID | 10 Hz | < 1200 px |
+| FAR | 3 Hz | everything else |
 
-**Impact**: +20-30 FPS
+Buckets are **anchor-based** (distance to the action via `EntityRegistry.nearest_anchor_dist_sq`),
+not camera-based, because lazy activation only spawns mobs near heroes. Camera visibility only
+pauses off-screen sprite animation (`ScreenNotifier`). Movement steps are clamped to the remaining
+distance and `_face` uses an exponential lerp so low rates stay correct.
 
-**When to Use**:
-- ✅ Mobs: Always enable LOD
-- ✅ Monsters: Optional (it's a main character)
-- ❌ Heroes: Disable LOD (player-controlled)
+### 3. Mob Pooling (`SpawnManager.acquire_mob / release_mob`)
 
-### 3. Object Pooling (Not Yet Implemented)
+Dead and despawned mobs are parked **out of the tree** (so `_exit_tree` unregisters them from
+TeamRegistry / EntityRegistry / TickScheduler) and reused. `MobBase.prepare_for_pool` scrubs
+per-life state, `reset_for_spawn` + `on_spawned` restore it, `CombatEvents.RESET` drives the chart
+Dead → Idle. `life_id` increments per life — anything that holds a mob reference across frames
+(trap cage, taunt) must compare it before acting. Projectile / particle pooling: still TODO.
 
-**Future optimization for projectiles, particles, damage numbers**:
-```gdscript
-// TODO: Implement object pooling
-var arrow_pool: Array[Arrow] = []
+### 4. Faction Collision Layers (`project.godot` `[layer_names]`, `GameUtils.LAYER_* / MASK_*`)
 
-func get_arrow() -> Arrow:
-    if arrow_pool.is_empty():
-        return Arrow.new()
-    return arrow_pool.pop_back()
+Each entity exposes ONE monitorable Area2D (`Body`, r≈31) on its faction layer
+(hero 2 / mob 4 / monster 8). `DetectionArea` is on no layer and masks enemy bodies only, so mob
+vs mob areas never pair and AoE queries see each entity once. Abilities live on layer 16 and set
+an explicit `collision_mask` on every `intersect_shape`.
 
-func return_arrow(arrow: Arrow):
-    arrow.reset()
-    arrow_pool.append(arrow)
-```
+### 5. EntityRegistry + targeted damage
+
+`EntityRegistry` (autoload) keeps `heroes / hero_side / mobs / monsters / enemies` lists — never
+call `get_nodes_in_group` in a per-frame path. `EventBus._route_packet` calls the target's
+`_on_damage_taken` directly; `damage_applied` is for global listeners only.
+
+### 6. HpBar2D
+
+In-world HP bars are one `Node2D` with a `_draw` (`Scripts/hp_bar_2d.gd`), written only through
+`EntityBase.set_hp_display`. Mobs hide the bar while full.
 
 ---
 
@@ -772,25 +789,22 @@ if randf() < crit_chance:
 ### Task: Add LOD to New Entity Type
 
 **Steps**:
-1. In entity script, ensure it extends EntityBase
-2. Call `super._process(delta)` first if overriding _process
-3. In Inspector:
-   - ✅ Enable LOD
-   - Set distance thresholds
-
-**EntityBase handles LOD automatically**.
+1. Extend `EntityBase` — registration with TickScheduler / EntityRegistry / TeamRegistry happens
+   in `EntityBase._enter_tree`, nothing to call.
+2. Override `_is_always_full_rate()` → `true` only for camera anchors (heroes, monster).
+3. Put per-tick work that is independent of the active state in `_pre_tick(delta)`; keep the
+   `_on_*_state_processing(delta)` overrides rate-invariant (`speed * delta`, `timer -= delta`).
+4. Do NOT add `_process` for AI — it would run every frame regardless of LOD.
 
 ### Task: Debug Performance Issue
 
 **Steps**:
-1. Add FPS counter (fps_counter.gd)
-2. Enable debug output in spawn areas
-3. Check console for:
-   - `[SPAWN] X activated/deactivated`
-   - `[LOD] Entity: FULL → REDUCED`
-4. Profile with Godot profiler (Debug → Profiler)
-5. Identify hot paths (functions called most often)
-6. Optimize hot paths only
+1. Press **F3** in a match: FPS, process/physics ms, node count, Phys2D objects + collision pairs,
+   `Registry: H P M Mob`, `LOD FULL/NEAR/MID/FAR` counts, and per-entity `state [LOD]` labels.
+2. Reproduce with the stress config (see top of this section) so numbers are comparable.
+3. Profile with the Godot profiler (Debug → Profiler): `TickScheduler._process`, `_steer_along_nav`,
+   Physics 2D.
+4. Optimize hot paths only; record before/after numbers in `PROGRESS.md`.
 
 **Don't optimize blindly**.
 
@@ -843,12 +857,18 @@ OS.is_debug_build()  # Only print debug in debug builds
 | `ability_base.gd` | Base class for abilities | Rarely - extend, don't modify |
 | `stat_component.gd` | Runtime stat calculations | Adding new stats |
 | `hero_stats.gd` | Immutable hero data | Adding stat properties |
+| `Scripts/event_bus.gd` | Damage pipeline (request → receive → `_on_damage_taken` → applied) | Adding global combat listeners |
+| `Scripts/team_registry.gd` / `team_blackboard.gd` | Threat tables, aggro queries | Coordination behaviour |
+| `Scripts/entity_registry.gd` | Cached faction lists, anchors, singletons | Any per-frame entity lookup |
+| `Scripts/tick_scheduler.gd` | AI LOD, `StateChart.step()` cadence | Tuning LOD radii / rates |
+| `Scripts/hp_bar_2d.gd` | In-world HP bar | Bar visuals |
 
 ### World Systems
 
 | File | Purpose | Modify When |
 |------|---------|-------------|
-| `mob_spawn_area.gd` | Lazy spawning, leashing | Tuning performance |
+| `spawns.gd` (SpawnManager) | Camp eligibility, lazy activation, mob pool | Population / pooling |
+| `mob_spawn_area.gd` | Per-camp spawning, respawn accounting, leashing | Tuning camps |
 | `game_manager.gd` | Victory/defeat detection | Changing win conditions |
 | `hero_exploration_controller.gd` | Group pathfinding | Tweaking exploration |
 
@@ -857,7 +877,8 @@ OS.is_debug_build()  # Only print debug in debug builds
 | File | Purpose | Modify When |
 |------|---------|-------------|
 | `hero_container.gd` | Hero UI, ability cooldowns | Adding UI features |
-| `fps_counter.gd` | Performance monitoring | Never - it's complete |
+| `fps_counter.gd` | FPS label (MainCam) | Never - it's complete |
+| `debug_overlay.gd` | F3 overlay: perf counters, states, LOD, threat | Adding debug readouts |
 
 ---
 

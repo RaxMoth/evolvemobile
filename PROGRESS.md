@@ -1,6 +1,6 @@
 # Progress Tracker
 
-Last loop run: 2026-10-14 (performance pass P5)
+Last loop run: 2026-10-14 (docs reconciliation after the performance pass)
 Stack: godot
 
 Spec source: `README.md` + `Docs/INSTRUCTOR.md` (roadmap, "Current Status & Roadmap",
@@ -44,14 +44,25 @@ Spec source: `README.md` + `Docs/INSTRUCTOR.md` (roadmap, "Current Status & Road
       editor (stress config: SpawnManager min/max_active_spawns = 39, enable_lazy_activation = false,
       stress_mob_multiplier = 2), playtest the P1 balance change, then the production roadmap below.
 
-## Backlog (from spec, not started)
-- [ ] Per-hero skill trees (Steel) + per-monster trees (Leaves) — only the universal Base trees exist
-- [ ] Pre-Round Setup screen — strategy sliders (aggression/farming/exploration), formation select
-- [ ] Settings menu — master/music/sfx volume, vibration, language; load/save via PersistedData settings
-- [ ] Audio — music track + core SFX (hit, death, cast, ult, evolve) + audio buses
-- [ ] Hero composition selection — pick 4 of N heroes per match
-- [ ] Minimap with fog overlay
+## Backlog (from spec + production roadmap, in order)
+- [ ] Perf pass follow-up: capture F3 before/after numbers (stress config), playtest the P1 balance
+      change, retune `detection_radius` / AoE radii / Mine-MediKit-TrapCage trigger radii
+- [ ] Audio content on the existing buses — `audio_manager.gd` autoload subscribed to
+      `EventBus.damage_applied` / `entity_died` / `ability_cast` + a new `monster_evolved`; pooled
+      SFX players, on-screen gating, 50 ms de-dupe; assets under `Assets/Audio/`
+- [ ] GUT test harness — rewards, `level_progress`, tier gating, EventBus (cancel, `_on_damage_taken`,
+      pet target), death from Idle/Approach/Fight, spawn-area accounting + pooled respawn
+- [ ] Save-file migration — `_migrate(from_version)` ladder, `.bak` before write, version bump
+- [ ] Export presets + device build — Android/iOS portrait, `max_fps=60`, `treat_warnings_as_errors`,
+      Compatibility-vs-Mobile renderer benchmark (features tag says GL Compatibility), physics 30 Hz trial
+- [ ] Touch-input audit — pinch zoom, tap-to-focus, ≥44 px targets; debug keys behind `OS.is_debug_build()`
+- [ ] `print()` gating — `Globals.debug_log()` for world.gd (15), monster_base_class.gd (8), spawns.gd, abilities
+- [ ] Pre-Round Setup screen — `MatchConfig` resource (aggression/farming/exploration, formation)
+- [ ] Per-hero skill trees (Steel) + per-monster trees (Leaves) — seeds → `.tres`, `hero_id` on HeroStats
+- [ ] Hero composition selection — `HeroRoster.tres`, World spawns from `GameManager.selected_hero_ids`
 - [ ] Tutorial / first-time-user flow
+- [ ] Minimap with fog overlay (SubViewport over `exploration_texture` + EntityRegistry dots)
+- [ ] Cloud save (`SaveBackend`), localization (`tr()` + strings.csv), analytics sink
 
 ## Proposed (NOT approved — do not implement)
 
@@ -60,7 +71,7 @@ Spec source: `README.md` + `Docs/INSTRUCTOR.md` (roadmap, "Current Status & Road
 ## Tech Debt / Improvements
 
 - [ ] Debug `print()` statements still in hot/spawn paths — `world.gd` (15), `monster_base_class.gd` (8),
-      `skill_tree_component.gd` (6), `spawns.gd` (2), ability files. Gate behind a debug flag or remove.
+      `spawns.gd` (2), ability files. Gate behind a debug flag or remove (Backlog item).
 - [x] `MonsterBase.get_health()` returned *max* health — fixed in P0: `get_health()` = current,
       new virtual `get_max_health()` on EntityBase (Mob/Hero/Monster overrides).
 - [ ] Balance retune after P1 layer split (aggro 344→~203 px, AoE reach radius+172→radius+31, single
@@ -69,10 +80,24 @@ Spec source: `README.md` + `Docs/INSTRUCTOR.md` (roadmap, "Current Status & Road
       active state through `StateChart.step()` from TickScheduler at an LOD rate (FULL/20/10/3 Hz).
 - [x] Hot `get_nodes_in_group` sites → `EntityRegistry` (P3). ~20 cold one-shot/per-cast sites remain
       (world.gd, main_cam.gd, game_manager.gd, hero_container.gd, Irelia/River casts) — fine as is.
-- [ ] Legacy in-round `Scripts/Skilltree/` (SkillNode/SkillTree/SkillTreeComponent) is unused by the
-      shipped MetaSkill system — confirm dead and remove, or wire it to in-round leveling.
+- [x] Legacy in-round `Scripts/Skilltree/` removed (zero references outside the folder).
 
 ## Changelog
+
+### 2026-10-14 — docs: reconcile README / INSTRUCTOR with the code after the performance pass
+- README: monster stage table (XP 100/300 from `grount_stats.tres`, flat 80 attack range), spawn
+  system facts (39 camps / 116 mobs, 26–30 eligible, 200/300 px rings, 40 s respawn, pooling),
+  state machine section (Approach, stepped by TickScheduler, Dead→Idle reset), Implemented list
+  gains the Main Menu / Settings / Meta Skills / result screen / permanent XP / 10-min cap /
+  side-aware vision / perf pass; stale "In Development" entries replaced by the production
+  roadmap; known-issues updated (fog fix, loss timer done, perf status).
+- INSTRUCTOR: state-machine pattern uses `CombatEvents` and explains stepping; Performance
+  Systems rewritten around the real systems (lazy spawning exports, TickScheduler buckets, mob
+  pool, faction layers, EntityRegistry, HpBar2D); LOD / perf-debug tasks and Key Files updated;
+  file-structure block lists the real `Scripts/` autoloads.
+- Deleted dead `Scripts/Skilltree/`; `.claude/settings.local.json` now allow-lists the Godot binary
+  that actually exists (`/Applications/Godot.app`).
+- Backlog reordered into the production roadmap (Part B of the approved plan).
 
 ### 2026-10-14 — perf: P5 HpBar2D, mob pooling, raycast-free idle scoring
 - **HpBar2D** (`Scripts/hp_bar_2d.gd`): one Node2D with a `_draw` replaces the per-entity
