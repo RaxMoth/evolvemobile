@@ -13,7 +13,13 @@ extends Node
 ##      (Irelia shield, lifesteal, skill-tree damage mods all hook here)
 ##   3. If not canceled, target._receive_damage(packet) applies the final amount
 ##      and may send CombatEvents.SELF_DEAD to its own state chart
-##   4. damage_applied fires for VFX/UI/analytics listeners
+##   4. If the target is a living EntityBase, target._on_damage_taken(packet)
+##      runs — the per-target reaction hook (flinch, "help!" broadcasts).
+##      This is a direct call, NOT a signal: with ~150 entities alive a global
+##      subscription that filtered `packet.target != self` cost ~150 callbacks
+##      per hit.
+##   5. damage_applied fires for TRUE global listeners only (TeamRegistry
+##      threat, audio, analytics). Do not subscribe per-entity.
 
 # --- Damage pipeline ---
 signal damage_requested(packet: DamagePacket)   ## Emitted before the hit lands. Mutate the packet here.
@@ -68,6 +74,12 @@ func _route_packet(packet: DamagePacket) -> float:
 	else:
 		push_warning("EventBus: target ", t, " has no _receive_damage(packet) method. Damage dropped.")
 		return 0.0
+
+	# Targeted reaction hook. Guarded: Ted's pet is a valid AoE target but not
+	# an EntityBase, and a killing blow skips the flinch on purpose.
+	var entity := t as EntityBase
+	if entity != null and entity.is_alive():
+		entity._on_damage_taken(packet)
 
 	damage_applied.emit(packet)
 	return packet.amount

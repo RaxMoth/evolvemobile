@@ -1,6 +1,6 @@
 # Progress Tracker
 
-Last loop run: 2026-10-14 (performance pass P1)
+Last loop run: 2026-10-14 (performance pass P2)
 Stack: godot
 
 Spec source: `README.md` + `Docs/INSTRUCTOR.md` (roadmap, "Current Status & Roadmap",
@@ -41,7 +41,7 @@ Spec source: `README.md` + `Docs/INSTRUCTOR.md` (roadmap, "Current Status & Road
 
 - [ ] **Performance pass (plan: 60 FPS @ ~150 live mobs on a mid-range phone)** — phases P0→P5.
       P0 (correctness + measurement HUD) and P1 (faction collision layers, orphan connections,
-      Movetimer, lazy approach nav) done. Next: P2 targeted damage notify; P3 EntityRegistry;
+      Movetimer, lazy approach nav) and P2 (targeted damage notify) done. Next: P3 EntityRegistry;
       P4 TickScheduler/LOD via `StateChart.step()`; P5 HpBar2D + mob pooling + raycast-free idle scoring.
       Baseline F3 numbers (stress config, see Changelog) still to be captured in the editor.
 
@@ -74,6 +74,17 @@ Spec source: `README.md` + `Docs/INSTRUCTOR.md` (roadmap, "Current Status & Road
       shipped MetaSkill system — confirm dead and remove, or wire it to in-round leveling.
 
 ## Changelog
+
+### 2026-10-14 — perf: P2 targeted damage notify (`_on_damage_taken`)
+- Every entity subscribed to the global `EventBus.damage_applied` only to check
+  `packet.target != self` for the flinch → one hit = ~150 callbacks at 150 live mobs.
+  `EventBus._route_packet` now calls `target._on_damage_taken(packet)` directly after
+  `_receive_damage` (guarded: target must be a living `EntityBase` — Ted's pet is a valid AoE
+  target but a plain CharacterBody2D; killing blows skip the flinch). `damage_applied` is reserved
+  for true global listeners (TeamRegistry threat today; audio/analytics later). Pipeline comment in
+  `event_bus.gd` updated; EntityBase no longer touches EventBus in `_ready` (pooling groundwork).
+- Verified: headless load of all scripts/resources — 0 errors; `damage_applied.connect` →
+  `team_registry.gd` only.
 
 ### 2026-10-14 — perf: P1 faction collision layers + orphan connections + lazy approach nav
 - **Collision layers split per faction** (`project.godot` `[layer_names]`: world / body_hero /

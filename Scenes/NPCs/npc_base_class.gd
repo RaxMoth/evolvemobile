@@ -158,9 +158,6 @@ func _ready() -> void:
 	if sprite:
 		_facing_angle = sprite.rotation
 
-	# Hook the global damage pipeline so we flinch when hit.
-	EventBus.damage_applied.connect(_on_damage_applied_global)
-
 	# NOTE: A global state-chart event bridge used to live here, forwarding
 	# every chart event into EventBus.entity_state_event. It's removed for now
 	# because there are no consumers yet and the per-event emit overhead
@@ -239,14 +236,14 @@ func _apply_ui_counter_scale() -> void:
 	var sy: float = scale.y if scale.y != 0.0 else 1.0
 	hud.scale = Vector2(1.0 / sx, 1.0 / sy)
 
-func _on_damage_applied_global(packet: DamagePacket) -> void:
-	# Ignore damage that wasn't dealt to me.
-	if packet.target != self:
-		return
+func _on_damage_taken(_packet: DamagePacket) -> void:
+	"""Per-target reaction hook, called directly by EventBus._route_packet after
+	_receive_damage applied the HP change (only while still alive). Replaces
+	the old per-entity damage_applied subscription that every entity used to
+	filter with `packet.target != self`. Override to add behavior (e.g. a
+	"help!" broadcast) and call super._on_damage_taken(packet)."""
 	if flinch_duration > 0.0:
 		_flinch_timer = flinch_duration
-	# Subclasses that want to broadcast a "help!" or react can override this
-	# to add behavior, then call super._on_damage_applied_global(packet).
 
 func _update_detection_radius() -> void:
 	"""Update DetectionArea collision shape radius from export variable"""
