@@ -1,6 +1,6 @@
 # Progress Tracker
 
-Last loop run: 2026-10-14 (docs reconciliation after the performance pass)
+Last loop run: 2026-10-14 (test harness + ToDead path fix)
 Stack: godot
 
 Spec source: `README.md` + `Docs/INSTRUCTOR.md` (roadmap, "Current Status & Roadmap",
@@ -50,8 +50,9 @@ Spec source: `README.md` + `Docs/INSTRUCTOR.md` (roadmap, "Current Status & Road
 - [ ] Audio content on the existing buses — `audio_manager.gd` autoload subscribed to
       `EventBus.damage_applied` / `entity_died` / `ability_cast` + a new `monster_evolved`; pooled
       SFX players, on-screen gating, 50 ms de-dupe; assets under `Assets/Audio/`
-- [ ] GUT test harness — rewards, `level_progress`, tier gating, EventBus (cancel, `_on_damage_taken`,
-      pet target), death from Idle/Approach/Fight, spawn-area accounting + pooled respawn
+- [x] Headless test harness (`tools/run_tests.sh`, `test/`) — rewards, level curve, tier gating,
+      targeted damage hook, death from Idle/Approach, spawn accounting + pooled respawn + epoch cancel.
+      (Own 60-line runner instead of vendoring GUT; extend with `test/test_*.gd` extending `TestCase`.)
 - [ ] Save-file migration — `_migrate(from_version)` ladder, `.bak` before write, version bump
 - [ ] Export presets + device build — Android/iOS portrait, `max_fps=60`, `treat_warnings_as_errors`,
       Compatibility-vs-Mobile renderer benchmark (features tag says GL Compatibility), physics 30 Hz trial
@@ -83,6 +84,24 @@ Spec source: `README.md` + `Docs/INSTRUCTOR.md` (roadmap, "Current Status & Road
 - [x] Legacy in-round `Scripts/Skilltree/` removed (zero references outside the folder).
 
 ## Changelog
+
+### 2026-10-14 — test: headless harness + fix: CompoundState ToDead target path
+- **Bug caught by the first test run:** the P0a `ToDead` transition placed on the CompoundState used
+  `to = NodePath("Dead")`. The addon resolves `to` relative to the *transition node*, so the target
+  did not exist ("The target state 'Dead' … is not a state") and **nothing could die** in the
+  committed P0–P5 state. Fixed to `NodePath("../Dead")` (`Dead/ToIdle` already used `../../Idle`).
+- `test/run_tests.gd` (SceneTree runner, starts on the first processed frame — `_initialize` runs
+  before the root is in the tree), `test/case.gd` (`TestCase`: assertions, `spawn_entity`,
+  `active_state_of`, frame/time waits; leftovers freed between tests),
+  `tools/run_tests.sh` (copies the project to a temp dir, `override.cfg` points `user://` at
+  `evolvemobile_tests` so the real save is never touched — the meta-skill tests refuse to run
+  otherwise — imports with Godot 4.7.2 headless and runs the suite; exit 1 on failure or script
+  errors). GUT was not vendored (would need a download); the runner is ~60 lines.
+- 15 tests: `MatchRewards.compute` formula + clamping + `format_duration`; `level_progress`
+  boundaries; tier gating + spending + double-unlock; targeted flinch hook; mob / hero / monster die
+  from Idle and Approach and get freed; pooled toggle keeps `total_mob_count` and reuses the same
+  nodes; dead mob respawns from the pool with full HP in Idle with a new `life_id`;
+  `reset_population` cancels a pending respawn.
 
 ### 2026-10-14 — docs: reconcile README / INSTRUCTOR with the code after the performance pass
 - README: monster stage table (XP 100/300 from `grount_stats.tres`, flat 80 attack range), spawn

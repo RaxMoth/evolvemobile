@@ -119,7 +119,7 @@ delay_in_seconds = "0.0"
 
 [node name="ToDead" type="Node" parent="StateChart/CompoundState"]
 script = ExtResource("6_1wtkv")
-to = NodePath("Dead")
+to = NodePath("../Dead")
 event = &"self_dead"
 delay_in_seconds = "0.0"
 
