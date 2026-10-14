@@ -120,6 +120,9 @@ func _get_idle_wander_radius() -> float:
 func _get_keep_distance() -> float:
 	return stats.base_stats.keep_distance if stats and stats.base_stats else 24.0
 
+func _is_always_full_rate() -> bool:
+	return true  # camera anchor: never LOD-throttled
+
 func is_alive() -> bool:
 	return stats.is_alive() if stats else false
 

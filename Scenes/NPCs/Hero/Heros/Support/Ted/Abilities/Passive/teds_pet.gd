@@ -59,18 +59,10 @@ func _setup_navigation_map() -> void:
 	await get_tree().physics_frame
 	await get_tree().physics_frame
 	
-	# Find the navigation map from the World's Ground tilemap
-	var parent = get_parent()
-	if not parent:
-		push_warning("Pet has no parent - cannot setup navigation!")
+	# The world's default navigation map (the Ground TileMapLayer uses it too).
+	if not is_inside_tree():
 		return
-	
-	var tilemap_layer = parent.get_node_or_null("Ground")
-	if not tilemap_layer or not tilemap_layer.has_method("get_navigation_map"):
-		push_warning("Pet cannot find Ground tilemap for navigation!")
-		return
-	
-	var nav_map = tilemap_layer.get_navigation_map()
+	var nav_map: RID = get_world_2d().navigation_map
 	if not nav_map.is_valid():
 		push_warning("Pet navigation map is invalid!")
 		return

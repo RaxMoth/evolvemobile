@@ -1,6 +1,6 @@
 # Progress Tracker
 
-Last loop run: 2026-10-14 (performance pass P3)
+Last loop run: 2026-10-14 (performance pass P4)
 Stack: godot
 
 Spec source: `README.md` + `Docs/INSTRUCTOR.md` (roadmap, "Current Status & Roadmap",
@@ -41,9 +41,9 @@ Spec source: `README.md` + `Docs/INSTRUCTOR.md` (roadmap, "Current Status & Road
 
 - [ ] **Performance pass (plan: 60 FPS @ ~150 live mobs on a mid-range phone)** — phases P0→P5.
       P0 (correctness + measurement HUD) and P1 (faction collision layers, orphan connections,
-      Movetimer, lazy approach nav), P2 (targeted damage notify) and P3 (EntityRegistry) done.
-      Next: P4 TickScheduler/LOD via `StateChart.step()`; P5 HpBar2D + mob pooling + raycast-free
-      idle scoring.
+      Movetimer, lazy approach nav), P2 (targeted damage notify), P3 (EntityRegistry) and
+      P4 (TickScheduler / AI LOD via `StateChart.step()`) done. Next: P5 HpBar2D + mob pooling +
+      raycast-free idle scoring.
       Baseline F3 numbers (stress config, see Changelog) still to be captured in the editor.
 
 ## Backlog (from spec, not started)
@@ -67,14 +67,45 @@ Spec source: `README.md` + `Docs/INSTRUCTOR.md` (roadmap, "Current Status & Road
       new virtual `get_max_health()` on EntityBase (Mob/Hero/Monster overrides).
 - [ ] Balance retune after P1 layer split (aggro 344→~203 px, AoE reach radius+172→radius+31, single
       hits, Mine/MediKit/TrapCage trigger on Body overlap) — playtest `detection_radius` + AoE radii.
-- [ ] Movement still runs through state-chart `_state_processing` (`_process`-based) rather than
-      `_physics_process`; acceptable for now but revisit if physics interactions are added.
+- [x] Movement no longer runs on the state chart's per-frame `state_processing` — P4 drives the
+      active state through `StateChart.step()` from TickScheduler at an LOD rate (FULL/20/10/3 Hz).
 - [x] Hot `get_nodes_in_group` sites → `EntityRegistry` (P3). ~20 cold one-shot/per-cast sites remain
       (world.gd, main_cam.gd, game_manager.gd, hero_container.gd, Irelia/River casts) — fine as is.
 - [ ] Legacy in-round `Scripts/Skilltree/` (SkillNode/SkillTree/SkillTreeComponent) is unused by the
       shipped MetaSkill system — confirm dead and remove, or wire it to in-round leveling.
 
 ## Changelog
+
+### 2026-10-14 — perf: P4 TickScheduler + anchor-based AI LOD through `StateChart.step()`
+- New `Scripts/tick_scheduler.gd` autoload. EntityBase registers in `_enter_tree`; the scheduler
+  calls `entity._tick(delta)` at a per-entity rate and `_tick` runs `state_chart.step()`. The
+  addon routes `step()` to the active leaf's `state_stepped` signal, which `NPCBaseClass.tscn` now
+  connects (instead of `state_processing`) to `_on_idle/approach/fight_state_stepped` → these call
+  the unchanged `_on_*_state_processing(delta)` virtuals with the tick's delta, so the MobBase /
+  Irelia / River overrides keep working untouched. **No parallel state machine**: transitions,
+  events and `state_entered` handlers are exactly as before; only the cadence moved. With no
+  `state_processing` listeners left the addon disables `_process` on every state node.
+- Buckets are **anchor-based** (squared distance to the nearest hero / pet / monster via
+  `EntityRegistry.nearest_anchor_dist_sq`), not camera-based — lazy activation only spawns mobs
+  within ~300 px of a hero, so camera LOD would have throttled exactly the mobs fighting an
+  off-screen hero. FULL = heroes/monster (`_is_always_full_rate`) or on screen
+  (new `ScreenNotifier` VisibleOnScreenNotifier2D, scene-side `screen_entered/exited`);
+  NEAR 20 Hz = has a target or < 450 px; MID 10 Hz < 1200 px; FAR 3 Hz. Rebucket at 4 Hz, phase
+  spread on register, snapshot + tombstone iteration (handlers may kill/spawn entities mid-loop),
+  `MAX_TICK_DELTA` 0.5 s hitch guard, `lod_enabled` export for A/B. Visual LOD: off-screen
+  entities pause their AnimatedSprite2D (initial state seeded in `_ready`).
+- Delta correctness for low rates: `_steer_along_nav` / `move_toward_point` clamp the step to the
+  remaining distance (a 150 px/s Bat at 3 Hz overshot 6 px path points by ~45 px);
+  `_face` uses `1 - exp(-k·dt)` (the linear `clamp(k·dt)` snapped at ≤ 12 Hz); idle / re-eval /
+  strafe timers keep their overshoot instead of rounding up to whole ticks.
+- `_setup_navigation` resolves `get_world_2d().navigation_map` — the old `'Ground'` sibling lookup
+  only ever matched for the monster, so mobs/heroes never got the tuned agent distances. Same fix
+  for Ted's pet (it logged "cannot find Ground tilemap" on every spawn).
+- `MobBase._process` (per-frame leash/boundary check) → `_pre_tick`. `animated_sprite` onready
+  moved from MonsterBase to EntityBase.
+- F3 overlay: `[FULL|NEAR|MID|FAR]` after each entity's state name + a bucket-count line.
+- Verified: headless import + load of 81 scripts / 60 resources — 0 errors; `state_processing` →
+  0 and `state_stepped` → 3 in `NPCBaseClass.tscn`; no `_process` in `mobs_base_class.gd`.
 
 ### 2026-10-14 — perf: P3 EntityRegistry autoload (cached faction lists)
 - New `Scripts/entity_registry.gd` (autoload after TeamRegistry): `heroes` (HeroBase only),

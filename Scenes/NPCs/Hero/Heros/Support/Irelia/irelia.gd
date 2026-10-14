@@ -86,7 +86,7 @@ func _on_idle_state_processing(delta: float) -> void:
 	# Wander near allies instead of random
 	_idle_timer -= delta
 	if _idle_timer <= 0.0 or global_position.distance_squared_to(_idle_goal) < 64.0:
-		_idle_timer = idle_retarget_time
+		_idle_timer = idle_retarget_time + minf(_idle_timer, 0.0)
 		
 		# Find center of allied heroes
 		var ally_center = _get_ally_center()

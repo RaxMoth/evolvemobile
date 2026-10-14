@@ -120,6 +120,8 @@ func _collect_snapshots() -> void:
 		snap.pos = (entity as Node2D).global_position
 		snap.name_str = String(entity.name)
 		snap.state_str = _state_name_of(entity)
+		if entity is EntityBase:
+			snap.state_str += " [" + TickScheduler.lod_name(TickScheduler.lod_of(entity as EntityBase)) + "]"
 		snap.hp_pct = _hp_pct_of(entity)
 		snap.is_active_hero = (entity == active_hero)
 
@@ -278,6 +280,8 @@ func _update_hud_label(active_hero: Node, heroes_team: TeamBlackboard, enemies_t
 		lines.append("Heroes alive: %d" % heroes_team.members.size())
 	if enemies_team:
 		lines.append("Enemies live: %d" % enemies_team.members.size())
+	var buckets: Array[int] = TickScheduler.bucket_counts()
+	lines.append("LOD  FULL %d  NEAR %d  MID %d  FAR %d" % [buckets[0], buckets[1], buckets[2], buckets[3]])
 	lines.append("Registry: H%d P%d M%d Mob%d" % [
 		EntityRegistry.heroes.size(),
 		EntityRegistry.hero_side.size() - EntityRegistry.heroes.size(),

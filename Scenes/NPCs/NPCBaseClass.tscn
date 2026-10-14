@@ -152,13 +152,19 @@ to = NodePath("Dead")
 event = &"self_dead"
 delay_in_seconds = "0.0"
 
+[node name="ScreenNotifier" type="VisibleOnScreenNotifier2D" parent="."]
+unique_name_in_owner = true
+rect = Rect2(-48, -64, 96, 112)
+
 [connection signal="area_entered" from="DetectionArea" to="." method="_on_detection_area_area_entered"]
 [connection signal="area_exited" from="DetectionArea" to="." method="_on_detection_area_area_exited"]
 [connection signal="timeout" from="AttackTimer" to="." method="_on_attack_timer_timeout"]
 [connection signal="state_entered" from="StateChart/CompoundState/Idle" to="." method="_on_idle_state_entered"]
-[connection signal="state_processing" from="StateChart/CompoundState/Idle" to="." method="_on_idle_state_processing"]
+[connection signal="state_stepped" from="StateChart/CompoundState/Idle" to="." method="_on_idle_state_stepped"]
 [connection signal="state_entered" from="StateChart/CompoundState/Approach" to="." method="_on_approach_state_entered"]
-[connection signal="state_processing" from="StateChart/CompoundState/Approach" to="." method="_on_approach_state_processing"]
+[connection signal="state_stepped" from="StateChart/CompoundState/Approach" to="." method="_on_approach_state_stepped"]
 [connection signal="state_entered" from="StateChart/CompoundState/Fight" to="." method="_on_fight_state_entered"]
-[connection signal="state_processing" from="StateChart/CompoundState/Fight" to="." method="_on_fight_state_processing"]
+[connection signal="state_stepped" from="StateChart/CompoundState/Fight" to="." method="_on_fight_state_stepped"]
 [connection signal="state_entered" from="StateChart/CompoundState/Dead" to="." method="_on_dead_state_entered"]
+[connection signal="screen_entered" from="ScreenNotifier" to="." method="_on_screen_entered"]
+[connection signal="screen_exited" from="ScreenNotifier" to="." method="_on_screen_exited"]

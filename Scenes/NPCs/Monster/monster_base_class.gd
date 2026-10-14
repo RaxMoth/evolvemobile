@@ -14,8 +14,6 @@ signal stage_changed(new_stage: int)
 @export var passive_ability: AbilityBase
 
 
-@onready var animated_sprite: AnimatedSprite2D = $AnimatedSprite2D
-
 var current_stage: int = 1
 var current_health: float
 var current_xp: float = 0.0
@@ -179,6 +177,9 @@ func _get_idle_wander_radius() -> float:
 
 func _get_keep_distance() -> float:
 	return 50.0
+
+func _is_always_full_rate() -> bool:
+	return true  # camera anchor: never LOD-throttled
 
 func is_alive() -> bool:
 	return current_health > 0.0

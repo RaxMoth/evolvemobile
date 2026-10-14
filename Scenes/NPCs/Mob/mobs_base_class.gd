@@ -68,7 +68,8 @@ func _on_dead_state_entered() -> void:
 # FIXED: Only enforce boundaries when NOT in combat
 # ============================================
 
-func _process(_delta: float) -> void:
+func _pre_tick(_delta: float) -> void:
+	# Runs at this mob's LOD rate (TickScheduler), not every frame.
 	# Only check boundaries if we're NOT in combat
 	if not is_in_combat:
 		if spawn_area and spawn_area.has_method("is_position_in_area"):
@@ -176,7 +177,7 @@ func _on_idle_state_processing(delta: float) -> void:
 		
 	_idle_timer -= delta
 	if _idle_timer <= 0.0 or global_position.distance_squared_to(_idle_goal) < 64.0:
-		_idle_timer = idle_retarget_time
+		_idle_timer = idle_retarget_time + minf(_idle_timer, 0.0)
 		
 		# Get random position within spawn area
 		if spawn_area and spawn_area.has_method("get_random_roam_position"):

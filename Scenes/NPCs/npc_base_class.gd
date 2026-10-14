@@ -72,6 +72,8 @@ signal died
 @onready var health_bar: ProgressBar = %HealthBar
 @onready var detection_area: Area2D = %DetectionArea
 @onready var lv_label: Label = %LVLabel
+@onready var animated_sprite: AnimatedSprite2D = $AnimatedSprite2D
+@onready var screen_notifier: VisibleOnScreenNotifier2D = %ScreenNotifier
 
 # ============================================
 # SECTION 3: INSTANCE VARIABLES
@@ -103,6 +105,10 @@ var _target_reeval_timer: float = 0.0
 var _personal_distance_offset: float = 0.0  ## Picked once in _ready: ± distance_jitter
 var _flinch_timer: float = 0.0               ## > 0 while flinching from a recent hit
 var _facing_angle: float = 0.0               ## Smoothed sprite rotation target
+
+# TickScheduler (AI LOD)
+var _tick_delta: float = 0.0   ## Wall time since our last _tick; handed to the state handlers
+var _ready_done: bool = false  ## No step() before _ready finished its awaited frames
 
 # ============================================
 # SECTION 4: COMPUTED PROPERTIES
@@ -161,17 +167,71 @@ func _ready() -> void:
 	# adds up across many entities. Re-enable per-entity (or via an opt-in
 	# flag) when an actual consumer ships.
 
+	# Visual LOD: a mob that spawned off screen starts with its animation
+	# paused (the notifier only emits on CHANGES, so seed the initial state).
+	if screen_notifier and not screen_notifier.is_on_screen():
+		_on_screen_exited()
+
+	_ready_done = true
+
 func _enter_tree() -> void:
 	# Registration lives here (not _ready) so a pooled mob re-registers on
 	# every add_child and drops out on remove_child. Groups are assigned at
 	# instantiation, so is_in_group() is already valid.
 	TeamRegistry.register(self, TeamRegistry.team_name_of(self))
 	EntityRegistry.register(self)
+	TickScheduler.register(self, _is_always_full_rate())
 
 func _exit_tree() -> void:
 	# Clean up team membership so dead entities don't linger in threat tables.
 	TeamRegistry.unregister(self, TeamRegistry.team_name_of(self))
 	EntityRegistry.unregister(self)
+	TickScheduler.unregister(self)
+
+
+# ============================================
+# SECTION 5a: TICK SCHEDULER / AI LOD
+# ============================================
+
+func _is_always_full_rate() -> bool:
+	"""Heroes and the monster anchor the camera and must animate at 60 Hz.
+	Mobs return false and get bucketed by distance to the action."""
+	return false
+
+func _tick(delta: float) -> void:
+	"""Called by TickScheduler at this entity's LOD rate. `delta` is the wall
+	time since OUR last tick (clamped), so every handler keeps its
+	`speed * delta` / `timer -= delta` math unchanged. Drives the state chart
+	through the addon's step() API — the active leaf emits state_stepped,
+	wired scene-side to the _on_*_state_stepped handlers below."""
+	if not _ready_done or not is_instance_valid(state_chart) or not state_chart.is_node_ready():
+		return
+	_tick_delta = delta
+	_pre_tick(delta)
+	state_chart.step()
+
+func _pre_tick(_delta: float) -> void:
+	"""Per-tick work independent of the active state (MobBase: leash check)."""
+	pass
+
+func _on_idle_state_stepped() -> void:
+	_on_idle_state_processing(_tick_delta)
+
+func _on_approach_state_stepped() -> void:
+	_on_approach_state_processing(_tick_delta)
+
+func _on_fight_state_stepped() -> void:
+	_on_fight_state_processing(_tick_delta)
+
+func _on_screen_entered() -> void:
+	TickScheduler.set_on_screen(self, true)
+	if animated_sprite and not animated_sprite.is_playing():
+		animated_sprite.play()
+
+func _on_screen_exited() -> void:
+	TickScheduler.set_on_screen(self, false)
+	if animated_sprite and animated_sprite.is_playing():
+		animated_sprite.pause()
 
 
 # ============================================
@@ -274,16 +334,15 @@ func _update_detection_radius() -> void:
 		push_warning(name + " DetectionArea is not using CircleShape2D!")
 
 func _setup_navigation() -> void:
-	"""Configure navigation agent with tilemap navigation"""
-	var tilemap_layer := get_parent().get_node_or_null("Ground")
-	if not tilemap_layer or not tilemap_layer.has_method("get_navigation_map"):
+	"""Configure the navigation agent on the world's default navigation map.
+	The old lookup required a 'Ground' SIBLING, which mobs under Spawns and
+	heroes under Heros never had — so the tuned distances below only ever
+	applied to the monster."""
+	if not is_instance_valid(navigation_agent_2d):
 		return
-	
-	var nav_map = tilemap_layer.get_navigation_map()
-	if not nav_map.is_valid():
-		return
-	
-	navigation_agent_2d.set_navigation_map(nav_map)
+	var nav_map: RID = get_world_2d().navigation_map
+	if nav_map.is_valid():
+		navigation_agent_2d.set_navigation_map(nav_map)
 	navigation_agent_2d.path_desired_distance = 6.0
 	navigation_agent_2d.simplify_path = true
 	navigation_agent_2d.target_desired_distance = 4.0
@@ -669,7 +728,9 @@ func _face(dir: Vector2, delta: float) -> void:
 		sprite.rotation = target
 		_facing_angle = target
 		return
-	_facing_angle = lerp_angle(_facing_angle, target, clamp(rotation_smooth_speed * delta, 0.0, 1.0))
+	# Exponential weight: frame-rate independent. The old linear
+	# clamp(speed * delta) hit 1.0 at <= 12 Hz, i.e. snapped at low LOD rates.
+	_facing_angle = lerp_angle(_facing_angle, target, 1.0 - exp(-rotation_smooth_speed * delta))
 	sprite.rotation = _facing_angle
 
 ## Effective preferred distance including this entity's personal jitter.
@@ -684,12 +745,14 @@ func _steer_along_nav(speed: float, delta: float) -> void:
 		return
 
 	var next_pos := navigation_agent_2d.get_next_path_position()
-	var dir := (next_pos - global_position).normalized()
-
-	if dir.length_squared() < 0.000001:
+	var to_next := next_pos - global_position
+	var dist := to_next.length()
+	if dist < 0.001:
 		return
-
-	position += dir * speed * delta
+	var dir := to_next / dist
+	# Clamp the step to the remaining distance: at 3 Hz a 150 px/s mob would
+	# otherwise overshoot a 6 px path point by ~45 px every tick.
+	position += dir * minf(speed * delta, dist)
 	_face(dir, delta)
 
 func _set_nav_target_lazy(target_pos: Vector2) -> void:
@@ -711,12 +774,13 @@ func _set_nav_target(target_pos: Vector2) -> void:
 	_last_nav_target_pos = target_pos
 
 func move_toward_point(target_pos: Vector2, speed: float, delta: float) -> void:
-	"""Move directly toward point (no navigation)"""
-	var dir := (target_pos - global_position).normalized()
-	if dir.length_squared() < 0.000001:
+	"""Move directly toward point (no navigation). Step clamped to the distance."""
+	var to_target := target_pos - global_position
+	var dist := to_target.length()
+	if dist < 0.001:
 		return
-
-	position += dir * speed * delta
+	var dir := to_target / dist
+	position += dir * minf(speed * delta, dist)
 	_face(dir, delta)
 
 func _move_toward_target(speed: float, delta: float) -> void:
@@ -753,7 +817,7 @@ func _strafe_around_target(delta: float, dir: Vector2) -> void:
 	
 	strafe_timer += delta
 	if strafe_timer >= strafe_change_interval:
-		strafe_timer = 0.0
+		strafe_timer -= strafe_change_interval
 		if randf() > 0.5:
 			strafe_direction *= -1
 	
@@ -882,7 +946,8 @@ func _on_idle_state_processing(delta: float) -> void:
 	
 	_idle_timer -= delta
 	if _idle_timer <= 0.0 or global_position.distance_squared_to(_idle_goal) < 64.0:
-		_idle_timer = idle_retarget_time
+		# Keep the overshoot so intervals don't round up to whole LOD ticks.
+		_idle_timer = idle_retarget_time + minf(_idle_timer, 0.0)
 		_idle_goal = _get_smart_idle_destination()
 		_set_nav_target(_idle_goal)
 	
@@ -914,7 +979,7 @@ func _on_approach_state_processing(delta: float) -> void:
 	if enable_smart_targeting:
 		_target_reeval_timer -= delta
 		if _target_reeval_timer <= 0.0:
-			_target_reeval_timer = target_reeval_interval_approach
+			_target_reeval_timer += target_reeval_interval_approach
 			_reevaluate_current_target(switch_threshold_approach)
 			# Re-eval may have cleared target (and queued ENEMY_EXITED); the
 			# state transition is deferred to next frame, so bail now before
@@ -954,7 +1019,7 @@ func _on_fight_state_processing(delta: float) -> void:
 	if enable_smart_targeting:
 		_target_reeval_timer -= delta
 		if _target_reeval_timer <= 0.0:
-			_target_reeval_timer = target_reeval_interval_fight
+			_target_reeval_timer += target_reeval_interval_fight
 			_reevaluate_current_target(switch_threshold_fight)
 			# Re-eval may have cleared target (and queued ENEMY_EXITED); the
 			# state transition is deferred to next frame, so bail now before
