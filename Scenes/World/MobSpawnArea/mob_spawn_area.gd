@@ -100,7 +100,15 @@ var area_radius: float = 200.0  ## Wander radius (read from CollisionShape2D in 
 var virtual_count: int = 0
 var is_active: bool = false
 var _pending_respawns: int = 0
-var _deactivating: bool = false
+## Bumped by deactivate()/reset_population(). A respawn coroutine captures
+## the epoch before it awaits and bails if it changed, so respawns never
+## leak across a deactivation or a Shift+R re-randomize.
+var _epoch: int = 0
+## mob -> bound Callable connected to its tree_exiting. deactivate() detaches
+## the hook BEFORE queue_free(): the deferred free used to fire _on_mob_died
+## after the old _deactivating flag was already cleared and inflated
+## virtual_count by one per mob.
+var _death_hooks: Dictionary = {}
 
 
 func _ready() -> void:
@@ -206,20 +214,33 @@ func deactivate() -> void:
 	if not is_active:
 		return
 	is_active = false
-	_deactivating = true
+	_epoch += 1
 
 	virtual_count = spawned_mobs.size()
 	for mob in spawned_mobs:
 		if is_instance_valid(mob):
+			_detach_death_hook(mob)
 			mob.queue_free()
 	spawned_mobs.clear()
-
-	_clear_deactivating_flag.call_deferred()
 	area_deactivated.emit()
 
 
-func _clear_deactivating_flag() -> void:
-	_deactivating = false
+func reset_population() -> void:
+	## SpawnManager.randomize_spawns: drop real mobs, forget pending respawns
+	## and invalidate any respawn coroutine still waiting on its timer.
+	deactivate()
+	_epoch += 1
+	virtual_count = 0
+	_pending_respawns = 0
+
+
+func _detach_death_hook(mob: MobBase) -> void:
+	if not _death_hooks.has(mob):
+		return
+	var hook: Callable = _death_hooks[mob]
+	_death_hooks.erase(mob)
+	if mob.tree_exiting.is_connected(hook):
+		mob.tree_exiting.disconnect(hook)
 
 
 # ============================================
@@ -247,7 +268,9 @@ func spawn_single_mob() -> MobBase:
 	mob.spawn_position = spawn_pos
 	mob.chase_distance = leash_distance
 	spawned_mobs.append(mob)
-	mob.tree_exiting.connect(_on_mob_died.bind(mob))
+	var death_hook := _on_mob_died.bind(mob)
+	_death_hooks[mob] = death_hook
+	mob.tree_exiting.connect(death_hook)
 
 	# CRITICAL: pre-seed the LOCAL position. If add_child fires the mob's
 	# _ready synchronously (which it does), and that _ready does anything
@@ -348,14 +371,20 @@ func _reset_mob_to_spawn(mob: MobBase) -> void:
 
 func _on_mob_died(mob: MobBase) -> void:
 	spawned_mobs.erase(mob)
-
-	if _deactivating:
-		return
+	_death_hooks.erase(mob)
 
 	if respawn_time <= 0.0:
 		return
 
+	# Carry the dead slot as a pending respawn: total_mob_count() stays flat
+	# while the timer runs, and a deactivate() during the wait folds it back
+	# into virtual_count on the next activate().
+	_pending_respawns += 1
+	var epoch := _epoch
 	await get_tree().create_timer(respawn_time).timeout
+	if epoch != _epoch or not is_inside_tree():
+		return
+	_pending_respawns -= 1
 
 	if is_active:
 		var new_mob := spawn_single_mob()

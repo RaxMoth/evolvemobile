@@ -3,6 +3,7 @@
 [ext_resource type="Script" uid="uid://u7jms5r2lohp" path="res://Scenes/NPCs/Hero/Heros/Support/Ted/Abilities/Ult/trap_cage.gd" id="1_cage"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_cage"]
+resource_local_to_scene = true
 radius = 150.0
 
 [node name="TrapCage" type="Area2D"]

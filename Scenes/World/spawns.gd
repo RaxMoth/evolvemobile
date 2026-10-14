@@ -26,6 +26,12 @@ class_name SpawnManager
 ## Set false to disable lazy activation entirely (debug).
 @export var enable_lazy_activation: bool = true
 
+@export_group("Stress Test")
+## Multiplies every eligible area's population (1 = designed). Combine with
+## enable_lazy_activation = false and min/max_active_spawns = 39 to profile
+## the worst case (116 mobs at 1, 232 at 2). Leave at 1 for real play.
+@export var stress_mob_multiplier: int = 1
+
 var all_spawn_areas: Array[MobSpawnArea] = []
 var active_spawn_areas: Array[MobSpawnArea] = []  # World-eligible (random subset).
 var _check_timer: float = 0.0
@@ -108,9 +114,9 @@ func _deactivate_all_spawns() -> void:
 	for spawn in all_spawn_areas:
 		spawn.auto_spawn_on_ready = false
 		spawn.visible = false
-		spawn.virtual_count = 0
-		# If it had real mobs (e.g. randomize re-run), drop them.
-		spawn.deactivate()
+		# Drop real mobs, forget pending respawns and invalidate any respawn
+		# coroutine still waiting (randomize re-run / Shift+R).
+		spawn.reset_population()
 
 func _activate_random_spawns() -> void:
 	active_spawn_areas.clear()
@@ -129,7 +135,7 @@ func _make_spawn_world_eligible(spawn: MobSpawnArea) -> void:
 	"""Mark this spawn as eligible — gives it a virtual count, but does NOT
 	instantiate real nodes until a hero comes near."""
 	spawn.visible = true
-	spawn.virtual_count = spawn.mob_count
+	spawn.virtual_count = spawn.mob_count * maxi(1, stress_mob_multiplier)
 	# Real spawning happens when update_activation() decides a hero is close.
 	# If lazy activation is disabled (debug), spawn immediately.
 	if not enable_lazy_activation:

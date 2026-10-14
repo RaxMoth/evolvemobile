@@ -184,6 +184,9 @@ func is_alive() -> bool:
 	return current_health > 0.0
 
 func get_health() -> float:
+	return current_health
+
+func get_max_health() -> float:
 	return monster_stats.get_health_for_stage(current_stage) * _meta_health_mult if monster_stats else current_health
 
 func _receive_damage(packet: DamagePacket) -> void:

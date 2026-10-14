@@ -4,6 +4,7 @@
 [ext_resource type="Texture2D" uid="uid://b8hlhq44dx3qv" path="res://Assets/icon.svg" id="2_mk5k4"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_qc3ms"]
+resource_local_to_scene = true
 radius = 100.0
 
 [node name="Mine" type="Area2D"]

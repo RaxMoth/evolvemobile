@@ -157,6 +157,12 @@ func _state_name_of(entity: Node) -> String:
 
 
 func _hp_pct_of(entity: Node) -> float:
+	if entity is EntityBase:
+		var e := entity as EntityBase
+		var e_max: float = e.get_max_health()
+		if e_max <= 0.0:
+			return -1.0
+		return clampf(e.get_health() / e_max, 0.0, 1.0)
 	if not entity.has_method("get_health"):
 		return -1.0
 	var current: float = entity.call("get_health")
@@ -259,6 +265,15 @@ func _update_hud_label(active_hero: Node, heroes_team: TeamBlackboard, enemies_t
 		return
 	var lines: Array[String] = []
 	lines.append("[F3] Debug Overlay  ON")
+	# Perf line: the numbers PROGRESS.md tracks per optimisation phase.
+	lines.append("FPS %d  proc %.1f ms  phys %.1f ms" % [
+		Engine.get_frames_per_second(),
+		Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0,
+		Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS) * 1000.0])
+	lines.append("Nodes %d  Phys2D objs %d  pairs %d" % [
+		Performance.get_monitor(Performance.OBJECT_NODE_COUNT),
+		Performance.get_monitor(Performance.PHYSICS_2D_ACTIVE_OBJECTS),
+		Performance.get_monitor(Performance.PHYSICS_2D_COLLISION_PAIRS)])
 	if heroes_team:
 		lines.append("Heroes alive: %d" % heroes_team.members.size())
 	if enemies_team:

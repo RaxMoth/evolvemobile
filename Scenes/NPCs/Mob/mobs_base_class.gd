@@ -112,7 +112,10 @@ func _reset_to_spawn() -> void:
 func _setup_mob_combat_role() -> void:
 	combat_role = Types.CombatRole.MELEE
 	preferred_distance = base_attack_range * 0.8
-	min_distance = 20.0
+	# Never let the melee floor exceed half the reach: a scene that sets a tiny
+	# attack range (old Hog = 10) would otherwise make the Fight gate
+	# `distance <= attack_range and distance >= min_distance` unsatisfiable.
+	min_distance = minf(20.0, base_attack_range * 0.5)
 	max_distance = base_attack_range * 1.5
 	strafe_enabled = true
 	strafe_speed = 40.0
@@ -147,12 +150,15 @@ func is_alive() -> bool:
 func get_health() -> float:
 	return current_health
 
+func get_max_health() -> float:
+	return max_health
+
 func _receive_damage(packet: DamagePacket) -> void:
 	if not is_alive():
 		return
 
 	last_attacker = packet.source if packet.source is Node2D else null
-	current_health = max(0.0, current_health - packet.amount)
+	current_health = maxf(0.0, current_health - packet.amount)
 
 	if health_bar:
 		health_bar.value = current_health
@@ -210,6 +216,9 @@ func _perform_basic_attack() -> void:
 	attacking = false
 
 func _on_attack_timer_timeout() -> void:
+	# Clear the swing flag first: if the target vanished mid-swing the old
+	# code left `attacking` stuck at true and the mob never attacked again.
+	attacking = false
 	if is_target_valid():
 		_perform_basic_attack()
 

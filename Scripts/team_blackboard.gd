@@ -133,10 +133,10 @@ func find_most_threatened_ally(min_threat: float = 1.0, exclude: Node = null) ->
 # ============================================
 
 func _max_health_of(ally: Node) -> float:
+	if ally.has_method("get_max_health"):
+		return ally.call("get_max_health")
 	if "max_health" in ally:
 		var v = ally.get("max_health")
 		if v is float or v is int:
 			return float(v)
-	if ally.has_method("get_max_health"):
-		return ally.call("get_max_health")
 	return 100.0

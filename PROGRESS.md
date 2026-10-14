@@ -1,6 +1,6 @@
 # Progress Tracker
 
-Last loop run: 2026-07-06 (iteration 4)
+Last loop run: 2026-10-14 (performance pass P0)
 Stack: godot
 
 Spec source: `README.md` + `Docs/INSTRUCTOR.md` (roadmap, "Current Status & Roadmap",
@@ -39,7 +39,11 @@ Spec source: `README.md` + `Docs/INSTRUCTOR.md` (roadmap, "Current Status & Road
 
 ## In Progress
 
-- (none)
+- [ ] **Performance pass (plan: 60 FPS @ ~150 live mobs on a mid-range phone)** — phases P0→P5.
+      P0 done (correctness + measurement HUD). Next: P1 collision-layer split + orphan connections +
+      lazy approach nav; P2 targeted damage notify; P3 EntityRegistry; P4 TickScheduler/LOD via
+      `StateChart.step()`; P5 HpBar2D + mob pooling + raycast-free idle scoring.
+      Baseline F3 numbers (stress config, see Changelog) still to be captured in the editor.
 
 ## Backlog (from spec, not started)
 - [ ] Per-hero skill trees (Steel) + per-monster trees (Leaves) — only the universal Base trees exist
@@ -58,9 +62,10 @@ Spec source: `README.md` + `Docs/INSTRUCTOR.md` (roadmap, "Current Status & Road
 
 - [ ] Debug `print()` statements still in hot/spawn paths — `world.gd` (15), `monster_base_class.gd` (8),
       `skill_tree_component.gd` (6), `spawns.gd` (2), ability files. Gate behind a debug flag or remove.
-- [ ] `MonsterBase.get_health()` returns *max* health for the stage, not current — confusing semantics
-      inherited by EntityBase HUD setup. Consider renaming to `get_max_health()` and adding a true
-      `get_health()` returning `current_health`.
+- [x] `MonsterBase.get_health()` returned *max* health — fixed in P0: `get_health()` = current,
+      new virtual `get_max_health()` on EntityBase (Mob/Hero/Monster overrides).
+- [ ] Balance retune after P1 layer split (aggro 344→~203 px, AoE reach radius+172→radius+31, single
+      hits, Mine/MediKit/TrapCage trigger on Body overlap) — playtest `detection_radius` + AoE radii.
 - [ ] Movement still runs through state-chart `_state_processing` (`_process`-based) rather than
       `_physics_process`; acceptable for now but revisit if physics interactions are added.
 - [ ] 27 `get_nodes_in_group` / `get_first_node_in_group` call sites — most are one-time but a few are in
@@ -69,6 +74,40 @@ Spec source: `README.md` + `Docs/INSTRUCTOR.md` (roadmap, "Current Status & Road
       shipped MetaSkill system — confirm dead and remove, or wire it to in-round leveling.
 
 ## Changelog
+
+### 2026-10-14 — fix: P0 correctness fixes + measurement baseline (performance pass, phase 0)
+- Adversarially-verified plan (14 claims × 2 refuters + completeness critic) found correctness bugs
+  that would skew any profiling; all fixed before measuring:
+- `NPCBaseClass.tscn`: `ToDead` moved from `Fight` to the `CompoundState` level (addon offers an
+  event to the active leaf first, then to the compound state's own transitions). Heroes and the
+  monster could previously only die while in Fight — lethal damage in Idle/Approach (River's 300 px
+  sniper vs an approaching monster) made them immortal and the match never ended. The mob-only
+  Idle/Approach `ToDead` overrides in `mobs_base_class.tscn` are gone (inherited now).
+- `mobs_base_class.gd`: `_on_attack_timer_timeout` always clears `attacking` (a target dying
+  mid-swing left the flag stuck → mob never attacked again); `min_distance = minf(20, range*0.5)`.
+  `Hog.tscn`: `base_attack_range` 10 → 40 (was below the melee floor → Hogs never attacked); root
+  node renamed "Hug" → "Hog".
+- `mob_spawn_area.gd`: respawn accounting rewritten. `deactivate()` detaches each mob's
+  `tree_exiting` hook before `queue_free()` (the deferred free used to fire `_on_mob_died` after the
+  `_deactivating` flag was already cleared → +1 virtual mob per deactivation). New `_epoch` counter;
+  the respawn coroutine captures it before `await` and bails if the area was deactivated or
+  re-randomized (Shift+R) meanwhile. Dead slots are now carried in `_pending_respawns` so
+  `total_mob_count()` stays flat. New `reset_population()` used by `SpawnManager.randomize_spawns`.
+- `npc_base_class.gd`: XP goes to `last_attacker` (fallback: current target) — AoE kills by the
+  monster on hero-chasing mobs now feed evolution; `_get_threat_score` low-HP bonus was dead code
+  (both numbers came from `get_health()`), now uses `get_max_health()`; detection shape radius only
+  written when it changes. `NPCBaseClass.tscn` + VisionArea/Mine/MediKit/TrapCage shapes are
+  `resource_local_to_scene` (every spawn used to rewrite ONE shared CircleShape2D → physics server
+  re-sync for every live entity).
+- Measurement: F3 overlay now shows FPS, process/physics ms, node count, Phys2D objects and
+  collision pairs. `FpsCounter` moved from HeroContainer (hero side only) to MainCam's CanvasLayer.
+  `SpawnManager.stress_mob_multiplier` export (×2 with lazy activation off + 39/39 active areas →
+  232 mobs). `project.godot`: stretch `canvas_items`/`expand`, portrait orientation.
+- World facts corrected vs. older notes: 39 MobSpawnAreas / 116 configured mobs (not 43/128);
+  normal play tops out near ~90 live mobs, so the 150-mob target uses the stress config.
+- Verified: Godot 4.7.2 (`/Applications/Godot.app`) headless import + load of all 80 scripts and
+  60 scenes/resources on a scratchpad copy — 0 errors. (Earlier notes claimed a "Godot 6.app";
+  that path does not exist.) In-game F3 baseline still to be captured.
 
 ### 2026-07-06 (iteration 4) — feat: Main Menu shows permanent character levels
 - Closed the last slice of the Permanent XP System (In Progress → Done). The XP data has been

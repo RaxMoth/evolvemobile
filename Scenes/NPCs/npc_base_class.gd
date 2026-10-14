@@ -134,7 +134,7 @@ func _ready() -> void:
 	_update_detection_radius()
 
 	if health_bar:
-		health_bar.max_value = get_health()
+		health_bar.max_value = get_max_health()
 		health_bar.value = get_health()
 		_pin_health_bar_visuals()
 
@@ -258,7 +258,12 @@ func _update_detection_radius() -> void:
 		return
 	
 	if collision_shape.shape is CircleShape2D:
-		collision_shape.shape.radius = detection_radius
+		# The shape is resource_local_to_scene (NPCBaseClass.tscn) so this only
+		# touches this entity. Still skip identical writes: set_radius always
+		# emits `changed` and re-syncs the physics server.
+		var circle := collision_shape.shape as CircleShape2D
+		if not is_equal_approx(circle.radius, detection_radius):
+			circle.radius = detection_radius
 		
 		# Visual debug
 		if show_detection_radius:
@@ -310,6 +315,11 @@ func get_health() -> float:
 	"""Get current health. Must override in child classes."""
 	push_error("get_health() not implemented in " + name)
 	return 0.0
+
+func get_max_health() -> float:
+	"""Max health for HP-ratio math (HUD bars, low-HP targeting). Override in
+	child classes; defaults to get_health() so a 1.0 ratio is the fallback."""
+	return get_health()
 
 func _get_entity_level() -> int:
 	"""Get entity level. Override in child classes."""
@@ -443,13 +453,12 @@ func _get_threat_score(target_node: Node2D) -> float:
 		if their_target == self:
 			threat += 30.0
 
-	# Is target low health?
-	if target_node.has_method("get_health") and target_node.has_method("is_alive"):
-		if target_node.call("is_alive"):
-			var current_hp = target_node.call("get_health")
-			var max_hp = target_node.get_health() if target_node.has_method("get_health") else 100.0
-			var health_percent = current_hp / max_hp if max_hp > 0 else 1.0
-			if health_percent < 0.3:
+	# Is target low health? (was dead code: both numbers came from get_health())
+	if target_node is EntityBase:
+		var other := target_node as EntityBase
+		if other.is_alive():
+			var max_hp: float = other.get_max_health()
+			if max_hp > 0.0 and other.get_health() / max_hp < 0.3:
 				threat += 15.0
 
 	# Is target far away (likely fleeing)?
@@ -833,15 +842,15 @@ func _score_destination(point: Vector2) -> float:
 # ============================================
 
 func _grant_xp_to_killer() -> void:
-	"""Grant XP to the entity that killed this one"""
-	if not is_instance_valid(target_entity):
+	"""Grant XP to whoever landed the killing blow. Falls back to my current
+	target so a mob killed by an AoE while chasing a hero still feeds the
+	monster when the monster was the attacker."""
+	if xp_value <= 0.0:
 		return
-	
-	if not target_entity.has_method("gain_xp"):
-		return
-	
-	if xp_value > 0:
-		target_entity.gain_xp(xp_value)
+	for candidate in [last_attacker, target_entity]:
+		if is_instance_valid(candidate) and candidate.has_method("gain_xp"):
+			candidate.gain_xp(xp_value)
+			return
 
 # ============================================
 # SECTION 14: STATE CHART HANDLERS
