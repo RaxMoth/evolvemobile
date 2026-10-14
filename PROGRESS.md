@@ -1,6 +1,6 @@
 # Progress Tracker
 
-Last loop run: 2026-10-14 (performance pass P2)
+Last loop run: 2026-10-14 (performance pass P3)
 Stack: godot
 
 Spec source: `README.md` + `Docs/INSTRUCTOR.md` (roadmap, "Current Status & Roadmap",
@@ -41,8 +41,9 @@ Spec source: `README.md` + `Docs/INSTRUCTOR.md` (roadmap, "Current Status & Road
 
 - [ ] **Performance pass (plan: 60 FPS @ ~150 live mobs on a mid-range phone)** — phases P0→P5.
       P0 (correctness + measurement HUD) and P1 (faction collision layers, orphan connections,
-      Movetimer, lazy approach nav) and P2 (targeted damage notify) done. Next: P3 EntityRegistry;
-      P4 TickScheduler/LOD via `StateChart.step()`; P5 HpBar2D + mob pooling + raycast-free idle scoring.
+      Movetimer, lazy approach nav), P2 (targeted damage notify) and P3 (EntityRegistry) done.
+      Next: P4 TickScheduler/LOD via `StateChart.step()`; P5 HpBar2D + mob pooling + raycast-free
+      idle scoring.
       Baseline F3 numbers (stress config, see Changelog) still to be captured in the editor.
 
 ## Backlog (from spec, not started)
@@ -68,12 +69,34 @@ Spec source: `README.md` + `Docs/INSTRUCTOR.md` (roadmap, "Current Status & Road
       hits, Mine/MediKit/TrapCage trigger on Body overlap) — playtest `detection_radius` + AoE radii.
 - [ ] Movement still runs through state-chart `_state_processing` (`_process`-based) rather than
       `_physics_process`; acceptable for now but revisit if physics interactions are added.
-- [ ] 27 `get_nodes_in_group` / `get_first_node_in_group` call sites — most are one-time but a few are in
-      periodic loops; an EntityRegistry autoload (cached faction lists) was proposed earlier.
+- [x] Hot `get_nodes_in_group` sites → `EntityRegistry` (P3). ~20 cold one-shot/per-cast sites remain
+      (world.gd, main_cam.gd, game_manager.gd, hero_container.gd, Irelia/River casts) — fine as is.
 - [ ] Legacy in-round `Scripts/Skilltree/` (SkillNode/SkillTree/SkillTreeComponent) is unused by the
       shipped MetaSkill system — confirm dead and remove, or wire it to in-round leveling.
 
 ## Changelog
+
+### 2026-10-14 — perf: P3 EntityRegistry autoload (cached faction lists)
+- New `Scripts/entity_registry.gd` (autoload after TeamRegistry): `heroes` (HeroBase only),
+  `hero_side` (everything in group "Hero" = heroes + pets, the set the old scans returned), `mobs`,
+  `monsters`, `enemies`; queries `nearest()`, `count_within(stop_at)`, `nearest_anchor_dist_sq()`
+  (for P4's LOD buckets), `first_monster()`, `singleton(group)` (cached `get_first_node_in_group`,
+  re-fetched if the node was freed / left the tree). All distance math squared.
+- Registration moved to lifecycle hooks: `EntityBase._enter_tree` registers with TeamRegistry +
+  EntityRegistry (was in `_ready` after two awaited physics frames), `_exit_tree` unregisters both.
+  Pooling groundwork: a mob removed with `remove_child` drops out of every list. `TedsPet` registers
+  itself the same way (lands in `hero_side` only).
+- Hot sites migrated: `teds_pet._find_target` (was a full-tree group walk every physics frame →
+  `nearest(enemies)` at 4 Hz); `HeroBase._should_auto_use_ultimate` (`count_within(..., stop_at)`);
+  `HeroExplorationController._check_for_monsters` (Hero×Monster every frame → registry at 4 Hz via
+  new `monster_check_interval` export; its only listener `world._on_monster_detected` is a no-op);
+  `_find_heroes` / `_find_fog_system`; `SpawnManager` dropped its 1 s hero cache for
+  `EntityRegistry.hero_side`; EntityBase idle scoring + `VisionArea` use `singleton(&"FogOfWar")`.
+- `TeamBlackboard.bump_threat` ignores non-members (Ted's pet leaked a `threat[pet]` row forever);
+  `decay_threat` prunes freed attackers and values < 0.05 instead of keeping dead keys.
+- F3 overlay: `Registry: H P M Mob` counts next to the TeamRegistry counts.
+- Verified: headless import + load of 80 scripts / 60 resources — 0 errors; 0 group scans left in
+  the six hot files.
 
 ### 2026-10-14 — perf: P2 targeted damage notify (`_on_damage_taken`)
 - Every entity subscribed to the global `EventBus.damage_applied` only to check

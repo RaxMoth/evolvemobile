@@ -50,8 +50,10 @@ func bump_threat(ally: Node, enemy: Node, amount: float) -> void:
 	## Add `amount` of threat from `enemy` toward `ally`.
 	if amount <= 0.0 or ally == null or enemy == null:
 		return
+	# Only members own a threat row. Ted's pet is in group "Hero" but never
+	# registers, so without this guard it leaked a threat[pet] row forever.
 	if not threat.has(ally):
-		threat[ally] = {}
+		return
 	var t: Dictionary = threat[ally]
 	t[enemy] = t.get(enemy, 0.0) + amount
 
@@ -84,7 +86,16 @@ func decay_threat(decay_per_second: float, delta: float) -> void:
 	for ally in threat.keys():
 		var t: Dictionary = threat[ally]
 		for enemy in t.keys():
-			t[enemy] = t[enemy] * factor
+			# Prune freed attackers (non-members such as the pet are never
+			# unregistered) and values that decayed to nothing.
+			if not is_instance_valid(enemy):
+				t.erase(enemy)
+				continue
+			var v: float = t[enemy] * factor
+			if v < 0.05:
+				t.erase(enemy)
+			else:
+				t[enemy] = v
 
 # ============================================
 # Queries useful for healers / supports

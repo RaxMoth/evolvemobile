@@ -7,6 +7,9 @@ signal monster_detected(monster: Node2D)
 @export_group("Performance")
 @export var boids_update_interval: float = 0.1
 @export var max_separation_checks: int = 3
+## How often heroes check for a monster within 400 px (was every frame, Hero×Monster).
+@export var monster_check_interval: float = 0.25
+var _monster_check_timer: float = 0.0
 var boids_timer: float = 0.0
 var cached_boids_data: Dictionary = {}
 
@@ -67,7 +70,10 @@ func _process(delta: float) -> void:
 	
 	_update_hero_flow(delta)
 	_check_stuck_heroes(delta)
-	_check_for_monsters()
+	_monster_check_timer -= delta
+	if _monster_check_timer <= 0.0:
+		_monster_check_timer = monster_check_interval
+		_check_for_monsters()
 
 # ============================================
 # NEW: PUBLIC API FOR HEROES TO USE
@@ -223,7 +229,8 @@ func _cleanup_freed_heroes() -> void:
 
 func _find_heroes() -> void:
 	heroes.clear()
-	var found_heroes = get_tree().get_nodes_in_group("Hero")
+	# Same set the "Hero" group scan returned (heroes + pets present right now).
+	var found_heroes := EntityRegistry.hero_side
 	
 	for hero in found_heroes:
 		if hero is Node2D:
@@ -235,7 +242,7 @@ func _find_heroes() -> void:
 	print("HeroExplorationController: Found ", heroes.size(), " heroes")
 
 func _find_fog_system() -> void:
-	fog_system = get_tree().get_first_node_in_group("FogOfWar")
+	fog_system = EntityRegistry.singleton(&"FogOfWar") as FogOfWarSystem
 	if not fog_system:
 		push_warning("HeroExplorationController: No FogOfWar system found!")
 
@@ -449,21 +456,14 @@ func _get_random_map_position() -> Vector2:
 	) + fog_system.world_offset
 
 func _check_for_monsters() -> void:
-	var monsters = get_tree().get_nodes_in_group("Monster")
-	
-	for monster in monsters:
-		if not monster is Node2D or not monster.has_method("is_alive"):
+	const DETECT_RANGE_SQ: float = 400.0 * 400.0
+	for monster in EntityRegistry.monsters:
+		if not is_instance_valid(monster) or not EntityRegistry.is_entity_alive(monster):
 			continue
-		
-		if not monster.is_alive():
-			continue
-		
 		for hero in heroes:
 			if not is_instance_valid(hero):
 				continue
-			
-			var distance = hero.global_position.distance_to(monster.global_position)
-			if distance < 400.0:
+			if hero.global_position.distance_squared_to(monster.global_position) < DETECT_RANGE_SQ:
 				monster_detected.emit(monster)
 				return
 

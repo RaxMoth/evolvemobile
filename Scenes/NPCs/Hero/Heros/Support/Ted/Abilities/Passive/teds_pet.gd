@@ -19,6 +19,17 @@ const SEARCH_RADIUS: float = 400.0
 # ADDED: Navigation system
 var navigation_agent: NavigationAgent2D = null
 
+# Retarget at 4 Hz: the old per-physics-frame group scan walked the whole tree.
+const RETARGET_INTERVAL: float = 0.25
+var _retarget_timer: float = 0.0
+
+func _enter_tree() -> void:
+	# In group "Hero" (TedsPet.tscn) → EntityRegistry.hero_side, not .heroes.
+	EntityRegistry.register(self)
+
+func _exit_tree() -> void:
+	EntityRegistry.unregister(self)
+
 func _ready() -> void:
 	current_health = max_health
 	# NOTE: "Hero" group is declared in TedsPet.tscn (`groups=["Hero"]`).
@@ -76,11 +87,14 @@ func _physics_process(delta: float) -> void:
 		queue_free()
 		return
 	
-	attack_timer = max(0.0, attack_timer - delta)
+	attack_timer = maxf(0.0, attack_timer - delta)
 	
-	# Find or maintain target
+	# Find or maintain target (throttled)
 	if not is_instance_valid(current_target):
-		_find_target()
+		_retarget_timer -= delta
+		if _retarget_timer <= 0.0:
+			_retarget_timer = RETARGET_INTERVAL
+			_find_target()
 	
 	# Behavior
 	if current_target and is_instance_valid(current_target):
@@ -103,23 +117,7 @@ func _follow_owner(delta: float) -> void:
 		velocity = velocity.lerp(Vector2.ZERO, 10.0 * delta)
 
 func _find_target() -> void:
-	var enemies = get_tree().get_nodes_in_group("Enemy")
-	var closest_enemy: Node2D = null
-	var closest_distance: float = SEARCH_RADIUS
-	
-	for enemy in enemies:
-		if not is_instance_valid(enemy) or not enemy.has_method("is_alive"):
-			continue
-		
-		if not enemy.is_alive():
-			continue
-		
-		var distance = global_position.distance_to(enemy.global_position)
-		if distance < closest_distance:
-			closest_distance = distance
-			closest_enemy = enemy
-	
-	current_target = closest_enemy
+	current_target = EntityRegistry.nearest(EntityRegistry.enemies, global_position, SEARCH_RADIUS)
 
 func _attack_target(delta: float) -> void:
 	if not is_instance_valid(current_target):

@@ -42,7 +42,7 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	if not auto_use_ultimate:
 		return
-	# Throttle the ult-check; condition evaluation walks groups.
+	# Throttle the ult-check; it scans the enemy registry.
 	_auto_ult_timer -= delta
 	if _auto_ult_timer > 0.0:
 		return
@@ -60,18 +60,10 @@ func _should_auto_use_ultimate() -> bool:
 	# Otherwise: need enough enemies clustered to be worth the cooldown.
 	if not is_target_valid():
 		return false
-	var nearby_enemies := 0
-	var r_sq := auto_ult_radius * auto_ult_radius
-	for enemy in get_tree().get_nodes_in_group("Enemy"):
-		if not is_instance_valid(enemy) or not (enemy is Node2D):
-			continue
-		if enemy.has_method("is_alive") and not enemy.is_alive():
-			continue
-		if target_entity.global_position.distance_squared_to(enemy.global_position) <= r_sq:
-			nearby_enemies += 1
-			if nearby_enemies >= auto_ult_min_enemies:
-				return true
-	return false
+	# Cached registry list, squared distances, stops counting at the threshold.
+	var nearby_enemies := EntityRegistry.count_within(
+		EntityRegistry.enemies, target_entity.global_position, auto_ult_radius, auto_ult_min_enemies)
+	return nearby_enemies >= auto_ult_min_enemies
 # Add to HeroBase class
 var exploration_target: Vector2 = Vector2.ZERO
 var use_exploration_target: bool = false

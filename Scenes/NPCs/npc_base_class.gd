@@ -145,9 +145,6 @@ func _ready() -> void:
 	_setup_navigation()
 	_apply_ui_counter_scale()
 
-	# Register with the team blackboard so threat / coordination work.
-	TeamRegistry.register(self, TeamRegistry.team_name_of(self))
-
 	# Personal distance jitter — each entity orbits at a slightly different
 	# preferred distance so a group fighting one target doesn't stack.
 	if distance_jitter > 0.0:
@@ -164,9 +161,17 @@ func _ready() -> void:
 	# adds up across many entities. Re-enable per-entity (or via an opt-in
 	# flag) when an actual consumer ships.
 
+func _enter_tree() -> void:
+	# Registration lives here (not _ready) so a pooled mob re-registers on
+	# every add_child and drops out on remove_child. Groups are assigned at
+	# instantiation, so is_in_group() is already valid.
+	TeamRegistry.register(self, TeamRegistry.team_name_of(self))
+	EntityRegistry.register(self)
+
 func _exit_tree() -> void:
 	# Clean up team membership so dead entities don't linger in threat tables.
 	TeamRegistry.unregister(self, TeamRegistry.team_name_of(self))
+	EntityRegistry.unregister(self)
 
 
 # ============================================
@@ -776,7 +781,7 @@ func _get_smart_idle_destination() -> Vector2:
 
 func _get_exploration_target() -> Vector2:
 	"""Get target from HeroExplorationController if available"""
-	var exploration_controller = get_tree().get_first_node_in_group("HeroExplorationController")
+	var exploration_controller: Node = EntityRegistry.singleton(&"HeroExplorationController")
 	if not exploration_controller:
 		return Vector2.ZERO
 	
@@ -832,7 +837,7 @@ func _score_destination(point: Vector2) -> float:
 	score += (PI - angle_diff) * 50.0
 	
 	if is_in_group("Hero"):
-		var fog_system = get_tree().get_first_node_in_group("FogOfWar")
+		var fog_system: Node = EntityRegistry.singleton(&"FogOfWar")
 		if GameUtils.is_position_explored(fog_system, point):
 			score -= 50.0
 		else:

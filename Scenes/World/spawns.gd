@@ -35,9 +35,6 @@ class_name SpawnManager
 var all_spawn_areas: Array[MobSpawnArea] = []
 var active_spawn_areas: Array[MobSpawnArea] = []  # World-eligible (random subset).
 var _check_timer: float = 0.0
-var _hero_cache: Array[Node2D] = []
-var _hero_cache_timer: float = 0.0
-const HERO_CACHE_INTERVAL: float = 1.0
 
 func _ready() -> void:
 	if auto_activate_on_ready:
@@ -47,29 +44,19 @@ func _process(delta: float) -> void:
 	if not enable_lazy_activation:
 		return
 
-	# Refresh hero cache infrequently — get_nodes_in_group walks the tree.
-	_hero_cache_timer -= delta
-	if _hero_cache_timer <= 0.0:
-		_hero_cache_timer = HERO_CACHE_INTERVAL
-		_refresh_hero_cache()
-
 	_check_timer -= delta
 	if _check_timer <= 0.0:
 		_check_timer = activation_check_interval
 		_update_activations()
-
-func _refresh_hero_cache() -> void:
-	_hero_cache.clear()
-	for h in get_tree().get_nodes_in_group("Hero"):
-		if h is Node2D:
-			_hero_cache.append(h)
 
 # ============================================
 # Lazy Activation Loop
 # ============================================
 
 func _update_activations() -> void:
-	if _hero_cache.is_empty() or active_spawn_areas.is_empty():
+	# Heroes + pets, kept current by EntityRegistry (no tree walk, no 1 s cache lag).
+	var anchors := EntityRegistry.hero_side
+	if anchors.is_empty() or active_spawn_areas.is_empty():
 		return
 
 	for spawn in active_spawn_areas:
@@ -77,7 +64,7 @@ func _update_activations() -> void:
 			continue
 		var closest_dist := INF
 		var spawn_pos := spawn.global_position
-		for hero in _hero_cache:
+		for hero in anchors:
 			if not is_instance_valid(hero):
 				continue
 			# distance_squared_to is cheaper than distance_to; we square the

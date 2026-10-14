@@ -278,6 +278,11 @@ func _update_hud_label(active_hero: Node, heroes_team: TeamBlackboard, enemies_t
 		lines.append("Heroes alive: %d" % heroes_team.members.size())
 	if enemies_team:
 		lines.append("Enemies live: %d" % enemies_team.members.size())
+	lines.append("Registry: H%d P%d M%d Mob%d" % [
+		EntityRegistry.heroes.size(),
+		EntityRegistry.hero_side.size() - EntityRegistry.heroes.size(),
+		EntityRegistry.monsters.size(),
+		EntityRegistry.mobs.size()])
 	if active_hero and is_instance_valid(active_hero):
 		lines.append("Camera focus: %s" % active_hero.name)
 		if "target_entity" in active_hero:

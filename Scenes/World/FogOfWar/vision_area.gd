@@ -30,7 +30,7 @@ func _update_vision() -> void:
 		return
 	
 	# Get fog of war system
-	var fog_system = get_tree().get_first_node_in_group("FogOfWar") 
+	var fog_system: Node = EntityRegistry.singleton(&"FogOfWar")
 	if not fog_system:
 		return
 	
