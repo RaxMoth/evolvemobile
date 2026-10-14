@@ -1,10 +1,13 @@
-[gd_scene load_steps=6 format=3 uid="uid://bvyrcj7lkc1k6"]
+[gd_scene load_steps=7 format=3 uid="uid://bvyrcj7lkc1k6"]
 
 [ext_resource type="PackedScene" uid="uid://cnmv786k3qi1c" path="res://Scenes/NPCs/NPCBaseClass.tscn" id="1_py7br"]
 [ext_resource type="Script" uid="uid://cyux65w7f8f1b" path="res://Scenes/NPCs/Hero/hero_base_class.gd" id="2_385or"]
 [ext_resource type="Script" uid="uid://v7h1kjw4mr7a" path="res://Scenes/NPCs/Hero/Abilities/ability_system.gd" id="2_c2olh"]
 [ext_resource type="Script" uid="uid://bd0gjv0o4r2ef" path="res://Scenes/NPCs/Hero/stat_component.gd" id="2_h674b"]
 [ext_resource type="PackedScene" uid="uid://b6q5qdoikam77" path="res://Scenes/World/FogOfWar/VisionArea.tscn" id="5_m1rxm"]
+
+[sub_resource type="LabelSettings" id="LabelSettings_lv"]
+font_size = 18
 
 [node name="Hero" groups=["Hero"] instance=ExtResource("1_py7br")]
 script = ExtResource("2_385or")
@@ -34,3 +37,13 @@ navigation_layers = 3
 [node name="VisionArea" parent="." index="10" instance=ExtResource("5_m1rxm")]
 unique_name_in_owner = true
 vision_radius = 160.0
+
+[node name="LVLabel" type="Label" parent="."]
+unique_name_in_owner = true
+offset_left = 28.0
+offset_top = -52.0
+offset_right = 52.0
+offset_bottom = -26.0
+text = "1"
+label_settings = SubResource("LabelSettings_lv")
+horizontal_alignment = 1

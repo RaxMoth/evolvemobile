@@ -26,6 +26,12 @@ class_name SpawnManager
 ## Set false to disable lazy activation entirely (debug).
 @export var enable_lazy_activation: bool = true
 
+@export_group("Pooling")
+## Dead / deactivated mobs are parked out of the tree and reused instead of
+## instantiating a ~25-node scene per respawn (spawn hitches at camp edges).
+@export var pool_enabled: bool = true
+@export var pool_cap_per_scene: int = 48
+
 @export_group("Stress Test")
 ## Multiplies every eligible area's population (1 = designed). Combine with
 ## enable_lazy_activation = false and min/max_active_spawns = 39 to profile
@@ -35,6 +41,7 @@ class_name SpawnManager
 var all_spawn_areas: Array[MobSpawnArea] = []
 var active_spawn_areas: Array[MobSpawnArea] = []  # World-eligible (random subset).
 var _check_timer: float = 0.0
+var _pool: Dictionary = {}  # scene resource_path -> Array of parked MobBase (out of tree)
 
 func _ready() -> void:
 	if auto_activate_on_ready:
@@ -127,6 +134,60 @@ func _make_spawn_world_eligible(spawn: MobSpawnArea) -> void:
 	# If lazy activation is disabled (debug), spawn immediately.
 	if not enable_lazy_activation:
 		spawn.activate()
+
+# ============================================
+# Mob pool
+# ============================================
+
+func acquire_mob(scene: PackedScene) -> MobBase:
+	"""A parked instance of `scene` if one exists, else a fresh instantiate.
+	The caller must reset_for_spawn() + add_child() + on_spawned()."""
+	var key := scene.resource_path
+	if pool_enabled and key != "" and _pool.has(key):
+		var bucket: Array = _pool[key]
+		while not bucket.is_empty():
+			var parked: MobBase = bucket.pop_back()
+			if is_instance_valid(parked):
+				return parked
+	var mob := scene.instantiate() as MobBase
+	if mob:
+		mob.pool_key = key if (pool_enabled and key != "") else ""
+		mob.spawn_manager = self
+	return mob
+
+func release_mob(mob: MobBase) -> void:
+	"""Park a dead or deactivated mob: scrub its per-life state, remove it from
+	the tree (which unregisters it everywhere via _exit_tree) and keep it for
+	the next acquire_mob(). Over the cap it is freed instead."""
+	if not is_instance_valid(mob) or mob.is_parked:
+		return
+	if not pool_enabled or mob.pool_key == "":
+		mob.queue_free()
+		return
+	mob.prepare_for_pool()
+	var parent_node := mob.get_parent()
+	if parent_node:
+		parent_node.remove_child(mob)
+	var bucket: Array = _pool.get_or_add(mob.pool_key, [])
+	if bucket.size() >= pool_cap_per_scene:
+		mob.queue_free()
+	else:
+		bucket.append(mob)
+
+func get_pooled_count() -> int:
+	var n := 0
+	for bucket in _pool.values():
+		n += (bucket as Array).size()
+	return n
+
+func _exit_tree() -> void:
+	# Parked mobs have no parent; free them together with the manager
+	# (match end / scene change) or they would leak.
+	for bucket in _pool.values():
+		for m in bucket:
+			if is_instance_valid(m):
+				m.queue_free()
+	_pool.clear()
 
 # ============================================
 # Public API

@@ -21,6 +21,15 @@ var attacking: bool = false
 var spawn_area: Node = null
 var spawn_position: Vector2 = Vector2.ZERO
 
+# Pooling (SpawnManager.acquire_mob / release_mob)
+var pool_key: String = ""            ## scene resource_path; "" = never pooled, free on death
+var spawn_manager: SpawnManager = null
+var is_parked: bool = false          ## true while out of the tree in the pool
+var _spawn_scale: Vector2 = Vector2.ONE
+## Incremented per life. Outside holders (trap cage, taunt) compare it before
+## acting so a reused node never inherits an old effect.
+var life_id: int = 0
+
 # ============================================
 # STATE TRACKING - Instead of get_active_state()
 # ============================================
@@ -30,10 +39,8 @@ func _ready() -> void:
 	_setup_mob_combat_role()
 	current_health = max_health
 	attack_timer.wait_time = attack_cooldown
-
-	if health_bar:
-		health_bar.max_value = max_health
-		health_bar.value = current_health
+	_spawn_scale = scale
+	set_hp_display(current_health, max_health)
 
 	# Mobs alert nearby pack-mates when they spot a hero. EntityBase reads
 	# alert_allies_radius and broadcasts on aggro. Default 200 = pack feels
@@ -98,9 +105,7 @@ func _reset_to_spawn() -> void:
 	is_in_combat = false
 	
 	# Heal to full on reset
-	current_health = max_health
-	if health_bar:
-		health_bar.value = current_health
+	_restore_full_health()
 	
 	# Return to idle
 	if state_chart:
@@ -160,9 +165,7 @@ func _receive_damage(packet: DamagePacket) -> void:
 
 	last_attacker = packet.source if packet.source is Node2D else null
 	current_health = maxf(0.0, current_health - packet.amount)
-
-	if health_bar:
-		health_bar.value = current_health
+	set_hp_display(current_health, max_health)
 
 	if current_health <= 0.0:
 		state_chart.send_event(CombatEvents.SELF_DEAD)
@@ -224,4 +227,74 @@ func _on_attack_timer_timeout() -> void:
 		_perform_basic_attack()
 
 func _on_mob_death() -> void:
-	queue_free()
+	"""Hook for subclasses (loot, VFX). EntityBase._on_dead_state_entered then
+	calls _release_or_free() — pooled mobs are parked, not freed."""
+	pass
+
+# ============================================
+# Pooling (see SpawnManager.acquire_mob / release_mob)
+# ============================================
+
+func _release_or_free() -> void:
+	# Deferred: we are usually inside TickScheduler's loop or a damage callback.
+	if pool_key != "" and is_instance_valid(spawn_manager):
+		spawn_manager.release_mob.call_deferred(self)
+	else:
+		queue_free()
+
+func prepare_for_pool() -> void:
+	"""Scrub per-life state before SpawnManager parks us out of the tree.
+	Health is NOT restored here: a parked mob stays dead so nobody keeps
+	targeting it (is_target_valid also checks is_inside_tree)."""
+	is_parked = true
+	life_id += 1
+	target = null
+	target_entity = null
+	last_attacker = null
+	attacking = false
+	attack_timer.stop()
+	is_in_combat = false
+	is_on_cooldown = false
+	_flinch_timer = 0.0
+	_idle_timer = 0.0
+	_target_reeval_timer = 0.0
+	strafe_timer = 0.0
+	_last_nav_target_pos = Vector2(INF, INF)
+	if is_instance_valid(navigation_agent_2d):
+		navigation_agent_2d.target_position = global_position
+	_kill_transient_effects()
+	modulate = Color.WHITE
+	if sprite:
+		sprite.modulate = Color.WHITE
+	scale = _spawn_scale
+
+func reset_for_spawn(area: Node, pos: Vector2, leash: float) -> void:
+	"""Per-life setup; valid before add_child for fresh and pooled instances."""
+	spawn_area = area
+	spawn_position = pos
+	chase_distance = leash
+	position = pos
+	visible = true
+
+func on_spawned(pos: Vector2) -> void:
+	"""Called by MobSpawnArea right after add_child (in tree, chart ready).
+	A fresh instance starts in Idle with full HP via _ready; a reused one
+	needs the heal and the chart driven back to Idle from Dead/Approach/Fight."""
+	global_position = pos
+	if is_parked:
+		is_parked = false
+		life_id += 1
+		_restore_full_health()
+		reset_to_idle()
+
+func _restore_full_health() -> void:
+	current_health = max_health
+	set_hp_display(current_health, max_health)
+
+func _kill_transient_effects() -> void:
+	# Taunt links / markers that abilities attach to us (group set in code
+	# by the ability since they are created at runtime).
+	for child in get_children():
+		if child.is_in_group(&"TransientEffect"):
+			remove_child(child)
+			child.queue_free()

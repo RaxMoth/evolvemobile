@@ -6,6 +6,10 @@ class_name TrapCage
 
 var trapped_enemies: Array[Node2D] = []  # Already typed correctly
 var cage_active: bool = true
+## enemy -> life_id at trap time. A pooled mob that died and respawned keeps
+## the same node but a new life_id, so the cage must stop acting on it.
+var _trapped_life_ids: Dictionary = {}
+var _sprite_tweens: Dictionary = {}  # enemy -> looping flash Tween, killed on expire
 
 func _ready() -> void:
 	# Setup collision
@@ -49,7 +53,7 @@ func _process(_delta: float) -> void:
 	
 	# Force trapped enemies to stay inside
 	for enemy in trapped_enemies:
-		if not is_instance_valid(enemy):
+		if not _still_trapped(enemy):
 			continue
 		
 		var dist = enemy.global_position.distance_to(global_position)
@@ -76,6 +80,7 @@ func _scan_for_enemies() -> void:
 		var entity = _get_entity(result.collider)
 		if entity and not trapped_enemies.has(entity) and _is_valid_target(entity):
 			trapped_enemies.append(entity)
+			_trapped_life_ids[entity] = entity.get("life_id")
 			_apply_trap_effect(entity)
 
 func _on_body_exited(body: Node2D) -> void:
@@ -91,7 +96,7 @@ func _prevent_exit(node: Node) -> void:
 	var entity = _get_entity(node)
 	
 	# FIXED: Check if entity is Node2D before checking array
-	if entity and entity is Node2D and trapped_enemies.has(entity):
+	if entity and entity is Node2D and trapped_enemies.has(entity) and _still_trapped(entity):
 		# Teleport back to center of cage
 		entity.global_position = global_position
 
@@ -102,9 +107,25 @@ func _apply_trap_effect(entity: Node2D) -> void:
 		var original_modulate = sprite.modulate
 		
 		var tween = sprite.create_tween()
+		_sprite_tweens[entity] = tween
 		tween.set_loops()
 		tween.tween_property(sprite, "modulate", Color(1, 0.5, 0.5), 0.5)
 		tween.tween_property(sprite, "modulate", original_modulate, 0.5)
+
+func _still_trapped(enemy: Node2D) -> bool:
+	# Same node, same life, still in the tree. Otherwise drop its flash tween.
+	if is_instance_valid(enemy) and enemy.is_inside_tree() \
+			and enemy.get("life_id") == _trapped_life_ids.get(enemy):
+		return true
+	_kill_sprite_tween(enemy)
+	return false
+
+func _kill_sprite_tween(enemy: Node2D) -> void:
+	if _sprite_tweens.has(enemy):
+		var tween: Tween = _sprite_tweens[enemy]
+		if tween and tween.is_valid():
+			tween.kill()
+		_sprite_tweens.erase(enemy)
 
 func _is_valid_target(entity: Node) -> bool:
 	if not entity.has_method("is_alive") or not entity.is_alive():
@@ -138,8 +159,9 @@ func _get_entity(node: Node) -> Node2D:
 func _expire() -> void:
 	cage_active = false
 	
-	# Clear visual effects on trapped enemies
+	# Clear visual effects on trapped enemies (kill the looping tweens first)
 	for enemy in trapped_enemies:
+		_kill_sprite_tween(enemy)
 		if is_instance_valid(enemy) and enemy.has_node("Sprite2D"):
 			var sprite = enemy.get_node("Sprite2D")
 			sprite.modulate = Color.WHITE

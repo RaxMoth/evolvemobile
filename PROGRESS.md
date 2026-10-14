@@ -1,6 +1,6 @@
 # Progress Tracker
 
-Last loop run: 2026-10-14 (performance pass P4)
+Last loop run: 2026-10-14 (performance pass P5)
 Stack: godot
 
 Spec source: `README.md` + `Docs/INSTRUCTOR.md` (roadmap, "Current Status & Roadmap",
@@ -39,12 +39,10 @@ Spec source: `README.md` + `Docs/INSTRUCTOR.md` (roadmap, "Current Status & Road
 
 ## In Progress
 
-- [ ] **Performance pass (plan: 60 FPS @ ~150 live mobs on a mid-range phone)** — phases P0→P5.
-      P0 (correctness + measurement HUD) and P1 (faction collision layers, orphan connections,
-      Movetimer, lazy approach nav), P2 (targeted damage notify), P3 (EntityRegistry) and
-      P4 (TickScheduler / AI LOD via `StateChart.step()`) done. Next: P5 HpBar2D + mob pooling +
-      raycast-free idle scoring.
-      Baseline F3 numbers (stress config, see Changelog) still to be captured in the editor.
+- [ ] **Performance pass (plan: 60 FPS @ ~150 live mobs on a mid-range phone)** — code phases
+      P0→P5 all landed (see Changelog 2026-10-14). Remaining: capture before/after F3 numbers in the
+      editor (stress config: SpawnManager min/max_active_spawns = 39, enable_lazy_activation = false,
+      stress_mob_multiplier = 2), playtest the P1 balance change, then the production roadmap below.
 
 ## Backlog (from spec, not started)
 - [ ] Per-hero skill trees (Steel) + per-monster trees (Leaves) — only the universal Base trees exist
@@ -75,6 +73,38 @@ Spec source: `README.md` + `Docs/INSTRUCTOR.md` (roadmap, "Current Status & Road
       shipped MetaSkill system — confirm dead and remove, or wire it to in-round leveling.
 
 ## Changelog
+
+### 2026-10-14 — perf: P5 HpBar2D, mob pooling, raycast-free idle scoring
+- **HpBar2D** (`Scripts/hp_bar_2d.gd`): one Node2D with a `_draw` replaces the per-entity
+  `Control > HBoxContainer > ProgressBar + Label` subtree (4 nodes, a Control layout pass and two
+  `StyleBoxFlat.new()` per spawn). Redraws only on change; mobs set `hide_when_full` scene-side
+  (`mobs_base_class.tscn`) so idle camps draw nothing. `EntityBase.set_hp_display(cur, max)` is
+  the single writer; every former `health_bar.value/max_value` site (Mob/Hero/Monster/MobSpawnArea)
+  routes through it. `LVLabel` now lives only in `HeroBaseClass.tscn` / `monster_base_class.tscn`
+  (`lv_label` resolves via `get_node_or_null`). `_apply_ui_counter_scale` counter-scales the bar
+  and label directly (monster evolution). Dangling `Control` offset overrides in Vlad/Ted removed.
+- **Mob pooling** (owned by `SpawnManager`, no new autoload): `acquire_mob(scene)` /
+  `release_mob(mob)` with `pool_enabled` + `pool_cap_per_scene` exports. Dead AND deactivated mobs
+  are parked out of the tree with `remove_child` (so `_exit_tree` unregisters them from
+  TeamRegistry — which scrubs threat rows — EntityRegistry and TickScheduler). Chart reset path:
+  `CombatEvents.RESET` + a `Dead → Idle` transition in `NPCBaseClass.tscn`;
+  `EntityBase.reset_to_idle()` sends ENEMY_EXITED / TARGET_LOST / RESET. `_on_dead_state_entered`
+  now ends in a virtual `_release_or_free()` (MobBase → deferred `release_mob`, others
+  `queue_free`). `MobBase.prepare_for_pool()` scrubs target/timers/flags/effects (health is NOT
+  restored while parked so nobody keeps targeting it), `reset_for_spawn()` + `on_spawned()`
+  (heal + `reset_to_idle()` after `add_child`). `life_id` increments per life; Ted's trap cage
+  snapshots it (`_still_trapped`) and kills its looping flash tween on expire / respawn (the cage was
+  also teleporting the Body Area2D instead of the mob — fixed in P1); Irelia's taunt tags its
+  TauntEffect / Line2D children with group `TransientEffect` so the pool scrubs them.
+  `is_target_valid()` now also requires `is_inside_tree()` and alive. `MobSpawnArea` hooks `died`
+  (ONE_SHOT) instead of `tree_exiting`; `SpawnManager._exit_tree` frees parked mobs.
+- **Idle scoring without raycasts:** `_score_destination` uses
+  `NavigationServer2D.map_get_closest_point` on the world map (>16 px off-mesh → rejected) instead
+  of 5×20 `intersect_ray` + 12 more per candidate that could only ever hit Ted's pet (TileSet has
+  no physics layer). `GameUtils` wall helpers kept with a note.
+- Verified: headless import + load of 82 scripts / 60 resources — 0 errors; `intersect_ray`,
+  `StyleBoxFlat.new`, `tree_exiting.connect` and direct `health_bar.value` writes all gone from the
+  entity/world scripts.
 
 ### 2026-10-14 — perf: P4 TickScheduler + anchor-based AI LOD through `StateChart.step()`
 - New `Scripts/tick_scheduler.gd` autoload. EntityBase registers in `_enter_tree`; the scheduler

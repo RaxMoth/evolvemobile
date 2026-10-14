@@ -47,6 +47,7 @@ func _apply_taunt(enemy: Node2D, caster: Node2D) -> void:
 	if not enemy.has_node("TauntEffect"):
 		var taunt = Node.new()
 		taunt.name = "TauntEffect"
+		taunt.add_to_group(&"TransientEffect")  # scrubbed by MobBase.prepare_for_pool
 		taunt.set_meta("taunter", caster)
 		taunt.set_meta("duration", duration)
 		enemy.add_child(taunt)
@@ -73,6 +74,7 @@ func _create_taunt_link(enemy: Node2D, caster: Node2D) -> void:
 	
 	# Red line connecting enemy to Irelia
 	var line = Line2D.new()
+	line.add_to_group(&"TransientEffect")  # scrubbed by MobBase.prepare_for_pool
 	enemy.add_child(line)
 	line.z_index = 11
 	

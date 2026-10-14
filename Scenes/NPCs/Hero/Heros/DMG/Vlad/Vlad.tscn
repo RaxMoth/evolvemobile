@@ -74,11 +74,6 @@ active_ability = ExtResource("4_qoltp")
 basic_attack = ExtResource("5_s7ida")
 ultimate_ability = ExtResource("6_dmu8j")
 
-[node name="Control" parent="." index="2"]
-offset_left = -11.0
-offset_top = -13.0
-offset_right = 20.0
-
 [node name="AnimatedSprite2D" parent="." index="3"]
 sprite_frames = SubResource("SpriteFrames_dmu8j")
 autoplay = "default"

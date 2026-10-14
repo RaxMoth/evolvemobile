@@ -6,9 +6,7 @@
 [ext_resource type="Script" uid="uid://jk2jm1g6q853" path="res://addons/godot_state_charts/compound_state.gd" id="4_wcc3o"]
 [ext_resource type="Script" uid="uid://cytafq8i1y8qm" path="res://addons/godot_state_charts/atomic_state.gd" id="5_4yoai"]
 [ext_resource type="Script" uid="uid://cf1nsco3w0mf6" path="res://addons/godot_state_charts/transition.gd" id="6_1wtkv"]
-
-[sub_resource type="LabelSettings" id="LabelSettings_o028b"]
-font_size = 18
+[ext_resource type="Script" path="res://Scripts/hp_bar_2d.gd" id="7_hpbar"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_50nec"]
 resource_local_to_scene = true
@@ -20,43 +18,10 @@ radius = 31.0644
 [node name="Npc" type="Node2D"]
 script = ExtResource("1_517tc")
 
-[node name="Control" type="Control" parent="."]
-layout_mode = 3
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_top = -47.0
-offset_right = 84.0
-offset_bottom = -34.0
-grow_horizontal = 2
-grow_vertical = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-
-[node name="HBoxContainer" type="HBoxContainer" parent="Control"]
-layout_mode = 1
-anchors_preset = -1
-anchor_left = -0.5
-anchor_top = -1.23077
-anchor_right = 0.5
-anchor_bottom = 0.769231
-grow_horizontal = 2
-grow_vertical = 2
-metadata/_edit_use_anchors_ = true
-
-[node name="HealthBar" type="ProgressBar" parent="Control/HBoxContainer"]
+[node name="HealthBar" type="Node2D" parent="."]
 unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 4
-show_percentage = false
-
-[node name="LVLabel" type="Label" parent="Control/HBoxContainer"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 3
-text = "1"
-label_settings = SubResource("LabelSettings_o028b")
+position = Vector2(-25, -40)
+script = ExtResource("7_hpbar")
 
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
 scale = Vector2(1, 1)
@@ -145,6 +110,12 @@ delay_in_seconds = "0.0"
 
 [node name="Dead" type="Node" parent="StateChart/CompoundState"]
 script = ExtResource("5_4yoai")
+
+[node name="ToIdle" type="Node" parent="StateChart/CompoundState/Dead"]
+script = ExtResource("6_1wtkv")
+to = NodePath("../../Idle")
+event = &"reset"
+delay_in_seconds = "0.0"
 
 [node name="ToDead" type="Node" parent="StateChart/CompoundState"]
 script = ExtResource("6_1wtkv")

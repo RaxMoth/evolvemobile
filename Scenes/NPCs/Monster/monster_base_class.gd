@@ -81,9 +81,7 @@ func _apply_stage_configuration(stage: int) -> void:
 	
 	_configure_abilities_for_stage(stage)
 	
-	if health_bar:
-		health_bar.max_value = new_health
-		health_bar.value = current_health
+	set_hp_display(current_health, new_health)
 	
 	_update_stage_scale(stage)
 
@@ -196,9 +194,7 @@ func _receive_damage(packet: DamagePacket) -> void:
 
 	last_attacker = packet.source if packet.source is Node2D else null
 	current_health -= packet.amount
-
-	if health_bar:
-		health_bar.value = current_health
+	set_hp_display(current_health, get_max_health())
 
 	if current_health <= 0.0:
 		current_health = 0.0

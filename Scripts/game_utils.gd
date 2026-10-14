@@ -69,6 +69,9 @@ func point_direction(from: Vector2, to: Vector2) -> Vector2:
 # SPATIAL QUERIES - Wall Detection
 # ============================================
 
+## NOTE: the wall helpers below raycast against physics BODIES on `collision_mask`.
+## The World TileSet has no physics layer, so they currently hit nothing but
+## Ted's pet; EntityBase idle scoring uses NavigationServer2D instead.
 func is_point_too_close_to_wall(
 	world: World2D,
 	point: Vector2,

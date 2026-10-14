@@ -104,10 +104,10 @@ var _pending_respawns: int = 0
 ## the epoch before it awaits and bails if it changed, so respawns never
 ## leak across a deactivation or a Shift+R re-randomize.
 var _epoch: int = 0
-## mob -> bound Callable connected to its tree_exiting. deactivate() detaches
-## the hook BEFORE queue_free(): the deferred free used to fire _on_mob_died
-## after the old _deactivating flag was already cleared and inflated
-## virtual_count by one per mob.
+## mob -> bound Callable connected ONE_SHOT to its `died` signal (not
+## tree_exiting: pooled mobs leave the tree on every release). deactivate()
+## detaches the hook before releasing so a deactivation never counts as a
+## death (the old deferred-free version inflated virtual_count by one per mob).
 var _death_hooks: Dictionary = {}
 
 
@@ -220,7 +220,7 @@ func deactivate() -> void:
 	for mob in spawned_mobs:
 		if is_instance_valid(mob):
 			_detach_death_hook(mob)
-			mob.queue_free()
+			_release(mob)
 	spawned_mobs.clear()
 	area_deactivated.emit()
 
@@ -239,8 +239,16 @@ func _detach_death_hook(mob: MobBase) -> void:
 		return
 	var hook: Callable = _death_hooks[mob]
 	_death_hooks.erase(mob)
-	if mob.tree_exiting.is_connected(hook):
-		mob.tree_exiting.disconnect(hook)
+	if mob.died.is_connected(hook):
+		mob.died.disconnect(hook)
+
+
+func _release(mob: MobBase) -> void:
+	var mgr := get_parent() as SpawnManager
+	if mgr:
+		mgr.release_mob(mob)
+	else:
+		mob.queue_free()
 
 
 # ============================================
@@ -256,50 +264,47 @@ func spawn_mobs() -> void:
 
 
 func spawn_single_mob() -> MobBase:
-	var mob = mob_scene.instantiate() as MobBase
+	var mob := _acquire_mob()
 	if not mob:
 		push_error("MobSpawnArea: Scene is not a MobBase!")
 		return null
 
 	var spawn_pos := _get_random_position_in_area()
 
-	# Set non-tree-dependent properties immediately.
-	mob.spawn_area = self
-	mob.spawn_position = spawn_pos
-	mob.chase_distance = leash_distance
+	# Per-life state (spawn area, leash, position) — valid before the mob is
+	# in the tree; also pre-seeds the LOCAL position so a synchronous _ready
+	# never sees (0, 0).
+	mob.reset_for_spawn(self, spawn_pos, leash_distance)
 	spawned_mobs.append(mob)
 	var death_hook := _on_mob_died.bind(mob)
 	_death_hooks[mob] = death_hook
-	mob.tree_exiting.connect(death_hook)
-
-	# CRITICAL: pre-seed the LOCAL position. If add_child fires the mob's
-	# _ready synchronously (which it does), and that _ready does anything
-	# position-dependent, we want it to see the right value rather than
-	# (0, 0). This is the LOCAL position; if the parent is a plain Node
-	# (Spawns is typed as Node), local == global, so we land at spawn_pos.
-	# After add_child we *also* re-set global_position to handle the case
-	# where someone re-parents Spawns under a Node2D with a transform.
-	mob.position = spawn_pos
+	mob.died.connect(death_hook, CONNECT_ONE_SHOT)
 
 	var parent_node := get_parent()
 	if not parent_node:
 		return null
 
-	# Hot path: parent is fully set up. Attach synchronously, then assert
-	# global position one more time as belt-and-suspenders.
+	# Hot path: parent is fully set up. Attach synchronously.
 	if parent_node.is_node_ready():
 		parent_node.add_child(mob)
-		mob.global_position = spawn_pos
+		mob.on_spawned(spawn_pos)
 		return mob
 
 	# Parent is busy (scene-load cascade) — defer the attach.
-	# Position is already pre-seeded above, so the mob spawns visually at
-	# the right place even before the deferred call fires.
 	_attach_mob_deferred.call_deferred(mob, spawn_pos)
 	return mob
 
 
-func _attach_mob_deferred(mob: Node2D, pos: Vector2) -> void:
+func _acquire_mob() -> MobBase:
+	## Pooled instance from the SpawnManager when we are parented to one,
+	## else a fresh instantiate (world_test / areas placed elsewhere).
+	var mgr := get_parent() as SpawnManager
+	if mgr:
+		return mgr.acquire_mob(mob_scene)
+	return mob_scene.instantiate() as MobBase
+
+
+func _attach_mob_deferred(mob: MobBase, pos: Vector2) -> void:
 	if not is_instance_valid(mob):
 		return
 	var parent_node := get_parent()
@@ -307,7 +312,7 @@ func _attach_mob_deferred(mob: Node2D, pos: Vector2) -> void:
 		mob.queue_free()
 		return
 	parent_node.add_child(mob)
-	mob.global_position = pos
+	mob.on_spawned(pos)
 
 
 func _get_random_position_in_area() -> Vector2:
@@ -361,8 +366,7 @@ func _reset_mob_to_spawn(mob: MobBase) -> void:
 	if mob.state_chart:
 		mob.state_chart.send_event(CombatEvents.ENEMY_EXITED)
 	mob.current_health = mob.max_health
-	if mob.health_bar:
-		mob.health_bar.value = mob.max_health
+	mob.set_hp_display(mob.max_health, mob.max_health)
 
 
 # ============================================

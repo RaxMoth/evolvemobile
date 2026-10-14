@@ -143,9 +143,7 @@ func _receive_damage(packet: DamagePacket) -> void:
 		state_chart.send_event(CombatEvents.SELF_DEAD)
 
 func _on_health_changed(current: float, max_hp: float) -> void:
-	if health_bar:
-		health_bar.max_value = max_hp
-		health_bar.value = current
+	set_hp_display(current, max_hp)
 
 func _on_fight_logic(_delta: float) -> void:
 	if ability_system:

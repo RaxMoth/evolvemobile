@@ -69,9 +69,10 @@ signal died
 @onready var sprite: Node2D = $Sprite2D
 @onready var state_chart: StateChart = %StateChart
 @onready var navigation_agent_2d: NavigationAgent2D = %NavigationAgent2D
-@onready var health_bar: ProgressBar = %HealthBar
+@onready var health_bar: HpBar2D = %HealthBar
 @onready var detection_area: Area2D = %DetectionArea
-@onready var lv_label: Label = %LVLabel
+## Only hero / monster scenes carry a level label; mob scenes resolve null.
+@onready var lv_label: Label = get_node_or_null("%LVLabel") as Label
 @onready var animated_sprite: AnimatedSprite2D = $AnimatedSprite2D
 @onready var screen_notifier: VisibleOnScreenNotifier2D = %ScreenNotifier
 
@@ -139,14 +140,9 @@ func _ready() -> void:
 
 	_update_detection_radius()
 
-	if health_bar:
-		health_bar.max_value = get_max_health()
-		health_bar.value = get_health()
-		_pin_health_bar_visuals()
-
+	set_hp_display(get_health(), get_max_health())
 	if lv_label:
 		lv_label.text = str(_get_entity_level())
-		_pin_lv_label()
 
 	_setup_navigation()
 	_apply_ui_counter_scale()
@@ -238,68 +234,25 @@ func _on_screen_exited() -> void:
 # SECTION 5b: HUD-PIN HELPERS (in-world HP bar consistency)
 # ============================================
 
-# Pixel dimensions every entity's floating HP bar is forced to. This is
-# what guarantees all heroes (and the monster across stages) display the
-# same-looking bar regardless of their max HP or sprite scale.
-const HP_BAR_SIZE := Vector2(50, 6)
-const LV_LABEL_MIN_SIZE := Vector2(22, 0)
-
-func _pin_health_bar_visuals() -> void:
-	## Forces a fixed pixel size + a visible background StyleBox onto the
-	## floating HP bar. Without this:
-	##  • size_flags_horizontal=EXPAND lets the LVLabel (whose width depends
-	##    on level digit count) squeeze the bar.
-	##  • the default ProgressBar background is often nearly transparent,
-	##    making the empty portion invisible — so a 30% HP bar LOOKS 30%
-	##    as wide as a full one.
-	health_bar.custom_minimum_size = HP_BAR_SIZE
-	health_bar.size_flags_horizontal = Control.SIZE_FILL  # no EXPAND
-	health_bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	health_bar.show_percentage = false
-
-	# Visible background — empty portion of the bar.
-	var bg := StyleBoxFlat.new()
-	bg.bg_color = Color(0.08, 0.08, 0.10, 0.85)
-	bg.corner_radius_top_left = 2
-	bg.corner_radius_top_right = 2
-	bg.corner_radius_bottom_left = 2
-	bg.corner_radius_bottom_right = 2
-	bg.border_width_left = 1
-	bg.border_width_right = 1
-	bg.border_width_top = 1
-	bg.border_width_bottom = 1
-	bg.border_color = Color(0, 0, 0, 0.7)
-	health_bar.add_theme_stylebox_override("background", bg)
-
-	# Visible fill — green by default; subclasses can swap colors via theme.
-	var fill := StyleBoxFlat.new()
-	fill.bg_color = Color(0.35, 0.85, 0.35, 1.0)
-	fill.corner_radius_top_left = 2
-	fill.corner_radius_top_right = 2
-	fill.corner_radius_bottom_left = 2
-	fill.corner_radius_bottom_right = 2
-	health_bar.add_theme_stylebox_override("fill", fill)
-
-func _pin_lv_label() -> void:
-	## Pin LV label so its text width doesn't pull pixels from the HP bar
-	## when the level reaches double digits.
-	lv_label.custom_minimum_size = LV_LABEL_MIN_SIZE
-	lv_label.size_flags_horizontal = Control.SIZE_FILL
-	lv_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+func set_hp_display(current: float, maximum: float) -> void:
+	"""Single writer for the in-world HP bar (HpBar2D). Every HP change in
+	the subclasses routes through here so the bar API lives in one place."""
+	if health_bar:
+		health_bar.set_values(current, maximum)
 
 func _apply_ui_counter_scale() -> void:
-	## The HUD Control inherits the entity's transform — when the monster
-	## grows per evolution stage, its HP bar would grow with it. Counter-
-	## scaling the parent Control by 1 / entity.scale keeps the bar at a
-	## fixed visual size. Heroes (scale=1) get an effective no-op.
-	## MonsterBase calls this again after each stage tween completes so
-	## the bar stays pinned through evolution.
-	var hud: Control = get_node_or_null("Control") as Control
-	if hud == null:
-		return
+	## The in-world bar and level label inherit the entity's transform — when
+	## the monster grows per evolution stage they would grow with it. Counter-
+	## scaling by 1 / entity.scale keeps them at a fixed pixel size. Heroes
+	## (scale=1) get an effective no-op. MonsterBase calls this again after
+	## each stage scale tween completes.
 	var sx: float = scale.x if scale.x != 0.0 else 1.0
 	var sy: float = scale.y if scale.y != 0.0 else 1.0
-	hud.scale = Vector2(1.0 / sx, 1.0 / sy)
+	var inverse := Vector2(1.0 / sx, 1.0 / sy)
+	if health_bar:
+		health_bar.scale = inverse
+	if lv_label:
+		lv_label.scale = inverse
 
 func _on_damage_taken(_packet: DamagePacket) -> void:
 	"""Per-target reaction hook, called directly by EventBus._route_packet after
@@ -411,8 +364,10 @@ func _get_keep_distance() -> float:
 # ============================================
 
 func is_target_valid() -> bool:
-	"""Check if current target is valid and alive"""
-	return is_instance_valid(target) and is_instance_valid(target_entity)
+	"""Target area + entity exist, the entity is in the tree (not parked in the
+	spawn pool) and alive."""
+	return is_instance_valid(target) and is_instance_valid(target_entity) \
+		and target_entity.is_inside_tree() and EntityRegistry.is_entity_alive(target_entity)
 
 func distance_to_target() -> float:
 	"""Get distance to current target"""
@@ -891,8 +846,14 @@ func _score_destination(point: Vector2) -> float:
 	"""Score a destination point (higher = better)"""
 	var score = 0.0
 	
-	if GameUtils.is_point_too_close_to_wall(get_world_2d(), point, 32.0, 1, 8):
-		return -1000.0
+	# Nav-mesh validity instead of raycasts: the TileSet has no physics layer,
+	# so the old wall rays (5 samples x 20 rays per retarget) could only ever
+	# hit Ted's pet. A point further than 16 px from the nav mesh is unreachable.
+	var nav_map: RID = get_world_2d().navigation_map
+	if nav_map.is_valid():
+		var on_mesh: Vector2 = NavigationServer2D.map_get_closest_point(nav_map, point)
+		if on_mesh.distance_squared_to(point) > 16.0 * 16.0:
+			return -1000.0
 	
 	var current_facing = sprite.rotation if sprite else 0.0
 	var to_point = (point - global_position).normalized()
@@ -906,9 +867,6 @@ func _score_destination(point: Vector2) -> float:
 			score -= 50.0
 		else:
 			score += 200.0
-	
-	var nearby_walls = GameUtils.count_walls_in_radius(get_world_2d(), point, 50.0, 1, 12)
-	score -= nearby_walls * 30.0
 	
 	return score
 
@@ -1076,4 +1034,19 @@ func _on_dead_state_entered() -> void:
 	died.emit()
 	EventBus.notify_died(self, last_attacker)
 	_grant_xp_to_killer()
+	_release_or_free()
+
+func _release_or_free() -> void:
+	"""Dead: free the node. MobBase overrides to return to the spawn pool."""
 	queue_free()
+
+func reset_to_idle() -> void:
+	"""Pooling: drive the chart back to Idle from any state. Approach consumes
+	ENEMY_EXITED, Fight consumes TARGET_LOST, Dead consumes RESET; Idle ignores
+	all three. Call only while in the tree (Idle's entered handler scans the
+	detection area)."""
+	if not is_instance_valid(state_chart) or not state_chart.is_node_ready():
+		return
+	state_chart.send_event(CombatEvents.ENEMY_EXITED)
+	state_chart.send_event(CombatEvents.TARGET_LOST)
+	state_chart.send_event(CombatEvents.RESET)

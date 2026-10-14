@@ -16,6 +16,8 @@ const ENEMY_FIGHT   := &"enemy_fight"
 const TARGET_LOST   := &"target_lost"
 const RE_APPROACH   := &"re_approach"
 const SELF_DEAD     := &"self_dead"
+## Pooling: Dead -> Idle when a parked mob is respawned (see MobBase.on_spawned).
+const RESET         := &"reset"
 
 # --- Combat reactions (room to grow) ---
 # These are not yet wired into any chart transitions, but reserved as the
