@@ -55,8 +55,13 @@ Spec source: `README.md` + `Docs/INSTRUCTOR.md` (roadmap, "Current Status & Road
       (Own 60-line runner instead of vendoring GUT; extend with `test/test_*.gd` extending `TestCase`.)
 - [x] Save-file migration — `_migrate()` ladder (v1→v2 normalizes types, seeds `created_unix`),
       `save.cfg.v<N>.bak` before migrating, `save.cfg.corrupt.bak` on unreadable files; 4 tests.
-- [ ] Export presets + device build — Android/iOS portrait, `max_fps=60`, `treat_warnings_as_errors`,
-      Compatibility-vs-Mobile renderer benchmark (features tag says GL Compatibility), physics 30 Hz trial
+- [ ] Device build (needs the editor + SDKs/keystore, so it is the user's step): Project → Export →
+      add Android + iOS presets (portrait is already set in project.godot), run the stress config on a
+      Pixel 5a-class phone with F3, benchmark Compatibility vs Mobile renderer (the `config/features`
+      tag still says "GL Compatibility" while `rendering_method="mobile"`), try physics 30 Hz.
+      `application/run/max_fps=60` is set. `treat_warnings_as_errors` is NOT enabled: Godot 4.7.2 only
+      promotes warnings inside the editor (verified headlessly: an unused-parameter probe still loads),
+      so enable it only after an editor pass shows 0 warnings in the Script panel.
 - [ ] Touch-input audit — pinch zoom, tap-to-focus, ≥44 px targets; debug keys behind `OS.is_debug_build()`
 - [ ] `print()` gating — `Globals.debug_log()` for world.gd (15), monster_base_class.gd (8), spawns.gd, abilities
 - [ ] Pre-Round Setup screen — `MatchConfig` resource (aggression/farming/exploration, formation)
