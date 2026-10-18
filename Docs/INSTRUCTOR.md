@@ -102,7 +102,8 @@ res://
     ├── team_registry.gd + team_blackboard.gd (threat tables)
     ├── entity_registry.gd (cached faction lists), tick_scheduler.gd (AI LOD)
     ├── hp_bar_2d.gd (in-world HP bar)
-    ├── persisted_data.gd, MetaSkills/ (save + meta skill trees)
+    ├── audio_manager.gd (SFX/music), analytics_sink.gd (local event log)
+    ├── persisted_data.gd (versioned save), MetaSkills/ (base + per-character trees)
     └── game_manager.gd, match_rewards.gd (match flow, rewards)
     (hero_exploration_controller.gd lives in Scenes/NPCs/Hero/)
 ```
@@ -812,20 +813,39 @@ if randf() < crit_chance:
 
 ## 🧪 Testing Guidelines
 
+### Automated (run before every commit)
+
+```bash
+tools/run_tests.sh          # GODOT=/path/to/godot to override the binary
+```
+
+The script copies the project to a temp dir, writes an `override.cfg` that points `user://` at
+`evolvemobile_tests` (the real save file is never touched — tests that write the save refuse to
+run otherwise), imports with the installed Godot and runs `test/run_tests.gd`. Exit 1 on any
+failed assertion or `SCRIPT ERROR`.
+
+Writing a test: add `test/test_<topic>.gd` extending `TestCase` (`test/case.gd`); every
+`test_*` method runs, may `await`, and uses `assert_eq / assert_true / assert_near / skip`.
+Helpers: `spawn_entity(scene, pos)` (adds under the test and waits for the awaited `_ready`),
+`active_state_of(entity)`, `wait_frames / wait_physics_frames / wait_seconds`. Nodes a test
+leaves behind are freed between tests. `GameManager.match_ended_flag` is set so deaths never end
+a match. Current coverage: rewards formula, level curve, save migration, meta-skill gating and
+per-character trees, targeted damage hook, death from Idle/Approach for mob/hero/monster, spawn
+accounting + pooled respawn, tutorial, audio manager, analytics sink.
+
 ### Manual Testing Checklist
 
 ```
 [ ] Heroes spawn and move correctly
-[ ] Mobs spawn in designated areas
-[ ] Monster evolves at correct XP thresholds
-[ ] Combat: entities stop moving when attacking
-[ ] Abilities trigger cooldowns
-[ ] UI shows health, abilities, levels correctly
-[ ] Fog of war reveals/unreveals properly
-[ ] Spawn areas activate/deactivate based on distance
-[ ] LOD changes visible in debug output
-[ ] FPS stable at 60+ on target device
-[ ] No memory leaks (mobs despawn properly)
+[ ] Mobs spawn in designated areas; camps activate/deactivate with the F3 LOD readout
+[ ] Monster evolves at 100 / 300 XP
+[ ] Combat: entities stop moving when attacking; Hogs attack
+[ ] Abilities trigger cooldowns; AoE hits each target once
+[ ] UI shows health, abilities, levels correctly; mob bars appear only when damaged
+[ ] Fog of war reveals/unreveals properly (both sides)
+[ ] Killed mobs respawn from the pool after 40 s with full HP
+[ ] FPS stable at 60 on target device (F3: stress config)
+[ ] No memory leaks: OBJECT_NODE_COUNT plateaus while walking camp rings
 ```
 
 ### Debug Flags to Enable
@@ -837,8 +857,8 @@ show_debug_area = true  # Visualize ranges
 # EntityBase
 show_detection_radius = true  # Show detection range
 
-# Check console for:
-OS.is_debug_build()  # Only print debug in debug builds
+# TickScheduler (inspector on the autoload, or at runtime)
+lod_enabled = false     # A/B: tick everything every frame
 ```
 
 ---
@@ -862,6 +882,10 @@ OS.is_debug_build()  # Only print debug in debug builds
 | `Scripts/entity_registry.gd` | Cached faction lists, anchors, singletons | Any per-frame entity lookup |
 | `Scripts/tick_scheduler.gd` | AI LOD, `StateChart.step()` cadence | Tuning LOD radii / rates |
 | `Scripts/hp_bar_2d.gd` | In-world HP bar | Bar visuals |
+| `Scripts/audio_manager.gd` | SFX/music, placeholder synthesis, asset lookup | Adding sounds |
+| `Scripts/analytics_sink.gd` | Local event log, provider hook | Adding tracked events |
+| `Scripts/persisted_data.gd` | Save file, versioning + migration ladder | Any save-layout change (bump + `_migrate_vN_to_vN1`) |
+| `Scripts/MetaSkills/meta_skill_manager.gd` | Base + per-character skill trees | Adding nodes / trees |
 
 ### World Systems
 
@@ -877,6 +901,8 @@ OS.is_debug_build()  # Only print debug in debug builds
 | File | Purpose | Modify When |
 |------|---------|-------------|
 | `hero_container.gd` | Hero UI, ability cooldowns | Adding UI features |
+| `Scenes/UI/Tutorial/tutorial_overlay.gd` | First-run walkthrough (data-driven steps) | Changing onboarding |
+| `Scenes/UI/Settings/settings_screen.gd` | Volumes, privacy toggle, reset | Adding settings |
 | `fps_counter.gd` | FPS label (MainCam) | Never - it's complete |
 | `debug_overlay.gd` | F3 overlay: perf counters, states, LOD, threat | Adding debug readouts |
 

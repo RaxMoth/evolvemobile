@@ -809,6 +809,12 @@ Max out hero trees → Unlock new heroes → Compete on leaderboards
 - [x] 10-minute match cap (loss-condition timer)
 - [x] Side-aware fog/vision (playing the monster reveals for the monster)
 - [x] Performance pass: faction collision layers, EntityRegistry, TickScheduler AI LOD, HpBar2D, mob pooling
+- [x] Per-hero (Steel) and per-monster (Leaves) skill trees — stat-only nodes, applied on spawn
+- [x] First-run tutorial overlay + "How to play" button
+- [x] Versioned save file with automatic backup + migration
+- [x] Audio manager on the Master/Music/SFX buses (generated placeholder tones until real assets land in `Assets/Audio/`)
+- [x] Local analytics log (`user://analytics.jsonl`, opt-out in Settings)
+- [x] Headless test suite — `tools/run_tests.sh` (30 tests)
 
 ---
 
@@ -816,10 +822,10 @@ Max out hero trees → Unlock new heroes → Compete on leaderboards
 
 **High Priority**:
 
-- [ ] **Per-hero / per-monster skill trees** (Steel / Leaves) — only the universal Base trees exist
+- [ ] **Ability-changing skill nodes** (Triple Shot, Ram Dash stun, …) — the per-character trees ship stat nodes only
 - [ ] **Device build** — export presets, measure the perf pass on a mid-range phone, retune the
       shrunken aggro / AoE ranges from the collision-layer split
-- [ ] **Test harness** (GUT) for rewards, save/level curve, tier gating, damage pipeline, death from any state
+- [ ] **Real audio assets** — drop `.ogg`/`.wav` files into `Assets/Audio/` (keys in its README)
 
 **Medium Priority**:
 
@@ -836,7 +842,7 @@ Max out hero trees → Unlock new heroes → Compete on leaderboards
 
 - [ ] Minimap with fog overlay
 - [ ] Audio content (buses + volume settings exist; no music/SFX assets yet)
-- [ ] Save-file migration, touch-input audit, `print()` gating
+- [ ] Pinch-zoom / tap-to-focus on the match camera, `print()` gating, debug keys behind `OS.is_debug_build()`
 
 ---
 
