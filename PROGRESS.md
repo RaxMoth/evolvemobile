@@ -62,7 +62,9 @@ Spec source: `README.md` + `Docs/INSTRUCTOR.md` (roadmap, "Current Status & Road
       `application/run/max_fps=60` is set. `treat_warnings_as_errors` is NOT enabled: Godot 4.7.2 only
       promotes warnings inside the editor (verified headlessly: an unused-parameter probe still loads),
       so enable it only after an editor pass shows 0 warnings in the Script panel.
-- [ ] Touch-input audit — pinch zoom, tap-to-focus, ≥44 px targets; debug keys behind `OS.is_debug_build()`
+- [ ] Touch-input audit — DONE: every menu / settings / meta-skill control is ≥ 48 px tall (buttons,
+      option picker, volume sliders). OPEN: pinch-zoom + tap-to-focus on the match camera, debug keys
+      (Shift+R / K / M / F1 / F3) behind `OS.is_debug_build()`.
 - [ ] `print()` gating — `Globals.debug_log()` for world.gd (15), monster_base_class.gd (8), spawns.gd, abilities
 - [ ] Pre-Round Setup screen — `MatchConfig` resource (aggression/farming/exploration, formation)
 - [ ] Per-hero skill trees (Steel) + per-monster trees (Leaves) — seeds → `.tres`, `hero_id` on HeroStats

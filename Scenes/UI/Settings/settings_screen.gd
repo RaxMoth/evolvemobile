@@ -22,6 +22,9 @@ var _reset_button: Button = null
 var _reset_armed: bool = false
 
 
+## Minimum height of anything a thumb must hit (Apple HIG 44 pt, Material 48 dp).
+const TOUCH_TARGET: float = 48.0
+
 func _init() -> void:
 	theme = _THEME
 	set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -82,12 +85,14 @@ func _build_panel() -> void:
 
 	_reset_button = Button.new()
 	_reset_button.text = "Reset Progress"
+	_reset_button.custom_minimum_size = Vector2(0, TOUCH_TARGET)
 	_reset_button.add_theme_color_override("font_color", _DANGER)
 	_reset_button.pressed.connect(_on_reset_pressed)
 	vbox.add_child(_reset_button)
 
 	var close_button := Button.new()
 	close_button.text = "Close"
+	close_button.custom_minimum_size = Vector2(0, TOUCH_TARGET)
 	close_button.pressed.connect(_on_close_pressed)
 	vbox.add_child(close_button)
 
@@ -118,12 +123,14 @@ func _build_volume_row(key: StringName) -> Control:
 	row.add_child(name_label)
 
 	var slider := HSlider.new()
+	# Thumb-sized grab area; the visual track stays thin.
+	slider.custom_minimum_size = Vector2(0, TOUCH_TARGET)
 	slider.min_value = 0.0
 	slider.max_value = 1.0
 	slider.step = 0.05
 	slider.value = AudioSettings.get_volume(key)
 	slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	slider.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	slider.size_flags_vertical = Control.SIZE_FILL
 	slider.value_changed.connect(_on_volume_changed.bind(key))
 	row.add_child(slider)
 
