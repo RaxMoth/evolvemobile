@@ -1,6 +1,6 @@
 # Progress Tracker
 
-Last loop run: 2026-10-18 (audio manager)
+Last loop run: 2026-10-18 (analytics sink)
 Stack: godot
 
 Spec source: `README.md` + `Docs/INSTRUCTOR.md` (roadmap, "Current Status & Roadmap",
@@ -79,7 +79,9 @@ Spec source: `README.md` + `Docs/INSTRUCTOR.md` (roadmap, "Current Status & Road
 - [x] Tutorial / first-time-user flow — `TutorialOverlay` (4 data-driven steps, scene-side wiring,
       shown once via `tutorial_seen`, "How to play" footer button re-opens it); 2 tests.
 - [ ] Minimap with fog overlay (SubViewport over `exploration_texture` + EntityRegistry dots)
-- [ ] Cloud save (`SaveBackend`), localization (`tr()` + strings.csv), analytics sink
+- [ ] Cloud save (`SaveBackend`), localization (`tr()` + strings.csv). Analytics sink DONE: `AnalyticsSink`
+      autoload (local `user://analytics.jsonl`, session_start / match_ended / skill_unlocked /
+      tutorial_finished, opt-out toggle in Settings, `set_provider()` for a future remote backend).
 
 ## Proposed (NOT approved — do not implement)
 
@@ -100,6 +102,18 @@ Spec source: `README.md` + `Docs/INSTRUCTOR.md` (roadmap, "Current Status & Road
 - [x] Legacy in-round `Scripts/Skilltree/` removed (zero references outside the folder).
 
 ## Changelog
+
+### 2026-10-18 — feat: AnalyticsSink (local JSONL event log, opt-out, provider hook)
+- `Scripts/analytics_sink.gd` autoload: `track(name, props)` buffers events, flushes every 5 s /
+  20 events / on close-pause / on exit as JSON lines appended to `user://analytics.jsonl`.
+  Hooks: `PersistedData.data_loaded` → session_start (save_version, total_matches),
+  `GameManager.match_ended` → match_ended (winner, duration, side, kills, stage),
+  `MetaSkillManager.skill_unlocked` → skill_unlocked; the tutorial reports tutorial_finished.
+  `set_provider(callable)` receives every event for a future remote backend.
+- Settings: new PRIVACY section with a "Usage statistics" CheckButton (`analytics_opt_out`
+  setting, local-only explained in the tooltip). `PersistedData.is_loaded()` added for late
+  subscribers. Match result screen now shows the permanent XP earned.
+- Tests: buffering + JSONL append, opt-out + provider, unlock signal tracked. Suite: 30 green.
 
 ### 2026-10-18 — feat: AudioManager with generated placeholder audio
 - `Scripts/audio_manager.gd` (autoload after GameManager, Node2D): 10 pooled `AudioStreamPlayer2D`

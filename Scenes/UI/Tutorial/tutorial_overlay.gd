@@ -89,5 +89,6 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _finish(completed: bool) -> void:
 	mark_seen()
+	AnalyticsSink.track(&"tutorial_finished", {"completed": completed, "step": _step + 1})
 	finished.emit(completed)
 	queue_free()

@@ -34,6 +34,7 @@ PersistedData="*res://Scripts/persisted_data.gd"
 MetaSkillManager="*res://Scripts/MetaSkills/meta_skill_manager.gd"
 GameManager="*res://Scripts/game_manager.gd"
 AudioManager="*res://Scripts/audio_manager.gd"
+AnalyticsSink="*res://Scripts/analytics_sink.gd"
 
 [display]
 

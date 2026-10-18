@@ -82,6 +82,9 @@ func _build_panel() -> void:
 		vbox.add_child(_build_volume_row(key))
 
 	vbox.add_child(_hsep())
+	vbox.add_child(_section_header("PRIVACY"))
+	vbox.add_child(_build_analytics_row())
+	vbox.add_child(_hsep())
 
 	_reset_button = Button.new()
 	_reset_button.text = "Reset Progress"
@@ -144,6 +147,30 @@ func _build_volume_row(key: StringName) -> Control:
 	_value_labels[key] = value_label
 
 	return row
+
+
+func _build_analytics_row() -> Control:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 12)
+
+	var label := Label.new()
+	label.text = "Usage statistics"
+	label.add_theme_font_size_override("font_size", 15)
+	label.add_theme_color_override("font_color", _MUTED)
+	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	label.tooltip_text = "Stored only on this device (user://analytics.jsonl). Nothing is uploaded."
+	row.add_child(label)
+
+	var toggle := CheckButton.new()
+	toggle.custom_minimum_size = Vector2(0, TOUCH_TARGET)
+	toggle.button_pressed = AnalyticsSink.is_enabled()
+	toggle.toggled.connect(_on_analytics_toggled)
+	row.add_child(toggle)
+	return row
+
+
+func _on_analytics_toggled(enabled: bool) -> void:
+	AnalyticsSink.set_opt_out(not enabled)
 
 
 func _percent(linear: float) -> String:

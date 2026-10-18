@@ -307,6 +307,10 @@ func set_setting(key: StringName, value: Variant) -> void:
 # Match counter (used by stats screens)
 # ============================================
 
+func is_loaded() -> bool:
+	return _loaded
+
+
 func get_total_matches() -> int:
 	return int(_config.get_value(SECTION_META, "total_matches", 0))
 
