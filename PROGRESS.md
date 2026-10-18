@@ -1,6 +1,6 @@
 # Progress Tracker
 
-Last loop run: 2026-10-18 (save-file migration)
+Last loop run: 2026-10-18 (tutorial overlay)
 Stack: godot
 
 Spec source: `README.md` + `Docs/INSTRUCTOR.md` (roadmap, "Current Status & Roadmap",
@@ -69,7 +69,8 @@ Spec source: `README.md` + `Docs/INSTRUCTOR.md` (roadmap, "Current Status & Road
 - [ ] Pre-Round Setup screen — `MatchConfig` resource (aggression/farming/exploration, formation)
 - [ ] Per-hero skill trees (Steel) + per-monster trees (Leaves) — seeds → `.tres`, `hero_id` on HeroStats
 - [ ] Hero composition selection — `HeroRoster.tres`, World spawns from `GameManager.selected_hero_ids`
-- [ ] Tutorial / first-time-user flow
+- [x] Tutorial / first-time-user flow — `TutorialOverlay` (4 data-driven steps, scene-side wiring,
+      shown once via `tutorial_seen`, "How to play" footer button re-opens it); 2 tests.
 - [ ] Minimap with fog overlay (SubViewport over `exploration_texture` + EntityRegistry dots)
 - [ ] Cloud save (`SaveBackend`), localization (`tr()` + strings.csv), analytics sink
 
@@ -92,6 +93,19 @@ Spec source: `README.md` + `Docs/INSTRUCTOR.md` (roadmap, "Current Status & Road
 - [x] Legacy in-round `Scripts/Skilltree/` removed (zero references outside the folder).
 
 ## Changelog
+
+### 2026-10-18 — feat: first-run tutorial overlay + touch targets
+- `Scenes/UI/Tutorial/TutorialOverlay.tscn` + `tutorial_overlay.gd` (`class_name TutorialOverlay`,
+  CanvasLayer, `process_mode = ALWAYS` so it also works over a paused tree): four steps (pick a
+  side, heroes, monster evolution, progression) as a `const STEPS` array; Back / Next ("Got it" on
+  the last step) / Skip wired scene-side; Esc skips. `has_been_seen()` / `mark_seen()` use the
+  PersistedData `tutorial_seen` setting — skipping also counts as seen.
+- Main menu: auto-opens the overlay 0.9 s after the intro on a fresh save; new "How to play"
+  footer button re-opens it any time.
+- Touch targets: every menu / settings / meta-skill control is now ≥ 48 px tall (`TOUCH_TARGET`
+  const in the settings screen for the code-built buttons and volume sliders).
+- Tests: walkthrough reaches the last step, Back works, finishing marks seen and frees the
+  overlay; Skip marks seen. Suite: 21 tests green.
 
 ### 2026-10-18 — feat: versioned save migration with backups (`PersistedData`)
 - `CURRENT_SAVE_VERSION` 1 → 2. `load_data()` now: resets the ConfigFile, backs up an older file

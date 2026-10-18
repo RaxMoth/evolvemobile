@@ -9,6 +9,7 @@ extends Node2D
 
 const WORLD_SCENE: PackedScene = preload("res://Scenes/World/World.tscn")
 const META_SKILL_SCREEN: PackedScene = preload("res://Scenes/UI/MetaSkills/MetaSkillScreen.tscn")
+const TUTORIAL_SCENE: PackedScene = preload("res://Scenes/UI/Tutorial/TutorialOverlay.tscn")
 
 @onready var play_as_hero_btn: Button = %PlayAsHero
 @onready var play_as_monster_btn: Button = %PlayAsMonster
@@ -26,6 +27,7 @@ const META_SKILL_SCREEN: PackedScene = preload("res://Scenes/UI/MetaSkills/MetaS
 @onready var gold_value: Label = %GoldValue
 
 @onready var settings_btn: Button = %SettingsButton
+@onready var how_to_play_btn: Button = %HowToPlayButton
 
 # Per-hero level labels (hero_id -> Label), built in code and refreshed from
 # the PersistedData XP signals. The monster side has a single character.
@@ -46,6 +48,8 @@ func _ready() -> void:
 	_wire_skill_buttons()
 	if settings_btn:
 		settings_btn.pressed.connect(_open_settings)
+	if how_to_play_btn:
+		how_to_play_btn.pressed.connect(_open_tutorial)
 	_setup_card_hover(heroes_card)
 	_setup_card_hover(monster_card)
 	_refresh_currency()
@@ -56,6 +60,10 @@ func _ready() -> void:
 	PersistedData.monster_xp_changed.connect(_on_monster_xp_changed)
 
 	_play_intro()
+
+	# First run: walk the player through the loop once the intro has settled.
+	if not TutorialOverlay.has_been_seen():
+		get_tree().create_timer(0.9).timeout.connect(_open_tutorial)
 
 
 # ============================================
@@ -151,6 +159,12 @@ func _open_meta_skills(preselect_tree_id: StringName) -> void:
 			screen.tree_picker.select(i)
 			screen._show_tree(preselect_tree_id)
 			break
+
+
+func _open_tutorial() -> void:
+	if get_node_or_null("TutorialOverlay"):
+		return
+	add_child(TUTORIAL_SCENE.instantiate())
 
 
 func _open_settings() -> void:
