@@ -40,7 +40,7 @@ func populate(result: MatchRewards.Result) -> void:
 		# @onready vars resolve.
 		await ready
 
-	outcome_label.text = MatchRewards.outcome_label(result.outcome)
+	outcome_label.text = tr(MatchRewards.outcome_label(result.outcome))
 	outcome_label.modulate = _color_for_outcome(result.outcome)
 
 	duration_value.text = MatchRewards.format_duration(result.duration_sec)
@@ -54,7 +54,7 @@ func populate(result: MatchRewards.Result) -> void:
 	else:
 		survivors_row.visible = false
 		stage_row.visible = true
-		stage_value.text = "Stage %d" % result.monster_stage
+		stage_value.text = tr("Stage %d") % result.monster_stage
 
 	# Currency rows — only show what was actually earned.
 	steel_row.visible = result.steel > 0

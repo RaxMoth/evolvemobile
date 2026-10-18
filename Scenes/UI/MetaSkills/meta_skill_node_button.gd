@@ -86,7 +86,7 @@ func refresh() -> void:
 	else:
 		var have: int = PersistedData.get_currency(node_def.currency)
 		var color_tag := "#063" if available else "#933"
-		status_line = "[color=%s]%d / %d %s[/color]" % [color_tag, have, node_def.cost, String(node_def.currency).capitalize()]
+		status_line = "[color=%s]%d / %d %s[/color]" % [color_tag, have, node_def.cost, tr(String(node_def.currency).capitalize())]
 
 	_label.text = "[b]%s[/b]\n[font_size=11]%s[/font_size]\n%s" % [node_def.display_name, node_def.description, status_line]
 

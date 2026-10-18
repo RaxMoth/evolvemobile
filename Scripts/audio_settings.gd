@@ -24,9 +24,9 @@ const DEFAULT_VOLUME := 0.8
 ## Human-facing label for a volume key (used by the settings UI).
 static func label_for(key: StringName) -> String:
 	match key:
-		KEY_MUSIC: return "Music"
-		KEY_SFX: return "Effects"
-		_: return "Master"
+		KEY_MUSIC: return TranslationServer.translate("Music")
+		KEY_SFX: return TranslationServer.translate("Effects")
+		_: return TranslationServer.translate("Master")
 
 
 static func _bus_for(key: StringName) -> StringName:

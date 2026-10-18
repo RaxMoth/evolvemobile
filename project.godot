@@ -93,6 +93,11 @@ toggle_camera_debug={
 ]
 }
 
+[internationalization]
+
+locale/fallback="en"
+locale/translations=PackedStringArray("res://Assets/Locale/strings.en.translation", "res://Assets/Locale/strings.de.translation")
+
 [layer_names]
 
 2d_physics/layer_1="world"

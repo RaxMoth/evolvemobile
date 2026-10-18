@@ -69,32 +69,35 @@ func _build_panel() -> void:
 	panel.add_child(vbox)
 
 	var title := Label.new()
-	title.text = "SETTINGS"
+	title.text = tr("SETTINGS")
 	title.add_theme_font_size_override("font_size", 26)
 	title.add_theme_color_override("font_color", _ACCENT)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vbox.add_child(title)
 
-	var audio_header := _section_header("AUDIO")
+	var audio_header := _section_header(tr("AUDIO"))
 	vbox.add_child(audio_header)
 
 	for key in AudioSettings.VOLUME_KEYS:
 		vbox.add_child(_build_volume_row(key))
 
 	vbox.add_child(_hsep())
-	vbox.add_child(_section_header("PRIVACY"))
+	vbox.add_child(_section_header(tr("LANGUAGE")))
+	vbox.add_child(_build_language_row())
+	vbox.add_child(_hsep())
+	vbox.add_child(_section_header(tr("PRIVACY")))
 	vbox.add_child(_build_analytics_row())
 	vbox.add_child(_hsep())
 
 	_reset_button = Button.new()
-	_reset_button.text = "Reset Progress"
+	_reset_button.text = tr("Reset Progress")
 	_reset_button.custom_minimum_size = Vector2(0, TOUCH_TARGET)
 	_reset_button.add_theme_color_override("font_color", _DANGER)
 	_reset_button.pressed.connect(_on_reset_pressed)
 	vbox.add_child(_reset_button)
 
 	var close_button := Button.new()
-	close_button.text = "Close"
+	close_button.text = tr("Close")
 	close_button.custom_minimum_size = Vector2(0, TOUCH_TARGET)
 	close_button.pressed.connect(_on_close_pressed)
 	vbox.add_child(close_button)
@@ -149,16 +152,54 @@ func _build_volume_row(key: StringName) -> Control:
 	return row
 
 
+func _build_language_row() -> Control:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 12)
+
+	var label := Label.new()
+	label.text = tr("Language")
+	label.add_theme_font_size_override("font_size", 15)
+	label.add_theme_color_override("font_color", _MUTED)
+	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(label)
+
+	var picker := OptionButton.new()
+	picker.custom_minimum_size = Vector2(160, TOUCH_TARGET)
+	for choice_label in LocaleSettings.CHOICE_LABELS:
+		picker.add_item(tr(choice_label))
+	picker.select(LocaleSettings.choice_index())
+	picker.item_selected.connect(_on_language_selected)
+	row.add_child(picker)
+	return row
+
+
+func _on_language_selected(idx: int) -> void:
+	LocaleSettings.set_choice_index(idx)
+	# Scene-side labels re-translate automatically; this panel is built in
+	# code, so rebuild it to pick up the new language immediately.
+	_rebuild()
+
+
+func _rebuild() -> void:
+	for child in get_children():
+		remove_child(child)
+		child.queue_free()
+	_value_labels.clear()
+	_reset_armed = false
+	_build_dim_background()
+	_build_panel()
+
+
 func _build_analytics_row() -> Control:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 12)
 
 	var label := Label.new()
-	label.text = "Usage statistics"
+	label.text = tr("Usage statistics")
 	label.add_theme_font_size_override("font_size", 15)
 	label.add_theme_color_override("font_color", _MUTED)
 	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	label.tooltip_text = "Stored only on this device (user://analytics.jsonl). Nothing is uploaded."
+	label.tooltip_text = tr("Stored only on this device (user://analytics.jsonl). Nothing is uploaded.")
 	row.add_child(label)
 
 	var toggle := CheckButton.new()
@@ -191,14 +232,14 @@ func _on_volume_changed(value: float, key: StringName) -> void:
 func _on_reset_pressed() -> void:
 	if not _reset_armed:
 		_reset_armed = true
-		_reset_button.text = "Tap again to confirm"
+		_reset_button.text = tr("Tap again to confirm")
 		# Disarm after a short window if they don't confirm.
 		var timer := get_tree().create_timer(3.0)
 		timer.timeout.connect(_disarm_reset)
 		return
 	PersistedData.wipe_progress()
 	_reset_armed = false
-	_reset_button.text = "Progress Reset"
+	_reset_button.text = tr("Progress Reset")
 	_reset_button.disabled = true
 
 
@@ -207,7 +248,7 @@ func _disarm_reset() -> void:
 		return
 	if _reset_armed:
 		_reset_armed = false
-		_reset_button.text = "Reset Progress"
+		_reset_button.text = tr("Reset Progress")
 
 
 func _on_close_pressed() -> void:

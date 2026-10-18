@@ -1,6 +1,6 @@
 # Progress Tracker
 
-Last loop run: 2026-10-18 (analytics sink)
+Last loop run: 2026-10-18 (localization scaffold)
 Stack: godot
 
 Spec source: `README.md` + `Docs/INSTRUCTOR.md` (roadmap, "Current Status & Roadmap",
@@ -79,7 +79,10 @@ Spec source: `README.md` + `Docs/INSTRUCTOR.md` (roadmap, "Current Status & Road
 - [x] Tutorial / first-time-user flow — `TutorialOverlay` (4 data-driven steps, scene-side wiring,
       shown once via `tutorial_seen`, "How to play" footer button re-opens it); 2 tests.
 - [ ] Minimap with fog overlay (SubViewport over `exploration_texture` + EntityRegistry dots)
-- [ ] Cloud save (`SaveBackend`), localization (`tr()` + strings.csv). Analytics sink DONE: `AnalyticsSink`
+- [ ] Cloud save (`SaveBackend`). Localization DONE: `Assets/Locale/strings.csv` (en + de, keys = English
+      text so scene labels auto-translate), `tr()` on code-built UI strings, `LocaleSettings` + language
+      picker (System / English / Deutsch) in Settings; skill-tree node names stay English for now.
+      Analytics sink DONE: `AnalyticsSink`
       autoload (local `user://analytics.jsonl`, session_start / match_ended / skill_unlocked /
       tutorial_finished, opt-out toggle in Settings, `set_provider()` for a future remote backend).
 
@@ -102,6 +105,18 @@ Spec source: `README.md` + `Docs/INSTRUCTOR.md` (roadmap, "Current Status & Road
 - [x] Legacy in-round `Scripts/Skilltree/` removed (zero references outside the folder).
 
 ## Changelog
+
+### 2026-10-18 — feat: localization scaffold (English + German)
+- `Assets/Locale/strings.csv` (63 keys; keys are the English text so every scene `text` property
+  auto-translates), imported to `strings.en/de.translation` and registered in `project.godot`
+  `[internationalization]` with `locale/fallback="en"`.
+- `Scripts/locale_settings.gd`: persisted choice (`locale` setting: "" = device language, `en`, `de`),
+  applied on save load and live from the new Settings LANGUAGE row (OptionButton; the code-built
+  settings panel rebuilds itself so the change is visible immediately).
+- `tr()` on the code-built strings in the main menu, settings, tutorial, match result, meta-skill
+  screen and node buttons; `AudioSettings.label_for` and `MatchRewards.outcome_label` keys translate.
+  Skill-tree node names/descriptions remain English (content, not UI).
+- Tests: de/en resolve with fallback; locale choice persists and applies. Suite: 32 green.
 
 ### 2026-10-18 — feat: AnalyticsSink (local JSONL event log, opt-out, provider hook)
 - `Scripts/analytics_sink.gd` autoload: `track(name, props)` buffers events, flushes every 5 s /

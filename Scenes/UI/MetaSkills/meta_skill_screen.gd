@@ -135,7 +135,7 @@ func _on_currency_changed(_currency: StringName, _new_amount: int) -> void:
 
 
 func _refresh_currency_label() -> void:
-	currency_label.text = "Steel %d   Leaves %d   Gold %d" % [
+	currency_label.text = tr("Steel %d   Leaves %d   Gold %d") % [
 		PersistedData.get_currency(PersistedData.STEEL),
 		PersistedData.get_currency(PersistedData.LEAVES),
 		PersistedData.get_currency(PersistedData.GOLD),

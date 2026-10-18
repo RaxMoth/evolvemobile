@@ -140,16 +140,16 @@ func _wire_play_buttons() -> void:
 
 func _wire_skill_buttons() -> void:
 	if hero_skills_btn:
-		hero_skills_btn.tooltip_text = "Permanent upgrades for all heroes"
+		hero_skills_btn.tooltip_text = tr("Permanent upgrades for all heroes")
 		hero_skills_btn.pressed.connect(_open_meta_skills.bind(MetaSkillManager.TREE_HERO_BASE))
 	if monster_skills_btn:
-		monster_skills_btn.tooltip_text = "Permanent upgrades for the monster"
+		monster_skills_btn.tooltip_text = tr("Permanent upgrades for the monster")
 		monster_skills_btn.pressed.connect(_open_meta_skills.bind(MetaSkillManager.TREE_MONSTER_BASE))
 	# Roster / individual trees ship later — keep disabled for now.
 	for btn in [hero_updates_btn, monster_updates_btn]:
 		if btn:
 			btn.disabled = true
-			btn.tooltip_text = "Coming soon"
+			btn.tooltip_text = tr("Coming soon")
 
 
 func _open_meta_skills(preselect_tree_id: StringName) -> void:
@@ -204,7 +204,7 @@ func _build_progression() -> void:
 	var hero_panel := _make_progression_panel(_HERO_ACCENT)
 	for hero_id in GameManager.KNOWN_HERO_IDS:
 		var value := _add_level_row(hero_panel, _display_name(hero_id))
-		value.text = "Lv %d" % PersistedData.level_from_xp(PersistedData.get_hero_xp(hero_id))
+		value.text = tr("Lv %d") % PersistedData.level_from_xp(PersistedData.get_hero_xp(hero_id))
 		_hero_level_labels[hero_id] = value
 	_insert_before_filler(heroes_card, hero_panel)
 
@@ -224,7 +224,7 @@ func _make_progression_panel(accent: Color) -> VBoxContainer:
 	var panel := VBoxContainer.new()
 	panel.add_theme_constant_override("separation", 4)
 	var header := Label.new()
-	header.text = "PROGRESSION"
+	header.text = tr("PROGRESSION")
 	header.add_theme_font_size_override("font_size", 11)
 	header.add_theme_color_override("font_color", Color(accent.r, accent.g, accent.b, 0.55))
 	header.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -269,7 +269,7 @@ func _refresh_monster_progress(total_xp: int) -> void:
 	if _monster_level_label == null:
 		return
 	var prog := PersistedData.level_progress(total_xp)
-	_monster_level_label.text = "Lv %d" % int(prog.level)
+	_monster_level_label.text = tr("Lv %d") % int(prog.level)
 	if _monster_progress_bar:
 		_monster_progress_bar.max_value = maxf(1.0, float(prog.needed))
 		_monster_progress_bar.value = float(prog.into)
@@ -278,7 +278,7 @@ func _refresh_monster_progress(total_xp: int) -> void:
 func _on_hero_xp_changed(hero_id: StringName, new_xp: int) -> void:
 	if _hero_level_labels.has(hero_id):
 		var value: Label = _hero_level_labels[hero_id]
-		value.text = "Lv %d" % PersistedData.level_from_xp(new_xp)
+		value.text = tr("Lv %d") % PersistedData.level_from_xp(new_xp)
 
 
 func _on_monster_xp_changed(monster_id: StringName, new_xp: int) -> void:

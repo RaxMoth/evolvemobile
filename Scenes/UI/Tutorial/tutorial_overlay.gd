@@ -57,11 +57,11 @@ func current_step() -> int:
 func _show_step(index: int) -> void:
 	_step = clampi(index, 0, STEPS.size() - 1)
 	var step: Dictionary = STEPS[_step]
-	title_label.text = String(step.get("title", ""))
-	body_label.text = String(step.get("body", ""))
+	title_label.text = tr(String(step.get("title", "")))
+	body_label.text = tr(String(step.get("body", "")))
 	progress_label.text = "%d / %d" % [_step + 1, STEPS.size()]
 	back_button.disabled = _step == 0
-	next_button.text = "Got it" if _step == STEPS.size() - 1 else "Next"
+	next_button.text = tr("Got it") if _step == STEPS.size() - 1 else tr("Next")
 
 
 # --- scene-side connections (TutorialOverlay.tscn) ---

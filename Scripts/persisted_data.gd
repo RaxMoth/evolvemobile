@@ -89,6 +89,7 @@ func load_data() -> void:
 	_loaded = true
 	# Push saved audio volumes onto the buses now that settings are available.
 	AudioSettings.apply_saved()
+	LocaleSettings.apply_saved()
 	data_loaded.emit()
 
 
