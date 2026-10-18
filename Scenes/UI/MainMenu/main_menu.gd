@@ -60,6 +60,8 @@ func _ready() -> void:
 	PersistedData.monster_xp_changed.connect(_on_monster_xp_changed)
 
 	_play_intro()
+	AudioManager.play_music(&"menu")
+	_wire_ui_clicks()
 
 	# First run: walk the player through the loop once the intro has settled.
 	if not TutorialOverlay.has_been_seen():
@@ -159,6 +161,14 @@ func _open_meta_skills(preselect_tree_id: StringName) -> void:
 			screen.tree_picker.select(i)
 			screen._show_tree(preselect_tree_id)
 			break
+
+
+func _wire_ui_clicks() -> void:
+	# Autoloads cannot be scene [connection] targets, so the click SFX is wired here.
+	for btn in [play_as_hero_btn, play_as_monster_btn, hero_skills_btn, hero_updates_btn,
+			monster_skills_btn, monster_updates_btn, settings_btn, how_to_play_btn]:
+		if btn:
+			btn.pressed.connect(AudioManager.play_ui_click)
 
 
 func _open_tutorial() -> void:

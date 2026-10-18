@@ -33,6 +33,7 @@ TickScheduler="*res://Scripts/tick_scheduler.gd"
 PersistedData="*res://Scripts/persisted_data.gd"
 MetaSkillManager="*res://Scripts/MetaSkills/meta_skill_manager.gd"
 GameManager="*res://Scripts/game_manager.gd"
+AudioManager="*res://Scripts/audio_manager.gd"
 
 [display]
 

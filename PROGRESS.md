@@ -1,6 +1,6 @@
 # Progress Tracker
 
-Last loop run: 2026-10-18 (per-character skill trees)
+Last loop run: 2026-10-18 (audio manager)
 Stack: godot
 
 Spec source: `README.md` + `Docs/INSTRUCTOR.md` (roadmap, "Current Status & Roadmap",
@@ -47,9 +47,12 @@ Spec source: `README.md` + `Docs/INSTRUCTOR.md` (roadmap, "Current Status & Road
 ## Backlog (from spec + production roadmap, in order)
 - [ ] Perf pass follow-up: capture F3 before/after numbers (stress config), playtest the P1 balance
       change, retune `detection_radius` / AoE radii / Mine-MediKit-TrapCage trigger radii
-- [ ] Audio content on the existing buses — `audio_manager.gd` autoload subscribed to
-      `EventBus.damage_applied` / `entity_died` / `ability_cast` + a new `monster_evolved`; pooled
-      SFX players, on-screen gating, 50 ms de-dupe; assets under `Assets/Audio/`
+- [ ] Audio — DONE: `AudioManager` autoload (pooled positional SFX on the SFX bus, music on the Music
+      bus, 50 ms per-key rate limit, hooks on damage / death / ability cast / match end, menu music +
+      UI clicks), generated placeholder tones until real files exist in `Assets/Audio/<key>.ogg|wav`
+      (see its README). OPEN: real audio assets; `evolve` SFX + match music need an
+      `EventBus.monster_evolved` emit in MonsterBase and a `play_music(&"match")` call in world.gd
+      (both files are in the pending review).
 - [x] Headless test harness (`tools/run_tests.sh`, `test/`) — rewards, level curve, tier gating,
       targeted damage hook, death from Idle/Approach, spawn accounting + pooled respawn + epoch cancel.
       (Own 60-line runner instead of vendoring GUT; extend with `test/test_*.gd` extending `TestCase`.)
@@ -97,6 +100,18 @@ Spec source: `README.md` + `Docs/INSTRUCTOR.md` (roadmap, "Current Status & Road
 - [x] Legacy in-round `Scripts/Skilltree/` removed (zero references outside the folder).
 
 ## Changelog
+
+### 2026-10-18 — feat: AudioManager with generated placeholder audio
+- `Scripts/audio_manager.gd` (autoload after GameManager, Node2D): 10 pooled `AudioStreamPlayer2D`
+  voices on the SFX bus (max_distance 1400, attenuation 1.5 → distant fights are quiet), one global
+  SFX player, one Music player; per-key 50 ms retrigger limit; voice stealing picks the voice
+  furthest along. Hooks: `damage_applied` → hit / hit_big (heroes, monster), `entity_died` →
+  death_mob / death_big, `ability_cast` → cast / ult, `GameManager.match_ended` → victory /
+  defeat relative to the chosen side. Main menu plays `menu` music and clicks on every button.
+- Sources: `Assets/Audio/<key>.ogg|wav` when present (README lists the keys), otherwise a
+  procedurally generated 16-bit WAV placeholder (decaying sine sweeps with optional noise; a looped
+  two-chord pad for music) so the game is never silent while assets are produced.
+- Tests: every key has a stream (all placeholders today), rate limiting, music switching.
 
 ### 2026-10-18 — feat: per-hero (Steel) and per-monster (Leaves) skill trees, stat-only slice
 - `HeroStats.hero_id` / `MonsterStats.monster_id` exports (set in the five `.tres` files) — the stable
