@@ -21,6 +21,7 @@ const MAIN_MENU_SCENE: PackedScene = preload("res://Scenes/UI/MainMenu/MainMenu.
 @onready var leaves_row: HBoxContainer = %LeavesRow
 @onready var leaves_value: Label = %LeavesValue
 @onready var gold_value: Label = %GoldValue
+@onready var xp_value: Label = %XpValue
 ## Button @onready refs removed — `pressed` signals are wired scene-side
 ## via [connection] entries in MatchResult.tscn.
 
@@ -61,6 +62,8 @@ func populate(result: MatchRewards.Result) -> void:
 	steel_value.text = "+%d" % result.steel
 	leaves_value.text = "+%d" % result.leaves
 	gold_value.text = "+%d" % result.gold
+	# Permanent XP goes to every participating character on the played side.
+	xp_value.text = "+%d XP" % result.xp
 
 
 func _color_for_outcome(outcome: int) -> Color:
