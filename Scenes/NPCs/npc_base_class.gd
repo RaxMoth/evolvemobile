@@ -850,7 +850,9 @@ func _score_destination(point: Vector2) -> float:
 	# so the old wall rays (5 samples x 20 rays per retarget) could only ever
 	# hit Ted's pet. A point further than 16 px from the nav mesh is unreachable.
 	var nav_map: RID = get_world_2d().navigation_map
-	if nav_map.is_valid():
+	# iteration_id == 0 means the map has not synchronized yet (first frames,
+	# or a scene without navigation) — querying it then logs an engine error.
+	if nav_map.is_valid() and NavigationServer2D.map_get_iteration_id(nav_map) > 0:
 		var on_mesh: Vector2 = NavigationServer2D.map_get_closest_point(nav_map, point)
 		if on_mesh.distance_squared_to(point) > 16.0 * 16.0:
 			return -1000.0

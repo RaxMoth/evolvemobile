@@ -1,6 +1,6 @@
 # Progress Tracker
 
-Last loop run: 2026-10-14 (test harness + ToDead path fix)
+Last loop run: 2026-10-18 (save-file migration)
 Stack: godot
 
 Spec source: `README.md` + `Docs/INSTRUCTOR.md` (roadmap, "Current Status & Roadmap",
@@ -53,7 +53,8 @@ Spec source: `README.md` + `Docs/INSTRUCTOR.md` (roadmap, "Current Status & Road
 - [x] Headless test harness (`tools/run_tests.sh`, `test/`) — rewards, level curve, tier gating,
       targeted damage hook, death from Idle/Approach, spawn accounting + pooled respawn + epoch cancel.
       (Own 60-line runner instead of vendoring GUT; extend with `test/test_*.gd` extending `TestCase`.)
-- [ ] Save-file migration — `_migrate(from_version)` ladder, `.bak` before write, version bump
+- [x] Save-file migration — `_migrate()` ladder (v1→v2 normalizes types, seeds `created_unix`),
+      `save.cfg.v<N>.bak` before migrating, `save.cfg.corrupt.bak` on unreadable files; 4 tests.
 - [ ] Export presets + device build — Android/iOS portrait, `max_fps=60`, `treat_warnings_as_errors`,
       Compatibility-vs-Mobile renderer benchmark (features tag says GL Compatibility), physics 30 Hz trial
 - [ ] Touch-input audit — pinch zoom, tap-to-focus, ≥44 px targets; debug keys behind `OS.is_debug_build()`
@@ -84,6 +85,21 @@ Spec source: `README.md` + `Docs/INSTRUCTOR.md` (roadmap, "Current Status & Road
 - [x] Legacy in-round `Scripts/Skilltree/` removed (zero references outside the folder).
 
 ## Changelog
+
+### 2026-10-18 — feat: versioned save migration with backups (`PersistedData`)
+- `CURRENT_SAVE_VERSION` 1 → 2. `load_data()` now: resets the ConfigFile, backs up an older file
+  to `save.cfg.v<N>.bak`, walks `_migrate(from_version)` one step at a time, re-saves; keeps an
+  unreadable file as `save.cfg.corrupt.bak` before seeding defaults; warns (does not touch) on a
+  file from a newer build. `get_save_version()` treats a file without the key as v1.
+- v1 → v2 step normalizes what the first builds wrote loosely: currency / XP / match counters to
+  non-negative ints (floats rounded, numeric strings parsed), skill lists to de-duplicated strings,
+  volumes clamped to 0–1 (garbage → default), and seeds `[meta] created_unix` from the last save
+  time. Each step is idempotent and tolerant of missing sections.
+- Tests (`test/test_save_migration.gd`, isolated user:// only): v1 backed up + normalized,
+  unversioned file counts as v1, current file untouched, corrupt file kept aside.
+- Also: `_score_destination` skips the NavigationServer query until the map has synchronized
+  (`map_get_iteration_id() > 0`) — it logged an engine error on the first frames; the test runner
+  now fails only on `SCRIPT ERROR` lines (engine `ERROR:` lines can be deliberate in tests).
 
 ### 2026-10-14 — test: headless harness + fix: CompoundState ToDead target path
 - **Bug caught by the first test run:** the P0a `ToDead` transition placed on the CompoundState used

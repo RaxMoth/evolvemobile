@@ -1,0 +1,96 @@
+extends TestCase
+
+## Save-file versioning: older files are backed up, walked up the migration
+## ladder and normalized. Only runs against the isolated test user:// dir.
+
+const SAVE := "user://save.cfg"
+
+
+func _isolated() -> bool:
+	return OS.get_user_data_dir().contains("evolvemobile_tests")
+
+
+func before_each() -> void:
+	if _isolated():
+		for f in [SAVE, SAVE + ".v1.bak", SAVE + ".corrupt.bak"]:
+			if FileAccess.file_exists(f):
+				DirAccess.remove_absolute(ProjectSettings.globalize_path(f))
+
+
+func _write_v1(values: Dictionary, with_version: bool = true) -> void:
+	var cfg := ConfigFile.new()
+	if with_version:
+		cfg.set_value("meta", "save_version", 1)
+	for section in values:
+		for key in values[section]:
+			cfg.set_value(section, key, values[section][key])
+	cfg.save(SAVE)
+
+
+func test_v1_save_is_backed_up_and_normalized() -> void:
+	if not _isolated():
+		skip("user:// is not the isolated test dir")
+		return
+	_write_v1({
+		"currency": {"steel": 12.6, "gold": -5, "leaves": "40"},
+		"hero_xp": {"vlad": 250.0},
+		"skills": {"hero_base": ["t1_hp", 7, "t1_hp", &"t2_dmg"]},
+		"settings": {"music_volume": 1.7, "sfx_volume": "loud"},
+		"meta": {"total_matches": 3, "last_saved_unix": 1700000000},
+	})
+	PersistedData.load_data()
+	assert_eq(PersistedData.get_save_version(), 2)
+	assert_eq(PersistedData.get_currency(PersistedData.STEEL), 13, "float rounded to int")
+	assert_eq(PersistedData.get_currency(PersistedData.GOLD), 0, "negative clamped")
+	assert_eq(PersistedData.get_currency(PersistedData.LEAVES), 40, "numeric string parsed")
+	assert_eq(PersistedData.get_hero_xp(&"vlad"), 250)
+	assert_eq(PersistedData.get_unlocked_skills(&"hero_base"), ["t1_hp", "t2_dmg"], "strings only, de-duplicated")
+	assert_near(float(PersistedData.get_setting(&"music_volume")), 1.0, 0.0001, "volume clamped")
+	assert_near(float(PersistedData.get_setting(&"sfx_volume")), AudioSettings.DEFAULT_VOLUME, 0.0001, "garbage volume reset")
+	assert_eq(PersistedData.get_total_matches(), 3)
+	assert_eq(int(PersistedData.get_setting(&"__none", 0)), 0)
+	assert_true(FileAccess.file_exists(SAVE + ".v1.bak"), "backup written before migrating")
+	var bak := ConfigFile.new()
+	bak.load(SAVE + ".v1.bak")
+	assert_eq(int(bak.get_value("meta", "save_version", 0)), 1, "backup is the untouched v1 file")
+	assert_eq(bak.get_value("currency", "gold", null), -5)
+	var on_disk := ConfigFile.new()
+	on_disk.load(SAVE)
+	assert_eq(int(on_disk.get_value("meta", "save_version", 0)), 2, "migrated file re-saved")
+	assert_true(int(on_disk.get_value("meta", "created_unix", 0)) == 1700000000, "created_unix seeded from last save")
+
+
+func test_unversioned_save_counts_as_v1() -> void:
+	if not _isolated():
+		skip("user:// is not the isolated test dir")
+		return
+	_write_v1({"currency": {"steel": 5}}, false)
+	PersistedData.load_data()
+	assert_eq(PersistedData.get_save_version(), 2)
+	assert_eq(PersistedData.get_currency(PersistedData.STEEL), 5)
+	assert_true(FileAccess.file_exists(SAVE + ".v1.bak"))
+
+
+func test_current_save_is_not_backed_up_or_rewritten() -> void:
+	if not _isolated():
+		skip("user:// is not the isolated test dir")
+		return
+	PersistedData.wipe_progress()
+	PersistedData.add_currency(PersistedData.GOLD, 77)
+	PersistedData.save_data()
+	PersistedData.load_data()
+	assert_eq(PersistedData.get_currency(PersistedData.GOLD), 77)
+	assert_false(FileAccess.file_exists(SAVE + ".v1.bak"), "no migration, no backup")
+
+
+func test_corrupt_save_is_kept_aside_and_defaults_seeded() -> void:
+	if not _isolated():
+		skip("user:// is not the isolated test dir")
+		return
+	var f := FileAccess.open(SAVE, FileAccess.WRITE)
+	f.store_string("this is = not [ a config\n[[[")
+	f.close()
+	PersistedData.load_data()
+	assert_eq(PersistedData.get_save_version(), 2)
+	assert_eq(PersistedData.get_currency(PersistedData.STEEL), 0)
+	assert_true(FileAccess.file_exists(SAVE + ".corrupt.bak"), "unreadable file preserved")

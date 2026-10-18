@@ -17,5 +17,7 @@ set +e
 "$GODOT" --headless --path "$TMP/proj" -s res://test/run_tests.gd > "$TMP/run.log" 2>&1
 STATUS=$?
 grep -v "Could not create child process" "$TMP/run.log"
-if grep -q "SCRIPT ERROR\|ERROR:" "$TMP/run.log"; then echo "(script errors above)"; exit 1; fi
+# Only SCRIPT ERROR lines fail the run: some tests provoke engine ERROR
+# lines on purpose (e.g. loading a corrupt save file).
+if grep -q "SCRIPT ERROR" "$TMP/run.log"; then echo "(script errors above)"; exit 1; fi
 exit $STATUS

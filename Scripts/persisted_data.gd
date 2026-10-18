@@ -13,6 +13,12 @@ extends Node
 ## fire and so we never have stale reads. Save is explicit (call save()
 ## after meaningful changes) — we don't write on every set to avoid
 ## per-frame I/O when many things change in sequence.
+##
+## Versioning: [meta] save_version. On load, an older file is first copied to
+## `save.cfg.v<N>.bak`, then walked up the `_migrate()` ladder one version at
+## a time and re-saved. A file without a version key counts as v1 (the first
+## shipped layout). Add a new `_migrate_vN_to_vN1()` step + bump
+## CURRENT_SAVE_VERSION whenever the layout changes.
 
 signal currency_changed(currency: StringName, new_amount: int)
 signal hero_xp_changed(hero_id: StringName, new_xp: int)
@@ -21,7 +27,9 @@ signal data_loaded
 signal data_saved
 
 const SAVE_PATH := "user://save.cfg"
-const CURRENT_SAVE_VERSION := 1
+## v1: first shipped layout. v2: normalized types (ints for currency/XP,
+## strings only in skill lists, volumes clamped) + [meta] created_unix.
+const CURRENT_SAVE_VERSION := 2
 
 # --- Permanent-level curve ---
 # Level starts at 1. The cost to advance from level L to L+1 is
@@ -56,14 +64,28 @@ func _ready() -> void:
 # ============================================
 
 func load_data() -> void:
+	_config = ConfigFile.new()
 	var err := _config.load(SAVE_PATH)
 	if err == ERR_FILE_NOT_FOUND:
 		# First run — write defaults.
 		_seed_defaults()
 		save_data()
 	elif err != OK:
+		# Keep the unreadable file around for the player instead of silently
+		# overwriting it, then start fresh.
 		push_warning("PersistedData: load failed (err %d) — starting fresh." % err)
+		_backup_save("corrupt")
+		_config = ConfigFile.new()
 		_seed_defaults()
+		save_data()
+	else:
+		var from_version := get_save_version()
+		if from_version < CURRENT_SAVE_VERSION:
+			_backup_save("v%d" % from_version)
+			_migrate(from_version)
+			save_data()
+		elif from_version > CURRENT_SAVE_VERSION:
+			push_warning("PersistedData: save is from a newer build (v%d, this build writes v%d)." % [from_version, CURRENT_SAVE_VERSION])
 	_loaded = true
 	# Push saved audio volumes onto the buses now that settings are available.
 	AudioSettings.apply_saved()
@@ -85,6 +107,84 @@ func _seed_defaults() -> void:
 		_config.set_value(SECTION_CURRENCY, c, 0)
 	_config.set_value(SECTION_META, "total_matches", 0)
 	_config.set_value(SECTION_META, "save_version", CURRENT_SAVE_VERSION)
+	_config.set_value(SECTION_META, "created_unix", int(Time.get_unix_time_from_system()))
+
+
+## Version stamp of the loaded file. A file without the key is a v1 save
+## (written before versioning was enforced); 0 means nothing is loaded.
+func get_save_version() -> int:
+	if not _config.has_section_key(SECTION_META, "save_version"):
+		return 1 if _config.get_sections().size() > 0 else 0
+	return int(_config.get_value(SECTION_META, "save_version", 1))
+
+
+# ============================================
+# Migration
+# ============================================
+
+## Copies the current save file next to itself (`save.cfg.<tag>.bak`) before a
+## migration or after a failed load. Never throws; a failed backup only warns.
+func _backup_save(tag: String) -> void:
+	var src := ProjectSettings.globalize_path(SAVE_PATH)
+	if not FileAccess.file_exists(SAVE_PATH):
+		return
+	var dst := ProjectSettings.globalize_path("%s.%s.bak" % [SAVE_PATH, tag])
+	var err := DirAccess.copy_absolute(src, dst)
+	if err != OK:
+		push_warning("PersistedData: could not back up save to %s (err %d)" % [dst, err])
+
+
+## Walks the save up one version at a time. Each step must be idempotent and
+## tolerant of missing keys: a v0/v1 file may predate half the sections.
+func _migrate(from_version: int) -> void:
+	var v := maxi(from_version, 1)
+	if v < 2:
+		_migrate_v1_to_v2()
+		v = 2
+	# if v < 3:
+	# 	_migrate_v2_to_v3()
+	# 	v = 3
+	_config.set_value(SECTION_META, "save_version", CURRENT_SAVE_VERSION)
+
+
+## v1 → v2: normalize types the first builds wrote loosely (floats / strings
+## for currency and XP, mixed-type skill arrays, out-of-range volumes) and
+## stamp created_unix so stats screens can show "playing since".
+func _migrate_v1_to_v2() -> void:
+	for c in ALL_CURRENCIES:
+		_config.set_value(SECTION_CURRENCY, c, _as_non_negative_int(_config.get_value(SECTION_CURRENCY, c, 0)))
+	for section in [SECTION_HERO_XP, SECTION_MONSTER_XP]:
+		if _config.has_section(section):
+			for key in _config.get_section_keys(section):
+				_config.set_value(section, key, _as_non_negative_int(_config.get_value(section, key, 0)))
+	if _config.has_section(SECTION_SKILLS):
+		for tree_id in _config.get_section_keys(SECTION_SKILLS):
+			var raw: Variant = _config.get_value(SECTION_SKILLS, tree_id, [])
+			var cleaned: Array = []
+			if raw is Array:
+				for entry in raw:
+					if (entry is String or entry is StringName) and not cleaned.has(String(entry)):
+						cleaned.append(String(entry))
+			_config.set_value(SECTION_SKILLS, tree_id, cleaned)
+	for key in AudioSettings.VOLUME_KEYS:
+		if _config.has_section_key(SECTION_SETTINGS, key):
+			var vol: Variant = _config.get_value(SECTION_SETTINGS, key, AudioSettings.DEFAULT_VOLUME)
+			var as_float: float = float(vol) if (vol is float or vol is int) else AudioSettings.DEFAULT_VOLUME
+			_config.set_value(SECTION_SETTINGS, key, clampf(as_float, 0.0, 1.0))
+	_config.set_value(SECTION_META, "total_matches", _as_non_negative_int(_config.get_value(SECTION_META, "total_matches", 0)))
+	if not _config.has_section_key(SECTION_META, "created_unix"):
+		var first_seen: Variant = _config.get_value(SECTION_META, "last_saved_unix", int(Time.get_unix_time_from_system()))
+		_config.set_value(SECTION_META, "created_unix", _as_non_negative_int(first_seen))
+
+
+static func _as_non_negative_int(value: Variant) -> int:
+	if value is int:
+		return maxi(value, 0)
+	if value is float:
+		return maxi(int(round(value)), 0)
+	if value is String and (value as String).is_valid_int():
+		return maxi((value as String).to_int(), 0)
+	return 0
 
 
 ## Deletes the save and re-seeds defaults. Used by a future "reset progress"
