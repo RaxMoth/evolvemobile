@@ -4,6 +4,7 @@
 
 [resource]
 script = ExtResource("1_q54ng")
+monster_id = &"grount"
 monster_name = "Grount"
 monster_type = "Boss"
 stage_2_xp = 100

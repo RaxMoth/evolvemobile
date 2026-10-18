@@ -21,6 +21,10 @@ signal skills_changed  ## Generic refresh signal for UI panels.
 # --- Tree id constants (use these instead of stringly references) ---
 const TREE_HERO_BASE: StringName = &"hero_base"
 const TREE_MONSTER_BASE: StringName = &"monster_base"
+## Per-character trees are "hero_<hero_id>" (Steel) and "monster_<monster_id>"
+## (Leaves); the ids come from HeroStats.hero_id / MonsterStats.monster_id.
+const TREE_HERO_PREFIX := "hero_"
+const TREE_MONSTER_PREFIX := "monster_"
 
 var trees: Dictionary = {}   ## id -> MetaSkillTree
 
@@ -28,6 +32,24 @@ var trees: Dictionary = {}   ## id -> MetaSkillTree
 func _ready() -> void:
 	_seed_hero_base_tree()
 	_seed_monster_base_tree()
+	_seed_hero_trees()
+	_seed_monster_trees()
+
+
+static func hero_tree_id(hero_id: StringName) -> StringName:
+	return StringName(TREE_HERO_PREFIX + String(hero_id))
+
+
+static func monster_tree_id(monster_id: StringName) -> StringName:
+	return StringName(TREE_MONSTER_PREFIX + String(monster_id))
+
+
+## The stable id of a spawned hero, read from its HeroStats resource.
+static func hero_id_of(hero: Node) -> StringName:
+	var stats := hero.get_node_or_null("HeroStats") as HeroStatsComponent
+	if stats == null or stats.base_stats == null:
+		return &""
+	return stats.base_stats.hero_id
 
 
 # ============================================
@@ -92,6 +114,91 @@ func _seed_monster_base_tree() -> void:
 	t.nodes.append(MetaSkillNode.make(&"mt3_hp",     "Apex Body",      "+20% Max HP",                   3, 1000, PersistedData.GOLD, "monster_health_mult",  1.20))
 	t.nodes.append(MetaSkillNode.make(&"mt3_range",  "Long Reach",     "+10% Ability Range",            3, 1000, PersistedData.GOLD, "monster_range_mult",   1.10))
 
+	trees[t.id] = t
+
+
+# ============================================
+# Seeding — individual hero trees (Steel) / monster trees (Leaves)
+# ============================================
+# Stat-only slice of README §"Individual Hero Trees" / "Individual Monster
+# Trees": every node is one stat effect the existing components already
+# consume. Ability-changing unlocks (Triple Shot, Ram Dash stun, …) need
+# per-ability hooks and are not represented yet.
+
+const HERO_TIER_COSTS: Array[int] = [100, 300, 700]
+const MONSTER_TIER_COSTS: Array[int] = [100, 500, 1000]
+
+
+func _seed_hero_trees() -> void:
+	_seed_character_tree(hero_tree_id(&"river"), "River — Scout's Edge",
+		"River's personal upgrades. Bought with Steel.", PersistedData.STEEL, HERO_TIER_COSTS, [
+		[&"r1_range", "Long Scope", "+8% Attack Range", 1, "attack_range", 1.08],
+		[&"r1_speed", "Light Boots", "+5% Move Speed", 1, "move_speed", 1.05],
+		[&"r1_hp", "Field Dressing", "+5% Max HP", 1, "max_health", 1.05],
+		[&"r2_dmg", "Hollow Points", "+10% Attack Damage", 2, "attack_damage", 1.10],
+		[&"r2_atkspd", "Quick Hands", "+10% Attack Speed", 2, "attack_speed", 1.10],
+		[&"r3_range", "Sniper's Nest", "+15% Attack Range", 3, "attack_range", 1.15],
+		[&"r3_hp", "Veteran Scout", "+15% Max HP", 3, "max_health", 1.15],
+	])
+	_seed_character_tree(hero_tree_id(&"vlad"), "Vlad — Blood Rites",
+		"Vlad's personal upgrades. Bought with Steel.", PersistedData.STEEL, HERO_TIER_COSTS, [
+		[&"v1_dmg", "Keen Blade", "+5% Attack Damage", 1, "attack_damage", 1.05],
+		[&"v1_atkspd", "Eager Swings", "+5% Attack Speed", 1, "attack_speed", 1.05],
+		[&"v1_hp", "Thick Blood", "+5% Max HP", 1, "max_health", 1.05],
+		[&"v2_dmg", "Bloodthirst", "+10% Attack Damage", 2, "attack_damage", 1.10],
+		[&"v2_hp", "Iron Heart", "+10% Max HP", 2, "max_health", 1.10],
+		[&"v3_atkspd", "Frenzy", "+15% Attack Speed", 3, "attack_speed", 1.15],
+		[&"v3_dmg", "Executioner", "+20% Attack Damage", 3, "attack_damage", 1.20],
+	])
+	_seed_character_tree(hero_tree_id(&"ted"), "Ted — Beast Bond",
+		"Ted's personal upgrades. Bought with Steel.", PersistedData.STEEL, HERO_TIER_COSTS, [
+		[&"t1_hp", "Trail Rations", "+5% Max HP", 1, "max_health", 1.05],
+		[&"t1_speed", "Tracker's Pace", "+5% Move Speed", 1, "move_speed", 1.05],
+		[&"t1_range", "Long Leash", "+5% Attack Range", 1, "attack_range", 1.05],
+		[&"t2_dmg", "Sharpened Snares", "+10% Attack Damage", 2, "attack_damage", 1.10],
+		[&"t2_atkspd", "Rapid Traps", "+10% Attack Speed", 2, "attack_speed", 1.10],
+		[&"t3_hp", "Pack Leader", "+15% Max HP", 3, "max_health", 1.15],
+		[&"t3_range", "Far Whistle", "+15% Attack Range", 3, "attack_range", 1.15],
+	])
+	_seed_character_tree(hero_tree_id(&"irelia"), "Irelia — Shield Wall",
+		"Irelia's personal upgrades. Bought with Steel.", PersistedData.STEEL, HERO_TIER_COSTS, [
+		[&"i1_hp", "Reinforced Plate", "+8% Max HP", 1, "max_health", 1.08],
+		[&"i1_dmg", "Shield Bash", "+5% Attack Damage", 1, "attack_damage", 1.05],
+		[&"i1_speed", "Marching Order", "+5% Move Speed", 1, "move_speed", 1.05],
+		[&"i2_hp", "Unbreakable", "+12% Max HP", 2, "max_health", 1.12],
+		[&"i2_atkspd", "Riposte", "+10% Attack Speed", 2, "attack_speed", 1.10],
+		[&"i3_hp", "Bulwark", "+20% Max HP", 3, "max_health", 1.20],
+		[&"i3_dmg", "Vanguard", "+10% Attack Damage", 3, "attack_damage", 1.10],
+	])
+
+
+func _seed_monster_trees() -> void:
+	# Keys mirror collect_monster_modifiers / MonsterBase._load_meta_modifiers.
+	_seed_character_tree(monster_tree_id(&"grount"), "Grount — Alpha Bull",
+		"Grount's personal upgrades. Bought with Leaves.", PersistedData.LEAVES, MONSTER_TIER_COSTS, [
+		[&"g1_dmg", "Heavy Horns", "+10% Damage", 1, "monster_damage_mult", 1.10],
+		[&"g1_speed", "Stampede", "+5% Move Speed", 1, "monster_speed_mult", 1.05],
+		[&"g1_range", "Wide Sweep", "+10% Ability Range", 1, "monster_range_mult", 1.10],
+		[&"g2_evo", "Ravenous", "-10% Stage XP requirements", 2, "monster_evo_threshold", 0.90],
+		[&"g2_hp", "Scar Tissue", "+15% Max HP all stages", 2, "monster_health_mult", 1.15],
+		[&"g3_dmg", "Titan's Wrath", "+20% Damage", 3, "monster_damage_mult", 1.20],
+		[&"g3_speed", "Apex Charge", "+15% Move Speed", 3, "monster_speed_mult", 1.15],
+	])
+
+
+## specs: [id, name, description, tier, stat_name, multiplier] per node; the
+## tier index picks the cost from `tier_costs`.
+func _seed_character_tree(tree_id: StringName, display_name: String, description: String,
+		currency: StringName, tier_costs: Array[int], specs: Array) -> void:
+	var t: MetaSkillTree = MetaSkillTree.new()
+	t.id = tree_id
+	t.display_name = display_name
+	t.description = description
+	for spec in specs:
+		var tier: int = int(spec[3])
+		var cost: int = tier_costs[clampi(tier - 1, 0, tier_costs.size() - 1)]
+		t.nodes.append(MetaSkillNode.make(StringName(spec[0]), String(spec[1]), String(spec[2]),
+			tier, cost, currency, String(spec[4]), float(spec[5])))
 	trees[t.id] = t
 
 
@@ -167,20 +274,25 @@ func _tier_gate_satisfied(t: MetaSkillTree, tier: int) -> bool:
 # Apply unlocked effects to a freshly spawned entity
 # ============================================
 
-## Called by HeroBase._ready. Stacks every unlocked hero-base node's stat
-## modifier onto the hero's HeroStatsComponent.
+## Called by HeroBase._ready. Stacks every unlocked node of the Hero Base
+## tree AND of this hero's own tree (hero_<id>) onto its HeroStatsComponent.
 func apply_unlocked_to_hero(hero: Node) -> void:
 	var stats := hero.get_node_or_null("HeroStats") as HeroStatsComponent
 	if stats == null:
 		return
-	var t: MetaSkillTree = get_tree_def(TREE_HERO_BASE)
+	_apply_tree_to_stats(TREE_HERO_BASE, stats)
+	var hero_id := hero_id_of(hero)
+	if hero_id != &"":
+		_apply_tree_to_stats(hero_tree_id(hero_id), stats)
+
+
+func _apply_tree_to_stats(tree_id: StringName, stats: HeroStatsComponent) -> void:
+	var t: MetaSkillTree = get_tree_def(tree_id)
 	if t == null:
 		return
-	var unlocked: Array = PersistedData.get_unlocked_skills(TREE_HERO_BASE)
+	var unlocked: Array = PersistedData.get_unlocked_skills(tree_id)
 	for n in t.nodes:
-		if not unlocked.has(String(n.id)):
-			continue
-		if n.stat_name.is_empty():
+		if not unlocked.has(String(n.id)) or n.stat_name.is_empty():
 			continue
 		# HeroStatsComponent only knows about hero stats — skip monster keys.
 		if n.stat_name.begins_with("monster_"):
@@ -188,18 +300,24 @@ func apply_unlocked_to_hero(hero: Node) -> void:
 		stats.add_stat_modifier(n.stat_name, n.stat_value, n.stat_multiplicative)
 
 
-## Called by MonsterBase._ready when its time comes (Phase 2.2 hookup).
-## For now, returns the dict of multipliers so MonsterStats reading can
-## apply them at stage-config time.
-func collect_monster_modifiers() -> Dictionary:
+## Called by MonsterBase._load_meta_modifiers. Returns key -> multiplier for
+## the Monster Base tree merged with the monster's own tree (monster_<id>)
+## when an id is given. Missing keys mean 1.0.
+func collect_monster_modifiers(monster_id: StringName = &"") -> Dictionary:
 	var out: Dictionary = {}
-	var t: MetaSkillTree = get_tree_def(TREE_MONSTER_BASE)
+	_merge_monster_tree(TREE_MONSTER_BASE, out)
+	if monster_id != &"":
+		_merge_monster_tree(monster_tree_id(monster_id), out)
+	return out
+
+
+func _merge_monster_tree(tree_id: StringName, out: Dictionary) -> void:
+	var t: MetaSkillTree = get_tree_def(tree_id)
 	if t == null:
-		return out
-	var unlocked: Array = PersistedData.get_unlocked_skills(TREE_MONSTER_BASE)
+		return
+	var unlocked: Array = PersistedData.get_unlocked_skills(tree_id)
 	for n in t.nodes:
 		if not unlocked.has(String(n.id)) or n.stat_name.is_empty():
 			continue
-		# Stack multiplicatively if same key appears multiple times.
+		# Stack multiplicatively if the same key appears multiple times.
 		out[n.stat_name] = float(out.get(n.stat_name, 1.0)) * n.stat_value
-	return out

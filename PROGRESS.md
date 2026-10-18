@@ -1,6 +1,6 @@
 # Progress Tracker
 
-Last loop run: 2026-10-18 (tutorial overlay)
+Last loop run: 2026-10-18 (per-character skill trees)
 Stack: godot
 
 Spec source: `README.md` + `Docs/INSTRUCTOR.md` (roadmap, "Current Status & Roadmap",
@@ -67,7 +67,11 @@ Spec source: `README.md` + `Docs/INSTRUCTOR.md` (roadmap, "Current Status & Road
       (Shift+R / K / M / F1 / F3) behind `OS.is_debug_build()`.
 - [ ] `print()` gating — `Globals.debug_log()` for world.gd (15), monster_base_class.gd (8), spawns.gd, abilities
 - [ ] Pre-Round Setup screen — `MatchConfig` resource (aggression/farming/exploration, formation)
-- [ ] Per-hero skill trees (Steel) + per-monster trees (Leaves) — seeds → `.tres`, `hero_id` on HeroStats
+- [ ] Per-hero skill trees (Steel) + per-monster trees (Leaves) — DONE (stat-only slice): `hero_<id>`
+      trees for River/Vlad/Ted/Irelia and `monster_grount`, `HeroStats.hero_id` / `MonsterStats.monster_id`,
+      applied on spawn; 3 tests. OPEN: ability-changing nodes from the README (Triple Shot, Ram Dash
+      stun, …) need per-ability hooks; MonsterBase must pass `monster_stats.monster_id` and GameManager
+      should read `hero_id` instead of name substrings (both files are in the pending review).
 - [ ] Hero composition selection — `HeroRoster.tres`, World spawns from `GameManager.selected_hero_ids`
 - [x] Tutorial / first-time-user flow — `TutorialOverlay` (4 data-driven steps, scene-side wiring,
       shown once via `tutorial_seen`, "How to play" footer button re-opens it); 2 tests.
@@ -93,6 +97,19 @@ Spec source: `README.md` + `Docs/INSTRUCTOR.md` (roadmap, "Current Status & Road
 - [x] Legacy in-round `Scripts/Skilltree/` removed (zero references outside the folder).
 
 ## Changelog
+
+### 2026-10-18 — feat: per-hero (Steel) and per-monster (Leaves) skill trees, stat-only slice
+- `HeroStats.hero_id` / `MonsterStats.monster_id` exports (set in the five `.tres` files) — the stable
+  save keys; `MetaSkillManager.hero_id_of(hero)` reads it from the spawned hero's HeroStats.
+- `MetaSkillManager`: `hero_tree_id()` / `monster_tree_id()` helpers, `_seed_character_tree()` builder,
+  trees `hero_river/vlad/ted/irelia` (7 nodes, tiers 100/300/700 Steel) and `monster_grount`
+  (7 nodes, 100/500/1000 Leaves). `apply_unlocked_to_hero` now stacks Hero Base + the hero's own
+  tree; `collect_monster_modifiers(monster_id)` merges Monster Base + the monster's tree.
+  The MetaSkillScreen picker lists the new trees automatically.
+- Bug found by the new test: `HeroStatsComponent.add_stat_modifier` indexed `stat_modifiers[key]`
+  with no default, so any stat without a pre-seeded key (attack_range) crashed. Reads with defaults now.
+- Tests: every character has a tree with the right currency; River's +8% range applies to River
+  only; monster base + personal trees merge.
 
 ### 2026-10-18 — feat: first-run tutorial overlay + touch targets
 - `Scenes/UI/Tutorial/TutorialOverlay.tscn` + `tutorial_overlay.gd` (`class_name TutorialOverlay`,

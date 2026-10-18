@@ -5,6 +5,7 @@
 
 [resource]
 script = ExtResource("1_stats")
+hero_id = &"ted"
 hero_name = "Ted"
 hero_class = "DPS/Pet Master"
 description = "Fights alongside his loyal pet companion for sustained damage"

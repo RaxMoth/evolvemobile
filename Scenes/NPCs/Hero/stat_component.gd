@@ -79,22 +79,24 @@ func get_attack_speed_multiplier() -> float:
 
 
 func add_stat_modifier(stat_name: String, value: float, is_multiplicative: bool = false) -> void:
-	var modifier_key = stat_name + ("_mult" if is_multiplicative else "_add")
+	var modifier_key := stat_name + ("_mult" if is_multiplicative else "_add")
 	
+	# Read with a default: only a few keys are pre-seeded, and a stat that was
+	# never modified before (e.g. attack_range) has no entry yet.
 	if is_multiplicative:
-		stat_modifiers[modifier_key] *= value # Stack multiplicatively
+		stat_modifiers[modifier_key] = float(stat_modifiers.get(modifier_key, 1.0)) * value # Stack multiplicatively
 	else:
-		stat_modifiers[modifier_key] += value # Stack additively
+		stat_modifiers[modifier_key] = float(stat_modifiers.get(modifier_key, 0.0)) + value # Stack additively
 	
 	_recalculate_all_stats()
 
 func remove_stat_modifier(stat_name: String, value: float, is_multiplicative: bool = false) -> void:
-	var modifier_key = stat_name + ("_mult" if is_multiplicative else "_add")
+	var modifier_key := stat_name + ("_mult" if is_multiplicative else "_add")
 	
 	if is_multiplicative:
-		stat_modifiers[modifier_key] /= value
+		stat_modifiers[modifier_key] = float(stat_modifiers.get(modifier_key, 1.0)) / (value if value != 0.0 else 1.0)
 	else:
-		stat_modifiers[modifier_key] -= value
+		stat_modifiers[modifier_key] = float(stat_modifiers.get(modifier_key, 0.0)) - value
 	
 	_recalculate_all_stats()
 

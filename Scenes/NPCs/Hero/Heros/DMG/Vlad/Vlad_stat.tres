@@ -5,6 +5,7 @@
 
 [resource]
 script = ExtResource("1_aenkc")
+hero_id = &"vlad"
 hero_name = "Vlad"
 hero_class = "DPS/Berserker"
 description = "High-risk berserker who gains massive power when at low health"

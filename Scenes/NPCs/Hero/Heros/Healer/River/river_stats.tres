@@ -5,6 +5,7 @@
 
 [resource]
 script = ExtResource("1_stats")
+hero_id = &"river"
 hero_name = "River"
 hero_class = "Support/Scout"
 description = "Versatile support who can swap between healing allies and sniping enemies from long range"

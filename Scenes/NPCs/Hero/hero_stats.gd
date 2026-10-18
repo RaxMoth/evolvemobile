@@ -2,6 +2,9 @@ extends Resource
 class_name HeroStats
 
 @export_group("Identity")
+## Stable save key (PersistedData hero XP, MetaSkillManager "hero_<id>" tree).
+## Never derive it from the node name again.
+@export var hero_id: StringName = &""
 @export var hero_name: String = "Unknown Hero"
 @export var hero_class: String = "DMG"
 @export var description: String = ""

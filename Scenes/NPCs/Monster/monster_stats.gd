@@ -2,6 +2,8 @@ extends Resource
 class_name MonsterStats
 
 @export_group("Identity")
+## Stable save key (PersistedData monster XP, MetaSkillManager "monster_<id>" tree).
+@export var monster_id: StringName = &""
 @export var monster_name: String = "Unknown Monster"
 @export var monster_type: String = "Boss"
 

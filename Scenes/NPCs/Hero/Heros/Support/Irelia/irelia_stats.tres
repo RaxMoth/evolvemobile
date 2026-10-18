@@ -5,6 +5,7 @@
 
 [resource]
 script = ExtResource("1_stats")
+hero_id = &"irelia"
 hero_name = "Irelia"
 hero_class = "Tank/Support"
 description = "Defensive tank who shields allies and draws enemy attention"
