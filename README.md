@@ -814,7 +814,10 @@ Max out hero trees → Unlock new heroes → Compete on leaderboards
 - [x] Versioned save file with automatic backup + migration
 - [x] Audio manager on the Master/Music/SFX buses (generated placeholder tones until real assets land in `Assets/Audio/`)
 - [x] Local analytics log (`user://analytics.jsonl`, opt-out in Settings)
-- [x] Headless test suite — `tools/run_tests.sh` (30 tests)
+- [x] Pre-round setup screen (aggression / farming / exploration / formation) driving the hero AI
+- [x] Minimap with fog overlay and side-fair entity dots
+- [x] Localization scaffold (English + German, language setting)
+- [x] Headless test suite — `tools/run_tests.sh` (47 tests) + `tools/lint.sh`
 
 ---
 
@@ -833,14 +836,10 @@ Max out hero trees → Unlock new heroes → Compete on leaderboards
     - Monster: Hide & Farm strategy
     - Heroes: Threat assessment
     - Better ability usage (combo logic)
-- [ ] **Pre-Round Setup Screen** (2 weeks)
-    - Strategy sliders (Aggression, Farming, Exploration)
-    - Formation selection for heroes
-    - Visual strategy preview
+- [ ] **Pre-Round Setup — visual strategy preview** (the sliders and formation picker ship; a preview of the resulting behaviour does not yet)
 
 **Low Priority** (v0.2):
 
-- [ ] Minimap with fog overlay
 - [ ] Audio content (buses + volume settings exist; no music/SFX assets yet)
 - [ ] Pinch-zoom / tap-to-focus on the match camera, `print()` gating, debug keys behind `OS.is_debug_build()`
 

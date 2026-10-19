@@ -1,6 +1,6 @@
 # Progress Tracker
 
-Last loop run: 2026-10-19 (pre-round setup)
+Last loop run: 2026-10-19 (minimap)
 Stack: godot
 
 Spec source: `README.md` + `Docs/INSTRUCTOR.md` (roadmap, "Current Status & Roadmap",
@@ -78,7 +78,9 @@ Spec source: `README.md` + `Docs/INSTRUCTOR.md` (roadmap, "Current Status & Road
 - [ ] Hero composition selection — `HeroRoster.tres`, World spawns from `GameManager.selected_hero_ids`
 - [x] Tutorial / first-time-user flow — `TutorialOverlay` (4 data-driven steps, scene-side wiring,
       shown once via `tutorial_seen`, "How to play" footer button re-opens it); 2 tests.
-- [ ] Minimap with fog overlay (SubViewport over `exploration_texture` + EntityRegistry dots)
+- [x] Minimap — `Scenes/UI/Minimap` on the camera HUD: fog exploration texture through a tiny
+      shader, hero/pet/monster dots with side-fair visibility (monster only inside a hero's vision
+      and vice versa), camera frame, tap-to-focus; 4 Hz refresh; tests for mapping + fairness.
 - [ ] Cloud save (`SaveBackend`). Localization DONE: `Assets/Locale/strings.csv` (en + de, keys = English
       text so scene labels auto-translate), `tr()` on code-built UI strings, `LocaleSettings` + language
       picker (System / English / Deutsch) in Settings; skill-tree node names stay English for now.
@@ -105,6 +107,16 @@ Spec source: `README.md` + `Docs/INSTRUCTOR.md` (roadmap, "Current Status & Road
 - [x] Legacy in-round `Scripts/Skilltree/` removed (zero references outside the folder).
 
 ## Changelog
+
+### 2026-10-19 — feat: minimap with fog overlay
+- `Scenes/UI/Minimap/Minimap.tscn` (Control in MainCam's CanvasLayer, top-right, 160×128):
+  `%FogView` TextureRect shows `FogOfWarSystem.exploration_texture` through
+  `minimap_fog.gdshader` (R8 explored → ground colour, else dark); `minimap.gd` draws hero / pet /
+  monster dots and the camera's world rect at 4 Hz. Fairness: hero side sees the monster only
+  inside a hero's `vision_radius`; monster side sees heroes only inside its 350 px vision.
+  Tap/click → camera focuses the nearest hero (through HeroContainer so the panel highlight
+  follows). Binds the fog lazily via `EntityRegistry.singleton(&"FogOfWar")`.
+- Tests: world↔map mapping + clamping, fairness rules. Suite: 47 green.
 
 ### 2026-10-19 — feat: Pre-Round Setup (MatchConfig)
 - `Scripts/match_config.gd` (Resource): aggression / farming / exploration sliders + formation
