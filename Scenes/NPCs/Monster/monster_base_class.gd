@@ -263,6 +263,29 @@ func _load_meta_modifiers() -> void:
 	_meta_xp_mult = float(mods.get("monster_xp_mult", 1.0))
 	_meta_evo_threshold_mult = float(mods.get("monster_evo_threshold", 1.0))
 	_meta_range_mult = float(mods.get("monster_range_mult", 1.0))
+	# Per-entity ability copies, then the tree's ability nodes (cooldown, dash
+	# distance, …). apply_stage_stats re-applies them on every evolution.
+	_make_abilities_unique()
+	MetaSkillManager.apply_ability_nodes_to_monster(monster_id, _all_abilities())
+
+func _make_abilities_unique() -> void:
+	if ability_1 and not ability_1.resource_path.is_empty():
+		ability_1 = ability_1.duplicate()
+	if ability_2 and not ability_2.resource_path.is_empty():
+		ability_2 = ability_2.duplicate()
+	if ability_3 and not ability_3.resource_path.is_empty():
+		ability_3 = ability_3.duplicate()
+	if passive_ability and not passive_ability.resource_path.is_empty():
+		passive_ability = passive_ability.duplicate()
+
+
+func _all_abilities() -> Array[AbilityBase]:
+	var out: Array[AbilityBase] = []
+	for a in [ability_1, ability_2, ability_3, passive_ability]:
+		if a != null:
+			out.append(a)
+	return out
+
 
 # ============================================
 # Stage Visuals

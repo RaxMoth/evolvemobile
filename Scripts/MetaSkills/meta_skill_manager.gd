@@ -139,6 +139,8 @@ func _seed_hero_trees() -> void:
 		[&"r2_atkspd", "Quick Hands", "+10% Attack Speed", 2, "attack_speed", 1.10],
 		[&"r3_range", "Sniper's Nest", "+15% Attack Range", 3, "attack_range", 1.15],
 		[&"r3_hp", "Veteran Scout", "+15% Max HP", 3, "max_health", 1.15],
+		[&"r2_dropcd", "Fast Resupply", "Supply Drop cooldown -20%", 2, "cooldown", 0.80, "Emergency Supply Drop"],
+		[&"r3_dropheal", "Field Hospital", "Supply Drop heals +50%", 3, "heal_amount", 1.50, "Emergency Supply Drop"],
 	])
 	_seed_character_tree(hero_tree_id(&"vlad"), "Vlad — Blood Rites",
 		"Vlad's personal upgrades. Bought with Steel.", PersistedData.STEEL, HERO_TIER_COSTS, [
@@ -149,6 +151,8 @@ func _seed_hero_trees() -> void:
 		[&"v2_hp", "Iron Heart", "+10% Max HP", 2, "max_health", 1.10],
 		[&"v3_atkspd", "Frenzy", "+15% Attack Speed", 3, "attack_speed", 1.15],
 		[&"v3_dmg", "Executioner", "+20% Attack Damage", 3, "attack_damage", 1.20],
+		[&"v2_bombaoe", "Bigger Bomb", "Blood Bomb radius +25%", 2, "area_of_effect", 1.25, "Blood Bomb"],
+		[&"v3_minecd", "Quick Mines", "Land Mine cooldown -25%", 3, "cooldown", 0.75, "Land Mine"],
 	])
 	_seed_character_tree(hero_tree_id(&"ted"), "Ted — Beast Bond",
 		"Ted's personal upgrades. Bought with Steel.", PersistedData.STEEL, HERO_TIER_COSTS, [
@@ -159,6 +163,8 @@ func _seed_hero_trees() -> void:
 		[&"t2_atkspd", "Rapid Traps", "+10% Attack Speed", 2, "attack_speed", 1.10],
 		[&"t3_hp", "Pack Leader", "+15% Max HP", 3, "max_health", 1.15],
 		[&"t3_range", "Far Whistle", "+15% Attack Range", 3, "attack_range", 1.15],
+		[&"t2_trapcd", "Fast Traps", "Trap Cage cooldown -20%", 2, "cooldown", 0.80, "Trap Cage"],
+		[&"t3_trapdur", "Sturdy Cage", "Trap Cage lasts +50%", 3, "duration", 1.50, "Trap Cage"],
 	])
 	_seed_character_tree(hero_tree_id(&"irelia"), "Irelia — Shield Wall",
 		"Irelia's personal upgrades. Bought with Steel.", PersistedData.STEEL, HERO_TIER_COSTS, [
@@ -169,6 +175,8 @@ func _seed_hero_trees() -> void:
 		[&"i2_atkspd", "Riposte", "+10% Attack Speed", 2, "attack_speed", 1.10],
 		[&"i3_hp", "Bulwark", "+20% Max HP", 3, "max_health", 1.20],
 		[&"i3_dmg", "Vanguard", "+10% Attack Damage", 3, "attack_damage", 1.10],
+		[&"i2_rallycd", "Rally Faster", "Rally Cry cooldown -20%", 2, "cooldown", 0.80, "Rally Cry"],
+		[&"i3_dashcd", "Relentless", "Dash cooldown -30%", 3, "cooldown", 0.70, "Dash"],
 	])
 
 
@@ -183,11 +191,15 @@ func _seed_monster_trees() -> void:
 		[&"g2_hp", "Scar Tissue", "+15% Max HP all stages", 2, "monster_health_mult", 1.15],
 		[&"g3_dmg", "Titan's Wrath", "+20% Damage", 3, "monster_damage_mult", 1.20],
 		[&"g3_speed", "Apex Charge", "+15% Move Speed", 3, "monster_speed_mult", 1.15],
+		[&"g2_cleavecd", "Quick Cleave", "Front Cleave cooldown -15%", 2, "cooldown", 0.85, "Front Cleave"],
+		[&"g3_dash", "Long Charge", "Ram Dash distance +33%", 3, "dash_distance", 1.33, "Ram Dash"],
+		[&"g3_slam", "Wider Slam", "Ground Slam radius +20%", 3, "slam_radius", 1.20, "Ground Slam"],
 	])
 
 
-## specs: [id, name, description, tier, stat_name, multiplier] per node; the
-## tier index picks the cost from `tier_costs`.
+## specs: [id, name, description, tier, stat_name, multiplier] for a stat node,
+## or [id, name, description, tier, property, multiplier, ability_name] for an
+## ability node. The tier index picks the cost from `tier_costs`.
 func _seed_character_tree(tree_id: StringName, display_name: String, description: String,
 		currency: StringName, tier_costs: Array[int], specs: Array) -> void:
 	var t: MetaSkillTree = MetaSkillTree.new()
@@ -197,8 +209,12 @@ func _seed_character_tree(tree_id: StringName, display_name: String, description
 	for spec in specs:
 		var tier: int = int(spec[3])
 		var cost: int = tier_costs[clampi(tier - 1, 0, tier_costs.size() - 1)]
-		t.nodes.append(MetaSkillNode.make(StringName(spec[0]), String(spec[1]), String(spec[2]),
-			tier, cost, currency, String(spec[4]), float(spec[5])))
+		if spec.size() >= 7:
+			t.nodes.append(MetaSkillNode.make_ability(StringName(spec[0]), String(spec[1]), String(spec[2]),
+				tier, cost, currency, String(spec[6]), String(spec[4]), float(spec[5])))
+		else:
+			t.nodes.append(MetaSkillNode.make(StringName(spec[0]), String(spec[1]), String(spec[2]),
+				tier, cost, currency, String(spec[4]), float(spec[5])))
 	trees[t.id] = t
 
 
@@ -284,6 +300,30 @@ func apply_unlocked_to_hero(hero: Node) -> void:
 	var hero_id := hero_id_of(hero)
 	if hero_id != &"":
 		_apply_tree_to_stats(hero_tree_id(hero_id), stats)
+		var abilities := hero.get_node_or_null("AbilitySystem") as AbilitySystem
+		if abilities:
+			abilities.make_abilities_unique()
+			_apply_ability_nodes(hero_tree_id(hero_id), abilities.all_abilities())
+
+
+## Called by MonsterBase._load_meta_modifiers with its own ability copies.
+func apply_ability_nodes_to_monster(monster_id: StringName, abilities: Array[AbilityBase]) -> void:
+	if monster_id == &"":
+		return
+	_apply_ability_nodes(monster_tree_id(monster_id), abilities)
+
+
+func _apply_ability_nodes(tree_id: StringName, abilities: Array[AbilityBase]) -> void:
+	var t: MetaSkillTree = get_tree_def(tree_id)
+	if t == null:
+		return
+	var unlocked: Array = PersistedData.get_unlocked_skills(tree_id)
+	for n in t.nodes:
+		if not n.is_ability_node() or not unlocked.has(String(n.id)):
+			continue
+		for a in abilities:
+			if a.ability_name == n.ability_name:
+				a.apply_meta_modifier(n.stat_name, n.stat_value, n.stat_multiplicative)
 
 
 func _apply_tree_to_stats(tree_id: StringName, stats: HeroStatsComponent) -> void:
@@ -292,7 +332,7 @@ func _apply_tree_to_stats(tree_id: StringName, stats: HeroStatsComponent) -> voi
 		return
 	var unlocked: Array = PersistedData.get_unlocked_skills(tree_id)
 	for n in t.nodes:
-		if not unlocked.has(String(n.id)) or n.stat_name.is_empty():
+		if not unlocked.has(String(n.id)) or n.stat_name.is_empty() or n.is_ability_node():
 			continue
 		# HeroStatsComponent only knows about hero stats — skip monster keys.
 		if n.stat_name.begins_with("monster_"):
@@ -317,7 +357,7 @@ func _merge_monster_tree(tree_id: StringName, out: Dictionary) -> void:
 		return
 	var unlocked: Array = PersistedData.get_unlocked_skills(tree_id)
 	for n in t.nodes:
-		if not unlocked.has(String(n.id)) or n.stat_name.is_empty():
+		if not unlocked.has(String(n.id)) or n.stat_name.is_empty() or n.is_ability_node():
 			continue
 		# Stack multiplicatively if the same key appears multiple times.
 		out[n.stat_name] = float(out.get(n.stat_name, 1.0)) * n.stat_value

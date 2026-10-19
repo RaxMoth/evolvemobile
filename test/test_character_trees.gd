@@ -30,7 +30,10 @@ func test_every_character_has_a_tree_with_the_right_currency() -> void:
 	if g != null:
 		for n in g.nodes:
 			assert_eq(n.currency, PersistedData.LEAVES)
-			assert_true(n.stat_name.begins_with("monster_"))
+			if n.is_ability_node():
+				assert_false(n.ability_name.is_empty())
+			else:
+				assert_true(n.stat_name.begins_with("monster_"), "%s is a monster stat key" % n.id)
 
 
 func test_hero_tree_applies_only_to_that_hero() -> void:

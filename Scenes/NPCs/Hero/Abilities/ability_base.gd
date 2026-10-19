@@ -35,6 +35,33 @@ enum AbilityType {
 @export var damage_modifier: float = 1.0
 @export var attack_speed_modifier: float = 1.0
 
+# Permanent (meta-skill) modifiers on this INSTANCE. Abilities are duplicated
+# per entity before any modifier is applied (AbilitySystem.make_abilities_unique /
+# MonsterBase), so the shared .tres is never mutated.
+# prop -> multiplier / additive delta. apply_stage_stats() re-applies them to the
+# four stage-driven properties after reading the stage values.
+var meta_mults: Dictionary = {}
+var meta_adds: Dictionary = {}
+
+
+## Record and apply a permanent modifier to one property (cooldown, damage,
+## ability_range, area_of_effect, duration, heal_amount or any subclass export
+## such as dash_distance / cone_range / slam_radius).
+func apply_meta_modifier(prop: String, value: float, multiplicative: bool) -> void:
+	if not (prop in self):
+		push_warning("%s has no property '%s' for a meta-skill modifier" % [ability_name, prop])
+		return
+	if multiplicative:
+		meta_mults[prop] = float(meta_mults.get(prop, 1.0)) * value
+	else:
+		meta_adds[prop] = float(meta_adds.get(prop, 0.0)) + value
+	set(prop, _modified(prop, float(get(prop))))
+
+
+func _modified(prop: String, base_value: float) -> float:
+	return (base_value + float(meta_adds.get(prop, 0.0))) * float(meta_mults.get(prop, 1.0))
+
+
 # Override these in specific ability scripts
 func execute(_caster: Node2D, _target: Node2D = null, _override_damage: float = -1.0) -> void:
 	push_warning("Ability.execute() not implemented for: " + ability_name)
@@ -77,7 +104,7 @@ func get_aoe_for_stage(stage: int) -> float:
 
 # Apply stage-specific stats to this ability
 func apply_stage_stats(stage: int) -> void:
-	damage = get_damage_for_stage(stage)
-	cooldown = get_cooldown_for_stage(stage)
-	ability_range = get_range_for_stage(stage)
-	area_of_effect = get_aoe_for_stage(stage)
+	damage = _modified("damage", get_damage_for_stage(stage))
+	cooldown = _modified("cooldown", get_cooldown_for_stage(stage))
+	ability_range = _modified("ability_range", get_range_for_stage(stage))
+	area_of_effect = _modified("area_of_effect", get_aoe_for_stage(stage))

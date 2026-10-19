@@ -21,6 +21,14 @@ extends Resource
 @export var currency: StringName = &"gold"  ## Matches PersistedData.STEEL / LEAVES / GOLD.
 @export var icon: Texture2D = null
 
+@export_group("Ability Effect")
+## When set, this node modifies ONE ability (matched by AbilityBase.ability_name)
+## instead of a character stat: `stat_name` is then the ability property
+## (cooldown, damage, ability_range, area_of_effect, duration, heal_amount or a
+## subclass export such as dash_distance) and stat_value / stat_multiplicative
+## apply to it. Applied on spawn to the entity's own ability copies.
+@export var ability_name: String = ""
+
 @export_group("Stat Effect")
 ## Stat name as understood by HeroStatsComponent (e.g. "max_health",
 ## "move_speed", "attack_damage"). Empty string = no stat effect (the node
@@ -56,3 +64,24 @@ static func make(
 	n.stat_value = p_value
 	n.stat_multiplicative = p_mult
 	return n
+
+
+static func make_ability(
+	p_id: StringName,
+	p_name: String,
+	p_desc: String,
+	p_tier: int,
+	p_cost: int,
+	p_currency: StringName,
+	p_ability: String,
+	p_prop: String,
+	p_value: float,
+	p_mult: bool = true
+) -> MetaSkillNode:
+	var n := make(p_id, p_name, p_desc, p_tier, p_cost, p_currency, p_prop, p_value, p_mult)
+	n.ability_name = p_ability
+	return n
+
+
+func is_ability_node() -> bool:
+	return not ability_name.is_empty()

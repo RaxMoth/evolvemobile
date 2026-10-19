@@ -1,6 +1,6 @@
 # Progress Tracker
 
-Last loop run: 2026-10-19 (minimap)
+Last loop run: 2026-10-19 (ability skill nodes)
 Stack: godot
 
 Spec source: `README.md` + `Docs/INSTRUCTOR.md` (roadmap, "Current Status & Roadmap",
@@ -73,8 +73,10 @@ Spec source: `README.md` + `Docs/INSTRUCTOR.md` (roadmap, "Current Status & Road
 - [ ] Per-hero skill trees (Steel) + per-monster trees (Leaves) — DONE (stat-only slice): `hero_<id>`
       trees for River/Vlad/Ted/Irelia and `monster_grount`, `HeroStats.hero_id` / `MonsterStats.monster_id`,
       applied on spawn (MonsterBase passes `monster_stats.monster_id`, GameManager reads
-      `HeroStats.hero_id`, hero vision radius now lives on HeroStats too); 3 tests. OPEN:
-      ability-changing nodes from the README (Triple Shot, Ram Dash stun, …) need per-ability hooks.
+      `HeroStats.hero_id`, hero vision radius now lives on HeroStats too). Ability-modifying nodes
+      DONE: `MetaSkillNode.ability_name` + property (cooldown / damage / range / AoE / duration /
+      heal / any ability export), applied to per-entity ability copies, re-applied through monster
+      stage changes; 2–3 per tree. OPEN: behaviour-changing nodes (Triple Shot, Ram Dash stun, …).
 - [ ] Hero composition selection — `HeroRoster.tres`, World spawns from `GameManager.selected_hero_ids`
 - [x] Tutorial / first-time-user flow — `TutorialOverlay` (4 data-driven steps, scene-side wiring,
       shown once via `tutorial_seen`, "How to play" footer button re-opens it); 2 tests.
@@ -107,6 +109,21 @@ Spec source: `README.md` + `Docs/INSTRUCTOR.md` (roadmap, "Current Status & Road
 - [x] Legacy in-round `Scripts/Skilltree/` removed (zero references outside the folder).
 
 ## Changelog
+
+### 2026-10-19 — feat: ability-modifying skill nodes
+- `MetaSkillNode.ability_name` (+ `make_ability()`): a node now targets one ability by its
+  `ability_name` and modifies a property (cooldown, damage, ability_range, area_of_effect,
+  duration, heal_amount, or any subclass export such as `dash_distance` / `slam_radius`).
+- `AbilityBase.apply_meta_modifier()` records multipliers/adds on the INSTANCE and
+  `apply_stage_stats()` re-applies them, so the monster's per-stage cooldown/damage tables no
+  longer wipe permanent upgrades on evolution. `AbilitySystem.make_abilities_unique()` and
+  `MonsterBase._make_abilities_unique()` duplicate the shared `.tres` per entity first (monster
+  stage application used to mutate the shared resources).
+- Seeded: River (Supply Drop cooldown / heal), Vlad (Blood Bomb radius, Land Mine cooldown), Ted
+  (Trap Cage cooldown / duration), Irelia (Rally Cry / Dash cooldown), Grount (Front Cleave
+  cooldown, Ram Dash distance, Ground Slam radius).
+- Tests: hero node hits only the hero's own copy (shared `.tres` untouched); monster nodes survive
+  evolution. Suite: 49 green.
 
 ### 2026-10-19 — feat: minimap with fog overlay
 - `Scenes/UI/Minimap/Minimap.tscn` (Control in MainCam's CanvasLayer, top-right, 160×128):

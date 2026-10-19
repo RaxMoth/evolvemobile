@@ -809,7 +809,7 @@ Max out hero trees → Unlock new heroes → Compete on leaderboards
 - [x] 10-minute match cap (loss-condition timer)
 - [x] Side-aware fog/vision (playing the monster reveals for the monster)
 - [x] Performance pass: faction collision layers, EntityRegistry, TickScheduler AI LOD, HpBar2D, mob pooling
-- [x] Per-hero (Steel) and per-monster (Leaves) skill trees — stat-only nodes, applied on spawn
+- [x] Per-hero (Steel) and per-monster (Leaves) skill trees — stat nodes and ability-modifying nodes, applied on spawn
 - [x] First-run tutorial overlay + "How to play" button
 - [x] Versioned save file with automatic backup + migration
 - [x] Audio manager on the Master/Music/SFX buses (generated placeholder tones until real assets land in `Assets/Audio/`)
@@ -825,7 +825,7 @@ Max out hero trees → Unlock new heroes → Compete on leaderboards
 
 **High Priority**:
 
-- [ ] **Ability-changing skill nodes** (Triple Shot, Ram Dash stun, …) — the per-character trees ship stat nodes only
+- [ ] **Behaviour-changing skill nodes** (Triple Shot, Ram Dash stun, …) — trees ship stat and property-modifier nodes; new mechanics need their own ability code
 - [ ] **Device build** — export presets, measure the perf pass on a mid-range phone, retune the
       shrunken aggro / AoE ranges from the collision-layer split
 - [ ] **Real audio assets** — drop `.ogg`/`.wav` files into `Assets/Audio/` (keys in its README)

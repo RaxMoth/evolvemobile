@@ -17,6 +17,28 @@ func _ready() -> void:
 	owner_entity = get_parent()
 	_initialize_cooldowns()
 
+
+## Replace the shared .tres abilities with per-entity copies so permanent
+## modifiers (and per-use state) never leak between heroes or matches.
+## Idempotent: copies have no resource_path.
+func make_abilities_unique() -> void:
+	if passive_ability and not passive_ability.resource_path.is_empty():
+		passive_ability = passive_ability.duplicate()
+	if active_ability and not active_ability.resource_path.is_empty():
+		active_ability = active_ability.duplicate()
+	if basic_attack and not basic_attack.resource_path.is_empty():
+		basic_attack = basic_attack.duplicate()
+	if ultimate_ability and not ultimate_ability.resource_path.is_empty():
+		ultimate_ability = ultimate_ability.duplicate()
+
+
+func all_abilities() -> Array[AbilityBase]:
+	var out: Array[AbilityBase] = []
+	for a in [passive_ability, active_ability, basic_attack, ultimate_ability]:
+		if a != null:
+			out.append(a)
+	return out
+
 func _initialize_cooldowns() -> void:
 	cooldowns[AbilityBase.AbilityType.PASSIVE] = 0.0
 	cooldowns[AbilityBase.AbilityType.ACTIVE] = 0.0
