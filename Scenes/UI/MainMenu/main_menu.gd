@@ -146,11 +146,14 @@ func _wire_skill_buttons() -> void:
 	if monster_skills_btn:
 		monster_skills_btn.tooltip_text = tr("Permanent upgrades for the monster")
 		monster_skills_btn.pressed.connect(_open_meta_skills.bind(MetaSkillManager.TREE_MONSTER_BASE))
-	# Roster / individual trees ship later — keep disabled for now.
-	for btn in [hero_updates_btn, monster_updates_btn]:
-		if btn:
-			btn.disabled = true
-			btn.tooltip_text = tr("Coming soon")
+	# Per-character trees: the hero button opens the first hero tree, the
+	# monster button the monster's own tree (the picker lists the rest).
+	if hero_updates_btn:
+		hero_updates_btn.tooltip_text = tr("Individual hero upgrades (Steel)")
+		hero_updates_btn.pressed.connect(_open_meta_skills.bind(MetaSkillManager.hero_tree_id(GameManager.KNOWN_HERO_IDS[0])))
+	if monster_updates_btn:
+		monster_updates_btn.tooltip_text = tr("Individual monster upgrades (Leaves)")
+		monster_updates_btn.pressed.connect(_open_meta_skills.bind(MetaSkillManager.monster_tree_id(GameManager.DEFAULT_MONSTER_ID)))
 
 
 func _open_meta_skills(preselect_tree_id: StringName) -> void:

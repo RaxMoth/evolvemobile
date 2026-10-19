@@ -16,6 +16,7 @@ signal cancelled
 @onready var farming_value: Label = %FarmingValue
 @onready var exploration_value: Label = %ExplorationValue
 @onready var formation_picker: OptionButton = %FormationPicker
+@onready var preview_label: Label = %Preview
 
 const FORMATION_LABELS: Array[String] = ["Tight", "Spread", "Line"]
 
@@ -34,6 +35,8 @@ func _ready() -> void:
 		var label: Label = pair[1]
 		slider.value_changed.connect(_on_slider_changed.bind(label))
 		label.text = _percent(slider.value)
+	formation_picker.item_selected.connect(func(_i: int) -> void: _refresh_preview())
+	_refresh_preview()
 
 
 func collect_config() -> MatchConfig:
@@ -47,6 +50,17 @@ func collect_config() -> MatchConfig:
 
 func _on_slider_changed(value: float, label: Label) -> void:
 	label.text = _percent(value)
+	_refresh_preview()
+
+
+## Plain-words preview of what the AI will actually do with these values.
+func _refresh_preview() -> void:
+	if preview_label == null:
+		return
+	var cfg := collect_config()
+	preview_label.text = tr("Ultimates fire at %d+ enemies or when an ally drops below %d%% HP. Mob camps weigh %d vs. 100 for the monster. New targets every %.1f s, scanning %d px ahead, %d px apart.") % [
+		cfg.auto_ult_min_enemies(), roundi(cfg.auto_ult_panic_hp_pct() * 100.0), roundi(cfg.priority_mob()),
+		cfg.exploration_update_interval(), roundi(cfg.search_radius()), roundi(cfg.formation_spread_px())]
 
 
 func _percent(v: float) -> String:

@@ -210,6 +210,15 @@ unique_name_in_owner = true
 custom_minimum_size = Vector2(160, 48)
 layout_mode = 2
 
+[node name="Preview" type="Label" parent="Root/Center/Panel/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.62, 0.78, 0.96, 0.85)
+theme_override_font_sizes/font_size = 13
+text = "…"
+horizontal_alignment = 1
+autowrap_mode = 3
+
 [node name="ButtonRow" type="HBoxContainer" parent="Root/Center/Panel/VBox"]
 layout_mode = 2
 theme_override_constants/separation = 12
