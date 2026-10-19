@@ -1,6 +1,6 @@
 # Progress Tracker
 
-Last loop run: 2026-10-19 (post-review wiring)
+Last loop run: 2026-10-19 (pre-round setup)
 Stack: godot
 
 Spec source: `README.md` + `Docs/INSTRUCTOR.md` (roadmap, "Current Status & Roadmap",
@@ -67,7 +67,9 @@ Spec source: `README.md` + `Docs/INSTRUCTOR.md` (roadmap, "Current Status & Road
       tap-to-focus on the match camera; Shift+R / K / M / F1 / F3 only in debug builds.
 - [x] `print()` gating — `Globals.debug_log()` (off unless `Globals.verbose_logs` in a debug build) in
       world.gd, monster_base_class.gd, spawns.gd. Ability/pet prints still raw (cold paths).
-- [ ] Pre-Round Setup screen — `MatchConfig` resource (aggression/farming/exploration, formation)
+- [x] Pre-Round Setup screen — `MatchConfig` resource (aggression / farming / exploration / formation,
+      persisted in settings), `PreRoundSetup` scene on the heroes' PLAY path, consumed by the hero AI
+      (auto-ult thresholds, mob priority, exploration cadence/radius, formation spread); tests.
 - [ ] Per-hero skill trees (Steel) + per-monster trees (Leaves) — DONE (stat-only slice): `hero_<id>`
       trees for River/Vlad/Ted/Irelia and `monster_grount`, `HeroStats.hero_id` / `MonsterStats.monster_id`,
       applied on spawn (MonsterBase passes `monster_stats.monster_id`, GameManager reads
@@ -103,6 +105,20 @@ Spec source: `README.md` + `Docs/INSTRUCTOR.md` (roadmap, "Current Status & Road
 - [x] Legacy in-round `Scripts/Skilltree/` removed (zero references outside the folder).
 
 ## Changelog
+
+### 2026-10-19 — feat: Pre-Round Setup (MatchConfig)
+- `Scripts/match_config.gd` (Resource): aggression / farming / exploration sliders + formation
+  (Tight / Spread / Line). `from_settings()` / `save_to_settings()` persist the last choice;
+  `for_current_match()` returns the player's config on the hero side and neutral defaults when the
+  AI plays the heroes against a monster player. Derived getters are the only thing the AI reads:
+  `auto_ult_min_enemies` 4→1, `auto_ult_panic_hp_pct` 0.15→0.4, `priority_mob` 20→120,
+  `exploration_update_interval` 5→1.5 s, `search_radius` 300→600, `formation_spread_px` 60/100/160.
+- `Scenes/UI/PreRoundSetup/PreRoundSetup.tscn` (scene-built, 48 px sliders, en/de strings): opens
+  from the heroes' PLAY button, emits `start_requested(config)` and the menu changes the scene.
+- Consumers: `HeroBase._ready` (ult thresholds, mob priority) and `HeroExplorationController._ready`
+  (update interval, search radius, formation spread).
+- Tests: derived values, settings round-trip, screen collects + persists + frees; hero spawned with
+  an aggressive config gets the aggressive thresholds. Suite: 45 green.
 
 ### 2026-10-19 — feat: post-review wiring (ids from resources, evolve signal, touch camera, log gating)
 - `EventBus.monster_evolved` emitted by `MonsterBase._evolve_to_stage`; AudioManager plays `evolve`.

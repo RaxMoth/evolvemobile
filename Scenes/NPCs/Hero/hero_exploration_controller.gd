@@ -49,6 +49,7 @@ func _ready() -> void:
 	# NOTE: Group "HeroExplorationController" is declared in
 	# HeroExplorationController.tscn (`groups=[...]`) so no add_to_group()
 	# call is needed here. world.gd instantiates that scene.
+	_apply_match_config(MatchConfig.for_current_match())
 	await get_tree().process_frame
 	_find_heroes()
 	_find_fog_system()
@@ -56,6 +57,13 @@ func _ready() -> void:
 
 	if heroes.size() > 0:
 		current_group_target = _calculate_group_center()
+
+## Pre-round strategy (PreRoundSetup → MatchConfig) overrides the scene defaults.
+func _apply_match_config(cfg: MatchConfig) -> void:
+	exploration_update_interval = cfg.exploration_update_interval()
+	search_radius_per_check = cfg.search_radius()
+	formation_spread = cfg.formation_spread_px()
+
 
 func _process(delta: float) -> void:
 	if not group_exploration_enabled or heroes.is_empty():

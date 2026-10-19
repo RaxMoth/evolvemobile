@@ -10,6 +10,7 @@ extends Node2D
 const WORLD_SCENE: PackedScene = preload("res://Scenes/World/World.tscn")
 const META_SKILL_SCREEN: PackedScene = preload("res://Scenes/UI/MetaSkills/MetaSkillScreen.tscn")
 const TUTORIAL_SCENE: PackedScene = preload("res://Scenes/UI/Tutorial/TutorialOverlay.tscn")
+const PRE_ROUND_SCENE: PackedScene = preload("res://Scenes/UI/PreRoundSetup/PreRoundSetup.tscn")
 
 @onready var play_as_hero_btn: Button = %PlayAsHero
 @onready var play_as_monster_btn: Button = %PlayAsMonster
@@ -183,6 +184,16 @@ func _open_settings() -> void:
 
 func _on_play_as_hero() -> void:
 	GameManager.chosen_side = MatchRewards.Side.HEROES
+	if get_node_or_null("PreRoundSetup"):
+		return
+	# Strategy first (README round structure step 1); the screen persists the
+	# MatchConfig and only asks us to start.
+	var setup := PRE_ROUND_SCENE.instantiate() as PreRoundSetup
+	setup.start_requested.connect(_start_hero_match)
+	add_child(setup)
+
+
+func _start_hero_match(_config: MatchConfig) -> void:
 	get_tree().change_scene_to_packed.call_deferred(WORLD_SCENE)
 
 

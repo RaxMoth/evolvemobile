@@ -31,6 +31,7 @@ func _ready() -> void:
 	if stats:
 		stats.health_changed.connect(_on_health_changed)
 	_setup_combat_role_from_stats()
+	_apply_match_config(MatchConfig.for_current_match())
 
 	# Apply permanent meta-skill upgrades to this hero's stats BEFORE
 	# super._ready() so the EntityBase HUD setup reads the post-bonus
@@ -49,6 +50,14 @@ func _process(delta: float) -> void:
 	_auto_ult_timer = auto_ult_check_interval
 	if is_ultimate_ready() and _should_auto_use_ultimate():
 		use_ultimate()
+
+## Pre-round strategy (PreRoundSetup → MatchConfig). Scene exports stay the
+## designer defaults; the player's sliders override them per match.
+func _apply_match_config(cfg: MatchConfig) -> void:
+	auto_ult_min_enemies = cfg.auto_ult_min_enemies()
+	auto_ult_panic_hp_pct = cfg.auto_ult_panic_hp_pct()
+	priority_mob = int(cfg.priority_mob())
+
 
 func _should_auto_use_ultimate() -> bool:
 	"""Smarter ult auto-cast: fire when worth it, not just because it's ready.
