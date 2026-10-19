@@ -304,6 +304,8 @@ func apply_unlocked_to_hero(hero: Node) -> void:
 		if abilities:
 			abilities.make_abilities_unique()
 			_apply_ability_nodes(hero_tree_id(hero_id), abilities.all_abilities())
+	# HeroStats initialised current_health before the +max HP nodes existed.
+	stats.refill_health()
 
 
 ## Called by MonsterBase._load_meta_modifiers with its own ability copies.

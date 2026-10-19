@@ -10,16 +10,17 @@ const RESPAWN_TIME: float = 10.0
 
 func on_passive_update(entity: Node2D, delta: float) -> void:
 	owner_entity = entity
-	
-	# Spawn pet on first update
-	if not pet_instance and pet_scene:
-		_spawn_pet()
-	
-	# Handle respawn timer
-	if not is_instance_valid(pet_instance) and respawn_timer > 0.0:
+	# One "pet missing" path that respects the timer: first spawn is immediate
+	# (timer 0), a death waits RESPAWN_TIME (set by _on_pet_died), a pet freed
+	# without `died` (scene reload) comes back right away. The old code had a
+	# second branch that respawned the instant pet_instance was null.
+	if pet_scene == null or is_instance_valid(pet_instance):
+		return
+	if respawn_timer > 0.0:
 		respawn_timer -= delta
-		if respawn_timer <= 0.0:
-			_spawn_pet()
+		if respawn_timer > 0.0:
+			return
+	_spawn_pet()
 
 func _spawn_pet() -> void:
 	if not owner_entity or not is_instance_valid(owner_entity):
@@ -32,6 +33,8 @@ func _spawn_pet() -> void:
 	var parent_node = owner_entity.get_parent()
 	if not parent_node:
 		push_error("Ted has no parent node - cannot spawn pet!")
+		pet_instance.queue_free()
+		pet_instance = null
 		return
 	
 	# Add to scene tree first

@@ -59,6 +59,8 @@ func _run_all() -> void:
 				continue
 			_current = path.get_file() + "::" + method_name
 			_current_failed = false
+			# Hermetic: never depend on the host language (tr() in UI code).
+			TranslationServer.set_locale("en")
 			case.before_each()
 			await case.call(method_name)
 			case.after_each()

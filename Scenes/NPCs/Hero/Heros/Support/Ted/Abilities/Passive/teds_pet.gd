@@ -174,6 +174,9 @@ func _perform_attack() -> void:
 	EventBus.deal_damage(self, current_target, attack_damage, null)
 
 func _receive_damage(packet: DamagePacket) -> void:
+	# A dying pet (queued free) must not emit `died` twice.
+	if current_health <= 0.0:
+		return
 	current_health -= packet.amount
 
 	if current_health <= 0.0:

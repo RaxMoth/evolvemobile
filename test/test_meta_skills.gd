@@ -12,7 +12,7 @@ func _isolated() -> bool:
 
 func before_each() -> void:
 	if _isolated():
-		PersistedData.wipe_progress()
+		PersistedData.wipe_progress(false)
 
 
 func test_tier_two_is_gated_until_tier_one_unlocked() -> void:

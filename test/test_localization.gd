@@ -20,9 +20,13 @@ func test_locale_choice_persists_and_applies() -> void:
 	if not OS.get_user_data_dir().contains("evolvemobile_tests"):
 		skip("user:// is not the isolated test dir")
 		return
-	PersistedData.wipe_progress()
+	var before := TranslationServer.get_locale()
+	PersistedData.wipe_progress(false)
 	LocaleSettings.set_choice_index(2)  # Deutsch
-	assert_eq(LocaleSettings.get_choice(), "de")
+	# Persisted: drop memory and re-read the file.
+	PersistedData.set_setting(LocaleSettings.KEY_LOCALE, "")
+	PersistedData.load_data()
+	assert_eq(LocaleSettings.get_choice(), "de", "choice survives a reload from disk")
 	assert_eq(TranslationServer.get_locale(), "de")
 	assert_eq(AudioSettings.label_for(AudioSettings.KEY_MUSIC), "Musik")
 	LocaleSettings.set_choice_index(1)  # English
@@ -30,3 +34,5 @@ func test_locale_choice_persists_and_applies() -> void:
 	assert_eq(AudioSettings.label_for(AudioSettings.KEY_MUSIC), "Music")
 	LocaleSettings.set_choice_index(0)  # System → device language or English
 	assert_true(TranslationServer.get_loaded_locales().has(TranslationServer.get_locale()))
+	PersistedData.set_setting(LocaleSettings.KEY_LOCALE, "")
+	TranslationServer.set_locale(before)

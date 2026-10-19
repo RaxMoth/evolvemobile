@@ -94,6 +94,18 @@ static func compute(
 	return r
 
 
+## GameManager tracks outcomes from the heroes' perspective (WIN = monster
+## died, LOSS = heroes died, TIMEOUT = clock ran out). Convert to the played
+## side's perspective: for the monster a timeout is a win (it survived).
+static func outcome_for_side(side: int, heroes_view: int) -> int:
+	if side != Side.MONSTER:
+		return heroes_view
+	match heroes_view:
+		Outcome.WIN: return Outcome.LOSS
+		Outcome.LOSS, Outcome.TIMEOUT: return Outcome.WIN
+	return heroes_view
+
+
 # ============================================
 # Display helpers
 # ============================================

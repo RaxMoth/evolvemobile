@@ -40,7 +40,7 @@ func _execute_sniper(caster: Node2D, target: Node2D) -> void:
 		return
 
 	var distance = caster.global_position.distance_to(target.global_position)
-	if distance <= sniper_range:
+	if distance <= effective_range(caster):
 		# Apply damage with modifier
 		var damage_mult = 1.0
 		if caster.has_node("AbilitySystem"):

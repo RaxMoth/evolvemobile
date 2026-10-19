@@ -99,6 +99,27 @@ func test_reset_population_cancels_pending_respawn() -> void:
 	await wait_frames(2)
 	area.reset_population()  # what Shift+R does for every camp
 	assert_eq(area.total_mob_count(), 0)
+	# Re-arm the camp the way SpawnManager._make_spawn_world_eligible does,
+	# BEFORE the stale respawn timer fires.
+	area.virtual_count = area.mob_count
+	area.activate()
+	await wait_frames(1)
+	assert_eq(area.spawned_mobs.size(), area.mob_count)
 	await wait_seconds(0.5)
-	assert_eq(area.spawned_mobs.size(), 0, "the old respawn coroutine must not fire (epoch changed)")
-	assert_eq(area.total_mob_count(), 0)
+	assert_eq(area.spawned_mobs.size(), area.mob_count, "the stale respawn coroutine must not add a mob (epoch changed)")
+	assert_eq(area._pending_respawns, 0)
+	assert_eq(area.total_mob_count(), area.mob_count)
+
+
+func test_deactivate_activate_inside_the_respawn_window_keeps_population() -> void:
+	vlad = await spawn_entity("res://Scenes/NPCs/Hero/Heros/DMG/Vlad/Vlad.tscn", Vector2(4000, 4000))
+	area.activate()
+	await wait_physics_frames(4)
+	EventBus.deal_damage(vlad, area.spawned_mobs[0], 9999.0)
+	await wait_frames(2)
+	area.deactivate()
+	area.activate()
+	await wait_seconds(0.5)
+	assert_eq(area.spawned_mobs.size(), area.mob_count, "dead slot carried through deactivate/activate exactly once")
+	assert_eq(area._pending_respawns, 0)
+	assert_eq(area.total_mob_count(), area.mob_count)

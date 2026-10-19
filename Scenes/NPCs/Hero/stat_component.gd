@@ -108,6 +108,11 @@ func clear_all_modifiers() -> void:
 			stat_modifiers[key] = 0.0
 	_recalculate_all_stats()
 
+## Spawn-time refill after permanent max-HP upgrades were applied (the
+## component initialised current_health before the modifiers existed).
+func refill_health() -> void:
+	current_stats.current_health = current_stats.max_health
+
 func take_damage(amount: float) -> void:
 	current_stats.current_health = max(0.0, current_stats.current_health - amount)
 	health_changed.emit(current_stats.current_health, current_stats.max_health)

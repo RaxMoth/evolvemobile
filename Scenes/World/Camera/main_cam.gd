@@ -196,7 +196,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		set_zoom_level(zoom.x * (event as InputEventMagnifyGesture).factor)
 		return
 
-	if event.is_action_pressed("toggle_camera_debug"):
+	if OS.is_debug_build() and event.is_action_pressed("toggle_camera_debug"):
 		toggle_debug_mode()
 	if event.is_action_pressed("reset_camera_zoom"):
 		reset_zoom()

@@ -62,6 +62,15 @@ func _modified(prop: String, base_value: float) -> float:
 	return (base_value + float(meta_adds.get(prop, 0.0))) * float(meta_mults.get(prop, 1.0))
 
 
+## Range a range-checked attack should accept: the larger of the ability's own
+## range and the caster's effective attack range (HeroStats + skill nodes).
+## Keeps the Fight gate (EntityBase.attack_range) and the hit check in step.
+func effective_range(caster: Node2D) -> float:
+	if caster != null and "attack_range" in caster:
+		return maxf(ability_range, float(caster.get("attack_range")))
+	return ability_range
+
+
 # Override these in specific ability scripts
 func execute(_caster: Node2D, _target: Node2D = null, _override_damage: float = -1.0) -> void:
 	push_warning("Ability.execute() not implemented for: " + ability_name)

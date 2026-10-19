@@ -188,12 +188,22 @@ static func _as_non_negative_int(value: Variant) -> int:
 	return 0
 
 
-## Deletes the save and re-seeds defaults. Used by a future "reset progress"
-## button in the settings menu.
-func wipe_progress() -> void:
+## Reset Progress: clears currency, XP, skills and match counters but KEEPS the
+## [settings] section (volumes, language, analytics opt-out, tutorial flag,
+## last match strategy) — those are device preferences, not progress.
+## `keep_settings = false` is the factory reset the tests use.
+func wipe_progress(keep_settings: bool = true) -> void:
+	var kept: Dictionary = {}
+	if keep_settings and _config.has_section(SECTION_SETTINGS):
+		for key in _config.get_section_keys(SECTION_SETTINGS):
+			kept[key] = _config.get_value(SECTION_SETTINGS, key)
 	_config = ConfigFile.new()
 	_seed_defaults()
+	for key in kept:
+		_config.set_value(SECTION_SETTINGS, key, kept[key])
 	save_data()
+	for c in ALL_CURRENCIES:
+		currency_changed.emit(c, 0)
 
 
 # ============================================

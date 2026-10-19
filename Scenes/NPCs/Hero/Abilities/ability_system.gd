@@ -10,6 +10,7 @@ signal cooldown_updated(ability_type: AbilityBase.AbilityType, time_remaining: f
 @export var ultimate_ability: AbilityBase
 
 var owner_entity: Node2D
+var _hero_stats: HeroStatsComponent = null  # cached; monsters have none
 var cooldowns: Dictionary = {} # AbilityType -> time_remaining
 var _last_emitted_cooldowns: Dictionary = {} # Track last emitted values to reduce signal spam
 
@@ -116,16 +117,27 @@ func get_ability_by_type(ability_type: AbilityBase.AbilityType) -> AbilityBase:
 			return ultimate_ability
 	return null
 
-# Get total damage multiplier from all abilities (mainly passive)
+func _get_hero_stats() -> HeroStatsComponent:
+	if _hero_stats == null and is_instance_valid(owner_entity):
+		_hero_stats = owner_entity.get_node_or_null("HeroStats") as HeroStatsComponent
+	return _hero_stats
+
+# Total damage multiplier: passive ability × permanent attack_damage upgrades.
 func get_damage_multiplier() -> float:
-	var multiplier = 1.0
+	var multiplier: float = 1.0
 	if passive_ability:
 		multiplier *= passive_ability.get_damage_multiplier(owner_entity)
+	var stats := _get_hero_stats()
+	if stats:
+		multiplier *= float(stats.stat_modifiers.get("attack_damage_mult", 1.0))
 	return multiplier
 
-# Get total attack speed multiplier from all abilities (mainly passive)
+# Total attack speed multiplier: passive ability × permanent attack_speed upgrades.
 func get_attack_speed_multiplier() -> float:
-	var multiplier = 1.0
+	var multiplier: float = 1.0
 	if passive_ability:
 		multiplier *= passive_ability.get_attack_speed_multiplier(owner_entity)
+	var stats := _get_hero_stats()
+	if stats:
+		multiplier *= stats.get_attack_speed_multiplier()
 	return multiplier

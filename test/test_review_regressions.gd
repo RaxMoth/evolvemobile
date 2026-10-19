@@ -35,14 +35,19 @@ func test_pet_drops_a_target_that_dies_and_gets_parked() -> void:
 	var vlad := await spawn_entity(VLAD, Vector2(2000, 1700))
 	area.activate()
 	await wait_physics_frames(4)
-	var victim: MobBase = area.spawned_mobs[0]
+	var anchor: MobBase = area.spawned_mobs[0]
 	var pet := (load(PET) as PackedScene).instantiate() as CharacterBody2D
-	pet.global_position = victim.global_position + Vector2(20, 0)
+	pet.global_position = anchor.global_position + Vector2(20, 0)
 	pet.set("owner_entity", vlad)
 	add_child(pet)
 	await wait_physics_frames(6)
 	await wait_seconds(0.3)
-	assert_true(pet.get("current_target") != null, "pet picked a target")
+	var victim := pet.get("current_target") as MobBase
+	assert_true(victim != null, "pet picked a mob target")
+	if victim == null:
+		pet.queue_free()
+		vlad.queue_free()
+		return
 	EventBus.deal_damage(vlad, victim, 9999.0)
 	await wait_frames(3)
 	assert_true(victim.is_parked, "victim is parked, not freed")

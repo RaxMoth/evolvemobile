@@ -1,6 +1,6 @@
 # Progress Tracker
 
-Last loop run: 2026-10-19 (ability skill nodes)
+Last loop run: 2026-10-19 (second adversarial review fixes)
 Stack: godot
 
 Spec source: `README.md` + `Docs/INSTRUCTOR.md` (roadmap, "Current Status & Roadmap",
@@ -109,6 +109,42 @@ Spec source: `README.md` + `Docs/INSTRUCTOR.md` (roadmap, "Current Status & Road
 - [x] Legacy in-round `Scripts/Skilltree/` removed (zero references outside the folder).
 
 ## Changelog
+
+### 2026-10-19 — fix: second adversarial review (production batch): 21 confirmed findings
+A 69-agent read-only review of the commits after the perf pass (5 lenses × 2 refuters). Fixed:
+- **River never attacked or healed**: `RiverBasicAttack.execute` returned early because River had
+  no `get_weapon_mode()` (pre-existing). Added it; mode ranges now scale with the attack_range
+  upgrades; the sniper hit check uses the caster's effective range.
+- **attack_damage / attack_speed skill nodes had no effect** (12 nodes sold for Steel):
+  `AbilitySystem.get_damage_multiplier / get_attack_speed_multiplier` now fold the HeroStats
+  modifiers in. **Ted's +range nodes made him swing at air**: range-checked basic attacks
+  (Ted, Irelia, Vlad, River) use `AbilityBase.effective_range(caster)` = max(ability range,
+  caster attack range) so the Fight gate and the hit check agree.
+- **Heroes spawned damaged** after +max-HP nodes (HeroStats initialised HP before the modifiers):
+  `refill_health()` after the trees are applied.
+- **Monster-side outcome was inverted** for rewards/label (pre-existing, made visible by the new
+  jingle): `MatchRewards.outcome_for_side()` converts the heroes-view outcome; timeout = monster win.
+- **Ted's pet respawned the next frame** (never waited 10 s) once AoE could kill it again:
+  `TedPassivePet.on_passive_update` is one timer-respecting path; `teds_pet._receive_damage`
+  ignores hits while dying (no double `died`).
+- **Reset Progress wiped every setting** (silently re-enabling analytics, resetting language /
+  volumes / tutorial flag): `wipe_progress(keep_settings = true)` keeps the [settings] section;
+  tests use `wipe_progress(false)`.
+- **Match-end jingle and music were paused with the tree**: UI + music players are
+  `PROCESS_MODE_ALWAYS`; in-flight world SFX are stopped at match end.
+- **Settings / Meta-skill overlays sat on canvas layer 0 under the menu's STOP Root** and could
+  not be tapped: they are added under `%Root` now. Main-menu tooltips / header store untranslated
+  keys so a language change re-translates them; tutorial auto-open re-checks the flag;
+  camera debug toggle gated like the other debug keys.
+- Test harness: locale pinned to `en` per test; `tools/lint.sh` isolates `user://`; the
+  "not rewritten" save test counts saves and checks the file; epoch test re-arms the camp before
+  the stale timer; pet test kills the mob the pet actually targeted; locale / tutorial tests
+  re-read from disk. New: preferences survive Reset Progress, pet respawn timing, damage /
+  attack-speed multipliers reach combat, spawn at full upgraded HP, River weapon mode + range,
+  melee reach, side outcome mapping. Suite: 57 green.
+- Refuted (no change): newer-save stamping, corrupt-backup naming, truncated-file migration,
+  placeholder synthesis cost, skipped-tests counting, lint.sh exit semantics, concurrent test dirs,
+  engine ERROR filtering, deferred-attach guard.
 
 ### 2026-10-19 — feat: ability-modifying skill nodes
 - `MetaSkillNode.ability_name` (+ `make_ability()`): a node now targets one ability by its

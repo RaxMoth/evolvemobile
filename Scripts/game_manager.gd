@@ -172,9 +172,12 @@ func _end_match_with_outcome(outcome: int) -> void:
 	match_ended_flag = true
 
 	var duration := _elapsed()
+	# `outcome` is the heroes' perspective (the legacy signals below keep it).
+	# Rewards, label and jingle must use the PLAYED side's perspective.
+	var player_outcome := MatchRewards.outcome_for_side(chosen_side, outcome)
 	var result := MatchRewards.compute(
 		chosen_side,
-		outcome,
+		player_outcome,
 		duration,
 		mob_kills,
 		maxi(0, heroes_alive),

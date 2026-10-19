@@ -41,13 +41,21 @@ func _update_attack_range() -> void:
 	if not ability_system:
 		return
 
+## Read by RiverBasicAttack.execute (0 = sniper, 1 = heal staff). Without it
+## the basic attack returned early and River never fired or healed.
+func get_weapon_mode() -> int:
+	return int(current_weapon_mode)
+
 func _get_attack_range() -> float:
+	# Mode ranges scale with the permanent attack_range upgrades (HeroStats).
+	var mult: float = 1.0
+	if stats and stats.base_stats and stats.base_stats.base_attack_range > 0.0:
+		mult = stats.get_attack_range() / stats.base_stats.base_attack_range
 	match current_weapon_mode:
-		WeaponMode.SNIPER:
-			return 300.0  
 		WeaponMode.HEAL_STAFF:
-			return 150.0 
-	return super._get_attack_range()
+			return heal_max_range * mult
+		_:
+			return 300.0 * mult
 
 func _get_move_speed() -> float:
 	var base_speed = super._get_move_speed()

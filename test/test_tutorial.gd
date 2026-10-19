@@ -11,7 +11,7 @@ func _isolated() -> bool:
 
 func before_each() -> void:
 	if _isolated():
-		PersistedData.wipe_progress()
+		PersistedData.wipe_progress(false)
 
 
 func test_walkthrough_marks_seen_and_frees_itself() -> void:
@@ -36,6 +36,7 @@ func test_walkthrough_marks_seen_and_frees_itself() -> void:
 	overlay.next_button.pressed.emit()
 	overlay.next_button.pressed.emit()
 	assert_eq(result[0], true, "finished(completed=true) after the last step")
+	PersistedData.load_data()  # re-read from disk: mark_seen must have saved
 	assert_true(TutorialOverlay.has_been_seen())
 	await wait_frames(2)
 	assert_false(is_instance_valid(overlay), "overlay frees itself")

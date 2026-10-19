@@ -141,6 +141,9 @@ func _on_monster_evolved(monster: Node, _stage: int) -> void:
 
 
 func _on_match_ended(winner: String, _time: float) -> void:
+	# Drop in-flight world SFX so they do not resume when the tree unpauses later.
+	for p in _pool:
+		p.stop()
 	var player_won := (winner == "Heroes") == (GameManager.chosen_side == MatchRewards.Side.HEROES)
 	play_global(&"victory" if player_won else &"defeat")
 
@@ -182,10 +185,14 @@ func _build_players() -> void:
 		add_child(p)
 		_pool.append(p)
 	_ui_player = AudioStreamPlayer.new()
+	# UI cues, the match-end jingle and music must survive the result screen's
+	# tree pause; the positional pool stays pausable with the world.
+	_ui_player.process_mode = Node.PROCESS_MODE_ALWAYS
 	_ui_player.bus = AudioSettings.SFX_BUS
 	_ui_player.volume_db = PLACEHOLDER_DB
 	add_child(_ui_player)
 	_music_player = AudioStreamPlayer.new()
+	_music_player.process_mode = Node.PROCESS_MODE_ALWAYS
 	_music_player.bus = AudioSettings.MUSIC_BUS
 	_music_player.volume_db = PLACEHOLDER_DB - 4.0
 	add_child(_music_player)

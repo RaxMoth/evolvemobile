@@ -66,7 +66,7 @@ func _ready() -> void:
 
 	# First run: walk the player through the loop once the intro has settled.
 	if not TutorialOverlay.has_been_seen():
-		get_tree().create_timer(0.9).timeout.connect(_open_tutorial)
+		get_tree().create_timer(0.9).timeout.connect(_auto_open_tutorial)
 
 
 # ============================================
@@ -141,24 +141,27 @@ func _wire_play_buttons() -> void:
 
 func _wire_skill_buttons() -> void:
 	if hero_skills_btn:
-		hero_skills_btn.tooltip_text = tr("Permanent upgrades for all heroes")
+		hero_skills_btn.tooltip_text = "Permanent upgrades for all heroes"  # auto-translated when shown
 		hero_skills_btn.pressed.connect(_open_meta_skills.bind(MetaSkillManager.TREE_HERO_BASE))
 	if monster_skills_btn:
-		monster_skills_btn.tooltip_text = tr("Permanent upgrades for the monster")
+		monster_skills_btn.tooltip_text = "Permanent upgrades for the monster"
 		monster_skills_btn.pressed.connect(_open_meta_skills.bind(MetaSkillManager.TREE_MONSTER_BASE))
 	# Per-character trees: the hero button opens the first hero tree, the
 	# monster button the monster's own tree (the picker lists the rest).
 	if hero_updates_btn:
-		hero_updates_btn.tooltip_text = tr("Individual hero upgrades (Steel)")
+		hero_updates_btn.tooltip_text = "Individual hero upgrades (Steel)"
 		hero_updates_btn.pressed.connect(_open_meta_skills.bind(MetaSkillManager.hero_tree_id(GameManager.KNOWN_HERO_IDS[0])))
 	if monster_updates_btn:
-		monster_updates_btn.tooltip_text = tr("Individual monster upgrades (Leaves)")
+		monster_updates_btn.tooltip_text = "Individual monster upgrades (Leaves)"
 		monster_updates_btn.pressed.connect(_open_meta_skills.bind(MetaSkillManager.monster_tree_id(GameManager.DEFAULT_MONSTER_ID)))
 
 
 func _open_meta_skills(preselect_tree_id: StringName) -> void:
 	var screen: MetaSkillScreen = META_SKILL_SCREEN.instantiate() as MetaSkillScreen
-	add_child(screen)
+	# Overlays go under the menu's Root Control (canvas layer 1): a sibling of
+	# the CanvasLayers would sit on layer 0, BELOW Root's full-screen STOP area,
+	# and never receive a tap.
+	%Root.add_child(screen)
 	await get_tree().process_frame
 	for i in screen._tree_ids.size():
 		if screen._tree_ids[i] == preselect_tree_id:
@@ -175,6 +178,12 @@ func _wire_ui_clicks() -> void:
 			btn.pressed.connect(AudioManager.play_ui_click)
 
 
+func _auto_open_tutorial() -> void:
+	# Re-check: the player may have opened and finished it within the delay.
+	if not TutorialOverlay.has_been_seen():
+		_open_tutorial()
+
+
 func _open_tutorial() -> void:
 	if get_node_or_null("TutorialOverlay"):
 		return
@@ -182,7 +191,7 @@ func _open_tutorial() -> void:
 
 
 func _open_settings() -> void:
-	add_child(SettingsScreen.new())
+	%Root.add_child(SettingsScreen.new())
 
 
 func _on_play_as_hero() -> void:
@@ -238,7 +247,7 @@ func _make_progression_panel(accent: Color) -> VBoxContainer:
 	var panel := VBoxContainer.new()
 	panel.add_theme_constant_override("separation", 4)
 	var header := Label.new()
-	header.text = tr("PROGRESSION")
+	header.text = "PROGRESSION"  # key: the Label auto-translates and re-translates on language change
 	header.add_theme_font_size_override("font_size", 11)
 	header.add_theme_color_override("font_color", Color(accent.r, accent.g, accent.b, 0.55))
 	header.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER

@@ -13,7 +13,7 @@ func _isolated() -> bool:
 
 func before_each() -> void:
 	if _isolated():
-		PersistedData.wipe_progress()
+		PersistedData.wipe_progress(false)
 
 
 func test_hero_and_monster_ids_come_from_resources() -> void:

@@ -17,7 +17,7 @@ func execute(caster: Node2D, target: Node2D = null, _override_damage: float = -1
 		return
 
 	var distance = caster.global_position.distance_to(target.global_position)
-	if distance <= ability_range:
+	if distance <= effective_range(caster):
 		# Apply damage with modifier from passive
 		var damage_mult = 1.0
 		if caster.has_node("AbilitySystem"):

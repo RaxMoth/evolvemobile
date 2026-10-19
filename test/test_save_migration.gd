@@ -12,7 +12,7 @@ func _isolated() -> bool:
 
 func before_each() -> void:
 	if _isolated():
-		for f in [SAVE, SAVE + ".v1.bak", SAVE + ".corrupt.bak"]:
+		for f in [SAVE, SAVE + ".v0.bak", SAVE + ".v1.bak", SAVE + ".v2.bak", SAVE + ".corrupt.bak"]:
 			if FileAccess.file_exists(f):
 				DirAccess.remove_absolute(ProjectSettings.globalize_path(f))
 
@@ -75,12 +75,43 @@ func test_current_save_is_not_backed_up_or_rewritten() -> void:
 	if not _isolated():
 		skip("user:// is not the isolated test dir")
 		return
-	PersistedData.wipe_progress()
-	PersistedData.add_currency(PersistedData.GOLD, 77)
-	PersistedData.save_data()
+	# A hand-written current-version file with a sentinel timestamp.
+	var cfg := ConfigFile.new()
+	cfg.set_value("meta", "save_version", PersistedData.CURRENT_SAVE_VERSION)
+	cfg.set_value("meta", "last_saved_unix", 1)
+	cfg.set_value("currency", "gold", 77)
+	cfg.save(SAVE)
+	PersistedData.add_currency(PersistedData.GOLD, 5)  # dirty memory so a no-op load would show
+	var saves := [0]
+	var cb := func() -> void: saves[0] += 1
+	PersistedData.data_saved.connect(cb)
 	PersistedData.load_data()
-	assert_eq(PersistedData.get_currency(PersistedData.GOLD), 77)
-	assert_false(FileAccess.file_exists(SAVE + ".v1.bak"), "no migration, no backup")
+	PersistedData.data_saved.disconnect(cb)
+	assert_eq(PersistedData.get_currency(PersistedData.GOLD), 77, "memory replaced from disk")
+	assert_eq(saves[0], 0, "a current save is not re-saved on load")
+	var on_disk := ConfigFile.new()
+	on_disk.load(SAVE)
+	assert_eq(int(on_disk.get_value("meta", "last_saved_unix", 0)), 1, "file untouched")
+	for f in DirAccess.get_files_at("user://"):
+		assert_false(f.begins_with("save.cfg.") and f.ends_with(".bak"), "no backup of any version: " + f)
+
+
+func test_reset_progress_keeps_preferences() -> void:
+	if not _isolated():
+		skip("user:// is not the isolated test dir")
+		return
+	PersistedData.wipe_progress(false)
+	PersistedData.add_currency(PersistedData.GOLD, 300)
+	PersistedData.set_setting(&"analytics_opt_out", true)
+	PersistedData.set_setting(&"locale", "de")
+	PersistedData.set_setting(&"music_volume", 0.3)
+	PersistedData.wipe_progress()  # the in-game Reset Progress
+	PersistedData.load_data()
+	assert_eq(PersistedData.get_currency(PersistedData.GOLD), 0, "progress gone")
+	assert_true(bool(PersistedData.get_setting(&"analytics_opt_out", false)), "opt-out kept")
+	assert_eq(String(PersistedData.get_setting(&"locale", "")), "de", "language kept")
+	assert_near(float(PersistedData.get_setting(&"music_volume", 1.0)), 0.3, 0.0001, "volume kept")
+	TranslationServer.set_locale("en")
 
 
 func test_corrupt_save_is_kept_aside_and_defaults_seeded() -> void:

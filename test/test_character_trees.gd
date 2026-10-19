@@ -12,7 +12,7 @@ func _isolated() -> bool:
 
 func before_each() -> void:
 	if _isolated():
-		PersistedData.wipe_progress()
+		PersistedData.wipe_progress(false)
 
 
 func test_every_character_has_a_tree_with_the_right_currency() -> void:

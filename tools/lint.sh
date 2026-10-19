@@ -6,8 +6,12 @@
 GODOT="${GODOT:-/Applications/Godot.app/Contents/MacOS/Godot}"
 SRC="$(cd "$(dirname "$0")/.." && pwd)"
 TMP="$(mktemp -d)"
-trap 'rm -rf "$TMP"' EXIT
+LINT_USER="$HOME/Library/Application Support/evolvemobile_lint"
+trap 'rm -rf "$TMP" "$LINT_USER"' EXIT
 rsync -a --exclude .git --exclude .DS_Store "$SRC/" "$TMP/proj/"
+# Autoloads run during the lint (PersistedData loads/migrates, AnalyticsSink writes):
+# keep them away from the real user:// directory.
+printf '[application]\nconfig/use_custom_user_dir=true\nconfig/custom_user_dir_name="evolvemobile_lint"\n' > "$TMP/proj/override.cfg"
 "$GODOT" --headless --import --path "$TMP/proj" > "$TMP/import.log" 2>&1
 "$GODOT" --headless --path "$TMP/proj" -s res://tools/lint_all.gd > "$TMP/lint.log" 2>&1
 grep "LINT DONE" "$TMP/lint.log"
