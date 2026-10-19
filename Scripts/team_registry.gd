@@ -59,6 +59,9 @@ func unregister(entity: Node, team_name: StringName) -> void:
 	var t: TeamBlackboard = get_team(team_name)
 	if t:
 		t.remove_member(entity)
+	# Also scrub it from the OTHER teams' rows (threat it generated against them).
+	for other in teams.values():
+		(other as TeamBlackboard).forget_attacker(entity)
 
 ## Resolve which team an entity belongs to from its scene groups.
 ## Returns &"" if not on any known team.

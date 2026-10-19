@@ -143,9 +143,11 @@ func first_monster() -> Node2D:
 ## Cached get_first_node_in_group(). Use for true singletons such as
 ## &"FogOfWar" and &"HeroExplorationController".
 func singleton(group: StringName) -> Node:
-	var cached: Node = _singletons.get(group, null)
-	if is_instance_valid(cached) and cached.is_inside_tree():
-		return cached
+	# Read as Variant first: a typed assignment of a freed instance (scene reload)
+	# raises and would abort before the cache could refresh.
+	var cached: Variant = _singletons.get(group)
+	if is_instance_valid(cached) and (cached as Node).is_inside_tree():
+		return cached as Node
 	var found := get_tree().get_first_node_in_group(group)
 	if found:
 		_singletons[group] = found

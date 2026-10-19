@@ -81,15 +81,21 @@ func _physics_process(delta: float) -> void:
 	
 	attack_timer = maxf(0.0, attack_timer - delta)
 	
+	# A dead or pooled (parked) mob is still a valid instance: drop it the way
+	# EntityBase.is_target_valid does, and retarget on this frame.
+	if current_target != null and not _target_ok():
+		current_target = null
+		_retarget_timer = 0.0
+	
 	# Find or maintain target (throttled)
-	if not is_instance_valid(current_target):
+	if current_target == null:
 		_retarget_timer -= delta
 		if _retarget_timer <= 0.0:
 			_retarget_timer = RETARGET_INTERVAL
 			_find_target()
 	
 	# Behavior
-	if current_target and is_instance_valid(current_target):
+	if current_target != null:
 		_attack_target(delta)
 	else:
 		_follow_owner(delta)
@@ -108,11 +114,17 @@ func _follow_owner(delta: float) -> void:
 	else:
 		velocity = velocity.lerp(Vector2.ZERO, 10.0 * delta)
 
+## Alive, in the tree and not absurdly far (a reused pooled node can respawn anywhere).
+func _target_ok() -> bool:
+	return is_instance_valid(current_target) and current_target.is_inside_tree() \
+		and EntityRegistry.is_entity_alive(current_target) \
+		and global_position.distance_squared_to(current_target.global_position) <= SEARCH_RADIUS * SEARCH_RADIUS * 2.25
+
 func _find_target() -> void:
 	current_target = EntityRegistry.nearest(EntityRegistry.enemies, global_position, SEARCH_RADIUS)
 
 func _attack_target(delta: float) -> void:
-	if not is_instance_valid(current_target):
+	if not _target_ok():
 		current_target = null
 		return
 	
@@ -157,7 +169,7 @@ func _navigate_to_position(target_pos: Vector2, speed: float, delta: float) -> v
 		$Sprite2D.rotation = direction.angle()
 
 func _perform_attack() -> void:
-	if not is_instance_valid(current_target):
+	if not _target_ok():
 		return
 	EventBus.deal_damage(self, current_target, attack_damage, null)
 

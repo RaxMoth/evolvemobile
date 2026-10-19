@@ -15,7 +15,7 @@ base_idle_wander_radius = 120.0
 base_keep_distance = 20.0
 chase_distance = 400.0
 
-[node name="HealthBar" parent="." index="0"]
+[node name="HealthBar" parent="Hud" index="0"]
 hide_when_full = true
 
 [node name="DetectionArea" parent="." index="3"]

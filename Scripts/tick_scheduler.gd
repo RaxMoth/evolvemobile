@@ -131,7 +131,7 @@ func _process(delta: float) -> void:
 				e.accum = 0.0
 			_counts[e.lod] += 1
 		if e.lod == Lod.FULL:
-			ent._tick(delta)
+			ent._tick(minf(delta, MAX_TICK_DELTA))
 			continue
 		e.accum += delta
 		if e.accum >= INTERVALS[e.lod]:

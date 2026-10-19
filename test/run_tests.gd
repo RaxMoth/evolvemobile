@@ -75,6 +75,10 @@ func _run_all() -> void:
 		root.remove_child(case)
 		case.queue_free()
 		await process_frame
+	# Let queued frees (parked mobs released by SpawnManager._exit_tree etc.)
+	# flush before quitting, or Godot reports them as leaks at exit.
+	await process_frame
+	await process_frame
 	print("== %d passed, %d failed, %d skipped ==" % [_passed, _failed, _skipped])
 	for f in _failures:
 		print("   ", f)

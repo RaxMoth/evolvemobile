@@ -1,6 +1,6 @@
 # Progress Tracker
 
-Last loop run: 2026-10-18 (localization scaffold)
+Last loop run: 2026-10-19 (adversarial review fixes)
 Stack: godot
 
 Spec source: `README.md` + `Docs/INSTRUCTOR.md` (roadmap, "Current Status & Roadmap",
@@ -105,6 +105,32 @@ Spec source: `README.md` + `Docs/INSTRUCTOR.md` (roadmap, "Current Status & Road
 - [x] Legacy in-round `Scripts/Skilltree/` removed (zero references outside the folder).
 
 ## Changelog
+
+### 2026-10-19 — fix: adversarial review of the performance pass (8 confirmed defects + 3 hardenings)
+A 53-agent read-only review (5 lenses × 2 refuters per finding) of commits P0–P5 confirmed:
+- **Ted's pet locked onto parked mobs** (4 lenses): it only dropped a target on
+  `is_instance_valid`, and pooled mobs stay valid instances. `_target_ok()` now requires in-tree,
+  alive and within 1.5× search radius; a lost target retargets on the same frame.
+- **Ted's pet became invulnerable**: P1 made the monster AoE queries area-only, but the pet is a
+  CharacterBody2D with no Area2D. The pet's body now sits on `body_hero` (layer 2) and
+  grount_slam / bull_front_cleave / ram_dash query bodies as well (entity roots are Node2D, so the
+  pet is the only body those masks can return). DetectionAreas still never aggro it.
+- **Corpse leash-healed in its death frame**: release is deferred, so a dead mob ticked once more;
+  `_pre_tick` / `_reset_to_spawn` bail when parked or dead, and parked mobs keep HP 0.
+- **Parked mobs lingered in the heroes' threat rows** (Irelia peel/taunt picked them):
+  `TeamBlackboard.forget_attacker()` runs for every team in `TeamRegistry.unregister`.
+- **`EntityRegistry.singleton()` raised after a scene reload** (typed assign of a freed instance
+  aborted before the cache could refresh — blocker): the cache is read as Variant and validated.
+- FULL-rate entities bypassed the `MAX_TICK_DELTA` hitch guard; parked mobs kept animating
+  off-screen after reuse (sprite paused on park); HP bar + level label drifted apart as the monster
+  scaled (both now under one counter-scaled `%Hud` node).
+- Hardening from split verdicts: `EntityBase._ready` survives being parked mid-await
+  (`await tree_entered`), `_setup_navigation` is out-of-tree safe, `deactivate()` clears
+  `spawned_mobs` before releasing (synchronous `area_exited` no longer leash-resets a mob being
+  parked), `_check_mob_exit` / `_attach_mob_deferred` ignore parked mobs, `attack_timer` guarded.
+- Refuted (no change): accum reset on LOD change, FAR start bucket, trap-cage typed helpers,
+  warning patterns, and the ToDead path (already fixed by the test harness commit).
+- 6 regression tests (`test/test_review_regressions.gd`). Suite: 38 green.
 
 ### 2026-10-18 — feat: localization scaffold (English + German)
 - `Assets/Locale/strings.csv` (63 keys; keys are the English text so every scene `text` property

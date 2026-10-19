@@ -69,6 +69,7 @@ signal died
 @onready var sprite: Node2D = $Sprite2D
 @onready var state_chart: StateChart = %StateChart
 @onready var navigation_agent_2d: NavigationAgent2D = %NavigationAgent2D
+@onready var hud: Node2D = %Hud
 @onready var health_bar: HpBar2D = %HealthBar
 @onready var detection_area: Area2D = %DetectionArea
 ## Only hero / monster scenes carry a level label; mob scenes resolve null.
@@ -135,8 +136,14 @@ var keep_distance: float:
 # ============================================
 
 func _ready() -> void:
-	await get_tree().physics_frame
-	await get_tree().physics_frame
+	var tree := get_tree()
+	await tree.physics_frame
+	await tree.physics_frame
+	# A fresh mob can be parked by the pool inside this window (killed on its
+	# first frames, or its camp deactivated). Finish setup on re-entry instead
+	# of running it out of the tree and never reaching _ready_done.
+	if not is_inside_tree():
+		await tree_entered
 
 	_update_detection_radius()
 
@@ -241,18 +248,17 @@ func set_hp_display(current: float, maximum: float) -> void:
 		health_bar.set_values(current, maximum)
 
 func _apply_ui_counter_scale() -> void:
-	## The in-world bar and level label inherit the entity's transform — when
-	## the monster grows per evolution stage they would grow with it. Counter-
-	## scaling by 1 / entity.scale keeps them at a fixed pixel size. Heroes
-	## (scale=1) get an effective no-op. MonsterBase calls this again after
-	## each stage scale tween completes.
+	## The Hud group (HP bar + level label) inherits the entity's transform — when
+	## the monster grows per evolution stage it would grow with it. Counter-scaling
+	## the ONE group node by 1 / entity.scale keeps bar and label at a fixed pixel
+	## size and keeps them together (scaling them separately drifted the label).
+	## Heroes (scale=1) get an effective no-op. MonsterBase calls this again
+	## after each stage scale tween completes.
+	if hud == null:
+		return
 	var sx: float = scale.x if scale.x != 0.0 else 1.0
 	var sy: float = scale.y if scale.y != 0.0 else 1.0
-	var inverse := Vector2(1.0 / sx, 1.0 / sy)
-	if health_bar:
-		health_bar.scale = inverse
-	if lv_label:
-		lv_label.scale = inverse
+	hud.scale = Vector2(1.0 / sx, 1.0 / sy)
 
 func _on_damage_taken(_packet: DamagePacket) -> void:
 	"""Per-target reaction hook, called directly by EventBus._route_packet after
@@ -291,7 +297,7 @@ func _setup_navigation() -> void:
 	The old lookup required a 'Ground' SIBLING, which mobs under Spawns and
 	heroes under Heros never had — so the tuned distances below only ever
 	applied to the monster."""
-	if not is_instance_valid(navigation_agent_2d):
+	if not is_instance_valid(navigation_agent_2d) or not is_inside_tree():
 		return
 	var nav_map: RID = get_world_2d().navigation_map
 	if nav_map.is_valid():

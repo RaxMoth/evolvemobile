@@ -33,6 +33,15 @@ func add_member(entity: Node) -> void:
 	members.append(entity)
 	threat[entity] = {}
 
+## Drop `entity` as an ATTACKER from every row (it may belong to another team).
+## Pooled mobs leave the tree without being freed, so is_instance_valid
+## pruning never catches them — a reused node would inherit old threat.
+func forget_attacker(entity: Node) -> void:
+	for ally in threat.keys():
+		(threat[ally] as Dictionary).erase(entity)
+	if focus_target == entity:
+		focus_target = null
+
 func remove_member(entity: Node) -> void:
 	members.erase(entity)
 	threat.erase(entity)

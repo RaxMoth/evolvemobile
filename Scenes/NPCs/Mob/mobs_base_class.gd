@@ -77,6 +77,10 @@ func _on_dead_state_entered() -> void:
 
 func _pre_tick(_delta: float) -> void:
 	# Runs at this mob's LOD rate (TickScheduler), not every frame.
+	# A corpse ticks once more in its death frame (release is deferred): never
+	# leash-clamp or heal it.
+	if is_parked or not is_alive():
+		return
 	# Only check boundaries if we're NOT in combat
 	if not is_in_combat:
 		if spawn_area and spawn_area.has_method("is_position_in_area"):
@@ -97,6 +101,8 @@ func _handle_out_of_bounds() -> void:
 			_reset_to_spawn()
 
 func _reset_to_spawn() -> void:
+	if not is_alive():
+		return
 	global_position = spawn_position
 	target = null
 	target_entity = null
@@ -244,15 +250,17 @@ func _release_or_free() -> void:
 
 func prepare_for_pool() -> void:
 	"""Scrub per-life state before SpawnManager parks us out of the tree.
-	Health is NOT restored here: a parked mob stays dead so nobody keeps
-	targeting it (is_target_valid also checks is_inside_tree)."""
+	A parked mob is never alive (HP 0) so nobody keeps targeting it;
+	on_spawned() restores full health on reuse."""
 	is_parked = true
+	current_health = 0.0
 	life_id += 1
 	target = null
 	target_entity = null
 	last_attacker = null
 	attacking = false
-	attack_timer.stop()
+	if attack_timer:
+		attack_timer.stop()
 	is_in_combat = false
 	is_on_cooldown = false
 	_flinch_timer = 0.0
@@ -263,6 +271,10 @@ func prepare_for_pool() -> void:
 	if is_instance_valid(navigation_agent_2d):
 		navigation_agent_2d.target_position = global_position
 	_kill_transient_effects()
+	# Visual LOD: the ScreenNotifier only reports CHANGES, so a mob parked while
+	# on screen would otherwise keep animating off screen after reuse.
+	if animated_sprite and animated_sprite.is_playing():
+		animated_sprite.pause()
 	modulate = Color.WHITE
 	if sprite:
 		sprite.modulate = Color.WHITE

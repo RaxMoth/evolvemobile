@@ -30,7 +30,9 @@ func execute(caster: Node2D, target: Node2D = null, override_damage: float = -1.
 	query.shape = shape
 	query.transform = Transform2D(0, caster.global_position)
 	query.collide_with_areas = true
-	query.collide_with_bodies = false
+	# Bodies too: Ted's pet is a CharacterBody2D on LAYER_BODY_HERO (entity roots are
+	# plain Node2Ds, so it is the only physics body these masks can return).
+	query.collide_with_bodies = true
 	query.collision_mask = GameUtils.MASK_MONSTER_TARGETS
 	
 	var results = space_state.intersect_shape(query, 32)

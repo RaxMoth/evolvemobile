@@ -216,12 +216,15 @@ func deactivate() -> void:
 	is_active = false
 	_epoch += 1
 
-	virtual_count = spawned_mobs.size()
-	for mob in spawned_mobs:
+	# Take the list first: parking a mob removes its Body from the tree, which
+	# fires our area_exited synchronously — the leash must not see it any more.
+	var to_release: Array[MobBase] = spawned_mobs.duplicate()
+	spawned_mobs.clear()
+	virtual_count = to_release.size()
+	for mob in to_release:
 		if is_instance_valid(mob):
 			_detach_death_hook(mob)
 			_release(mob)
-	spawned_mobs.clear()
 	area_deactivated.emit()
 
 
@@ -305,7 +308,8 @@ func _acquire_mob() -> MobBase:
 
 
 func _attach_mob_deferred(mob: MobBase, pos: Vector2) -> void:
-	if not is_instance_valid(mob):
+	# The area may have been reset/deactivated before this deferred call ran.
+	if not is_instance_valid(mob) or mob.is_parked or not spawned_mobs.has(mob):
 		return
 	var parent_node := get_parent()
 	if not is_instance_valid(parent_node):
@@ -337,7 +341,7 @@ func _check_mob_exit(node: Node) -> void:
 	if not node is MobBase:
 		return
 	var mob := node as MobBase
-	if not spawned_mobs.has(mob):
+	if mob.is_parked or not spawned_mobs.has(mob):
 		return
 	if enforce_boundaries:
 		_check_leash_distance(mob)

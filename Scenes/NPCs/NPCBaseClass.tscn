@@ -18,9 +18,13 @@ radius = 31.0644
 [node name="Npc" type="Node2D"]
 script = ExtResource("1_517tc")
 
-[node name="HealthBar" type="Node2D" parent="."]
+[node name="Hud" type="Node2D" parent="."]
 unique_name_in_owner = true
-position = Vector2(-25, -40)
+position = Vector2(0, -40)
+
+[node name="HealthBar" type="Node2D" parent="Hud"]
+unique_name_in_owner = true
+position = Vector2(-25, 0)
 script = ExtResource("7_hpbar")
 
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]

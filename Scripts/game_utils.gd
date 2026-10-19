@@ -4,6 +4,9 @@ extends Node
 ## Entities expose ONE monitorable Area2D ("Body", r≈31) on their faction
 ## layer; their DetectionArea is on no layer and masks only enemy bodies, so
 ## mob-vs-mob areas never pair up and AoE queries see each entity once.
+## Ted's pet is a CharacterBody2D on LAYER_BODY_HERO (no Area2D), so it is
+## reachable by monster AoE queries (collide_with_bodies) but never aggroed
+## by DetectionAreas, which only react to areas.
 const LAYER_WORLD: int = 1
 const LAYER_BODY_HERO: int = 2
 const LAYER_BODY_MOB: int = 4
