@@ -1,6 +1,6 @@
 # Progress Tracker
 
-Last loop run: 2026-10-19 (adversarial review fixes)
+Last loop run: 2026-10-19 (post-review wiring)
 Stack: godot
 
 Spec source: `README.md` + `Docs/INSTRUCTOR.md` (roadmap, "Current Status & Roadmap",
@@ -47,12 +47,10 @@ Spec source: `README.md` + `Docs/INSTRUCTOR.md` (roadmap, "Current Status & Road
 ## Backlog (from spec + production roadmap, in order)
 - [ ] Perf pass follow-up: capture F3 before/after numbers (stress config), playtest the P1 balance
       change, retune `detection_radius` / AoE radii / Mine-MediKit-TrapCage trigger radii
-- [ ] Audio — DONE: `AudioManager` autoload (pooled positional SFX on the SFX bus, music on the Music
-      bus, 50 ms per-key rate limit, hooks on damage / death / ability cast / match end, menu music +
-      UI clicks), generated placeholder tones until real files exist in `Assets/Audio/<key>.ogg|wav`
-      (see its README). OPEN: real audio assets; `evolve` SFX + match music need an
-      `EventBus.monster_evolved` emit in MonsterBase and a `play_music(&"match")` call in world.gd
-      (both files are in the pending review).
+- [ ] Audio — DONE: `AudioManager` autoload (pooled positional SFX, music, 50 ms per-key rate limit,
+      hooks on damage / death / ability cast / evolve / match end, menu + match music, UI clicks),
+      generated placeholder tones until real files exist in `Assets/Audio/<key>.ogg|wav`. OPEN: real
+      audio assets.
 - [x] Headless test harness (`tools/run_tests.sh`, `test/`) — rewards, level curve, tier gating,
       targeted damage hook, death from Idle/Approach, spawn accounting + pooled respawn + epoch cancel.
       (Own 60-line runner instead of vendoring GUT; extend with `test/test_*.gd` extending `TestCase`.)
@@ -65,16 +63,16 @@ Spec source: `README.md` + `Docs/INSTRUCTOR.md` (roadmap, "Current Status & Road
       `application/run/max_fps=60` is set. `treat_warnings_as_errors` is NOT enabled: Godot 4.7.2 only
       promotes warnings inside the editor (verified headlessly: an unused-parameter probe still loads),
       so enable it only after an editor pass shows 0 warnings in the Script panel.
-- [ ] Touch-input audit — DONE: every menu / settings / meta-skill control is ≥ 48 px tall (buttons,
-      option picker, volume sliders). OPEN: pinch-zoom + tap-to-focus on the match camera, debug keys
-      (Shift+R / K / M / F1 / F3) behind `OS.is_debug_build()`.
-- [ ] `print()` gating — `Globals.debug_log()` for world.gd (15), monster_base_class.gd (8), spawns.gd, abilities
+- [x] Touch-input audit — ≥ 48 px controls; pinch-zoom (two-finger + magnify gesture) and
+      tap-to-focus on the match camera; Shift+R / K / M / F1 / F3 only in debug builds.
+- [x] `print()` gating — `Globals.debug_log()` (off unless `Globals.verbose_logs` in a debug build) in
+      world.gd, monster_base_class.gd, spawns.gd. Ability/pet prints still raw (cold paths).
 - [ ] Pre-Round Setup screen — `MatchConfig` resource (aggression/farming/exploration, formation)
 - [ ] Per-hero skill trees (Steel) + per-monster trees (Leaves) — DONE (stat-only slice): `hero_<id>`
       trees for River/Vlad/Ted/Irelia and `monster_grount`, `HeroStats.hero_id` / `MonsterStats.monster_id`,
-      applied on spawn; 3 tests. OPEN: ability-changing nodes from the README (Triple Shot, Ram Dash
-      stun, …) need per-ability hooks; MonsterBase must pass `monster_stats.monster_id` and GameManager
-      should read `hero_id` instead of name substrings (both files are in the pending review).
+      applied on spawn (MonsterBase passes `monster_stats.monster_id`, GameManager reads
+      `HeroStats.hero_id`, hero vision radius now lives on HeroStats too); 3 tests. OPEN:
+      ability-changing nodes from the README (Triple Shot, Ram Dash stun, …) need per-ability hooks.
 - [ ] Hero composition selection — `HeroRoster.tres`, World spawns from `GameManager.selected_hero_ids`
 - [x] Tutorial / first-time-user flow — `TutorialOverlay` (4 data-driven steps, scene-side wiring,
       shown once via `tutorial_seen`, "How to play" footer button re-opens it); 2 tests.
@@ -105,6 +103,21 @@ Spec source: `README.md` + `Docs/INSTRUCTOR.md` (roadmap, "Current Status & Road
 - [x] Legacy in-round `Scripts/Skilltree/` removed (zero references outside the folder).
 
 ## Changelog
+
+### 2026-10-19 — feat: post-review wiring (ids from resources, evolve signal, touch camera, log gating)
+- `EventBus.monster_evolved` emitted by `MonsterBase._evolve_to_stage`; AudioManager plays `evolve`.
+  MonsterBase merges its own `monster_<id>` tree via `monster_stats.monster_id`; world.gd starts
+  the match music.
+- Ids and vision are data now: `HeroStats.vision_radius` (300/250/220/200 in the four `.tres`)
+  replaces world.gd's name-substring vision map; `GameManager._hero_id_from` reads
+  `HeroStats.hero_id` (name matching only as fallback); `_monster_id` from `MonsterStats.monster_id`.
+- `Globals.debug_log()` (static, `verbose_logs` flag + debug build) replaces the 25 raw `print()`
+  calls in world.gd / monster_base_class.gd / spawns.gd. Debug keys (F1/K/M, Shift+R, F3) are
+  ignored outside debug builds.
+- Camera: pinch-zoom from two touches or a magnify gesture, tap-to-focus on the nearest hero
+  (routes through the HeroContainer so the panel highlight stays in sync).
+- `tools/lint.sh` + `tools/lint_all.gd` added to the repo (headless compile check on a temp copy).
+- Tests: ids from resources, per-monster tree reaches the spawned monster, evolve signal. 41 green.
 
 ### 2026-10-19 — fix: adversarial review of the performance pass (8 confirmed defects + 3 hardenings)
 A 53-agent read-only review (5 lenses × 2 refuters per finding) of commits P0–P5 confirmed:

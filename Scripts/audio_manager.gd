@@ -16,6 +16,7 @@ extends Node2D
 ##   EventBus.damage_applied → hit / hit_big
 ##   EventBus.entity_died    → death_mob / death_big
 ##   EventBus.ability_cast   → cast (ACTIVE) / ult (ULTIMATE)
+##   EventBus.monster_evolved → evolve
 ##   GameManager.match_ended → victory / defeat (non-positional)
 
 const ASSET_DIR := "res://Assets/Audio/"
@@ -45,6 +46,7 @@ func _ready() -> void:
 	EventBus.entity_died.connect(_on_entity_died)
 	EventBus.ability_cast.connect(_on_ability_cast)
 	GameManager.match_ended.connect(_on_match_ended)
+	EventBus.monster_evolved.connect(_on_monster_evolved)
 
 
 # ============================================
@@ -131,6 +133,11 @@ func _on_ability_cast(caster: Node, ability: AbilityBase, _target: Node) -> void
 			play_sfx(&"cast", (caster as Node2D).global_position)
 		_:
 			pass
+
+
+func _on_monster_evolved(monster: Node, _stage: int) -> void:
+	if monster is Node2D:
+		play_sfx(&"evolve", (monster as Node2D).global_position)
 
 
 func _on_match_ended(winner: String, _time: float) -> void:

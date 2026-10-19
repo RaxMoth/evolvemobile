@@ -60,6 +60,17 @@ var is_shaking: bool = false
 var shake_amount: float = 0.0
 var shake_duration: float = 0.0
 
+# Touch: active touch points (index -> screen position) for pinch + tap.
+var _touches: Dictionary = {}
+var _pinch_start_dist: float = 0.0
+var _pinch_start_zoom: float = 1.0
+var _tap_start_pos: Vector2 = Vector2.ZERO
+var _tap_start_msec: int = 0
+const TAP_MAX_MSEC: int = 300
+const TAP_MAX_MOVE_PX: float = 24.0
+## Screen-space radius (at zoom 1) within which a tap focuses a hero.
+const TAP_FOCUS_RADIUS: float = 72.0
+
 # Smooth follow tween — null when no switch is in progress.
 var _switch_tween: Tween = null
 # When true, _follow_target() is overridden by the active switch tween.
@@ -173,6 +184,18 @@ func _auto_find_target() -> void:
 # ============================================
 
 func _unhandled_input(event: InputEvent) -> void:
+	# --- touch: pinch zoom + tap-to-focus (UI consumes its own touches first) ---
+	if event is InputEventScreenTouch:
+		_on_screen_touch(event as InputEventScreenTouch)
+		return
+	if event is InputEventScreenDrag:
+		_on_screen_drag(event as InputEventScreenDrag)
+		return
+	if event is InputEventMagnifyGesture:
+		# macOS trackpad / platforms that synthesize magnify gestures.
+		set_zoom_level(zoom.x * (event as InputEventMagnifyGesture).factor)
+		return
+
 	if event.is_action_pressed("toggle_camera_debug"):
 		toggle_debug_mode()
 	if event.is_action_pressed("reset_camera_zoom"):
@@ -191,7 +214,8 @@ func _unhandled_input(event: InputEvent) -> void:
 				if hero_ui:
 					hero_ui.cycle_to_next_hero()
 			KEY_F3:
-				_toggle_debug_overlay()
+				if OS.is_debug_build():
+					_toggle_debug_overlay()
 
 
 func _focus_hero_by_index(idx: int) -> void:
@@ -202,6 +226,54 @@ func _focus_hero_by_index(idx: int) -> void:
 	var p := hero_ui.panels[idx]
 	if is_instance_valid(p) and is_instance_valid(p.hero):
 		hero_ui.select_hero(p.hero)
+
+
+# ============================================
+# Touch input
+# ============================================
+
+func _on_screen_touch(event: InputEventScreenTouch) -> void:
+	if event.pressed:
+		_touches[event.index] = event.position
+		if _touches.size() == 1:
+			_tap_start_pos = event.position
+			_tap_start_msec = Time.get_ticks_msec()
+		elif _touches.size() == 2:
+			_pinch_start_dist = _touch_distance()
+			_pinch_start_zoom = zoom.x
+		return
+	var was_single := _touches.size() == 1
+	_touches.erase(event.index)
+	if was_single and event.index == 0 \
+			and Time.get_ticks_msec() - _tap_start_msec <= TAP_MAX_MSEC \
+			and event.position.distance_to(_tap_start_pos) <= TAP_MAX_MOVE_PX:
+		_tap_to_focus(event.position)
+
+
+func _on_screen_drag(event: InputEventScreenDrag) -> void:
+	_touches[event.index] = event.position
+	if _touches.size() == 2 and _pinch_start_dist > 1.0:
+		set_zoom_level(_pinch_start_zoom * (_touch_distance() / _pinch_start_dist))
+
+
+func _touch_distance() -> float:
+	var pts: Array = _touches.values()
+	if pts.size() < 2:
+		return 0.0
+	return (pts[0] as Vector2).distance_to(pts[1] as Vector2)
+
+
+## Tap near a hero to follow it (keeps the bottom panel highlight in sync).
+func _tap_to_focus(screen_pos: Vector2) -> void:
+	var world_pos: Vector2 = get_canvas_transform().affine_inverse() * screen_pos
+	var reach: float = TAP_FOCUS_RADIUS / maxf(zoom.x, 0.01)
+	var best: Node2D = EntityRegistry.nearest(EntityRegistry.heroes, world_pos, reach)
+	if best == null:
+		return
+	if hero_ui:
+		hero_ui.select_hero(best)
+	else:
+		switch_to_hero(best)
 
 
 # ============================================

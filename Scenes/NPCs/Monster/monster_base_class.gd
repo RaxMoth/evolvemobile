@@ -66,7 +66,7 @@ func _apply_stage_configuration(stage: int) -> void:
 	if not monster_stats:
 		return
 	
-	print("\n▶ Applying Stage ", stage, " Configuration for ", name)
+	Globals.debug_log("\n▶ Applying Stage ", stage, " Configuration for ", name)
 	
 	var old_max = current_health if stage > 1 else 0.0
 	var new_health = monster_stats.get_health_for_stage(stage) * _meta_health_mult
@@ -92,18 +92,18 @@ func _get_entity_level() -> int:
 func _configure_abilities_for_stage(stage: int) -> void:
 	if ability_1:
 		ability_1.apply_stage_stats(stage)
-		print("  ✓ Ability 1: ", ability_1.ability_name, " - Damage: ", ability_1.damage, ", CD: ", ability_1.cooldown)
+		Globals.debug_log("  ✓ Ability 1: ", ability_1.ability_name, " - Damage: ", ability_1.damage, ", CD: ", ability_1.cooldown)
 	
 	if ability_2:
 		ability_2.apply_stage_stats(stage)
-		print("  ✓ Ability 2: ", ability_2.ability_name, " - Damage: ", ability_2.damage, ", CD: ", ability_2.cooldown)
+		Globals.debug_log("  ✓ Ability 2: ", ability_2.ability_name, " - Damage: ", ability_2.damage, ", CD: ", ability_2.cooldown)
 	
 	if ability_3:
 		ability_3.apply_stage_stats(stage)
 		# Lock ability until stage 2
 		if stage < 2:
 			ability_3.cooldown = 999999.0
-		print("  ✓ Ability 3: ", ability_3.ability_name, " - Damage: ", ability_3.damage, ", CD: ", ability_3.cooldown)
+		Globals.debug_log("  ✓ Ability 3: ", ability_3.ability_name, " - Damage: ", ability_3.damage, ", CD: ", ability_3.cooldown)
 
 func _update_stage_scale(stage: int) -> void:
 	if not monster_stats:
@@ -222,9 +222,9 @@ func _evolve_to_stage(new_stage: int) -> void:
 	var old_stage = current_stage
 	current_stage = new_stage
 	
-	print("╔════════════════════════════════════╗")
-	print("║  " + name + " EVOLVED TO STAGE " + str(current_stage) + "!  ║")
-	print("╚════════════════════════════════════╝")
+	Globals.debug_log("╔════════════════════════════════════╗")
+	Globals.debug_log("║  " + name + " EVOLVED TO STAGE " + str(current_stage) + "!  ║")
+	Globals.debug_log("╚════════════════════════════════════╝")
 	
 	# Reset cooldowns on evolution
 	for key in ability_cooldowns.keys():
@@ -240,6 +240,7 @@ func _evolve_to_stage(new_stage: int) -> void:
 	
 	# Emit signal
 	stage_changed.emit(current_stage)
+	EventBus.notify_monster_evolved(self, current_stage)
 
 func _get_next_evolution_threshold() -> int:
 	if not monster_stats:
@@ -253,7 +254,9 @@ func _load_meta_modifiers() -> void:
 	## Pull the player's purchased Monster Base upgrades from MetaSkillManager.
 	## Keys default to 1.0 when no matching skill is unlocked, so an un-upgraded
 	## monster behaves exactly as before.
-	var mods: Dictionary = MetaSkillManager.collect_monster_modifiers()
+	# Monster Base tree merged with this monster's own tree (monster_<id>).
+	var monster_id: StringName = monster_stats.monster_id if monster_stats else &""
+	var mods: Dictionary = MetaSkillManager.collect_monster_modifiers(monster_id)
 	_meta_health_mult = float(mods.get("monster_health_mult", 1.0))
 	_meta_damage_mult = float(mods.get("monster_damage_mult", 1.0))
 	_meta_speed_mult = float(mods.get("monster_speed_mult", 1.0))
@@ -281,7 +284,7 @@ func _update_stage_visuals(stage: int) -> void:
 		var available_anims = animated_sprite.sprite_frames.get_animation_names()
 		if available_anims.size() > 0:
 			animated_sprite.play(available_anims[0])
-			print(name + " using fallback animation: " + available_anims[0])
+			Globals.debug_log(name + " using fallback animation: " + available_anims[0])
 		else:
 			push_warning(name + " has no animations available!")
 	

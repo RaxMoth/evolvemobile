@@ -7,6 +7,7 @@ func _ready():
 	# state (kills, timer, end-flag) — critical because GameManager is an
 	# autoload and its _ready only fires once per game launch, not per match.
 	GameManager.start_new_match()
+	AudioManager.play_music(&"match")
 	_connect_to_game_manager()
 	_setup_fog()
 	_setup_player_vision()
@@ -29,15 +30,15 @@ func _connect_to_game_manager():
 	GameManager.match_ended.connect(_on_match_ended)
 
 func _on_heroes_won():
-	print("🎉 HEROES VICTORY!")
+	Globals.debug_log("🎉 HEROES VICTORY!")
 	# TODO: Show victory screen
 
 func _on_monster_won():
-	print("💀 MONSTER VICTORY!")
+	Globals.debug_log("💀 MONSTER VICTORY!")
 	# TODO: Show defeat screen
 
 func _on_match_ended(winner: String, time: float):
-	print("🏆 Match ended - Winner: " + winner + " in " + str(round(time * 10) / 10.0) + "s")
+	Globals.debug_log("🏆 Match ended - Winner: " + winner + " in " + str(round(time * 10) / 10.0) + "s")
 	# TODO: Display stats, transition to menu, etc.
 
 func _setup_fog():
@@ -62,27 +63,14 @@ func _setup_hero_vision():
 		push_warning("No heroes found! Make sure heroes are in 'Hero' group")
 		return
 
-	var vision_map = {
-		"river": 300.0,
-		"vlad": 250.0,
-		"ted": 220.0,
-		"irelia": 200.0
-	}
-
 	for hero in heroes:
-		if not hero is Node2D:
-			continue
 		# Skip Ted's pet (also in Hero group but isn't a HeroBase).
 		if not (hero is HeroBase):
 			continue
-
-		var vision = 200.0
-		var hero_name = hero.name.to_lower()
-
-		for key in vision_map:
-			if key in hero_name:
-				vision = vision_map[key]
-				break
+		# Per-hero reveal radius lives on the HeroStats resource (River sees
+		# furthest as the scout, Irelia closest) — no name matching.
+		var stats := hero.get_node_or_null("HeroStats") as HeroStatsComponent
+		var vision: float = stats.base_stats.vision_radius if stats and stats.base_stats else 200.0
 		FogOfWarHelper.add_vision_to_hero(hero, vision)
 
 
@@ -128,7 +116,10 @@ func _on_monster_detected(monster: Node2D) -> void:
 # DEBUG FUNCTIONS (Optional - Press F1 to test)
 # ============================================
 
-func _input(event):
+func _input(event: InputEvent) -> void:
+	# Debug kill/inspect keys never ship to players.
+	if not OS.is_debug_build():
+		return
 	if event is InputEventKey and event.pressed:
 		# Press F1 for debug info
 		if event.keycode == KEY_F1:
@@ -141,38 +132,38 @@ func _input(event):
 			_debug_kill_monster()
 
 func _debug_game_manager():
-	print("=== DEBUG: GameManager Check ===")
-	print("✓ GameManager (autoload): " + str(GameManager))
-	print("  Heroes alive: " + str(GameManager.heroes_alive))
-	print("  Monster alive: " + str(GameManager.monster_alive))
+	Globals.debug_log("=== DEBUG: GameManager Check ===")
+	Globals.debug_log("✓ GameManager (autoload): " + str(GameManager))
+	Globals.debug_log("  Heroes alive: " + str(GameManager.heroes_alive))
+	Globals.debug_log("  Monster alive: " + str(GameManager.monster_alive))
 	
 	# Check entities
 	var heroes = get_tree().get_nodes_in_group("Hero")
 	var monsters = get_tree().get_nodes_in_group("Monster")
-	print("  Heroes in scene: " + str(heroes.size()))
-	print("  Monsters in scene: " + str(monsters.size()))
+	Globals.debug_log("  Heroes in scene: " + str(heroes.size()))
+	Globals.debug_log("  Monsters in scene: " + str(monsters.size()))
 	
 	# Check if entities have the signal
 	for hero in heroes:
 		if hero.has_signal("died"):
-			print("  ✓ " + hero.name + " has 'died' signal")
+			Globals.debug_log("  ✓ " + hero.name + " has 'died' signal")
 		else:
-			print("  ✗ " + hero.name + " MISSING 'died' signal!")
+			Globals.debug_log("  ✗ " + hero.name + " MISSING 'died' signal!")
 	
 	for monster in monsters:
 		if monster.has_signal("died"):
-			print("  ✓ " + monster.name + " has 'died' signal")
+			Globals.debug_log("  ✓ " + monster.name + " has 'died' signal")
 		else:
-			print("  ✗ " + monster.name + " MISSING 'died' signal!")
+			Globals.debug_log("  ✗ " + monster.name + " MISSING 'died' signal!")
 
 func _debug_kill_heroes():
-	print("DEBUG: Killing all heroes")
+	Globals.debug_log("DEBUG: Killing all heroes")
 	var heroes = get_tree().get_nodes_in_group("Hero")
 	for hero in heroes:
 		EventBus.deal_damage(null, hero, 999999.0, null, DamagePacket.DamageType.TRUE)
 
 func _debug_kill_monster():
-	print("DEBUG: Killing monster")
+	Globals.debug_log("DEBUG: Killing monster")
 	var monsters = get_tree().get_nodes_in_group("Monster")
 	for monster in monsters:
 		EventBus.deal_damage(null, monster, 999999.0, null, DamagePacket.DamageType.TRUE)

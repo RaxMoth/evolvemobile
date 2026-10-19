@@ -31,6 +31,7 @@ signal heal_applied(packet: DamagePacket)
 
 # --- Lifecycle ---
 signal entity_died(entity: Node, killer: Node)
+signal monster_evolved(monster: Node, stage: int)
 signal ability_cast(caster: Node, ability: AbilityBase, target: Node)
 
 # --- State chart bridge ---
@@ -93,6 +94,11 @@ func notify_state_event(entity: Node, event: StringName) -> void:
 ## Called by EntityBase when an entity enters its Dead state.
 func notify_died(entity: Node, killer: Node) -> void:
 	entity_died.emit(entity, killer)
+
+
+## Called by MonsterBase._evolve_to_stage after the new stage is applied.
+func notify_monster_evolved(monster: Node, stage: int) -> void:
+	monster_evolved.emit(monster, stage)
 
 
 ## Called by AbilitySystem / monster ability dispatcher after a successful cast.

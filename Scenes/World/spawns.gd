@@ -93,7 +93,7 @@ func randomize_spawns() -> void:
 	_deactivate_all_spawns()
 	_activate_random_spawns()
 
-	print("SpawnManager: ", active_spawn_areas.size(), " of ", all_spawn_areas.size(),
+	Globals.debug_log("SpawnManager: ", active_spawn_areas.size(), " of ", all_spawn_areas.size(),
 		" spawns world-eligible (lazy activation: ", enable_lazy_activation, ")")
 
 func _collect_all_spawns() -> void:
@@ -219,7 +219,9 @@ func get_live_mob_count() -> int:
 	return total
 
 func _input(event: InputEvent) -> void:
+	if not OS.is_debug_build():
+		return
 	if event is InputEventKey and event.pressed:
 		if event.keycode == KEY_R and event.shift_pressed:
-			print("Re-randomizing spawns...")
+			Globals.debug_log("Re-randomizing spawns...")
 			randomize_spawns()

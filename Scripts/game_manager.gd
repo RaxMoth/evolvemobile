@@ -114,13 +114,17 @@ func _initial_census() -> void:
 	for node in get_tree().get_nodes_in_group("Monster"):
 		if node is MonsterBase:
 			monster_count += 1
-			_monster_id = StringName(node.name.to_lower())
+			var m := node as MonsterBase
+			_monster_id = m.monster_stats.monster_id if m.monster_stats and m.monster_stats.monster_id != &"" else StringName(node.name.to_lower())
 	monster_alive = monster_count > 0
 
 
 func _hero_id_from(node: Node) -> StringName:
-	## Maps a hero node to its persistent character id via name substring —
-	## same convention world.gd uses for per-hero vision ranges.
+	## Persistent character id: HeroStats.hero_id (the save key), with the old
+	## name-substring convention only as a fallback for unconfigured heroes.
+	var from_stats := MetaSkillManager.hero_id_of(node)
+	if from_stats != &"":
+		return from_stats
 	var lowered := node.name.to_lower()
 	for known in KNOWN_HERO_IDS:
 		if String(known) in lowered:

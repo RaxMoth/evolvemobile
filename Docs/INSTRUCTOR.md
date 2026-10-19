@@ -816,7 +816,8 @@ if randf() < crit_chance:
 ### Automated (run before every commit)
 
 ```bash
-tools/run_tests.sh          # GODOT=/path/to/godot to override the binary
+tools/lint.sh               # loads every script/scene on a temp copy → compile errors
+tools/run_tests.sh          # the test suite (GODOT=/path/to/godot overrides the binary)
 ```
 
 The script copies the project to a temp dir, writes an `override.cfg` that points `user://` at
