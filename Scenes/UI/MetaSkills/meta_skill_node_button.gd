@@ -25,8 +25,9 @@ func bind(p_tree_id: StringName, p_node: MetaSkillNode) -> void:
 	node_def = p_node
 	if not is_inside_tree():
 		await ready
-	# 130 px: a 4-node tier (River, Grount) must fit the 672 px inside the
-	# 720 px portrait screen's margins (40 + 4 x 130 + 4 x 12 = 608).
+	# 130 px: 4 cards per line must fit the 672 px inside the 720 px portrait
+	# screen's margins (40 + 4 x 130 + 4 x 12 = 608); bigger tiers (Grount T3)
+	# wrap onto a second line (MetaSkillScreen's HFlowContainer).
 	custom_minimum_size = Vector2(130, 90)
 	# Replace the default button text with a RichTextLabel child so we can
 	# show a multi-line stack: name / description / cost.

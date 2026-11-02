@@ -128,6 +128,11 @@ func _collect_snapshots() -> void:
 			var m := entity as MonsterBase
 			if m.strategy_profile and m.strategy_profile.enabled:
 				snap.state_str += " " + String(MonsterBase.Strategy.keys()[m.strategy]) + (" REST" if m.is_resting() else "")
+			# Skill-tree behaviour nodes active right now (Grount tree).
+			if m.is_enraged():
+				snap.state_str += " ENRAGED"
+			if m.is_titan():
+				snap.state_str += " TITAN"
 		snap.hp_pct = _hp_pct_of(entity)
 		snap.is_active_hero = (entity == active_hero)
 
@@ -293,6 +298,10 @@ func _update_hud_label(active_hero: Node, heroes_team: TeamBlackboard, enemies_t
 		EntityRegistry.hero_side.size() - EntityRegistry.heroes.size(),
 		EntityRegistry.monsters.size(),
 		EntityRegistry.mobs.size()])
+	# Per monster: stage, HP and the behaviour nodes it carries.
+	for mon in EntityRegistry.monsters:
+		if is_instance_valid(mon) and mon is MonsterBase:
+			lines.append((mon as MonsterBase).debug_meta_line())
 	if active_hero and is_instance_valid(active_hero):
 		lines.append("Camera focus: %s" % active_hero.name)
 		if "target_entity" in active_hero:

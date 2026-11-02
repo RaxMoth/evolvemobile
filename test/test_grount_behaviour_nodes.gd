@@ -1,0 +1,661 @@
+extends TestCase
+
+## Grount's behaviour nodes (README "Grount Tree" T3/T4): Gravity Slam, Enrage,
+## Second Wind and Titan Form, plus the 2000-Leaf 4th tier. Every one of them
+## is off on a fresh save. AIs are frozen (TickScheduler.unregister) and driven
+## by hand.
+
+const GROUNT := "res://Scenes/NPCs/Monster/Grount/Grount.tscn"
+const VLAD := "res://Scenes/NPCs/Hero/Heros/DMG/Vlad/Vlad.tscn"
+const BAT := "res://Scenes/NPCs/Mob/Mobs/Bat/Bat.tscn"
+const PET := "res://Scenes/NPCs/Hero/Heros/Support/Ted/Abilities/Passive/TedsPet.tscn"
+const AREA := "res://Scenes/World/MobSpawnArea/MobSpawnArea.tscn"
+const SCREEN := "res://Scenes/UI/MetaSkills/MetaSkillScreen.tscn"
+## The autoload's script, for its static helpers (called on the type, not the instance).
+const META_SKILLS := preload("res://Scripts/MetaSkills/meta_skill_manager.gd")
+
+## Second Wind is not seeded yet (MetaSkillManager.GROUNT_SECOND_WIND_SPEC):
+## the test that needs it adds it to the Grount tree and after_each removes it.
+var _added_second_wind: MetaSkillNode = null
+
+
+func _isolated() -> bool:
+	return OS.get_user_data_dir().contains("evolvemobile_tests")
+
+
+func before_each() -> void:
+	if _isolated():
+		PersistedData.wipe_progress(false)
+
+
+## Unlocks must never leak into later files: they spawn Grount and assert the
+## stock numbers (stage scale, ranges, damage).
+func after_each() -> void:
+	if _added_second_wind != null:
+		MetaSkillManager.get_tree_def(_tree()).nodes.erase(_added_second_wind)
+		_added_second_wind = null
+	if _isolated():
+		PersistedData.wipe_progress(false)
+
+
+func _tree() -> StringName:
+	return META_SKILLS.monster_tree_id(&"grount")
+
+
+## Own these Grount nodes (skips the tier chain and the Leaves).
+func _grant(ids: Array) -> void:
+	PersistedData.set_unlocked_skills(_tree(), ids)
+
+
+func _add_second_wind() -> void:
+	var t: MetaSkillTree = MetaSkillManager.get_tree_def(_tree())
+	if t.find_node(&"g3_evoheal") != null:
+		return
+	_added_second_wind = MetaSkillManager._node_from_spec(MetaSkillManager.GROUNT_SECOND_WIND_SPEC,
+		MetaSkillManager.MONSTER_TIER_COSTS, PersistedData.LEAVES)
+	t.nodes.append(_added_second_wind)
+
+
+func _frozen(path: String, pos: Vector2) -> Node2D:
+	var e := await spawn_entity(path, pos)
+	TickScheduler.unregister(e)
+	return e
+
+
+func _grount(pos: Vector2 = Vector2.ZERO) -> MonsterBase:
+	return (await _frozen(GROUNT, pos)) as MonsterBase
+
+
+func _hero(pos: Vector2) -> EntityBase:
+	return (await _frozen(VLAD, pos)) as EntityBase
+
+
+func _bat(pos: Vector2) -> MobBase:
+	return (await _frozen(BAT, pos)) as MobBase
+
+
+## Ted's pet (a CharacterBody2D, not an EntityBase) owned by a far-away hero.
+func _pet(pos: Vector2, owner_hero: Node2D) -> CharacterBody2D:
+	var pet := (load(PET) as PackedScene).instantiate() as CharacterBody2D
+	pet.global_position = pos
+	pet.set("owner_entity", owner_hero)
+	add_child(pet)
+	await wait_physics_frames(4)
+	return pet
+
+
+func _evolve_to_3(g: MonsterBase) -> void:
+	g.gain_xp(1000.0)
+	g.gain_xp(0.0)
+	await wait_seconds(0.7)  # stage scale tween
+
+
+func _slam_of(g: MonsterBase, dmg: float) -> BullGroundSlam:
+	var slam := g.ability_3 as BullGroundSlam
+	slam._effective_damage = dmg
+	return slam
+
+
+# ---------- tree data ----------
+
+func test_grount_tree_has_a_2000_leaf_tier_4() -> void:
+	var t: MetaSkillTree = MetaSkillManager.get_tree_def(_tree())
+	assert_eq(t.max_tier(), 4)
+	assert_eq(MetaSkillManager.MONSTER_TIER_COSTS.size(), 4)
+	var titan: MetaSkillNode = t.find_node(&"g4_titan")
+	assert_true(titan != null, "Titan Form exists")
+	if titan != null:
+		assert_eq(titan.tier, 4)
+		assert_eq(titan.cost, 2000)
+		assert_eq(titan.currency, PersistedData.LEAVES)
+		assert_false(titan.is_ability_node())
+		assert_eq(titan.stat_name, "monster_titan_form")
+		assert_false(titan.stat_multiplicative, "behaviour flags are additive")
+	var pull: MetaSkillNode = t.find_node(&"g3_pull")
+	assert_true(pull != null, "Gravity Slam exists")
+	if pull != null:
+		assert_eq(pull.tier, 3)
+		assert_eq(pull.cost, 1000)
+		assert_eq(pull.ability_name, "Ground Slam")
+		assert_eq(pull.stat_name, "pull_radius")
+		assert_near(pull.stat_value, 200.0)
+		assert_false(pull.stat_multiplicative)
+	var enrage: MetaSkillNode = t.find_node(&"g3_enrage")
+	assert_true(enrage != null, "Enrage exists")
+	if enrage != null:
+		assert_eq(enrage.tier, 3)
+		assert_eq(enrage.cost, 1000)
+		assert_false(enrage.is_ability_node())
+		assert_eq(enrage.stat_name, "monster_enrage")
+		assert_false(enrage.stat_multiplicative)
+	# The held-back Second Wind spec builds an additive tier-3 stat node.
+	var sw: MetaSkillNode = MetaSkillManager._node_from_spec(MetaSkillManager.GROUNT_SECOND_WIND_SPEC,
+		MetaSkillManager.MONSTER_TIER_COSTS, PersistedData.LEAVES)
+	assert_eq(sw.id, &"g3_evoheal")
+	assert_eq(sw.tier, 3)
+	assert_eq(sw.cost, 1000)
+	assert_false(sw.is_ability_node(), "\"\" as the ability name keeps it a stat node")
+	assert_eq(sw.stat_name, "monster_stage_2_evo_heal")
+	assert_near(sw.stat_value, 200.0)
+	assert_false(sw.stat_multiplicative)
+	# The 6-element specs are still multiplicative stat nodes.
+	var hp: MetaSkillNode = t.find_node(&"g2_hp")
+	assert_true(hp != null and hp.stat_multiplicative and not hp.is_ability_node())
+
+
+func test_tier_4_is_gated_until_a_tier_3_node_is_unlocked() -> void:
+	if not _isolated():
+		skip("user:// is not the isolated test dir")
+		return
+	PersistedData.add_currency(PersistedData.LEAVES, 100 + 500 + 1000 + 2000)
+	assert_true(MetaSkillManager.unlock(_tree(), &"g1_dmg"))
+	assert_true(MetaSkillManager.unlock(_tree(), &"g2_hp"))
+	assert_false(MetaSkillManager.is_node_available(_tree(), &"g4_titan"))
+	assert_false(MetaSkillManager.unlock(_tree(), &"g4_titan"), "tier 4 needs a tier-3 node first")
+	assert_true(MetaSkillManager.unlock(_tree(), &"g3_enrage"))
+	assert_true(MetaSkillManager.is_node_available(_tree(), &"g4_titan"))
+	assert_true(MetaSkillManager.unlock(_tree(), &"g4_titan"))
+	assert_eq(PersistedData.get_currency(PersistedData.LEAVES), 0, "2000 Leaves for tier 4")
+
+
+func test_additive_keys_sum_from_zero_and_multiplicative_keys_are_unchanged() -> void:
+	if not _isolated():
+		skip("user:// is not the isolated test dir")
+		return
+	assert_true(MetaSkillManager.collect_monster_modifiers(&"grount").is_empty(), "fresh save: no modifiers")
+	_grant(["g2_hp", "g3_enrage", "g4_titan", "g3_pull"])
+	PersistedData.set_unlocked_skills(MetaSkillManager.TREE_MONSTER_BASE, ["mt1_hp", "mt3_hp"])
+	var mods: Dictionary = MetaSkillManager.collect_monster_modifiers(&"grount")
+	assert_near(float(mods.get("monster_health_mult", 0.0)), 1.10 * 1.20 * 1.15, 0.0001, "% nodes still stack from 1.0")
+	assert_near(float(mods.get("monster_enrage", 0.0)), 1.0, 0.0001, "flag summed from 0.0")
+	assert_near(float(mods.get("monster_titan_form", 0.0)), 1.0, 0.0001)
+	assert_false(mods.has("pull_radius"), "ability nodes go to the ability copies")
+
+
+# ---------- fresh save ----------
+
+func test_behaviour_nodes_are_off_on_a_fresh_save() -> void:
+	if not _isolated():
+		skip("user:// is not the isolated test dir")
+		return
+	assert_true(MetaSkillManager.collect_monster_modifiers(&"grount").is_empty(), "no unlock leaked in from an earlier test")
+	var g := await _grount()
+	var stats: MonsterStats = g.monster_stats
+	var slam := _slam_of(g, 5.0)
+	assert_eq(slam.pull_radius, 0.0)
+	assert_eq(slam.get_reach(), slam.slam_radius)
+	var max_hp: float = g.get_max_health()
+	assert_eq(max_hp, stats.stage_1_health)
+	var cleave: float = g.effective_ability_damage(g.ability_1)
+	g.current_health = 0.1 * max_hp
+	assert_false(g.is_enraged())
+	assert_eq(g.move_speed, stats.stage_1_speed)
+	assert_eq(g.effective_ability_damage(g.ability_1), cleave)
+	# The slam on the fresh-save path (no pull) still hits and moves nobody.
+	var v := await _hero(Vector2(130, 0))
+	slam._perform_slam(g)
+	await wait_frames(1)
+	assert_eq(v.global_position, Vector2(130, 0), "no pull without the node")
+	assert_true(v.get_health() < v.get_max_health(), "the slam itself still damages")
+	assert_eq(slam.last_pull_count, 0)
+	g.current_health = 100.0
+	g._apply_evolution_bonus_heal(2)
+	assert_eq(g.current_health, 100.0, "no Second Wind")
+	g.current_health = max_hp
+	await _evolve_to_3(g)
+	assert_eq(g.current_stage, 3)
+	assert_true(g.scale.is_equal_approx(stats.stage_3_scale), "stock stage-3 scale %s" % str(g.scale))
+	assert_eq(g.get_max_health(), stats.stage_3_health)
+	assert_eq(g.attack_range, 80.0)
+	assert_eq(g.max_distance, 100.0)
+	assert_eq(g.get_range_bonus(), 0.0)
+	assert_false(g.is_titan())
+	var det := g.get_node("DetectionArea/CollisionShape2D") as CollisionShape2D
+	assert_near((det.shape as CircleShape2D).radius, g.detection_radius, 0.001, "stock aggro shape")
+	assert_true(g.debug_meta_line().ends_with("nodes: -"), g.debug_meta_line())
+
+
+func test_range_nodes_alone_keep_the_stock_fight_leave_distance() -> void:
+	if not _isolated():
+		skip("user:// is not the isolated test dir")
+		return
+	_grant(["g1_range"])
+	PersistedData.set_unlocked_skills(MetaSkillManager.TREE_MONSTER_BASE, ["mt3_range"])
+	var g := await _grount()
+	await _evolve_to_3(g)
+	assert_near(g.attack_range, 80.0 * 1.1 * 1.1, 0.001)
+	assert_eq(g.max_distance, 100.0, "no Titan: Fight still leaves at 100 px")
+
+
+# ---------- Enrage ----------
+
+func test_enrage_below_20_percent_without_compounding() -> void:
+	if not _isolated():
+		skip("user:// is not the isolated test dir")
+		return
+	_grant(["g1_dmg", "g3_enrage"])
+	var g := await _grount()
+	var max_hp: float = g.get_max_health()
+	assert_false(g.is_enraged(), "full HP")
+	var speed: float = g.move_speed
+	var cleave: float = g.effective_ability_damage(g.ability_1)
+	var dash: float = g.effective_ability_damage(g.ability_2)
+	var slam: float = g.effective_ability_damage(g.ability_3)
+	assert_near(cleave, g.ability_1.damage * 1.10, 0.0001, "Heavy Horns still applies")
+	var stored_mult: float = g.damage_multiplier
+	var stored_meta: float = g._meta_damage_mult
+	g.current_health = 0.19 * max_hp
+	assert_true(g.is_enraged(), "below 20%")
+	assert_near(g.move_speed, speed * 1.3, 0.0001)
+	assert_near(g.effective_ability_damage(g.ability_1), cleave * 1.5, 0.0001, "Front Cleave")
+	assert_near(g.effective_ability_damage(g.ability_2), dash * 1.5, 0.0001, "Ram Dash")
+	assert_near(g.effective_ability_damage(g.ability_3), slam * 1.5, 0.0001, "Ground Slam")
+	g.current_health = 0.2 * max_hp
+	assert_false(g.is_enraged(), "ends at exactly 20%")
+	assert_eq(g.move_speed, speed)
+	assert_eq(g.effective_ability_damage(g.ability_1), cleave)
+	for i in range(3):
+		g.current_health = 0.1 * max_hp
+		assert_near(g.move_speed, speed * 1.3, 0.0001, "no compounding (%d)" % i)
+		assert_near(g.effective_ability_damage(g.ability_1), cleave * 1.5, 0.0001, "no compounding (%d)" % i)
+		g.current_health = 0.5 * max_hp
+		assert_eq(g.move_speed, speed)
+		assert_eq(g.effective_ability_damage(g.ability_1), cleave)
+	assert_eq(g.damage_multiplier, stored_mult, "the stored multipliers are never touched")
+	assert_eq(g._meta_damage_mult, stored_meta)
+	g.current_health = 0.0
+	assert_false(g.is_enraged(), "a dead monster is not enraged")
+
+
+func test_enrage_ends_on_rest_regen_and_on_evolution() -> void:
+	if not _isolated():
+		skip("user:// is not the isolated test dir")
+		return
+	_grant(["g3_enrage"])
+	var g := await _grount()
+	var max_hp: float = g.get_max_health()
+	g.current_health = 0.15 * max_hp
+	g._update_strategy()
+	g._pre_tick(0.1)
+	assert_true(g.is_resting(), "below rest_hp_pct")
+	assert_true(g.is_enraged())
+	g._since_damage = 99.0
+	var guard: int = 0
+	while g.current_health < 0.2 * max_hp and guard < 100:
+		g._pre_tick(5.0)
+		guard += 1
+	assert_true(g.current_health >= 0.2 * max_hp, "rest regeneration got past 20%")
+	assert_false(g.is_enraged(), "and that ended Enrage")
+	assert_near(g.move_speed, g.monster_stats.stage_1_speed, 0.0001)
+	g.current_health = 0.1 * max_hp
+	assert_true(g.is_enraged())
+	g.gain_xp(1000.0)
+	assert_eq(g.current_stage, 2)
+	assert_near(g.current_health, g.get_max_health(), 0.001, "evolution heal")
+	assert_false(g.is_enraged(), "the evolution heal ended it")
+	assert_near(g.move_speed, g.monster_stats.stage_2_speed, 0.0001)
+
+
+func test_enrage_threshold_counts_the_titan_bonus() -> void:
+	if not _isolated():
+		skip("user:// is not the isolated test dir")
+		return
+	_grant(["g3_enrage", "g4_titan"])
+	var g := await _grount()
+	await _evolve_to_3(g)
+	var titan_max: float = g.monster_stats.stage_3_health + 500.0
+	assert_near(g.get_max_health(), titan_max, 0.001)
+	# 21% of the plain stage-3 max is still under 20% of the Titan max.
+	g.current_health = 0.21 * g.monster_stats.stage_3_health
+	assert_true(g.is_enraged(), "%.0f HP < 20%% of %.0f" % [g.current_health, titan_max])
+	g.current_health = 0.2 * titan_max
+	assert_false(g.is_enraged())
+
+
+func test_enrage_and_titan_show_in_the_f3_overlay() -> void:
+	if not _isolated():
+		skip("user:// is not the isolated test dir")
+		return
+	_grant(["g3_enrage", "g4_titan", "g3_pull"])
+	var g := await _grount()
+	var overlay := DebugOverlay.new()
+	add_child(overlay)
+	await wait_frames(1)
+	g.current_health = 0.1 * g.get_max_health()
+	overlay._collect_snapshots()
+	assert_true(_state_str(overlay, g).contains("ENRAGED"), _state_str(overlay, g))
+	assert_false(_state_str(overlay, g).contains("TITAN"), "Titan Form waits for stage 3")
+	var line: String = g.debug_meta_line()
+	assert_true(line.contains("pull(last 0)"), line)
+	assert_true(line.contains("enrage!"), line)
+	assert_true(line.contains("titan") and not line.contains("titan!"), line)
+	assert_true(overlay._hud_label.text.contains(line), "the HUD lists the monster's nodes")
+	await _evolve_to_3(g)
+	overlay._collect_snapshots()
+	var s: String = _state_str(overlay, g)
+	assert_true(s.contains("TITAN"), s)
+	assert_false(s.contains("ENRAGED"), "the evolution heal ended Enrage")
+	assert_true(g.debug_meta_line().contains("titan!"))
+	overlay.queue_free()
+
+
+func _state_str(overlay: DebugOverlay, entity: Node) -> String:
+	for snap in overlay._snapshots:
+		if snap.entity.get_ref() == entity:
+			return snap.state_str
+	return ""
+
+
+func test_f3_line_copes_with_a_monster_without_ground_slam() -> void:
+	var g := await _grount()
+	g.ability_3 = BullFrontCleave.new()
+	assert_false(g.debug_meta_line().contains("pull("), "not a Ground Slam: no pull tag")
+	g.ability_3 = null
+	assert_true(g.debug_meta_line().contains(" S1 "), g.debug_meta_line())
+
+
+# ---------- Second Wind ----------
+
+func test_second_wind_heals_200_on_stage_2_capped_at_max() -> void:
+	if not _isolated():
+		skip("user:// is not the isolated test dir")
+		return
+	_add_second_wind()
+	_grant(["g3_evoheal"])
+	var mods: Dictionary = MetaSkillManager.collect_monster_modifiers(&"grount")
+	assert_near(float(mods.get("monster_stage_2_evo_heal", 0.0)), 200.0, 0.0001, "additive key summed from 0")
+	var g := await _grount()
+	var stats: MonsterStats = g.monster_stats
+	assert_near(g._meta_stage_2_evo_heal, 200.0, 0.0001)
+	assert_true(g.debug_meta_line().contains("evoheal +200"), g.debug_meta_line())
+	g.current_health = 100.0
+	g._apply_evolution_bonus_heal(2)
+	assert_near(g.current_health, 300.0, 0.001, "+200")
+	g.current_health = g.get_max_health() - 50.0
+	g._apply_evolution_bonus_heal(2)
+	assert_near(g.current_health, g.get_max_health(), 0.001, "never above max")
+	g.current_health = 100.0
+	g._apply_evolution_bonus_heal(3)
+	assert_near(g.current_health, 100.0, 0.001, "Stage 2 only")
+	# Wired into the evolution: on the README heal (new max - old max) the
+	# +200 lands on top of it. Fails if _evolve_to_stage stops calling it.
+	g.heal_to_full_on_evolution = false
+	g.current_health = 100.0
+	g.gain_xp(1000.0)
+	assert_eq(g.current_stage, 2)
+	assert_near(g.current_health, 100.0 + (stats.stage_2_health - stats.stage_1_health) + 200.0, 0.001,
+		"README evolution heal + Second Wind")
+	# The tuned build refills HP on evolution, so Second Wind has nothing to add.
+	var h := await _grount(Vector2(600, 0))
+	h.current_health = 100.0
+	h.gain_xp(1000.0)
+	assert_near(h.current_health, h.get_max_health(), 0.001, "full heal, never above max")
+
+
+# ---------- Titan Form ----------
+
+func test_titan_form_on_stage_3() -> void:
+	if not _isolated():
+		skip("user:// is not the isolated test dir")
+		return
+	_grant(["g1_range", "g4_titan"])
+	var g := await _grount()
+	var stats: MonsterStats = g.monster_stats
+	var shape := (g.get_node("DetectionArea/CollisionShape2D") as CollisionShape2D).shape as CircleShape2D
+	assert_false(g.is_titan())
+	assert_eq(g.get_max_health(), stats.stage_1_health)
+	assert_near(g.attack_range, 88.0, 0.001)
+	assert_eq(g.max_distance, 100.0)
+	g.gain_xp(1000.0)
+	assert_false(g.is_titan(), "stage 2: no Titan yet")
+	assert_eq(g.get_max_health(), stats.stage_2_health)
+	g.gain_xp(0.0)
+	assert_eq(g.current_stage, 3)
+	assert_true(g.is_titan())
+	await wait_seconds(0.7)
+	var titan_scale: Vector2 = stats.stage_3_scale * 1.5
+	assert_true(g.scale.is_equal_approx(titan_scale), "scale %s" % str(g.scale))
+	assert_true(g.hud.scale.is_equal_approx(Vector2.ONE / titan_scale), "HP bar keeps its pixel size")
+	assert_near(g.get_max_health(), stats.stage_3_health + 500.0, 0.001, "+500 max HP")
+	assert_near(g.current_health, g.get_max_health(), 0.001, "and the +500 is healed")
+	assert_near(g.health_bar.ratio(), 1.0, 0.001)
+	assert_near(g.attack_range, 80.0 * 1.1 + 20.0, 0.001, "+20 flat on top of the % node")
+	assert_near(g.max_distance, 120.0, 0.001, "the Fight leave distance moves with it")
+	assert_near(shape.radius * g.scale.x, g.detection_radius * stats.stage_3_scale.x, 0.01, "aggro stays at the stage-3 value")
+	# Idempotent: re-applying stage 3 or more XP never stacks it.
+	g._apply_stage_configuration(3)
+	g._update_combat_for_stage()
+	await wait_seconds(0.7)
+	assert_true(g.scale.is_equal_approx(titan_scale), "still %s, got %s" % [str(titan_scale), str(g.scale)])
+	assert_near(g.get_max_health(), stats.stage_3_health + 500.0, 0.001)
+	assert_near(g.attack_range, 108.0, 0.001)
+	assert_near(g.max_distance, 120.0, 0.001)
+	g.gain_xp(1000.0)
+	assert_eq(g.current_stage, 3)
+	assert_near(g.get_max_health(), stats.stage_3_health + 500.0, 0.001)
+
+
+func test_titan_fight_holds_and_the_cleave_reaches_its_range() -> void:
+	if not _isolated():
+		skip("user:// is not the isolated test dir")
+		return
+	_grant(["g1_range", "g4_titan"])
+	PersistedData.set_unlocked_skills(MetaSkillManager.TREE_MONSTER_BASE, ["mt3_range"])
+	var g := await _grount()
+	await _evolve_to_3(g)
+	var reach: float = g.attack_range
+	assert_near(reach, 80.0 * 1.1 * 1.1 + 20.0, 0.001)
+	assert_true(reach > MonsterBase.FIGHT_LEAVE_DISTANCE, "the case that bounced between Approach and Fight")
+	var v := await _hero(Vector2(reach - 1.0, 0))
+	g._update_strategy()  # picks the hero up from its own detection area
+	assert_true(g.target_entity == v, "acquired the hero")
+	for i in range(6):
+		g._tick(0.1)
+		await wait_frames(1)
+	assert_eq(active_state_of(g), "Fight", "no Approach/Fight ping-pong at the Titan's range")
+	assert_false(g.is_ability_ready("ability_1"), "Front Cleave was cast")
+	assert_true(v.get_health() < v.get_max_health(), "and connected at attack_range - 1")
+
+
+func test_titan_cleave_reaches_teds_pet_at_100_px() -> void:
+	if not _isolated():
+		skip("user:// is not the isolated test dir")
+		return
+	_grant(["g4_titan"])
+	var g := await _grount()
+	await _evolve_to_3(g)
+	assert_near(g.attack_range, 100.0, 0.001)
+	var ted := await _hero(Vector2(6000, 6000))
+	var pet := await _pet(Vector2(99, 0), ted)
+	var hp_before: float = float(pet.get("current_health"))
+	g.sprite.rotation = 0.0  # face the pet
+	g.ability_1.execute(g, pet, 5.0)
+	await wait_frames(1)
+	assert_true(float(pet.get("current_health")) < hp_before, "pet Body r16 at 99 px is inside the 100 px cleave")
+
+
+# ---------- Gravity Slam ----------
+
+func test_gravity_slam_pulls_then_damages() -> void:
+	if not _isolated():
+		skip("user:// is not the isolated test dir")
+		return
+	_grant(["g3_pull"])
+	var g := await _grount()
+	var slam := _slam_of(g, 5.0)
+	assert_near(slam.pull_radius, 200.0, 0.001)
+	assert_near(slam.get_reach(), 200.0, 0.001, "pullable enemies count as slam targets")
+	var a := await _hero(Vector2(190, 0))
+	var bat := await _bat(Vector2(0, 150))
+	var b := await _hero(Vector2(260, 0))
+	var ted := await _hero(Vector2(6000, 6000))
+	var pet := await _pet(Vector2(-150, 0), ted)
+	var pet_hp: float = float(pet.get("current_health"))
+	var a_goal: Vector2 = a._idle_goal
+	slam._perform_slam(g)
+	var stop: float = slam.pull_stop_distance
+	assert_near(a.global_position.distance_to(g.global_position), stop, 0.5, "hero pulled in")
+	assert_near(bat.global_position.distance_to(g.global_position), stop, 0.5, "mob pulled in")
+	assert_near(pet.global_position.distance_to(g.global_position), stop, 0.5, "Ted's pet pulled in")
+	assert_eq(slam.last_pull_count, 3)
+	assert_eq(a._idle_goal, a_goal, "keeps its AI goal (not a teleport)")
+	assert_eq(a._last_nav_target_pos, Vector2(INF, INF), "re-paths from the new spot")
+	await wait_frames(1)
+	assert_true(a.get_health() < a.get_max_health(), "pulled from outside the slam radius, then hit")
+	assert_true(bat.get_health() < bat.get_max_health())
+	assert_true(float(pet.get("current_health")) < pet_hp)
+	assert_eq(b.global_position, Vector2(260, 0), "outside the 200 px pull")
+	assert_eq(b.get_health(), b.get_max_health())
+	assert_true(g.debug_meta_line().contains("pull(last 3)"), g.debug_meta_line())
+
+
+func test_gravity_slam_skips_the_dead_and_keeps_stuns() -> void:
+	if not _isolated():
+		skip("user:// is not the isolated test dir")
+		return
+	_grant(["g3_pull"])
+	var g := await _grount()
+	var v := await _hero(Vector2(150, 0))
+	var bat := await _bat(Vector2(0, 150))
+	EventBus.deal_damage(v, bat, 9999.0)
+	assert_false(bat.is_alive())
+	v.apply_stun(1.0)
+	var slam := _slam_of(g, 5.0)
+	slam._perform_slam(g)
+	assert_eq(bat.global_position, Vector2(0, 150), "corpses stay where they fell")
+	assert_near(v.global_position.distance_to(g.global_position), slam.pull_stop_distance, 0.5)
+	assert_true(v.is_stunned(), "a pulled target stays stunned")
+	assert_eq(slam.last_pull_count, 1)
+
+
+func test_a_pulled_hero_does_not_corner_a_farming_monster() -> void:
+	if not _isolated():
+		skip("user:// is not the isolated test dir")
+		return
+	_grant(["g3_pull"])
+	var g := await _grount()
+	var v := await _hero(Vector2(180, 0))
+	g._update_strategy()
+	assert_eq(g.strategy, MonsterBase.Strategy.FARM)
+	var slam := _slam_of(g, 1.0)
+	assert_true(slam.pull_stop_distance > g.strategy_profile.cornered_radius, "the pull stops outside the Desperation radius")
+	slam._perform_slam(g)
+	assert_near(v.global_position.distance_to(g.global_position), slam.pull_stop_distance, 0.5)
+	assert_false(g._may_engage_hero(v), "the pull did not force a fight")
+	assert_true(g._score_target(v) < 0.0)
+
+
+func test_an_idle_camp_mob_is_held_at_its_camp_edge() -> void:
+	if not _isolated():
+		skip("user:// is not the isolated test dir")
+		return
+	_grant(["g3_pull"])
+	var g := await _grount()
+	var area := (load(AREA) as PackedScene).instantiate() as MobSpawnArea
+	area.auto_spawn_on_ready = false
+	area.position = Vector2(0, 200)
+	add_child(area)
+	await wait_frames(1)
+	var bat := await _bat(Vector2(0, 180))
+	bat.spawn_area = area
+	bat.spawn_position = area.area_center
+	assert_true(area.area_radius < 120.0, "geometry: the pull lands outside the camp")
+	var slam := _slam_of(g, 1.0)
+	slam._perform_slam(g)
+	assert_near(bat.global_position.distance_to(g.global_position), slam.pull_stop_distance, 0.5)
+	bat._pre_tick(0.1)  # idle mob: its leash puts it back on the camp's edge
+	assert_near(bat.global_position.distance_to(area.area_center), area.area_radius, 0.5, "held at the edge")
+	assert_true(bat.global_position.distance_to(g.global_position) < 179.0, "still closer to the slam than before")
+
+
+func test_gravity_slam_never_pulls_through_a_wall() -> void:
+	if not _isolated():
+		skip("user:// is not the isolated test dir")
+		return
+	_grant(["g3_pull"])
+	# An L: the hero stands in the vertical arm, the monster in the horizontal
+	# one; the straight line between them crosses the notch (off the mesh).
+	var region := await _bake_outline(PackedVector2Array([Vector2(0, 0), Vector2(400, 0), Vector2(400, 100),
+		Vector2(100, 100), Vector2(100, 400), Vector2(0, 400)]))
+	var g := await _grount(Vector2(200, 50))
+	var v := await _hero(Vector2(50, 180))
+	var before: float = v.global_position.distance_to(g.global_position)
+	assert_true(before < 200.0, "inside the pull radius")
+	_slam_of(g, 1.0)._perform_slam(g)
+	var p: Vector2 = v.global_position
+	assert_true(p.distance_to(g.global_position) < before - 1.0, "pulled along the mesh")
+	var nav_map: RID = GameUtils.usable_nav_map(region.get_world_2d())
+	assert_true(nav_map.is_valid(), "test map synced")
+	if nav_map.is_valid():
+		assert_true(NavigationServer2D.map_get_closest_point(nav_map, p).distance_to(p) <= 2.0, "still on the mesh at %s" % str(p))
+	assert_true(p.x <= 101.0, "stopped at the corner instead of crossing the notch (%s)" % str(p))
+	for n in [g, v, region]:
+		n.queue_free()
+	await wait_physics_frames(6)  # map back to empty for the other tests
+
+
+func _bake_outline(points: PackedVector2Array) -> NavigationRegion2D:
+	var region := NavigationRegion2D.new()
+	var poly := NavigationPolygon.new()
+	poly.agent_radius = 0.0
+	var src := NavigationMeshSourceGeometryData2D.new()
+	src.add_traversable_outline(points)
+	NavigationServer2D.bake_from_source_geometry_data(poly, src)
+	region.navigation_polygon = poly
+	add_child(region)
+	await wait_physics_frames(6)  # polygons land one map sync after the region
+	return region
+
+
+# ---------- skill-tree screen ----------
+
+func test_skill_screen_renders_and_gates_tier_4() -> void:
+	if not _isolated():
+		skip("user:// is not the isolated test dir")
+		return
+	# The headless root viewport is not portrait: lay the screen out at 720 px.
+	var portrait := SubViewport.new()
+	portrait.size = Vector2i(720, 1280)
+	add_child(portrait)
+	var screen := (load(SCREEN) as PackedScene).instantiate() as MetaSkillScreen
+	portrait.add_child(screen)
+	await wait_frames(2)
+	screen._show_tree(_tree())
+	await wait_frames(2)
+	var rows: Array[Node] = screen.tiers_box.get_children()
+	assert_eq(rows.size(), 4, "rows T4..T1")
+	if rows.size() != 4:
+		portrait.queue_free()
+		return
+	var t4 := _buttons_under(rows[0])
+	assert_eq(t4.size(), 1)
+	if t4.size() == 1:
+		assert_eq(t4[0].node_def.id, &"g4_titan")
+		assert_true(t4[0].disabled, "tier-gated")
+		assert_true(t4[0]._label.text.contains("Reach Tier 3 first"), t4[0]._label.text)
+	var margin := screen.get_node("Margin") as Control
+	assert_true(margin.get_combined_minimum_size().x <= 720.0, "fits the portrait width (%.0f px)" % margin.get_combined_minimum_size().x)
+	var t3 := _buttons_under(rows[1])
+	assert_true(t3.size() >= 6, "Grount T3 carries the new nodes")
+	if t3.size() >= 6:
+		assert_eq(t3[3].position.y, t3[0].position.y, "4 cards on the first line")
+		assert_true(t3[4].position.y > t3[0].position.y, "the 5th card wraps onto a second line")
+	for btn in t3:
+		assert_true(btn.get_global_rect().end.x <= 720.5, "card inside the 720 px screen (%s)" % str(btn.get_global_rect()))
+	_grant(["g1_dmg", "g2_hp", "g3_dmg"])
+	PersistedData.add_currency(PersistedData.LEAVES, 2000)
+	screen._refresh_currency_and_nodes()
+	if t4.size() == 1:
+		assert_false(t4[0].disabled, "buyable once a tier-3 node is owned")
+	portrait.queue_free()
+	await wait_frames(1)
+
+
+func _buttons_under(node: Node) -> Array[MetaSkillNodeButton]:
+	var out: Array[MetaSkillNodeButton] = []
+	for c in node.get_children():
+		if c is MetaSkillNodeButton:
+			out.append(c as MetaSkillNodeButton)
+		else:
+			out.append_array(_buttons_under(c))
+	return out

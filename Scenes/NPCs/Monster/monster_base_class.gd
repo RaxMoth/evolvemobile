@@ -6,6 +6,10 @@ signal stage_changed(new_stage: int)
 @export_group("Monster Configuration")
 @export var monster_stats: MonsterStats
 @export var visual_config: MonsterVisualConfig
+## true (the tuned build): evolving refills HP. false: the README rule
+## "Healing on Evolution: gains (new max HP - old max HP)". The Grount node
+## Second Wind (+200 on the Stage 2 heal, capped at max) only shows with false.
+@export var heal_to_full_on_evolution: bool = true
 
 @export_group("Monster Abilities")
 @export var ability_1: AbilityBase
@@ -17,6 +21,25 @@ signal stage_changed(new_stage: int)
 ## Behaviour profile (hide & farm → ambush → hunt, retreat when hurt, combos).
 ## null or enabled=false keeps the legacy "hunt the nearest hero" behaviour.
 @export var strategy_profile: MonsterStrategy
+
+@export_group("Skill Tree Behaviours")
+## Numbers of the Grount tree's behaviour nodes (README "Grount Tree"). They
+## only act while the matching node is unlocked (_meta_enrage / _meta_titan).
+## Enrage: below this fraction of max HP, move speed and all damage go up.
+@export_range(0.0, 1.0) var enrage_hp_pct: float = 0.2
+@export var enrage_speed_mult: float = 1.3
+@export var enrage_damage_mult: float = 1.5
+## Titan Form: from this stage on, bigger (scale on top of the stage scale),
+## tougher (flat max HP after the % nodes) and longer reach (flat range).
+@export var titan_stage: int = 3
+@export var titan_scale_mult: float = 1.5
+@export var titan_bonus_health: float = 500.0
+@export var titan_bonus_range: float = 20.0
+
+## README attack range before skill nodes (80 flat at every stage).
+const BASE_ATTACK_RANGE: float = 80.0
+## Fight hands back to Approach beyond this distance (+ get_range_bonus()).
+const FIGHT_LEAVE_DISTANCE: float = 100.0
 
 ## Current strategy. A pure function of stage, health and nearby heroes,
 ## recomputed every strategy_eval_interval (see _compute_strategy). It only
@@ -49,6 +72,11 @@ var _meta_speed_mult: float = 1.0
 var _meta_xp_mult: float = 1.0
 var _meta_evo_threshold_mult: float = 1.0
 var _meta_range_mult: float = 1.0
+# Behaviour nodes (additive keys from the same collect_monster_modifiers call;
+# 0 = not unlocked). Enrage and Titan Form are flags, Second Wind an amount.
+var _meta_enrage: bool = false
+var _meta_titan: bool = false
+var _meta_stage_2_evo_heal: float = 0.0
 
 var ability_cooldowns := {
 	"ability_1": 0.0,
@@ -89,13 +117,13 @@ func _apply_stage_configuration(stage: int) -> void:
 	
 	Globals.debug_log("\n▶ Applying Stage ", stage, " Configuration for ", name)
 	
-	var old_max = current_health if stage > 1 else 0.0
-	var new_health = monster_stats.get_health_for_stage(stage) * _meta_health_mult
+	var new_health: float = _max_health_for_stage(stage)
 
-	if stage == 1:
+	if stage == 1 or heal_to_full_on_evolution:
 		current_health = new_health
 	else:
-		current_health += (new_health - old_max)
+		# README "Healing on Evolution": gain (new max HP - old max HP).
+		current_health = minf(current_health + new_health - _max_health_for_stage(stage - 1), new_health)
 
 	damage_multiplier = monster_stats.get_damage_mult_for_stage(stage) * _meta_damage_mult
 	xp_value = monster_stats.get_xp_value_for_stage(stage)
@@ -105,6 +133,9 @@ func _apply_stage_configuration(stage: int) -> void:
 	set_hp_display(current_health, new_health)
 	
 	_update_stage_scale(stage)
+	# Titan Form's extra size must not widen the aggro circle (see
+	# _get_detection_shape_radius).
+	_update_detection_radius()
 
 func _get_entity_level() -> int:
 	return current_stage
@@ -128,7 +159,8 @@ func _update_stage_scale(stage: int) -> void:
 	if not monster_stats:
 		return
 	
-	var target_scale = monster_stats.get_scale_for_stage(stage)
+	# Absolute per stage (Titan Form included), so re-applying never compounds.
+	var target_scale: Vector2 = _scale_for_stage(stage)
 
 	var tween = create_tween()
 	tween.tween_property(self, "scale", target_scale, 0.5) \
@@ -149,7 +181,7 @@ func _setup_monster_combat_role() -> void:
 	combat_role = Types.CombatRole.MELEE
 	preferred_distance = 45.0
 	min_distance = 20.0
-	max_distance = 100.0
+	max_distance = FIGHT_LEAVE_DISTANCE
 	strafe_enabled = true
 	
 	_update_combat_for_stage()
@@ -160,6 +192,10 @@ func _update_combat_for_stage() -> void:
 	
 	strafe_speed = monster_stats.get_strafe_speed_for_stage(current_stage)
 	strafe_change_interval = monster_stats.get_strafe_interval_for_stage(current_stage)
+	# Approach enters Fight at attack_range and Fight leaves past max_distance:
+	# Titan Form's flat reach moves both by the same amount, so the hysteresis
+	# stays what it was (no Approach/Fight ping-pong at the longer range).
+	max_distance = FIGHT_LEAVE_DISTANCE + get_range_bonus()
 
 func _is_attack_ready() -> bool:
 	if not _strategy_enabled():
@@ -182,10 +218,16 @@ func _on_stage_entered(new_stage: int, _old_stage: int) -> void:
 func _get_move_speed() -> float:
 	if not monster_stats:
 		return 60.0
-	return monster_stats.get_speed_for_stage(current_stage) * _meta_speed_mult
+	return monster_stats.get_speed_for_stage(current_stage) * _meta_speed_mult * _enrage_factor(enrage_speed_mult)
 
 func _get_attack_range() -> float:
-	return 80.0 * _meta_range_mult
+	return BASE_ATTACK_RANGE * _meta_range_mult + get_range_bonus()
+
+## The aggro circle is a child of the root, so it scales with the monster:
+## divide Titan Form's extra size back out (the stage scale still applies,
+## as before). The node buys size, HP and reach, not wider senses.
+func _get_detection_shape_radius() -> float:
+	return detection_radius / titan_scale_mult if is_titan() and titan_scale_mult > 0.0 else detection_radius
 
 func _get_idle_retarget_time() -> float:
 	return 2.0
@@ -207,7 +249,7 @@ func get_health() -> float:
 	return current_health
 
 func get_max_health() -> float:
-	return monster_stats.get_health_for_stage(current_stage) * _meta_health_mult if monster_stats else current_health
+	return _max_health_for_stage(current_stage) if monster_stats else current_health
 
 func _receive_damage(packet: DamagePacket) -> void:
 	if not is_alive():
@@ -259,6 +301,8 @@ func _evolve_to_stage(new_stage: int) -> void:
 	
 	# Call hook (applies stats from resource)
 	_on_stage_entered(current_stage, old_stage)
+	# Grount "Second Wind" tops the evolution heal up.
+	_apply_evolution_bonus_heal(current_stage)
 	
 	# Emit signal
 	stage_changed.emit(current_stage)
@@ -285,6 +329,10 @@ func _load_meta_modifiers() -> void:
 	_meta_xp_mult = float(mods.get("monster_xp_mult", 1.0))
 	_meta_evo_threshold_mult = float(mods.get("monster_evo_threshold", 1.0))
 	_meta_range_mult = float(mods.get("monster_range_mult", 1.0))
+	# Behaviour nodes are additive keys: missing = 0.0 = off.
+	_meta_enrage = float(mods.get("monster_enrage", 0.0)) > 0.5
+	_meta_titan = float(mods.get("monster_titan_form", 0.0)) > 0.5
+	_meta_stage_2_evo_heal = float(mods.get("monster_stage_2_evo_heal", 0.0))
 	# Per-entity ability copies, then the tree's ability nodes (cooldown, dash
 	# distance, …). apply_stage_stats re-applies them on every evolution.
 	_make_abilities_unique()
@@ -307,6 +355,77 @@ func _all_abilities() -> Array[AbilityBase]:
 		if a != null:
 			out.append(a)
 	return out
+
+
+# ============================================
+# Skill-tree behaviour nodes (Grount tree)
+# ============================================
+
+## Max HP of a stage: README table x the % HP nodes, plus Titan Form's flat
+## bonus. The single source for get_max_health and the evolution heal.
+func _max_health_for_stage(stage: int) -> float:
+	var hp: float = monster_stats.get_health_for_stage(stage) * _meta_health_mult
+	if _titan_at(stage):
+		hp += titan_bonus_health
+	return hp
+
+
+func _scale_for_stage(stage: int) -> Vector2:
+	var s: Vector2 = monster_stats.get_scale_for_stage(stage)
+	return s * titan_scale_mult if _titan_at(stage) else s
+
+
+## Grount "Enrage": below enrage_hp_pct of the current max HP. A pure function
+## of HP (no stored flag), so it can neither stick nor stack, and every HP
+## change — a hit, rest regeneration, the evolution heal — toggles it at once.
+func is_enraged() -> bool:
+	return _meta_enrage and is_alive() and current_health < get_max_health() * enrage_hp_pct
+
+
+func _enrage_factor(mult: float) -> float:
+	return mult if is_enraged() else 1.0
+
+
+## Grount "Titan Form": active from titan_stage on. Every effect is derived
+## from the stage (max HP, scale, reach), so re-entering a stage never stacks it.
+func is_titan() -> bool:
+	return _titan_at(current_stage)
+
+
+func _titan_at(stage: int) -> bool:
+	return _meta_titan and stage >= titan_stage
+
+
+## Flat reach on top of the % range nodes (Titan Form). The attack range,
+## Front Cleave's hit radius and the Fight leave distance all grow by it.
+func get_range_bonus() -> float:
+	return titan_bonus_range if is_titan() else 0.0
+
+
+## Grount "Second Wind": extra HP when evolving into Stage 2, never above max.
+func _apply_evolution_bonus_heal(stage: int) -> void:
+	if stage != 2 or _meta_stage_2_evo_heal <= 0.0:
+		return
+	var max_hp: float = get_max_health()
+	current_health = minf(current_health + _meta_stage_2_evo_heal, max_hp)
+	set_hp_display(current_health, max_hp)
+
+
+## One F3 HUD line: stage, HP and the behaviour nodes this monster carries
+## ("!" = active right now; Gravity Slam shows how many the last slam pulled).
+func debug_meta_line() -> String:
+	var tags: Array[String] = []
+	if ability_3 != null and "pull_radius" in ability_3 and float(ability_3.get("pull_radius")) > 0.0:
+		var pulled: int = int(ability_3.get("last_pull_count")) if "last_pull_count" in ability_3 else 0
+		tags.append("pull(last %d)" % pulled)
+	if _meta_enrage:
+		tags.append("enrage!" if is_enraged() else "enrage")
+	if _meta_stage_2_evo_heal > 0.0:
+		tags.append("evoheal +%d" % roundi(_meta_stage_2_evo_heal))
+	if _meta_titan:
+		tags.append("titan!" if is_titan() else "titan")
+	var listed: String = " ".join(tags) if not tags.is_empty() else "-"
+	return "%s S%d HP %d/%d nodes: %s" % [name, current_stage, roundi(current_health), roundi(get_max_health()), listed]
 
 
 # ============================================
@@ -413,10 +532,13 @@ func _try_use_ability(ability_name: String, ability: AbilityBase) -> bool:
 ## the stage multiplier (Front Cleave 12/17/24 = 12 x 1.0/1.4/2.0, Ram Dash
 ## 18/25/36), so a tabled ability only gets the permanent skill-tree bonus;
 ## applying the stage multiplier again made a stage-3 cleave hit for 48.
+## Enrage multiplies on top at cast time (Grount has no separate basic attack:
+## Front Cleave, Ram Dash and Ground Slam all come through here).
 func effective_ability_damage(ability: AbilityBase) -> float:
+	var dmg: float = ability.damage * _meta_damage_mult
 	if ability.damage_per_stage.is_empty():
-		return ability.damage * damage_multiplier
-	return ability.damage * _meta_damage_mult
+		dmg = ability.damage * damage_multiplier
+	return dmg * _enrage_factor(enrage_damage_mult)
 
 
 ## Cast with an explicit target (null = facing-direction cast, e.g. an escape

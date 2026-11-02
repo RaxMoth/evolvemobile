@@ -29,7 +29,9 @@ func execute(caster: Node2D, target: Node2D = null, override_damage: float = -1.
 	var space_state = caster.get_world_2d().direct_space_state
 	var query = PhysicsShapeQueryParameters2D.new()
 	var shape = CircleShape2D.new()
-	shape.radius = cone_range
+	# Titan Form's flat reach (MonsterBase.get_range_bonus) widens the Fight
+	# gate; the hit radius grows with it or a Titan whiffs at the gate's edge.
+	shape.radius = cone_range + _caster_range_bonus(caster)
 	query.shape = shape
 	query.transform = Transform2D(0, caster.global_position)
 	query.collide_with_areas = true
@@ -75,6 +77,12 @@ func execute(caster: Node2D, target: Node2D = null, override_damage: float = -1.
 			hit_count += 1
 	
 	_create_cleave_effect(caster, forward_dir)
+
+
+func _caster_range_bonus(caster: Node2D) -> float:
+	if caster != null and caster.has_method(&"get_range_bonus"):
+		return float(caster.call(&"get_range_bonus"))
+	return 0.0
 
 
 func _create_cleave_effect(caster: Node2D, direction: Vector2) -> void:

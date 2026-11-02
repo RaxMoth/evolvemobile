@@ -6,6 +6,16 @@ extends AbilityBase
 @export var slam_radius: float = 150.0
 ## The leap lands on the target (up to this far) instead of always 150 px.
 @export var leap_distance: float = 150.0
+## Grount tree "Gravity Slam": enemies within this distance of the impact are
+## dragged toward it before the damage lands (0 = off; the node adds 200).
+@export var pull_radius: float = 0.0
+## Pulled enemies stop this far from the impact instead of stacking on it.
+## Kept outside MonsterStrategy.cornered_radius (70): a pull must not turn a
+## farming monster's slam into a forced "Desperation" fight with heroes.
+@export var pull_stop_distance: float = 80.0
+
+## F3 (MonsterBase.debug_meta_line): how many entities the last slam pulled.
+var last_pull_count: int = 0
 
 var _airborne: bool = false
 
@@ -32,8 +42,9 @@ func is_channeling() -> bool:
 	return _airborne
 
 
+## With Gravity Slam the enemies the pull brings in count as slam targets too.
 func get_reach() -> float:
-	return slam_radius
+	return maxf(slam_radius, pull_radius)
 
 
 func execute(caster: Node2D, target: Node2D = null, override_damage: float = -1.0) -> void:
@@ -91,6 +102,8 @@ func _perform_jump(caster: Node2D, start_pos: Vector2, target_pos: Vector2) -> v
 
 func _perform_slam(caster: Node2D) -> void:
 	Globals.debug_log(caster.name, " SLAMS the ground!")
+	# Gravity Slam first: the damage lands on the pulled positions.
+	var pulled: Array[Node2D] = _pull_enemies(caster)
 	
 	# Deal AOE damage
 	var space_state = caster.get_world_2d().direct_space_state
@@ -117,13 +130,63 @@ func _perform_slam(caster: Node2D) -> void:
 			continue
 		hit_entities.append(entity)
 		
-		# FIXED: Proper targeting - Heroes OR Mobs (but not other Monsters)
-		var can_hit = false
-		if entity.is_in_group("Hero"):
-			can_hit = true
-		elif entity.is_in_group("Enemy") and not entity.is_in_group("Monster"):
-			can_hit = true # Hit Mobs
-		
-		if can_hit:
+		if _can_hit(entity):
 			EventBus.deal_damage(caster, entity, _effective_damage, self)
 			hit_count += 1
+	
+	# The query still saw the pre-pull positions (a moved entity's Body area
+	# reaches the physics server only at the next transform flush): pulled
+	# entities it missed are hit when they now stand inside the slam radius.
+	for e in pulled:
+		if not is_instance_valid(e) or hit_entities.has(e):
+			continue
+		hit_entities.append(e)
+		if caster.global_position.distance_to(e.global_position) <= slam_radius:
+			EventBus.deal_damage(caster, e, _effective_damage, self)
+			hit_count += 1
+
+
+## The slam's target rule: heroes (Ted's pet included) or mobs, never another monster.
+func _can_hit(entity: Node) -> bool:
+	if entity.is_in_group("Hero"):
+		return true
+	return entity.is_in_group("Enemy") and not entity.is_in_group("Monster")
+
+
+## Gravity Slam: drag every living slam target within pull_radius of the impact
+## toward it, stopping pull_stop_distance short and only along the navigation
+## mesh (a wall or a corner stops the pull: GameUtils.clamp_to_nav_segment).
+## Distances are centre to centre; anything already closer stays put. An idle
+## camp mob pulled past its camp's edge is held at the edge by its own leash on
+## its next tick; a hero mid-Dash is carried on by the dash tween.
+func _pull_enemies(caster: Node2D) -> Array[Node2D]:
+	var out: Array[Node2D] = []
+	if pull_radius <= 0.0:
+		last_pull_count = 0
+		return out
+	var center: Vector2 = caster.global_position
+	var world: World2D = caster.get_world_2d()
+	var r_sq: float = pull_radius * pull_radius
+	var stop_sq: float = pull_stop_distance * pull_stop_distance
+	# hero_side (heroes + Ted's pet) and mobs: disjoint, de-duplicated lists,
+	# so every entity moves at most once per slam.
+	for e in EntityRegistry.targets_for(caster):
+		if not is_instance_valid(e) or e == caster or e.is_queued_for_deletion() or not _can_hit(e):
+			continue
+		if not EntityRegistry.is_entity_alive(e):
+			continue  # corpses stay where they fell
+		var off: Vector2 = e.global_position - center
+		var d_sq: float = off.length_squared()
+		if d_sq > r_sq or d_sq <= stop_sq:
+			continue
+		var wanted: Vector2 = center + off.normalized() * pull_stop_distance
+		var dest: Vector2 = GameUtils.clamp_to_nav_segment(world, e.global_position, wanted)
+		if dest.distance_squared_to(e.global_position) < 0.01:
+			continue  # pinned against a wall: not moved
+		if e is EntityBase:
+			(e as EntityBase).displace_to(dest)
+		else:
+			e.global_position = dest  # Ted's pet (CharacterBody2D) re-paths every physics frame
+		out.append(e)
+	last_pull_count = out.size()
+	return out

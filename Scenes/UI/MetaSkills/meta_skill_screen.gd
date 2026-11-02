@@ -96,10 +96,18 @@ func _build_tier_row(t: MetaSkillTree, tier: int) -> void:
 	tier_label.add_theme_font_size_override("font_size", 20)
 	inner.add_child(tier_label)
 
+	# Cards wrap onto more lines (4 per line on the 720 px portrait screen)
+	# instead of one HBox line that a 6-card tier pushes past the screen edge.
+	var cards := HFlowContainer.new()
+	cards.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	cards.add_theme_constant_override("h_separation", 12)
+	cards.add_theme_constant_override("v_separation", 12)
+	inner.add_child(cards)
+
 	for n in t.nodes_in_tier(tier):
 		var btn := MetaSkillNodeButton.new()
 		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		inner.add_child(btn)
+		cards.add_child(btn)
 		btn.bind(t.id, n)
 		btn.unlock_requested.connect(_on_unlock_requested)
 

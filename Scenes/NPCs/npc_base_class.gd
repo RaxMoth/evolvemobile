@@ -255,6 +255,15 @@ func teleport_to(pos: Vector2) -> void:
 	if is_instance_valid(navigation_agent_2d):
 		navigation_agent_2d.target_position = pos
 
+
+## Moved by an outside force (Gravity Slam pull): keep the state, goals and any
+## stun, but re-path from the new spot (teleport_to would drop the idle goal).
+## A MobBase that is not in combat and lands outside its camp is put back on
+## the camp's edge by its own leash on the next _pre_tick.
+func displace_to(pos: Vector2) -> void:
+	global_position = pos
+	_last_nav_target_pos = Vector2(INF, INF)
+
 func _pre_tick(_delta: float) -> void:
 	"""Per-tick work independent of the active state (MobBase: leash check)."""
 	pass
@@ -325,14 +334,20 @@ func _update_detection_radius() -> void:
 		# touches this entity. Still skip identical writes: set_radius always
 		# emits `changed` and re-syncs the physics server.
 		var circle := collision_shape.shape as CircleShape2D
-		if not is_equal_approx(circle.radius, detection_radius):
-			circle.radius = detection_radius
+		var radius: float = _get_detection_shape_radius()
+		if not is_equal_approx(circle.radius, radius):
+			circle.radius = radius
 		
 		# Visual debug
 		if show_detection_radius:
 			detection_area.visible = true
 	else:
 		push_warning(name + " DetectionArea is not using CircleShape2D!")
+
+## Radius written to the DetectionArea shape, in the entity's local units (the
+## shape scales with the entity). MonsterBase divides Titan Form's size out.
+func _get_detection_shape_radius() -> float:
+	return detection_radius
 
 func _setup_navigation() -> void:
 	"""Configure the navigation agent on the world's default navigation map.

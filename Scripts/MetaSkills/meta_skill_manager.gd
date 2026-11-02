@@ -120,13 +120,20 @@ func _seed_monster_base_tree() -> void:
 # ============================================
 # Seeding — individual hero trees (Steel) / monster trees (Leaves)
 # ============================================
-# Stat-only slice of README §"Individual Hero Trees" / "Individual Monster
-# Trees": every node is one stat effect the existing components already
-# consume. Ability-changing unlocks (Triple Shot, Ram Dash stun, …) need
-# per-ability hooks and are not represented yet.
+# Slice of README §"Individual Hero Trees" / "Individual Monster Trees":
+# every node is one effect — a character stat, one ability property (ability
+# nodes: Triple Shot, Ram Dash stun, …) or a monster behaviour key that
+# MonsterBase switches on (Enrage, Titan Form).
 
 const HERO_TIER_COSTS: Array[int] = [100, 300, 700]
-const MONSTER_TIER_COSTS: Array[int] = [100, 500, 1000]
+const MONSTER_TIER_COSTS: Array[int] = [100, 500, 1000, 2000]
+
+## Grount T3 "Second Wind" (README "Stage 2 Evolution Heal +200 HP"). Wired
+## (MonsterBase._apply_evolution_bonus_heal) and tested, but NOT seeded yet:
+## evolution currently refills HP (MonsterBase.heal_to_full_on_evolution), so
+## +200 capped at max would be a 1000-Leaf no-op. Append it to the Grount specs
+## once evolution heals by the README rule (new max HP - old max HP).
+const GROUNT_SECOND_WIND_SPEC: Array = [&"g3_evoheal", "Second Wind", "Stage 2 evolution heals +200 HP", 3, "monster_stage_2_evo_heal", 200.0, "", false]
 
 
 func _seed_hero_trees() -> void:
@@ -197,12 +204,17 @@ func _seed_monster_trees() -> void:
 		[&"g3_slam", "Wider Slam", "Ground Slam radius +20%", 3, "slam_radius", 1.20, "Ground Slam"],
 		[&"g1_stun", "Stunning Charge", "Ram Dash stuns for 0.5 s", 1, "stun_duration", 0.5, "Ram Dash", false],
 		[&"g2_earlyslam", "Early Slam", "Ground Slam unlocks at Stage 1", 2, "unlock_stage", -1.0, "Ground Slam", false],
+		[&"g3_pull", "Gravity Slam", "Ground Slam pulls enemies within 200 px to the impact", 3, "pull_radius", 200.0, "Ground Slam", false],
+		# Behaviour flags (1 = on); their numbers are MonsterBase exports.
+		[&"g3_enrage", "Enrage", "Below 20% HP: +30% speed, +50% damage", 3, "monster_enrage", 1.0, "", false],
+		[&"g4_titan", "Titan Form", "Stage 3: +50% size, +500 HP, +20 range", 4, "monster_titan_form", 1.0, "", false],
 	])
 
 
-## specs: [id, name, description, tier, stat_name, multiplier] for a stat node,
-## or [id, name, description, tier, property, multiplier, ability_name] for an
-## ability node. The tier index picks the cost from `tier_costs`.
+## specs: [id, name, description, tier, stat_name, value] for a stat node, or
+## [id, name, description, tier, property, value, ability_name] for an ability
+## node ("" as ability_name = still a stat node). The tier index picks the cost
+## from `tier_costs`.
 func _seed_character_tree(tree_id: StringName, display_name: String, description: String,
 		currency: StringName, tier_costs: Array[int], specs: Array) -> void:
 	var t: MetaSkillTree = MetaSkillTree.new()
@@ -210,18 +222,23 @@ func _seed_character_tree(tree_id: StringName, display_name: String, description
 	t.display_name = display_name
 	t.description = description
 	for spec in specs:
-		var tier: int = int(spec[3])
-		var cost: int = tier_costs[clampi(tier - 1, 0, tier_costs.size() - 1)]
-		if spec.size() >= 7:
-			# Optional 8th element: false = additive (behaviour nodes that switch
-			# a mechanic on: stun_duration +0.5, extra_targets +2, unlock_stage -1).
-			var multiplicative: bool = bool(spec[7]) if spec.size() >= 8 else true
-			t.nodes.append(MetaSkillNode.make_ability(StringName(spec[0]), String(spec[1]), String(spec[2]),
-				tier, cost, currency, String(spec[6]), String(spec[4]), float(spec[5]), multiplicative))
-		else:
-			t.nodes.append(MetaSkillNode.make(StringName(spec[0]), String(spec[1]), String(spec[2]),
-				tier, cost, currency, String(spec[4]), float(spec[5])))
+		t.nodes.append(_node_from_spec(spec, tier_costs, currency))
 	trees[t.id] = t
+
+
+func _node_from_spec(spec: Array, tier_costs: Array[int], currency: StringName) -> MetaSkillNode:
+	var tier: int = int(spec[3])
+	var cost: int = tier_costs[clampi(tier - 1, 0, tier_costs.size() - 1)]
+	var ability: String = String(spec[6]) if spec.size() >= 7 else ""
+	# Optional 8th element: false = additive (behaviour nodes that switch a
+	# mechanic on: stun_duration +0.5, extra_targets +2, unlock_stage -1,
+	# monster_enrage +1).
+	var multiplicative: bool = bool(spec[7]) if spec.size() >= 8 else true
+	if ability.is_empty():
+		return MetaSkillNode.make(StringName(spec[0]), String(spec[1]), String(spec[2]),
+			tier, cost, currency, String(spec[4]), float(spec[5]), multiplicative)
+	return MetaSkillNode.make_ability(StringName(spec[0]), String(spec[1]), String(spec[2]),
+		tier, cost, currency, ability, String(spec[4]), float(spec[5]), multiplicative)
 
 
 # ============================================
@@ -348,9 +365,11 @@ func _apply_tree_to_stats(tree_id: StringName, stats: HeroStatsComponent) -> voi
 		stats.add_stat_modifier(n.stat_name, n.stat_value, n.stat_multiplicative)
 
 
-## Called by MonsterBase._load_meta_modifiers. Returns key -> multiplier for
-## the Monster Base tree merged with the monster's own tree (monster_<id>)
-## when an id is given. Missing keys mean 1.0.
+## Called by MonsterBase._load_meta_modifiers. Returns key -> value for the
+## Monster Base tree merged with the monster's own tree (monster_<id>) when an
+## id is given. A key is either always multiplicative (stacked from 1.0; a
+## missing key means 1.0) or always additive (behaviour keys such as
+## monster_enrage, summed from 0.0; a missing key means 0.0 = off).
 func collect_monster_modifiers(monster_id: StringName = &"") -> Dictionary:
 	var out: Dictionary = {}
 	_merge_monster_tree(TREE_MONSTER_BASE, out)
@@ -367,5 +386,8 @@ func _merge_monster_tree(tree_id: StringName, out: Dictionary) -> void:
 	for n in t.nodes:
 		if not unlocked.has(String(n.id)) or n.stat_name.is_empty() or n.is_ability_node():
 			continue
-		# Stack multiplicatively if the same key appears multiple times.
-		out[n.stat_name] = float(out.get(n.stat_name, 1.0)) * n.stat_value
+		if n.stat_multiplicative:
+			# Stack multiplicatively if the same key appears multiple times.
+			out[n.stat_name] = float(out.get(n.stat_name, 1.0)) * n.stat_value
+		else:
+			out[n.stat_name] = float(out.get(n.stat_name, 0.0)) + n.stat_value
