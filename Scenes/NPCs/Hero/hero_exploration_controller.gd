@@ -29,6 +29,10 @@ var cached_boids_data: Dictionary = {}
 @export_group("Movement Smoothing")
 @export var use_formation: bool = true
 @export var formation_spread: float = 100.0
+## Followers keep their slot around the formation leader (HeroStats
+## formation_rank 0, the tank), so the slowest hero sets the pace and the
+## fastest melee no longer reaches every camp alone.
+@export var formation_follow_leader: bool = true
 @export var wander_while_moving: bool = true
 @export var wander_strength: float = 50.0
 
@@ -39,6 +43,13 @@ var exploration_timer: float = 0.0
 
 var hero_solo_mode: Dictionary = {}
 var hero_formation_offset: Dictionary = {}
+## Slot per hero in the leader's frame (x = forward, y = right), in units of
+## formation_spread. Pets have no slot (they follow their owner).
+var _formation_slots: Dictionary = {}
+var _formation_leader: Node2D = null
+var _heading: Vector2 = Vector2.RIGHT
+## Diamond by formation rank: leader, two flanks a little behind, rear guard.
+const FORMATION_SLOTS = [Vector2(0, 0), Vector2(-0.6, -1), Vector2(-0.6, 1), Vector2(-1.4, 0)]
 var hero_last_positions: Dictionary = {}
 var hero_stuck_timers: Dictionary = {}
 
@@ -231,6 +242,9 @@ func _cleanup_freed_heroes() -> void:
 			heroes.remove_at(i)
 			hero_solo_mode.erase(hero)
 			hero_formation_offset.erase(hero)
+			if _formation_slots.has(hero) or hero == _formation_leader:
+				_formation_slots.erase(hero)
+				_formation_leader = null  # re-slot the survivors below
 			hero_last_positions.erase(hero)
 			hero_stuck_timers.erase(hero)
 			cached_boids_data.erase(hero)
@@ -247,7 +261,7 @@ func _find_heroes() -> void:
 			hero_last_positions[hero] = hero.global_position
 			hero_stuck_timers[hero] = 0.0
 	
-	print("HeroExplorationController: Found ", heroes.size(), " heroes")
+	Globals.debug_log("HeroExplorationController: Found ", heroes.size(), " heroes")
 
 func _find_fog_system() -> void:
 	fog_system = EntityRegistry.singleton(&"FogOfWar") as FogOfWarSystem
@@ -255,20 +269,55 @@ func _find_fog_system() -> void:
 		push_warning("HeroExplorationController: No FogOfWar system found!")
 
 func _setup_formation() -> void:
-	if heroes.size() == 0:
+	hero_formation_offset.clear()
+	_formation_slots.clear()
+	_formation_leader = null
+	var ordered: Array[Node2D] = []
+	for hero in heroes:
+		if is_instance_valid(hero) and hero is HeroBase:
+			ordered.append(hero)
+	if ordered.is_empty():
 		return
-	
-	var formations = [
-		Vector2(0, 0), # Leader/center
-		Vector2(-1, -1), # Back left
-		Vector2(1, -1), # Back right
-		Vector2(0, 1), # Front
-	]
-	
-	for i in range(heroes.size()):
-		var hero = heroes[i]
-		var formation_index = i % formations.size()
-		hero_formation_offset[hero] = formations[formation_index] * formation_spread
+	# Stable by rank: insertion keeps roster order among equal ranks.
+	var ranked: Array[Node2D] = []
+	for rank in range(3):
+		for hero in ordered:
+			if _formation_rank_of(hero) == rank:
+				ranked.append(hero)
+	for hero in ordered:
+		if hero not in ranked:
+			ranked.append(hero)
+	for i in range(ranked.size()):
+		var slot: Vector2 = FORMATION_SLOTS[i] if i < FORMATION_SLOTS.size() \
+				else Vector2(-1.4 - 0.8 * (i - FORMATION_SLOTS.size() + 1), 0.0)
+		_formation_slots[ranked[i]] = slot
+	_formation_leader = ranked[0]
+	_update_formation_offsets()
+
+
+func _formation_rank_of(hero: Node2D) -> int:
+	var stats := hero.get_node_or_null(^"HeroStats") as HeroStatsComponent
+	if stats and stats.base_stats:
+		return stats.base_stats.formation_rank
+	return 1
+
+
+func get_formation_leader() -> Node2D:
+	return _formation_leader
+
+
+## Rotate the slots into the direction of travel (leader -> group target).
+func _update_formation_offsets() -> void:
+	if not is_instance_valid(_formation_leader):
+		return
+	var to_target: Vector2 = current_group_target - _formation_leader.global_position
+	if to_target.length_squared() > 40.0 * 40.0:
+		_heading = to_target.normalized()
+	var right: Vector2 = _heading.orthogonal()
+	for hero in _formation_slots:
+		var slot: Vector2 = _formation_slots[hero]
+		hero_formation_offset[hero] = (_heading * slot.x + right * slot.y) * formation_spread
+
 
 func _count_unexplored_in_area(center: Vector2, radius: float) -> int:
 	if not fog_system:
@@ -314,6 +363,9 @@ func _update_hero_flow(delta: float) -> void:
 			_apply_cached_boids(hero)
 
 func _recalculate_boids() -> void:
+	if not is_instance_valid(_formation_leader) and not heroes.is_empty():
+		_setup_formation()
+	_update_formation_offsets()
 	for hero in heroes:
 		if not is_instance_valid(hero):
 			continue
@@ -333,8 +385,11 @@ func _apply_cached_boids(hero: Node2D) -> void:
 		return
 	
 	var data = cached_boids_data[hero]
-	var formation_offset = hero_formation_offset.get(hero, Vector2.ZERO)
-	var base_target = current_group_target + formation_offset
+	var formation_offset: Vector2 = hero_formation_offset.get(hero, Vector2.ZERO)
+	var base_target: Vector2 = current_group_target + formation_offset
+	if use_formation and formation_follow_leader and is_instance_valid(_formation_leader) \
+			and hero != _formation_leader and _formation_slots.has(hero):
+		base_target = _formation_leader.global_position + formation_offset
 	
 	var final_target = base_target + data.separation * 1.5 + data.cohesion * 0.5 + data.alignment * 0.3
 	

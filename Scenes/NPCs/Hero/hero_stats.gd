@@ -30,6 +30,9 @@ class_name HeroStats
 
 @export_group("Combat Behavior")
 @export var combat_role: Types.CombatRole = Types.CombatRole.MELEE
+## Exploration formation position (README "Diamond pattern, tanks front"):
+## 0 leads and paces the group, 1 flanks, 2 trails. Ties keep roster order.
+@export_range(0, 2) var formation_rank: int = 1
 @export var preferred_distance: float = 50.0
 @export var min_distance: float = 30.0
 @export var max_distance: float = 150.0

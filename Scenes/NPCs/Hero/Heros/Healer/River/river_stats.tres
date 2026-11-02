@@ -22,6 +22,7 @@ health_per_level = 5.0
 damage_per_level = 0.8
 speed_per_level = 1.5
 combat_role = 1
+formation_rank = 2
 preferred_distance = 240.0
 min_distance = 180.0
 max_distance = 350.0
