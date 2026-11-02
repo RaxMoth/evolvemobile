@@ -4,7 +4,10 @@ class_name VisionArea
 signal area_revealed(cells: Array)
 
 @export var vision_radius: float = 200.0
-@export var reveal_update_interval: float = 0.7  # Update every 0.2s
+@export var reveal_update_interval: float = 0.7
+## False for the AI side's vision when the player plays the other side: it
+## still feeds the AI's exploration memory but never clears the player's fog.
+@export var reveals_display: bool = true
 
 var revealed_cells: Dictionary = {}  # Track what this hero has revealed
 var update_timer: float = 0.0
@@ -35,7 +38,7 @@ func _update_vision() -> void:
 		return
 	
 	# Reveal area around hero
-	fog_system.reveal_area(global_position, vision_radius)
+	fog_system.reveal_area(global_position, vision_radius, reveals_display)
 
 func set_vision_radius(radius: float) -> void:
 	vision_radius = radius

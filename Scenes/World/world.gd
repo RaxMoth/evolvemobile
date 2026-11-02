@@ -99,6 +99,14 @@ func _setup_monster_vision():
 		# hunting cone that still leaves the map feeling explore-able.
 		FogOfWarHelper.add_vision_to_hero(monster, 350.0)
 
+	# The AI heroes keep their scene VisionArea (it is their exploration
+	# memory) but must not clear the monster player's fog: that leaked their
+	# whole path onto the map and the minimap.
+	for hero in get_tree().get_nodes_in_group("Hero"):
+		var hero_vision := hero.get_node_or_null(^"VisionArea") as VisionArea
+		if hero_vision:
+			hero_vision.reveals_display = false
+
 const HERO_EXPL_CTRL_SCENE: PackedScene = preload("res://Scenes/NPCs/Hero/HeroExplorationController.tscn")
 
 func _setup_exploration_controller():

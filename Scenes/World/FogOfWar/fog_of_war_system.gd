@@ -13,7 +13,12 @@ class_name FogOfWarSystem
 @export var fog_border: float = 8192.0
 
 var exploration_texture: ImageTexture
+## What the PLAYER has seen (drawn by the fog shader and the minimap).
 var exploration_image: Image
+## What the AI heroes have explored (is_tile_explored / exploration %): their
+## reveals land here even when they must not clear the player's fog
+## (monster-side play), so the hero AI keeps a correct memory.
+var _ai_image: Image
 var grid_width: int
 var grid_height: int
 var fog_sprite: Sprite2D
@@ -35,6 +40,8 @@ func _ready() -> void:
 
 	exploration_image = Image.create(grid_width, grid_height, false, Image.FORMAT_R8)
 	exploration_image.fill(Color.BLACK)
+	_ai_image = Image.create(grid_width, grid_height, false, Image.FORMAT_R8)
+	_ai_image.fill(Color.BLACK)
 
 	exploration_texture = ImageTexture.create_from_image(exploration_image)
 
@@ -73,7 +80,7 @@ func _setup_fog_sprite() -> void:
 	fog_material.set_shader_parameter("grid_size", Vector2(grid_width, grid_height))
 	fog_sprite.material = fog_material
 
-func reveal_area(world_position: Vector2, radius: float) -> void:
+func reveal_area(world_position: Vector2, radius: float, display: bool = true) -> void:
 	# floori, not int(): int() truncates toward zero, so a point just left of
 	# or above the map revealed column/row 0.
 	var grid_x: int = floori((world_position.x - world_offset.x) / tile_size)
@@ -98,7 +105,9 @@ func reveal_area(world_position: Vector2, radius: float) -> void:
 		for y in range(y_start, y_end):
 			var dy: int = (y - grid_y) * ts
 			if float(dx_sq + dy * dy) <= radius_sq:
-				if exploration_image.get_pixel(x, y).r < 0.5:
+				if _ai_image.get_pixel(x, y).r < 0.5:
+					_ai_image.set_pixel(x, y, Color.WHITE)
+				if display and exploration_image.get_pixel(x, y).r < 0.5:
 					exploration_image.set_pixel(x, y, Color.WHITE)
 					dirty_local = true
 
@@ -113,7 +122,7 @@ func is_tile_explored(world_position: Vector2) -> bool:
 	if grid_x < 0 or grid_x >= grid_width or grid_y < 0 or grid_y >= grid_height:
 		return false
 
-	return exploration_image.get_pixel(grid_x, grid_y).r > 0.5
+	return _ai_image.get_pixel(grid_x, grid_y).r > 0.5
 
 func get_exploration_percentage() -> float:
 	var total_tiles = grid_width * grid_height
@@ -121,17 +130,19 @@ func get_exploration_percentage() -> float:
 
 	for x in range(grid_width):
 		for y in range(grid_height):
-			if exploration_image.get_pixel(x, y).r > 0.5:
+			if _ai_image.get_pixel(x, y).r > 0.5:
 				explored_tiles += 1
 
 	return (float(explored_tiles) / float(total_tiles)) * 100.0
 
 func clear_fog() -> void:
 	exploration_image.fill(Color.WHITE)
+	_ai_image.fill(Color.WHITE)
 	_texture_dirty = true
 
 func reset_fog() -> void:
 	exploration_image.fill(Color.BLACK)
+	_ai_image.fill(Color.BLACK)
 	_texture_dirty = true
 
 func save_exploration_state() -> PackedByteArray:
@@ -139,6 +150,7 @@ func save_exploration_state() -> PackedByteArray:
 
 func load_exploration_state(data: PackedByteArray) -> void:
 	var loaded_image = Image.create_from_data(grid_width, grid_height, false, Image.FORMAT_R8, data)
-	if loaded_image:
+	if loaded_image and not loaded_image.is_empty():
 		exploration_image = loaded_image
+		_ai_image = loaded_image.duplicate() as Image
 		_texture_dirty = true

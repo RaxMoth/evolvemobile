@@ -8,9 +8,14 @@ const VISION_SCENE = preload("res://Scenes/World/FogOfWar/VisionArea.tscn")
 
 ## Add vision to a specific hero with custom radius
 static func add_vision_to_hero(hero: Node2D, vision_radius: float = 200.0) -> VisionArea:
-	# Check if already has vision
+	# HeroBaseClass.tscn already gives every hero a VisionArea (160 px, River
+	# 120): apply the requested radius to it. Returning it unchanged ignored
+	# HeroStats.vision_radius, which the minimap's fairness rule uses.
 	if hero.has_node("VisionArea"):
-		return hero.get_node("VisionArea")
+		var existing := hero.get_node("VisionArea") as VisionArea
+		if existing:
+			existing.set_vision_radius(vision_radius)
+		return existing
 
 	var vision = VISION_SCENE.instantiate()
 	vision.name = "VisionArea"
