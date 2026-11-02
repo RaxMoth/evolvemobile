@@ -112,43 +112,43 @@ Power Level
 
 #### River (Support/Scout)
 
-- **Base Stats**: 90 HP, 85 speed, 300 vision range
+- **Base Stats**: 100 HP, 85 speed, 300 vision range
 - **Passive**: Mode Switch (Sniper ↔ Healer)
 - **Active**: Snare Trap (15 dmg, roots enemies)
 - **Basic Attack**:
     - Sniper Mode: 12 dmg at 300 range / 1.1s
     - Healer Mode: 9 heal at 150 range / 1.4s
 - **Ultimate**: Arrow Barrage (40 dmg, 200 AoE)
-- **Scaling**: +5 HP, +0.8 dmg per level
+- **Scaling**: +5 HP, +1.8 dmg per level
 
 #### Vlad (DPS/Berserker)
 
-- **Base Stats**: 100 HP, 80 speed, 250 vision
+- **Base Stats**: 110 HP, 80 speed, 250 vision
 - **Passive**: Bloodlust (Below 30% HP: +50% dmg, +100% attack speed)
 - **Active**: Land Mine (18 dmg explosion)
 - **Basic Attack**: 10 dmg at 50 range / 1.0s
 - **Ultimate**: Blood Bomb (50 dmg, 150 AoE)
-- **Scaling**: +6 HP, +0.7 dmg per level
+- **Scaling**: +6 HP, +1.7 dmg per level
 
 #### Ted (DPS/Pet Master)
 
-- **Base Stats**: 95 HP, 85 speed, 220 vision
+- **Base Stats**: 105 HP, 85 speed, 220 vision
 - **Pet Stats**: 50 HP, 9 dmg, 60 range, 1.2s cooldown
 - **Passive**: Loyal Companion (pet respawns after 10s)
 - **Active**: Rally Cry (+50% attack speed for 5s)
 - **Basic Attack**: 9 dmg at 55 range / 1.2s
 - **Ultimate**: Trap Cage (150 radius, traps enemies for 6s)
-- **Scaling**: +5 HP, +0.6 dmg per level
+- **Scaling**: +5 HP, +1.6 dmg per level
 - **Combined DPS** (Ted + Pet): ~15.0 DPS
 
 #### Irelia (Tank/Support)
 
-- **Base Stats**: 150 HP, 75 speed, 200 vision
+- **Base Stats**: 160 HP, 75 speed, 200 vision
 - **Passive**: Regeneration (0.5 HP/s)
 - **Active**: Divine Shield (18 HP shield to all heroes, 7s duration)
 - **Basic Attack**: 5 dmg at 120 range / 1.5s
 - **Ultimate**: Monster Taunt (Forces monster to attack Irelia for 5s)
-- **Scaling**: +8 HP, +0.2 dmg per level
+- **Scaling**: +8 HP, +1.2 dmg per level
 
 ### Hero Leveling (In-Round)
 
@@ -169,7 +169,7 @@ Power Level
 | **Speed**        | 60                   | 80 (+33%)           | 110 (+83%)              |
 | **Damage Mult**  | 1.0x                 | 1.4x                | 2.0x                    |
 | **Attack Range** | 80 (flat × Monster Base range skill) | 80 | 80                 |
-| **XP Required**  | Start                | 100 XP              | 300 XP                  |
+| **XP Required**  | Start                | 150 XP              | 300 XP                  |
 
 ### Abilities
 
@@ -179,7 +179,7 @@ Power Level
 | ----- | ------ | -------- | ---------- | -------------------- |
 | 1     | 12     | 4.5s     | 50°        | Basic frontal cleave |
 | 2     | 17     | 3.0s     | 60°        | Faster, wider        |
-| 3     | 24     | 1.8s     | 75°        | Rapid, massive cone  |
+| 3     | 12     | 1.8s     | 75°        | Rapid, massive cone (lighter hits, highest DPS) |
 
 #### Ram Dash (Ability 2)
 
@@ -195,7 +195,7 @@ Power Level
 | ----- | ------ | --------- | ------ | ----------------------- |
 | 1     | -      | 🔒 LOCKED | -      | Not available           |
 | 2     | 32     | 15.0s     | 120    | Unlocked: Jump and slam |
-| 3     | 50     | 9.0s      | 180    | Massive AoE devastation |
+| 3     | 25     | 9.0s      | 180    | Massive AoE, faster recast |
 
 ### Evolution Mechanics
 
@@ -387,7 +387,9 @@ Early Ambush        ⚠️ 40% Win            ✅ 60% Win
 - **Separation**: Maintain 80px personal space
 - **Cohesion**: Stay within 200px of group
 - **Alignment**: Match team velocity
-- **Formation**: Diamond pattern, 100px spread
+- **Formation**: Diamond pattern, 100px spread, assigned by `HeroStats.formation_rank` — the tank
+  (Irelia) leads and paces the group, melee flank, the healer trails; slots turn with the direction
+  of travel, and the next hero takes the lead if the leader dies
 - **Goal Selection**: Target unexplored fog areas
 - **Memory**: Remember last 5 explored positions (avoid backtracking)
 - **Stuck Detection**: Auto-unstuck after 5s stationary
@@ -401,19 +403,27 @@ Early Ambush        ⚠️ 40% Win            ✅ 60% Win
 
 ### Monster AI
 
-**Current System** (Aggressive Hunter):
+**Current System** (strategy layer on top of the state chart; every number lives in
+`Scenes/NPCs/Monster/Grount/grount_strategy.tres`, a `MonsterStrategy` resource):
 
-- Seeks nearest hero
-- Uses abilities on cooldown
-- No strategic retreat
+- **Spawn**: a random reachable point of Zone 3 (x 3500–5500) at match start
+  (`world.gd monster_spawn_zone`; isolated nav islands are rejected)
+- **Farm** (Stage 1): avoids heroes (moves away from any hero within 400 px, fights back only when
+  cornered within 70 px), paths to the camp with the most mobs and no hero within 500 px; only
+  camps whose mobs it can beat at its stage (`farm_max_mob_health`: Bats at Stage 1, Hogs from
+  Stage 2); camps activate around the monster too
+- **Rest**: below 45% HP it stops taking mob fights, keeps 450 px from camps and regenerates
+  0.6% max HP/s after 4 s without damage, until 80% HP
+- **Retreat**: Stage ≤ 2, below 30% HP with 2+ heroes close → flee, escape-dash a hero that closes in
+- **Ambush** (Stage 2): engages only a hero with at most one ally within 300 px, or one below 30% HP
+- **Hunt** (Stage 3): seeks the nearest hero anywhere on the map
+- **Combos**: one cast per 0.25 s lock; Ram Dash as a gap closer only when Front Cleave is ready on
+  landing; Ground Slam only when it hits 2+ targets; dashes and slam leaps stop at walls
+- Irelia's taunt overrides all of the above
 
 **Planned Improvements**:
 
-- **Hide & Seek**: Avoid heroes until Stage 2
-- **Ambush**: Wait near camps, attack isolated heroes
-- **Kiting**: Retreat when low HP at Stage 1
-- **Hunt Mode**: Aggressive pursuit at Stage 3
-- **Camp Prioritization**: Path toward high-XP camps
+- Scent tracking / strategic retreat / mob command (skill-tree unlocks)
 
 ### Combat AI (Both Sides)
 
@@ -425,9 +435,10 @@ Early Ambush        ⚠️ 40% Win            ✅ 60% Win
 
 **Planned**:
 
-- **Combo System**: Chain abilities (e.g., Irelia taunt → Vlad ult)
-- **Positioning**: Tanks front, squishies back
-- **Focus Fire**: All heroes attack same target
+- **Combo System**: Chain abilities (e.g., Irelia taunt → Vlad ult) — monster combos ship (see above)
+- **Positioning**: Tanks front, squishies back — ships for exploration (formation); in-fight
+  positioning still follows each hero's preferred distance
+- **Focus Fire**: heroes weigh low-HP enemies (`low_hp_focus_weight`) — ships
 - **Cooldown Management**: Save ults for critical moments
 
 ---
@@ -825,7 +836,9 @@ Max out hero trees → Unlock new heroes → Compete on leaderboards
 
 **High Priority**:
 
-- [ ] **Behaviour-changing skill nodes** (Triple Shot, Ram Dash stun, …) — trees ship stat and property-modifier nodes; new mechanics need their own ability code
+- [ ] **Behaviour-changing skill nodes** — first three ship: Grount "Stunning Charge" (Ram Dash
+      stuns 0.5 s), "Early Slam" (Ground Slam at Stage 1), River "Triple Shot" (sniper shots hit 2
+      more enemies). Open: Slam pull, Enrage, trap/barrage slows, Titan Form, second ultimate
 - [ ] **Device build** — export presets, measure the perf pass on a mid-range phone, retune the
       shrunken aggro / AoE ranges from the collision-layer split
 - [ ] **Real audio assets** — drop `.ogg`/`.wav` files into `Assets/Audio/` (keys in its README)
@@ -833,9 +846,9 @@ Max out hero trees → Unlock new heroes → Compete on leaderboards
 **Medium Priority**:
 
 - [ ] **Improved AI Behaviors** (2 weeks)
-    - Monster: Hide & Farm strategy
-    - Heroes: Threat assessment
-    - Better ability usage (combo logic)
+    - [x] Monster: Hide & Farm / Rest / Ambush / Hunt strategy layer + combo logic
+    - [x] Heroes: role-ranked formation (tank leads), call-for-help, focus fire, auto-used actives
+    - [ ] Heroes: threat assessment (flee from a Stage 3 monster)
 - [ ] **Pre-Round Setup — visual strategy preview** (the sliders and formation picker ship; a preview of the resulting behaviour does not yet)
 
 **Low Priority** (v0.2):
@@ -890,15 +903,28 @@ Max out hero trees → Unlock new heroes → Compete on leaderboards
 **Bugs**:
 
 - [ ] Pet sometimes doesn't respawn if Ted dies during respawn timer
-- [ ] Fog of war occasionally flickers at map edges
-- [ ] Monster can get stuck in corners (navigation mesh issues)
-- [ ] Hero UI ability icons don't update if ability resources change mid-game
+- [x] Fog of war flickered at the screen edge — fixed: the fog quad is static and world-covering
+      (it chased the camera a frame late), the world size snaps to whole tiles, and outside the map
+      is always fogged
+- [ ] Monster stuck in corners — code side fixed (dashes and slam leaps stop at walls, idle re-picks
+      an unreachable goal, fleeing slides along walls); the map still has 39 isolated one-tile
+      navigation islands to repaint in `World.tscn`
+- [x] Heroes parked at the map edge for minutes (off-map fog counted as unexplored) and agents
+      stranded far behind their group (paths cut off at the engine's 4096-polygon search budget on
+      the per-tile navigation map) — fixed
+- [x] Ted's pet could not be targeted by mobs or the monster and chased targets across the map —
+      it now has a hitbox on the hero layer and a 350 px leash to Ted
+- [x] Hero UI cooldown overlays drifted from the real cooldown (attack-speed boosts, pause, recasts)
+      — fixed: the panel reads `AbilitySystem.get_cooldown_progress()` every frame
 
 **Performance**:
 
 - [ ] 60 fps @ 150 mobs on a mid-range phone — code side landed 2026-10-14 (see `PROGRESS.md`); device
       measurement and the balance retune of the now-smaller aggro / AoE ranges are pending
 - [x] Fog of war recalculated every frame — fixed (dirty flag, one texture update per frame)
+- [ ] `World.tscn`'s Ground TileMapLayer produces one navigation region per tile (~38,000): the map
+      needs ~1 s before it answers queries and long paths need a 16,384-polygon search budget.
+      Baking the walkable area into one `NavigationRegion2D` (editor) would fix both
 
 **Balance**:
 
@@ -910,7 +936,7 @@ Max out hero trees → Unlock new heroes → Compete on leaderboards
 
 - [x] Loss-condition timer — 10-minute match cap in `GameManager`
 - [ ] Hero composition is fixed (can't choose which 4 heroes yet)
-- [ ] Monster spawn location is random (should be strategic choice?)
+- [ ] Monster spawn location is random within Zone 3 (should it become a strategic choice?)
 
 ---
 

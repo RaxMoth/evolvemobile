@@ -1,6 +1,6 @@
 # Progress Tracker
 
-Last loop run: 2026-11-02 (hero AI + balance pass, measured with tools/sim.sh)
+Last loop run: 2026-11-02 (monster strategy, hero formation, fog + cooldown UI fixes, behaviour skill nodes)
 Stack: godot
 
 Spec source: `README.md` + `Docs/INSTRUCTOR.md` (roadmap, "Current Status & Roadmap",
@@ -76,7 +76,9 @@ Spec source: `README.md` + `Docs/INSTRUCTOR.md` (roadmap, "Current Status & Road
       `HeroStats.hero_id`, hero vision radius now lives on HeroStats too). Ability-modifying nodes
       DONE: `MetaSkillNode.ability_name` + property (cooldown / damage / range / AoE / duration /
       heal / any ability export), applied to per-entity ability copies, re-applied through monster
-      stage changes; 2–3 per tree. OPEN: behaviour-changing nodes (Triple Shot, Ram Dash stun, …).
+      stage changes; 2–3 per tree. Behaviour nodes STARTED: Grount "Stunning Charge" (Ram Dash
+      stun) and "Early Slam" (slam at Stage 1), River "Triple Shot". OPEN: Slam pull, Enrage,
+      trap/barrage slows, Titan Form, second ultimate (each needs its own ability code).
 - [ ] Hero composition selection — `HeroRoster.tres`, World spawns from `GameManager.selected_hero_ids`
 - [x] Tutorial / first-time-user flow — `TutorialOverlay` (4 data-driven steps, scene-side wiring,
       shown once via `tutorial_seen`, "How to play" footer button re-opens it); 2 tests.
@@ -96,12 +98,15 @@ Spec source: `README.md` + `Docs/INSTRUCTOR.md` (roadmap, "Current Status & Road
 
 ## Tech Debt / Improvements
 
-- [ ] Debug `print()` statements still in hot/spawn paths — `world.gd` (15), `monster_base_class.gd` (8),
-      `spawns.gd` (2), ability files. Gate behind a debug flag or remove (Backlog item).
+- [x] Debug `print()` statements — all game code goes through `Globals.debug_log` (only the
+      DEBUGWORLD test scene still prints).
 - [x] `MonsterBase.get_health()` returned *max* health — fixed in P0: `get_health()` = current,
       new virtual `get_max_health()` on EntityBase (Mob/Hero/Monster overrides).
 - [ ] Balance retune after P1 layer split (aggro 344→~203 px, AoE reach radius+172→radius+31, single
       hits, Mine/MediKit/TrapCage trigger on Body overlap) — playtest `detection_radius` + AoE radii.
+- [ ] Sim seed 24 (v13B balance): the stage-1 monster died at 220 s with zero hero/pet damage
+      recorded — either mobs killed it or some damage source is not attributed. Re-run the seed
+      with per-source damage logging.
 - [x] Movement no longer runs on the state chart's per-frame `state_processing` — P4 drives the
       active state through `StateChart.step()` from TickScheduler at an LOD rate (FULL/20/10/3 Hz).
 - [x] Hot `get_nodes_in_group` sites → `EntityRegistry` (P3). ~20 cold one-shot/per-cast sites remain
@@ -109,6 +114,45 @@ Spec source: `README.md` + `Docs/INSTRUCTOR.md` (roadmap, "Current Status & Road
 - [x] Legacy in-round `Scripts/Skilltree/` removed (zero references outside the folder).
 
 ## Changelog
+### 2026-11-02 — feat/fix: monster strategy, formation, fog/cooldown UI, skill nodes, two review rounds, balance
+Commits `b22ecd1` monster strategy · `70de7f0` + `33d8cea` formation · `2cdbd5c` fog flicker + cooldown
+overlays · `387abc3` behaviour skill nodes · `9360899` fog layers + vision radii · `68fd729` pet ·
+`5315793` formation review fixes · `a6e700e` skill cards · `a5ba09d` monster damage/spawn/hunt/farming ·
+`3469b9a` exploration stalls + path budget · `38a9153` second review. Two adversarial review workflows
+(18 + 11 findings, 13 + 9 confirmed) fed the fix commits. Every run is `tools/sim.sh 24 heroes 6`:
+
+| Run | What changed | Hero wins | Median length | Timeouts | Median first contact | Monster reached S3 | Hero deaths |
+|---|---|---|---|---|---|---|---|
+| v5 | hero AI + balance pass (previous entry) | 54% | 88 s | 5 | 45 s | 2 | 40 |
+| v6 | monster strategy layer + combos | 50% | 91 s | 3 | 43 s | 9 | 38 |
+| v8 | formation (+ leader fix), rest mode, stage-1 farming gate | 66% | 98 s | 8 | 49 s | 8 | 2 |
+| v9 | pet leash/hitbox, Zone-3 spawn, map-wide hunt | 16% | 313 s | 0 | 305 s | 20 | 60 |
+| v11 | stage damage counted once, hero vision radii, review fixes | 29% | 381 s | 0 | 348 s | 17 | 51 |
+| v12 | exploration no longer stalls, 16k path budget | 4% | 442 s | 2 | 425 s | 23 | 63 |
+| v13A | README knobs: hero +10 HP / +1 dmg per level, stage-2 XP 150, Ram Dash S3 cd 5 s, Cleave/Slam S3 ×0.9 (21.6 / 45) — stopped at 18 runs | 17% | 463 s | 1 | 436 s | 15 | 44 |
+| **v13B** | **same, but Cleave S3 24→12 and Slam S3 50→25 (shipped)** | **50%** | **507 s** | 4 | 469 s | 18 | 28 |
+Findings worth knowing:
+- Matches now land in the README's 4–10 min window, but the outcome is decided by the stage at first
+  contact: across v9/v11/v12 heroes won 12/13 stage-1 contacts and 0/56 stage-3 fights (~18 s each,
+  heroes deal ~460 of 2200 HP). With exploration fixed, heroes rarely meet the hiding monster before
+  it hunts them at stage 3, so the stage-3 fight decides almost every match.
+- README contradictions found by the balance panel: stage-2 XP 100 (stage table) vs 150 (Appendix A,
+  Farming Path, Tuning Knobs); stage-3 ability tables (fights end in ~16–18 s) vs the Balance Sheet
+  Late row (40–45 s fights); Front Cleave stage-1 cooldown 2.5 s (data) vs 4.5 s; Bat 50 HP / 1.5 s
+  (data) vs 25 HP / 0.6 s; `stage_N_damage_multiplier` has no effect on Grount (all abilities tabled);
+  hero kills pay the monster 100 XP (undocumented).
+- v13B by stage at first contact: stage 1 → heroes 4/5, stage 3 → heroes 7/15 (47%, ~1,570 of 2,200 HP
+  dealt), no contact (10-min timeout) → 4 runs. Stage-3 Cleave and Slam now hit lighter than at stage 2
+  but recast faster, so the DPS still rises per stage (Cleave 5.7 → 6.7/s, Slam 2.1 → 2.8/s). Variant A
+  (README ×0.9) still lost 14/14 stage-3 fights.
+- One v13B run (seed 24) ended with the stage-1 monster dead at 220 s and no hero or pet damage
+  recorded against it (Tech Debt item below).
+- `World.tscn`'s Ground TileMapLayer makes ~38,000 navigation regions (one per tile): ~1 s until the
+  map answers queries, and paths need a 16,384-polygon search budget. Baking the walkable area into
+  one NavigationRegion2D in the editor would fix both (user step).
+- Ted's pet killed the stage-1 monster alone in several runs (no leash, untargetable): fixed in `68fd729`.
+- Process note: a Godot 4.7 editor session on the real project (16:58) bumped `config/features` to
+  4.7, dropped two default-valued settings and re-imported addon icons; left uncommitted for the user.
 
 ### 2026-11-02 — fix/feat: hero AI + balance pass driven by the headless simulator
 `tools/sim.sh` (seeded auto-play matches) showed the monster winning 92% of matches, every
