@@ -627,7 +627,7 @@ position = Vector2(111, 228)
 zoom_speed = 0.5
 default_zoom = 2.0
 
-[node name="Spawns" type="Node" parent="."]
+[node name="Spawns" type="Node" parent="." groups=["SpawnManager"]]
 unique_name_in_owner = true
 script = ExtResource("4_ng1ea")
 

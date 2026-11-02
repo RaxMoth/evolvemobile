@@ -25,6 +25,9 @@ class_name SpawnManager
 @export var activation_check_interval: float = 0.25
 ## Set false to disable lazy activation entirely (debug).
 @export var enable_lazy_activation: bool = true
+## The monster also counts as an activation anchor, so a monster hiding away
+## from the heroes finds live camps to farm (README "Hide & Farm").
+@export var monster_activates_camps: bool = true
 
 @export_group("Pooling")
 ## Dead / deactivated mobs are parked out of the tree and reused instead of
@@ -61,8 +64,10 @@ func _process(delta: float) -> void:
 # ============================================
 
 func _update_activations() -> void:
-	# Heroes + pets, kept current by EntityRegistry (no tree walk, no 1 s cache lag).
-	var anchors := EntityRegistry.hero_side
+	# Heroes + pets (+ the monster), kept current by EntityRegistry (no tree walk).
+	var anchors: Array[Node2D] = EntityRegistry.hero_side.duplicate()
+	if monster_activates_camps:
+		anchors.append_array(EntityRegistry.monsters)
 	if anchors.is_empty() or active_spawn_areas.is_empty():
 		return
 
@@ -71,15 +76,10 @@ func _update_activations() -> void:
 			continue
 		var closest_dist := INF
 		var spawn_pos := spawn.global_position
-		for hero in anchors:
-			if not is_instance_valid(hero):
+		for anchor in anchors:
+			if not is_instance_valid(anchor):
 				continue
-			# distance_squared_to is cheaper than distance_to; we square the
-			# threshold inside the spawn area's check by using the precomputed
-			# radii. To keep the API simple, use distance_to (it's just one sqrt).
-			var d := spawn_pos.distance_to(hero.global_position)
-			if d < closest_dist:
-				closest_dist = d
+			closest_dist = minf(closest_dist, spawn_pos.distance_to(anchor.global_position))
 		spawn.update_activation(closest_dist)
 
 # ============================================

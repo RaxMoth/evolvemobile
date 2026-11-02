@@ -19,6 +19,47 @@ const MASK_MONSTER_TARGETS: int = LAYER_BODY_HERO | LAYER_BODY_MOB
 const MASK_HEROES: int = LAYER_BODY_HERO
 
 
+## The world's navigation map when it can answer queries: synchronised at
+## least once AND containing regions. A synced map without regions answers
+## every closest-point query with the origin, which would mark every point as
+## off-mesh. Returns an invalid RID otherwise (callers then skip nav checks).
+func usable_nav_map(world: World2D) -> RID:
+	if world == null:
+		return RID()
+	var nav_map: RID = world.navigation_map
+	if not nav_map.is_valid() or NavigationServer2D.map_get_iteration_id(nav_map) == 0:
+		return RID()
+	if NavigationServer2D.map_get_regions(nav_map).is_empty():
+		return RID()
+	return nav_map
+
+
+## Walk from `from` toward `to` in `step` px increments and return the last
+## point that is still on the navigation mesh. Dashes and leaps move the entity
+## directly (no pathing); without this they ended inside wall tiles — and on one
+## of the map's isolated one-tile nav islands the next path never left the
+## island ("monster stuck in a corner"). Returns `to` unchanged when the map has
+## not synchronised yet (no navigation available to check against).
+func clamp_to_nav_segment(world: World2D, from: Vector2, to: Vector2, step: float = 8.0) -> Vector2:
+	var nav_map: RID = usable_nav_map(world)
+	if not nav_map.is_valid():
+		return to
+	var offset: Vector2 = to - from
+	var length: float = offset.length()
+	if length < 0.001:
+		return from
+	var dir: Vector2 = offset / length
+	var last_ok: Vector2 = from
+	var travelled: float = 0.0
+	while travelled < length:
+		travelled = minf(travelled + step, length)
+		var p: Vector2 = from + dir * travelled
+		if NavigationServer2D.map_get_closest_point(nav_map, p).distance_squared_to(p) > 4.0:
+			break
+		last_ok = p
+	return last_ok
+
+
 func angle_difference(from: float, to: float) -> float:
 	var diff = fmod(to - from, TAU)
 	if diff > PI:

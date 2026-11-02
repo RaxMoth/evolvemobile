@@ -837,9 +837,11 @@ func _get_exploration_target() -> Vector2:
 	return Vector2.ZERO
 
 func _get_valid_random_destination() -> Vector2:
-	"""Sample multiple random points and pick the best one"""
+	"""Sample multiple random points and pick the best one. Off-mesh samples
+	(score -1000) never win; the fallback is staying put, which re-rolls on
+	the next tick."""
 	var best_point = global_position
-	var best_score = - INF
+	var best_score: float = -999.0
 	var samples = 5
 	
 	for i in range(samples):
@@ -871,10 +873,11 @@ func _score_destination(point: Vector2) -> float:
 	# Nav-mesh validity instead of raycasts: the TileSet has no physics layer,
 	# so the old wall rays (5 samples x 20 rays per retarget) could only ever
 	# hit Ted's pet. A point further than 16 px from the nav mesh is unreachable.
-	var nav_map: RID = get_world_2d().navigation_map
-	# iteration_id == 0 means the map has not synchronized yet (first frames,
-	# or a scene without navigation) — querying it then logs an engine error.
-	if nav_map.is_valid() and NavigationServer2D.map_get_iteration_id(nav_map) > 0:
+	# Only when the map can answer (synced and has regions): before the first
+	# sync the query logs an engine error, and a region-less map would reject
+	# every point.
+	var nav_map: RID = GameUtils.usable_nav_map(get_world_2d())
+	if nav_map.is_valid():
 		var on_mesh: Vector2 = NavigationServer2D.map_get_closest_point(nav_map, point)
 		if on_mesh.distance_squared_to(point) > 16.0 * 16.0:
 			return -1000.0
@@ -928,7 +931,11 @@ func _on_idle_state_processing(delta: float) -> void:
 		return
 	
 	_idle_timer -= delta
-	if _idle_timer <= 0.0 or global_position.distance_squared_to(_idle_goal) < 64.0:
+	# Also re-pick when the path ended far short of the goal (unreachable goal,
+	# e.g. a pocket of the nav mesh) instead of waiting out the retarget timer.
+	var reached: bool = global_position.distance_squared_to(_idle_goal) < 64.0
+	var gave_up: bool = navigation_agent_2d.is_navigation_finished() and not reached
+	if _idle_timer <= 0.0 or reached or gave_up:
 		# Keep the overshoot so intervals don't round up to whole LOD ticks.
 		_idle_timer = idle_retarget_time + minf(_idle_timer, 0.0)
 		_idle_goal = _get_smart_idle_destination()

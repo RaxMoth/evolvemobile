@@ -122,6 +122,10 @@ func _collect_snapshots() -> void:
 		snap.state_str = _state_name_of(entity)
 		if entity is EntityBase:
 			snap.state_str += " [" + TickScheduler.lod_name(TickScheduler.lod_of(entity as EntityBase)) + "]"
+		if entity is MonsterBase:
+			var m := entity as MonsterBase
+			if m.strategy_profile and m.strategy_profile.enabled:
+				snap.state_str += " " + String(MonsterBase.Strategy.keys()[m.strategy]) + (" REST" if m.is_resting() else "")
 		snap.hp_pct = _hp_pct_of(entity)
 		snap.is_active_hero = (entity == active_hero)
 

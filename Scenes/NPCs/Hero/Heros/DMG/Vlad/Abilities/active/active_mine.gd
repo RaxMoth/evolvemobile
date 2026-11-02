@@ -32,4 +32,4 @@ func execute(caster: Node2D, _target: Node2D = null, _override_damage: float = -
 	if "owner_entity" in mine:
 		mine.owner_entity = caster
 	
-	print(caster.name + " placed a mine!")
+	Globals.debug_log(caster.name + " placed a mine!")

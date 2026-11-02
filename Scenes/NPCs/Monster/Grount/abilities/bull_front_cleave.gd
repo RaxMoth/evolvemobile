@@ -12,6 +12,9 @@ func _init() -> void:
 	cooldown = 3.0
 	description = "Attacks enemies in a frontal cone"
 
+func get_reach() -> float:
+	return cone_range
+
 func apply_stage_stats(stage: int) -> void:
 	super.apply_stage_stats(stage)
 	if cone_angle_per_stage.size() >= stage and stage > 0:

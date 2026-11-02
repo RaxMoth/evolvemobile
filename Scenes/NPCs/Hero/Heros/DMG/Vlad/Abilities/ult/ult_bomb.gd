@@ -50,7 +50,7 @@ func execute(caster: Node2D, _target: Node2D = null, _override_damage: float = -
 			EventBus.deal_damage(caster, entity, damage, self)
 			hit_count += 1
 	
-	print(caster.name + " used Blood Bomb! Hit " + str(hit_count) + " targets")
+	Globals.debug_log(caster.name + " used Blood Bomb! Hit " + str(hit_count) + " targets")
 
 func _create_explosion_effect(caster: Node2D) -> void:
 	# Simple visual feedback - could be expanded with particles later

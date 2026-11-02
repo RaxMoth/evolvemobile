@@ -71,6 +71,17 @@ func effective_range(caster: Node2D) -> float:
 	return ability_range
 
 
+## True while the ability is still moving/acting on the caster (a dash or a
+## leap in progress). The monster's combo logic waits for it.
+func is_channeling() -> bool:
+	return false
+
+
+## How far this ability reaches from the caster (gap-close / slam checks).
+func get_reach() -> float:
+	return ability_range
+
+
 # Override these in specific ability scripts
 func execute(_caster: Node2D, _target: Node2D = null, _override_damage: float = -1.0) -> void:
 	push_warning("Ability.execute() not implemented for: " + ability_name)

@@ -57,9 +57,9 @@ func _spawn_pet() -> void:
 	if pet_instance.has_signal("died"):
 		pet_instance.died.connect(_on_pet_died)
 	
-	print("Pet spawned for " + owner_entity.name)
+	Globals.debug_log("Pet spawned for " + owner_entity.name)
 
 func _on_pet_died() -> void:
-	print("Pet died! Respawning in " + str(RESPAWN_TIME) + " seconds")
+	Globals.debug_log("Pet died! Respawning in " + str(RESPAWN_TIME) + " seconds")
 	pet_instance = null
 	respawn_timer = RESPAWN_TIME

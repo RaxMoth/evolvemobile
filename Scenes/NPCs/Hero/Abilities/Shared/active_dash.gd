@@ -18,4 +18,4 @@ func execute(caster: Node2D, target: Node2D = null, _override_damage: float = -1
 	tween.tween_property(caster, "global_position",
 		caster.global_position + dash_direction * ability_range, duration) # ← Changed here
 	
-	print(caster.name + " dashed!")
+	Globals.debug_log(caster.name + " dashed!")

@@ -13,6 +13,26 @@ signal stage_changed(new_stage: int)
 @export var ability_3: AbilityBase
 @export var passive_ability: AbilityBase
 
+@export_group("Monster Strategy")
+## Behaviour profile (hide & farm → ambush → hunt, retreat when hurt, combos).
+## null or enabled=false keeps the legacy "hunt the nearest hero" behaviour.
+@export var strategy_profile: MonsterStrategy
+
+## Current strategy. A pure function of stage, health and nearby heroes,
+## recomputed every strategy_eval_interval (see _compute_strategy). It only
+## biases target scoring, idle destinations and ability choice — the state
+## chart remains the one state machine.
+enum Strategy { FARM, AMBUSH, HUNT, RETREAT }
+var strategy: Strategy = Strategy.HUNT
+var _strategy_timer: float = 0.0
+var _heroes_near: int = 0
+var _had_heroes_near: bool = false
+var _cast_lock: float = 0.0
+var _resting: bool = false
+## Seconds since the last damage packet (rest regeneration waits regen_delay).
+var _since_damage: float = 0.0
+var _camp_goal: MobSpawnArea = null
+
 
 var current_stage: int = 1
 var current_health: float
@@ -54,6 +74,7 @@ func _ready() -> void:
 	super._ready()
 
 func _process(delta: float) -> void:
+	_cast_lock = maxf(_cast_lock - delta, 0.0)
 	for key in ability_cooldowns.keys():
 		if ability_cooldowns[key] > 0.0:
 			ability_cooldowns[key] -= delta
@@ -143,7 +164,9 @@ func _update_combat_for_stage() -> void:
 	strafe_change_interval = monster_stats.get_strafe_interval_for_stage(current_stage)
 
 func _is_attack_ready() -> bool:
-	return ability_cooldowns.get("ability_1", 0.0) <= 0.0
+	if not _strategy_enabled():
+		return ability_cooldowns.get("ability_1", 0.0) <= 0.0
+	return not _is_busy() and (is_ability_ready("ability_1") or _slam_ready())
 
 # ============================================
 # Stage Change Hook
@@ -193,6 +216,7 @@ func _receive_damage(packet: DamagePacket) -> void:
 		return
 
 	last_attacker = packet.source if packet.source is Node2D else null
+	_since_damage = 0.0
 	current_health -= packet.amount
 	set_hp_display(current_health, get_max_health())
 
@@ -363,6 +387,9 @@ func _on_fight_logic(_delta: float) -> void:
 	_choose_and_use_ability()
 
 func _choose_and_use_ability() -> void:
+	if _strategy_enabled():
+		_choose_and_use_ability_combo()
+		return
 	match current_stage:
 		1:
 			_try_use_ability("ability_1", ability_1)
@@ -381,18 +408,362 @@ func _choose_and_use_ability() -> void:
 				_try_use_ability("ability_1", ability_1)
 
 func _try_use_ability(ability_name: String, ability: AbilityBase) -> bool:
+	return _cast(ability_name, ability, target_entity)
+
+
+## Cast with an explicit target (null = facing-direction cast, e.g. an escape
+## dash). Starts the shared cast lock so abilities never fire on consecutive
+## frames while another one is still moving the monster.
+func _cast(ability_name: String, ability: AbilityBase, cast_target: Node2D) -> bool:
 	if not ability or ability_cooldowns.get(ability_name, 0.0) > 0.0:
 		return false
+	if not ability.can_use(self):
+		return false
+	# Apply damage multiplier from resource
+	var effective_damage: float = ability.damage * damage_multiplier
+	ability.execute(self, cast_target, effective_damage)
+	ability_cooldowns[ability_name] = ability.cooldown
+	if strategy_profile:
+		_cast_lock = strategy_profile.cast_lock_time
+	EventBus.notify_ability_cast(self, ability, cast_target)
+	return true
 
-	if ability.can_use(self):
-		# Apply damage multiplier from resource
-		var effective_damage = ability.damage * damage_multiplier
-		ability.execute(self, target_entity, effective_damage)
-		ability_cooldowns[ability_name] = ability.cooldown
-		EventBus.notify_ability_cast(self, ability, target_entity)
+
+# ============================================
+# Strategy layer (README "Monster AI — planned")
+# ============================================
+
+func _strategy_enabled() -> bool:
+	return strategy_profile != null and strategy_profile.enabled
+
+
+## Pure decision from the current situation (no transitions are stored):
+## hurt early-stage monster with heroes close → RETREAT; then by stage.
+func _compute_strategy() -> Strategy:
+	var p := strategy_profile
+	var hp_ratio: float = current_health / maxf(get_max_health(), 1.0)
+	if current_stage <= p.retreat_max_stage and hp_ratio < p.retreat_hp_pct and _heroes_near >= p.retreat_min_heroes:
+		return Strategy.RETREAT
+	if current_stage >= p.hunt_from_stage:
+		return Strategy.HUNT
+	if current_stage >= p.ambush_from_stage:
+		return Strategy.AMBUSH
+	return Strategy.FARM
+
+
+func _pre_tick(delta: float) -> void:
+	super._pre_tick(delta)
+	if not _strategy_enabled() or not is_alive():
+		return
+	_since_damage += delta
+	_update_rest(delta)
+	_strategy_timer -= delta
+	if _strategy_timer <= 0.0:
+		_strategy_timer = strategy_profile.strategy_eval_interval
+		_update_strategy()
+
+
+func _update_strategy() -> void:
+	var p := strategy_profile
+	_heroes_near = EntityRegistry.count_within(EntityRegistry.heroes, global_position, p.hero_awareness_radius)
+	var next: Strategy = _compute_strategy()
+	var heroes_close: bool = _heroes_near > 0
+	if next != strategy or heroes_close != _had_heroes_near:
+		strategy = next
+		_camp_goal = null
+		_idle_timer = 0.0  # Idle re-picks its destination on this step
+		if is_target_valid():
+			# May drop a hero we are no longer allowed to fight (ENEMY_EXITED;
+			# Fight then sends TARGET_LOST on its next step).
+			_reevaluate_current_target(0.0)
+	_had_heroes_near = heroes_close
+	if _get_taunter() != null and is_target_valid():
+		state_chart.send_event(CombatEvents.ENEMY_ENTERED)
+	elif not is_target_valid():
+		# Picks up a cornering hero or a strategy flip while areas already
+		# overlap (no new area_entered would fire).
+		_check_for_nearby_enemies()
+	_try_escape_dash()
+
+
+## Low-HP rest mode with hysteresis (rest_hp_pct .. resume_hp_pct). Resting
+## drops mob targets, keeps away from camps and regenerates out of combat.
+func _update_rest(delta: float) -> void:
+	var p := strategy_profile
+	var max_hp: float = maxf(get_max_health(), 1.0)
+	var hp_ratio: float = current_health / max_hp
+	var was_resting: bool = _resting
+	if strategy == Strategy.HUNT:
+		_resting = false
+	elif not _resting and hp_ratio < p.rest_hp_pct:
+		_resting = true
+	elif _resting and hp_ratio >= p.resume_hp_pct:
+		_resting = false
+	if _resting != was_resting:
+		_camp_goal = null
+		_idle_timer = 0.0
+		if _resting and is_target_valid():
+			_reevaluate_current_target(0.0)
+	if _resting and _since_damage >= p.regen_delay and p.rest_regen_pct_per_sec > 0.0 and current_health < max_hp:
+		current_health = minf(current_health + max_hp * p.rest_regen_pct_per_sec * delta, max_hp)
+		set_hp_display(current_health, max_hp)
+
+
+func is_resting() -> bool:
+	return _resting
+
+
+func _score_target(target_node: Node2D) -> float:
+	if not _strategy_enabled():
+		return super._score_target(target_node)
+	var taunter := _get_taunter()
+	if taunter != null:
+		return 10000.0 if target_node == taunter else -1000.0
+	var is_hero: bool = target_node.is_in_group("Hero")
+	if _resting and not is_hero:
+		return -1000.0
+	if is_hero and not _may_engage_hero(target_node):
+		return -1000.0
+	var score: float = super._score_target(target_node)
+	match strategy:
+		Strategy.FARM, Strategy.RETREAT:
+			if not is_hero:
+				score += 60.0 if _heroes_near == 0 else -200.0
+		Strategy.HUNT:
+			score += 50.0 if is_hero else -40.0
+	return score
+
+
+func _may_engage_hero(hero: Node2D) -> bool:
+	var p := strategy_profile
+	if global_position.distance_squared_to(hero.global_position) <= p.cornered_radius * p.cornered_radius:
+		return true  # README "Desperation": cornered, fight back
+	match strategy:
+		Strategy.HUNT:
+			return true
+		Strategy.AMBUSH:
+			if _resting:
+				return false  # recover first; a cornered fight is handled above
+			if EntityRegistry.count_within(EntityRegistry.heroes, hero.global_position, p.isolation_radius) <= p.ambush_max_heroes:
+				return true
+			if hero is EntityBase:
+				var e := hero as EntityBase
+				return e.get_max_health() > 0.0 and e.get_health() / e.get_max_health() < 0.3
+			return false
+		_:
+			return false
+
+
+func _get_smart_idle_destination() -> Vector2:
+	if not _strategy_enabled():
+		return super._get_smart_idle_destination()
+	if (strategy == Strategy.FARM or strategy == Strategy.RETREAT or _resting) and _heroes_near > 0:
+		return _get_flee_destination()
+	if strategy == Strategy.HUNT:
+		var prey: Node2D = EntityRegistry.nearest(EntityRegistry.heroes, global_position, strategy_profile.hunt_sense_radius)
+		if prey:
+			return prey.global_position
+	elif _resting:
+		return _get_rest_destination()
+	else:
+		var camp := _pick_camp()
+		if camp:
+			return camp.global_position
+	return super._get_smart_idle_destination()
+
+
+## Best world-eligible camp with mobs left and no hero close to it: more mobs
+## and less distance score higher; the current goal is sticky.
+func _pick_camp() -> MobSpawnArea:
+	var mgr := EntityRegistry.singleton(&"SpawnManager") as SpawnManager
+	if mgr == null:
+		return null
+	var p := strategy_profile
+	var best: MobSpawnArea = null
+	var best_score: float = -INF
+	for camp in mgr.get_active_spawns():
+		if not is_instance_valid(camp):
+			continue
+		var available: int = camp.spawned_mobs.size() + camp.virtual_count
+		if available <= 0:
+			continue
+		if EntityRegistry.count_within(EntityRegistry.heroes, camp.global_position, p.camp_hero_avoid_radius, 1) > 0:
+			continue
+		var score: float = available * 100.0 - global_position.distance_to(camp.global_position)
+		if camp == _camp_goal:
+			score += 150.0
+		if score > best_score:
+			best_score = score
+			best = camp
+	_camp_goal = best
+	return best
+
+
+## Stay put once clear of every camp with mobs left; otherwise step away from
+## the nearest one.
+func _get_rest_destination() -> Vector2:
+	var mgr := EntityRegistry.singleton(&"SpawnManager") as SpawnManager
+	if mgr == null:
+		return global_position
+	var nearest_camp: Vector2 = global_position
+	var best_d: float = INF
+	for camp in mgr.get_active_spawns():
+		if not is_instance_valid(camp) or camp.spawned_mobs.size() + camp.virtual_count <= 0:
+			continue
+		var d: float = global_position.distance_squared_to(camp.global_position)
+		if d < best_d:
+			best_d = d
+			nearest_camp = camp.global_position
+	var clearance: float = strategy_profile.rest_camp_clearance
+	if best_d > clearance * clearance:
+		return global_position
+	var away: Vector2 = global_position - nearest_camp
+	away = away.normalized() if away.length_squared() > 0.0001 else Vector2.from_angle(_facing_angle + PI)
+	var dest: Vector2 = global_position + away * idle_wander_radius
+	if _score_destination(dest) <= -1000.0:
+		return super._get_smart_idle_destination()
+	return dest
+
+
+## A reachable point away from the heroes close by (heroes outrun a stage-1
+## monster, so hiding relies on breaking awareness early + the escape dash).
+func _get_flee_destination() -> Vector2:
+	var centroid := Vector2.ZERO
+	var n: int = 0
+	var r_sq: float = strategy_profile.hero_awareness_radius * strategy_profile.hero_awareness_radius
+	for h in EntityRegistry.heroes:
+		if is_instance_valid(h) and h.global_position.distance_squared_to(global_position) <= r_sq:
+			centroid += h.global_position
+			n += 1
+	if n == 0:
+		return super._get_smart_idle_destination()
+	centroid /= float(n)
+	var away: Vector2 = global_position - centroid
+	away = away.normalized() if away.length_squared() > 0.0001 else Vector2.from_angle(_facing_angle + PI)
+	var best: Vector2 = global_position
+	var best_d: float = -1.0
+	for deg: float in [-60.0, -30.0, 0.0, 30.0, 60.0]:
+		var p2: Vector2 = global_position + away.rotated(deg_to_rad(deg)) * idle_wander_radius
+		if _score_destination(p2) <= -1000.0:
+			continue  # off the navigation mesh
+		var d: float = p2.distance_squared_to(centroid)
+		if d > best_d:
+			best_d = d
+			best = p2
+	return best
+
+
+## Irelia's taunt marks us with a TauntEffect child carrying the taunter.
+func _get_taunter() -> Node2D:
+	var fx: Node = get_node_or_null(^"TauntEffect")
+	if fx == null:
+		return null
+	var t: Variant = fx.get_meta(&"taunter", null)
+	if is_instance_valid(t) and t is Node2D:
+		return t as Node2D
+	return null
+
+
+# ---------- combos ----------
+
+func _is_busy() -> bool:
+	if _cast_lock > 0.0:
 		return true
-
+	for a in [ability_1, ability_2, ability_3]:
+		if a != null and (a as AbilityBase).is_channeling():
+			return true
 	return false
+
+
+func _slam_ready() -> bool:
+	# The slam is locked at stage 1 via a 999999 cooldown, not the cooldown map.
+	return ability_3 != null and ability_3.cooldown < 99999.0 and is_ability_ready("ability_3")
+
+
+## Fight: Ground Slam when it would hit enough targets, else Front Cleave
+## (aimed first: the cleave reads the sprite's facing).
+func _choose_and_use_ability_combo() -> void:
+	if _is_busy() or not is_target_valid():
+		return
+	if _slam_ready() and _count_slam_targets() >= strategy_profile.slam_min_targets:
+		if _cast("ability_3", ability_3, target_entity):
+			return
+	if is_ability_ready("ability_1"):
+		_aim_at_target()
+		_cast("ability_1", ability_1, target_entity)
+
+
+func _count_slam_targets() -> int:
+	var reach: float = ability_3.get_reach()
+	var center: Vector2 = target_entity.global_position  # the leap lands on the target
+	var n: int = EntityRegistry.count_within(EntityRegistry.hero_side, center, reach)
+	if strategy != Strategy.HUNT:
+		n += EntityRegistry.count_within(EntityRegistry.mobs, center, reach)
+	return n
+
+
+func _aim_at_target() -> void:
+	if not is_target_valid():
+		return
+	var dir: Vector2 = target.global_position - global_position
+	if dir.length_squared() < 0.0001:
+		return
+	_facing_angle = dir.angle()
+	if sprite:
+		sprite.rotation = _facing_angle
+
+
+## Approach: Ram Dash as a gap closer (lands in Cleave range with Cleave about
+## to be ready). FARM keeps the dash for escapes.
+func _try_gap_close() -> bool:
+	var p := strategy_profile
+	if ability_2 == null or not is_ability_ready("ability_2") or not is_target_valid():
+		return false
+	if strategy != Strategy.AMBUSH and strategy != Strategy.HUNT:
+		return false
+	if not target_entity.is_in_group("Hero") and not p.dash_on_mobs:
+		return false
+	var d: float = distance_to_target()
+	if d < p.dash_min_range or d > ability_2.get_reach():
+		return false
+	if get_ability_cooldown("ability_1") > p.dash_cleave_window:
+		return false
+	_aim_at_target()
+	return _cast("ability_2", ability_2, target_entity)
+
+
+func _try_escape_dash() -> void:
+	var p := strategy_profile
+	if ability_2 == null or not is_ability_ready("ability_2") or _is_busy() or _get_taunter() != null:
+		return
+	if not (strategy == Strategy.RETREAT or (strategy == Strategy.FARM and _heroes_near >= p.retreat_min_heroes)):
+		return
+	var h: Node2D = EntityRegistry.nearest(EntityRegistry.heroes, global_position, p.escape_dash_radius)
+	if h == null:
+		return
+	var away: Vector2 = global_position - h.global_position
+	away = away.normalized() if away.length_squared() > 0.0001 else Vector2.RIGHT
+	if _score_destination(global_position + away * ability_2.get_reach()) <= -1000.0:
+		return
+	_facing_angle = away.angle()
+	if sprite:
+		sprite.rotation = _facing_angle
+	_cast("ability_2", ability_2, null)
+
+
+func _on_approach_state_processing(delta: float) -> void:
+	if _strategy_enabled():
+		if _is_busy():
+			return  # a dash / leap is moving us
+		if _try_gap_close():
+			return
+	super._on_approach_state_processing(delta)
+
+
+func _on_fight_state_processing(delta: float) -> void:
+	if _strategy_enabled() and _is_busy():
+		return
+	super._on_fight_state_processing(delta)
 
 # ============================================
 # Death

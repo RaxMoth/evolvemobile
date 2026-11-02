@@ -1,4 +1,4 @@
-[gd_scene load_steps=8 format=3 uid="uid://cvit7v54q45mk"]
+[gd_scene load_steps=9 format=3 uid="uid://cvit7v54q45mk"]
 
 [ext_resource type="PackedScene" uid="uid://ciqj3vjyob7jm" path="res://Scenes/NPCs/Monster/monster_base_class.tscn" id="1_75sub"]
 [ext_resource type="Resource" uid="uid://beh8ck0yckyl5" path="res://Scenes/NPCs/Monster/Grount/grount_stats.tres" id="2_n33a8"]
@@ -7,6 +7,7 @@
 [ext_resource type="Resource" uid="uid://droiw24xlfrd1" path="res://Scenes/NPCs/Monster/Grount/abilities/grount_ground_slam.tres" id="5_60m1s"]
 [ext_resource type="Resource" uid="uid://d1j446y12n0fv" path="res://Scenes/NPCs/Monster/Grount/Assets/grount_visual.tres" id="6_60m1s"]
 [ext_resource type="SpriteFrames" uid="uid://fb0ft3xyfl3b" path="res://Scenes/NPCs/Monster/Grount/Assets/phase_1.tres" id="6_n33a8"]
+[ext_resource type="Resource" path="res://Scenes/NPCs/Monster/Grount/grount_strategy.tres" id="7_strategy"]
 
 [node name="Grount" instance=ExtResource("1_75sub")]
 monster_stats = ExtResource("2_n33a8")
@@ -14,6 +15,7 @@ ability_1 = ExtResource("3_tudf8")
 ability_2 = ExtResource("4_n33a8")
 ability_3 = ExtResource("5_60m1s")
 visual_config = ExtResource("6_60m1s")
+strategy_profile = ExtResource("7_strategy")
 
 [node name="AnimatedSprite2D" parent="." index="1"]
 sprite_frames = ExtResource("6_n33a8")

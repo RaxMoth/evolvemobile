@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="MonsterStrategy" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://Scripts/monster_strategy.gd" id="1_strategy"]
+
+[resource]
+script = ExtResource("1_strategy")
+enabled = true
+ambush_from_stage = 2
+hunt_from_stage = 3
+hero_awareness_radius = 400.0
+cornered_radius = 70.0
+hunt_sense_radius = 1500.0
+strategy_eval_interval = 0.5
+retreat_hp_pct = 0.3
+retreat_max_stage = 2
+retreat_min_heroes = 2
+ambush_max_heroes = 2
+isolation_radius = 300.0
+camp_hero_avoid_radius = 500.0
+cast_lock_time = 0.25
+dash_min_range = 120.0
+dash_cleave_window = 0.4
+slam_min_targets = 2
+dash_on_mobs = false
+escape_dash_radius = 110.0
