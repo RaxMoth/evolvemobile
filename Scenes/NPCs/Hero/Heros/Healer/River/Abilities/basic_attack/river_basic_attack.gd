@@ -1,20 +1,21 @@
 extends AbilityBase
 class_name RiverBasicAttack
 
-# This single ability handles BOTH sniper and heal modes
-var sniper_damage: float = 15.0
-var sniper_range: float = 300.0
-var sniper_cooldown: float = 2.0
-
-var heal_range: float = 150.0
-var heal_cooldown: float = 1.2
+# This single ability handles BOTH sniper and heal modes. All numbers come from
+# the resource: `damage` / `ability_range` = sniper shot, `heal_amount` = heal
+# per shot, and one cooldown per mode (AbilitySystem reads `cooldown` after
+# each execute, so execute sets it to the active mode's value).
+@export var sniper_cooldown: float = 1.1
+@export var heal_range: float = 150.0
+@export var heal_cooldown: float = 1.4
 
 func _init() -> void:
 	ability_name = "Adaptive Weapon"
 	ability_type = AbilityType.BASIC_ATTACK
 	description = "Sniper or Heal based on current weapon mode"
-	damage = sniper_damage
-	ability_range = sniper_range
+	damage = 12.0
+	ability_range = 300.0
+	heal_amount = 9.0
 	cooldown = sniper_cooldown
 
 func can_use(caster: Node2D) -> bool:
@@ -47,7 +48,7 @@ func _execute_sniper(caster: Node2D, target: Node2D) -> void:
 			var ability_system = caster.get_node("AbilitySystem")
 			damage_mult = ability_system.get_damage_multiplier()
 
-		var final_damage = sniper_damage * damage_mult
+		var final_damage = damage * damage_mult
 		EventBus.deal_damage(caster, target, final_damage, self)
 
 		# Visual feedback
@@ -131,8 +132,8 @@ func _create_heal_effect(caster: Node2D, target: Node2D) -> void:
 # Return current stats based on mode
 func get_current_range(caster: Node2D) -> float:
 	if caster.has_method("get_weapon_mode"):
-		return sniper_range if caster.get_weapon_mode() == 0 else heal_range
-	return sniper_range
+		return ability_range if caster.get_weapon_mode() == 0 else heal_range
+	return ability_range
 
 func get_current_cooldown(caster: Node2D) -> float:
 	if caster.has_method("get_weapon_mode"):

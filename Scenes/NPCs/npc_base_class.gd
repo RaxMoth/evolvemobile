@@ -32,6 +32,12 @@ signal died
 @export var switch_threshold_approach: float = 30.0
 @export var switch_threshold_fight: float = 50.0
 @export var max_chase_distance: float = 1000.0
+## Keep a valid current target even when it is outside my own detection circle,
+## as long as it is within this radius. 0 = drop it the moment nothing is in
+## detection (mobs, monster). Heroes set it scene-side so a teammate summoned by
+## the call-for-help (alert_allies_radius) does not abandon the fight on its
+## first re-evaluation, 0.5 s before it even arrives.
+@export var pursue_out_of_sight_radius: float = 0.0
 @export var priority_hero_monster: int = 100
 @export var priority_mob: int = 50
 ## How much weight to give the team blackboard's threat-against-me when scoring
@@ -39,6 +45,10 @@ signal died
 ## a hero/monster priority bonus. Tanks naturally pull aggro because they
 ## generate more threat per damage point (taunt_strength).
 @export var threat_score_weight: float = 1.5
+## Focus fire: score bonus for wounded targets, scaled by missing HP
+## (bonus = weight × (1 - hp%)). 0 = off (mobs, monster). Heroes set it
+## scene-side so the team finishes one enemy instead of spreading damage.
+@export var low_hp_focus_weight: float = 0.0
 
 @export_group("Aggro / Tanking")
 ## Multiplier on damage→threat. Tanks set 2.0–3.0 to pull aggro from DPS.
@@ -480,8 +490,11 @@ func _get_threat_score(target_node: Node2D) -> float:
 		var other := target_node as EntityBase
 		if other.is_alive():
 			var max_hp: float = other.get_max_health()
-			if max_hp > 0.0 and other.get_health() / max_hp < 0.3:
-				threat += 15.0
+			if max_hp > 0.0:
+				var hp_frac: float = clampf(other.get_health() / max_hp, 0.0, 1.0)
+				if hp_frac < 0.3:
+					threat += 15.0
+				threat += low_hp_focus_weight * (1.0 - hp_frac)
 
 	# Is target far away (likely fleeing)?
 	var distance = global_position.distance_to(target_node.global_position)
@@ -524,6 +537,9 @@ func _reevaluate_current_target(threshold: float) -> void:
 	var best_target_area = _find_best_target()
 	
 	if not best_target_area:
+		if is_target_valid() and pursue_out_of_sight_radius > 0.0 \
+				and global_position.distance_squared_to(target_entity.global_position) <= pursue_out_of_sight_radius * pursue_out_of_sight_radius:
+			return  # still pursuing what we were sent after
 		if is_target_valid():
 			target = null
 			target_entity = null
@@ -883,13 +899,14 @@ func _score_destination(point: Vector2) -> float:
 # ============================================
 
 func _grant_xp_to_killer() -> void:
-	"""Grant XP to whoever landed the killing blow. Falls back to my current
-	target so a mob killed by an AoE while chasing a hero still feeds the
-	monster when the monster was the attacker."""
+	"""Grant the MONSTER its XP for this kill (xp_value) when it landed the
+	blow — falls back to my current target so a mob killed by an AoE while
+	chasing a hero still feeds the monster. Heroes level from the shared
+	mob XP instead (MobBase._share_hero_xp), never from xp_value."""
 	if xp_value <= 0.0:
 		return
 	for candidate in [last_attacker, target_entity]:
-		if is_instance_valid(candidate) and candidate.has_method("gain_xp"):
+		if is_instance_valid(candidate) and candidate is MonsterBase:
 			candidate.gain_xp(xp_value)
 			return
 

@@ -24,12 +24,12 @@ func execute(caster: Node2D, _target: Node2D = null, _override_damage: float = -
 	if caster.has_method("get_pet"):
 		var pet = caster.get_pet()
 		if is_instance_valid(pet) and pet.has_method("set_attack_speed_boost"):
-			pet.set_attack_speed_boost(attack_speed_boost)
+			pet.set_attack_speed_boost(attack_speed_boost, boost_duration)
 	
 	# Visual feedback
 	_create_rally_effect(caster)
 	
-	print(caster.name + " used Rally Cry!")
+	Globals.debug_log(caster.name, " used Rally Cry!")
 
 func _create_rally_effect(caster: Node2D) -> void:
 	# Create expanding orange ring effect

@@ -12,6 +12,12 @@ enum WeaponMode {
 @export var heal_threshold_pct: float = 0.95
 ## Maximum range to consider an ally for healing.
 @export var heal_max_range: float = 150.0
+## Switch to the heal staff when an ally within heal_watch_range drops below
+## this HP fraction; switch back to the sniper once every ally there is above
+## sniper_return_pct (hysteresis so she does not flip-flop).
+@export var heal_switch_pct: float = 0.6
+@export var sniper_return_pct: float = 0.85
+@export var heal_watch_range: float = 350.0
 
 var current_weapon_mode: WeaponMode = WeaponMode.SNIPER
 
@@ -56,6 +62,35 @@ func _get_attack_range() -> float:
 			return heal_max_range * mult
 		_:
 			return 300.0 * mult
+
+## The weapon swap IS River's active: decide from the team's health instead
+## of "fire when fighting".
+func _should_auto_use_active() -> bool:
+	return _want_heal_mode() != (current_weapon_mode == WeaponMode.HEAL_STAFF)
+
+
+func _use_active_now() -> void:
+	# The swap needs no target (River may be between fights when an ally drops).
+	if ability_system:
+		ability_system.use_active(null)
+
+
+func _want_heal_mode() -> bool:
+	var team := TeamRegistry.get_team(TeamRegistry.HEROES)
+	if team == null:
+		return false
+	var limit: float = sniper_return_pct if current_weapon_mode == WeaponMode.HEAL_STAFF else heal_switch_pct
+	var r_sq := heal_watch_range * heal_watch_range
+	for ally in team.members:
+		if ally == self or not is_instance_valid(ally) or not (ally is HeroBase):
+			continue
+		var h := ally as HeroBase
+		if not h.is_alive() or h.global_position.distance_squared_to(global_position) > r_sq:
+			continue
+		if h.get_max_health() > 0.0 and h.get_health() / h.get_max_health() < limit:
+			return true
+	return false
+
 
 func _get_move_speed() -> float:
 	var base_speed = super._get_move_speed()

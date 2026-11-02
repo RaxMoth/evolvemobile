@@ -1,6 +1,6 @@
 # Progress Tracker
 
-Last loop run: 2026-10-19 (second adversarial review fixes)
+Last loop run: 2026-11-02 (hero AI + balance pass, measured with tools/sim.sh)
 Stack: godot
 
 Spec source: `README.md` + `Docs/INSTRUCTOR.md` (roadmap, "Current Status & Roadmap",
@@ -109,6 +109,47 @@ Spec source: `README.md` + `Docs/INSTRUCTOR.md` (roadmap, "Current Status & Road
 - [x] Legacy in-round `Scripts/Skilltree/` removed (zero references outside the folder).
 
 ## Changelog
+
+### 2026-11-02 — fix/feat: hero AI + balance pass driven by the headless simulator
+`tools/sim.sh` (seeded auto-play matches) showed the monster winning 92% of matches, every
+match decided in ~90 s, the first hero dead at ~19 s to a mob camp, heroes stuck at level 1.
+Root causes found and fixed (hero win rate 8% → 54% over 24 seeds; README target ~50%):
+- **Front Cleave stage 1 dealt 52** (its own description and the README say 12/17/24) → 12.
+- **Heroes never levelled in-round** (no `gain_xp`, `level_up()` never called): mob kills now
+  share README hero XP (Bat 6, Hog 15) with heroes within 800 px (100% → 50% by distance),
+  80 XP per level, max-HP gain healed, per-level damage reaches abilities
+  (`HeroStatsComponent.get_damage_scale`); level label wired. Monster kill XP (`xp_value`,
+  now README Bat 8 / Hog 25) goes only to the monster.
+- **Vlad never basic-attacked**: his stats said RANGED with `min_distance 80 > attack_range 50`
+  (unsatisfiable Fight gate). Now melee 20..50; HeroBase clamps any band with no room to stand.
+- **River never healed** (resource `heal_amount = 0`, and nothing ever triggered her weapon
+  swap) and fired 15/2.0 s with hard-coded values: data-driven 12 dmg / 1.1 s, 9 heal / 1.4 s.
+  Irelia's basic was 2 dmg / 1.0 s → README 5 / 1.5 s.
+- **No hero ever used its active ability**: auto-use at 4 Hz (default: once fighting); River
+  swaps to the heal staff when an ally within 350 px drops below 60% and back above 85%;
+  Irelia shields when someone near her is below 85%. **Divine Shield only protected Irelia**
+  (the other heroes' shields hooked a removed `take_damage`): the Shield node now absorbs for its
+  owner through `EventBus.damage_requested`. **Rally Cry did nothing** (Ted computed the boost
+  into an unused local; the pet lacked the method): temporary attack-speed boost now lives in
+  HeroBase and feeds `AbilitySystem.get_attack_speed_multiplier`; the pet's cooldown scales too.
+- **Heroes fought alone**: heroes call teammates within 500 px into a fight
+  (`alert_allies_radius`, scene-side), and summoned heroes keep that target out of their own
+  detection circle (`pursue_out_of_sight_radius = 600`; previously the first re-evaluation
+  0.5 s later dropped it). **Tank and focus fire** (README "planned"): Irelia's basic attack adds
+  40 flat threat (`taunt_threat` on the resource, `taunt_strength` now scene-side) so packs turn
+  to her; heroes prefer wounded enemies (`low_hp_focus_weight = 60`).
+- Data validation tests: every combatant has a satisfiable attack band; README roster numbers.
+- Still open (next): matches end too early (median ~90 s vs README 4–10 min) because the monster
+  never farms and walks into the heroes at stage 1 → monster strategy layer (hide & farm /
+  ambush / hunt / retreat, ability combos) from the investigation design.
+
+### 2026-11-02 — fix: match clock + headless balance simulator (`e841302`)
+- GameManager started a match in its own `_ready` (clock ran in the main menu → phantom match
+  with result screen and rewards after 10 idle minutes); the clock used wall time (pauses and a
+  backgrounded app counted). Now: unpaused game time, only between `start_new_match()` and
+  end/abort. `monster_stage_reached` follows `EventBus.monster_evolved` (a winning stage-3
+  monster was paid as stage 1).
+- `tools/sim.sh [runs] [side] [workers] [cap]` + `tools/sim_match.gd` + `tools/sim_summary.py`.
 
 ### 2026-10-19 — fix: second adversarial review (production batch): 21 confirmed findings
 A 69-agent read-only review of the commits after the perf pass (5 lenses × 2 refuters). Fixed:

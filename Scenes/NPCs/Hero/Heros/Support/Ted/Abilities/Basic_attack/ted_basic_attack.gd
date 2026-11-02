@@ -25,11 +25,7 @@ func execute(caster: Node2D, target: Node2D = null, _override_damage: float = -1
 			var ability_system = caster.get_node("AbilitySystem")
 			damage_mult = ability_system.get_damage_multiplier()
 
-		# Also apply attack speed boost if active
-		var attack_speed_mult = 1.0
-		if caster.has_method("get_attack_speed_boost"):
-			attack_speed_mult = caster.get_attack_speed_boost()
-
+		# (Rally Cry speeds up the cooldown via AbilitySystem.get_attack_speed_multiplier.)
 		var final_damage = damage * damage_mult
 		EventBus.deal_damage(caster, target, final_damage, self)
 

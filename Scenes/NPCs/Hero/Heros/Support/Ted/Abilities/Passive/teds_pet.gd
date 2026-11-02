@@ -12,6 +12,8 @@ var owner_entity: Node2D = null
 var current_health: float
 var current_target: Node2D = null
 var attack_timer: float = 0.0
+var _boost_mult: float = 1.0
+var _boost_timer: float = 0.0
 
 const FOLLOW_DISTANCE: float = 100.0
 const SEARCH_RADIUS: float = 400.0
@@ -80,6 +82,10 @@ func _physics_process(delta: float) -> void:
 		return
 	
 	attack_timer = maxf(0.0, attack_timer - delta)
+	if _boost_timer > 0.0:
+		_boost_timer -= delta
+		if _boost_timer <= 0.0:
+			_boost_mult = 1.0
 	
 	# A dead or pooled (parked) mob is still a valid instance: drop it the way
 	# EntityBase.is_target_valid does, and retarget on this frame.
@@ -139,7 +145,7 @@ func _attack_target(delta: float) -> void:
 		
 		if attack_timer <= 0.0:
 			_perform_attack()
-			attack_timer = attack_cooldown
+			attack_timer = attack_cooldown / _boost_mult
 
 # NEW: Navigation helper function
 func _navigate_to_position(target_pos: Vector2, speed: float, delta: float) -> void:
@@ -183,6 +189,11 @@ func _receive_damage(packet: DamagePacket) -> void:
 		died.emit()
 		EventBus.notify_died(self, packet.source)
 		queue_free()
+
+## Rally Cry: faster attacks for `duration` seconds.
+func set_attack_speed_boost(multiplier: float, duration: float = 5.0) -> void:
+	_boost_mult = maxf(multiplier, 0.01)
+	_boost_timer = duration
 
 func is_alive() -> bool:
 	return current_health > 0.0

@@ -72,7 +72,8 @@ max_health = 100.0
 base_attack_range = 40.0
 base_attack_damage = 10.0
 attack_cooldown = 1.0
-xp_value = 10.0
+xp_value = 25.0
+hero_xp_value = 15.0
 
 [node name="AnimatedSprite2D" parent="." index="1"]
 sprite_frames = SubResource("SpriteFrames_ilf7r")

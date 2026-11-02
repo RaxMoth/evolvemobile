@@ -16,6 +16,9 @@ auto_ult_min_enemies = 3
 auto_ult_radius = 200.0
 auto_ult_panic_hp_pct = 0.25
 auto_ult_check_interval = 0.25
+alert_allies_radius = 500.0
+pursue_out_of_sight_radius = 600.0
+low_hp_focus_weight = 60.0
 
 [node name="HeroStats" type="Node" parent="." index="0"]
 unique_name_in_owner = true

@@ -5,12 +5,13 @@
 
 [resource]
 script = ExtResource("1_ixuuq")
+taunt_threat = 40.0
 ability_name = "Unnamed Ability"
 ability_type = 2
 icon = ExtResource("1_baakk")
 description = "swsws"
-damage = 2.0
-cooldown = 1.0
+damage = 5.0
+cooldown = 1.5
 ability_range = 100.0
 duration = 2.0
 heal_amount = 2.0

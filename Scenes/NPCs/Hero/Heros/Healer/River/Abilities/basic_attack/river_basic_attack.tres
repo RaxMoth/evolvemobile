@@ -5,15 +5,18 @@
 
 [resource]
 script = ExtResource("1_basic")
+sniper_cooldown = 1.1
+heal_range = 150.0
+heal_cooldown = 1.4
 ability_name = "Adaptive Weapon"
 ability_type = 2
 icon = ExtResource("2_icon")
 description = "Sniper or Heal based on current weapon mode"
-damage = 15.0
-cooldown = 2.0
+damage = 12.0
+cooldown = 1.1
 ability_range = 300.0
 duration = 0.0
-heal_amount = 0.0
+heal_amount = 9.0
 area_of_effect = 0.0
 damage_per_stage = Array[float]([])
 cooldown_per_stage = Array[float]([])

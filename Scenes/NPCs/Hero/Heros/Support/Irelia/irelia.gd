@@ -2,30 +2,31 @@ extends HeroBase
 class_name Irelia
 
 func _ready() -> void:
-	# Tank archetype: pull aggro hard. Threat = damage * taunt_strength, so
-	# 2.5× makes mobs strongly prefer Irelia over the rest of the squad.
-	taunt_strength = 2.5
+	# Tank archetype: taunt_strength (Irelia.tscn) multiplies the threat of her
+	# damage, and her basic attack adds a flat taunt on top (taunt_threat on the
+	# attack resource) so mobs actually turn to her.
 	super._ready()
-	# Hook into the damage pipeline so the shield can absorb hits BEFORE the
-	# packet reaches our _receive_damage. This is the canonical pattern for
-	# damage modifiers (shields, lifesteal, skill-tree mods all work the same way).
-	EventBus.damage_requested.connect(_on_damage_requested)
+	# Shield absorption lives on the Shield node itself (it listens to
+	# EventBus.damage_requested for its owner), so Divine Shield protects every
+	# hero it is applied to — not only Irelia — and survives Irelia dying.
 
-func _on_damage_requested(packet: DamagePacket) -> void:
-	# Only intercept hits aimed at us
-	if packet.target != self:
-		return
-	if not has_node("Shield"):
-		return
-	# Explicit type annotation: get_node returns generic Node so := cannot
-	# infer absorb_damage's return type at parse time.
-	var shield: Shield = get_node("Shield")
-	var remaining: float = shield.absorb_damage(packet.amount)
-	# absorb_damage returns the leftover after the shield ate what it could.
-	packet.amount = remaining
-	packet.add_tag("shielded")
-	if remaining <= 0.0:
-		packet.canceled = true
+
+## Divine Shield when someone close to Irelia (including herself) is hurt and
+## she is in a fight.
+func _should_auto_use_active() -> bool:
+	if not is_target_valid():
+		return false
+	var team := TeamRegistry.get_team(TeamRegistry.HEROES)
+	if team == null:
+		return false
+	for ally in team.members:
+		if not is_instance_valid(ally) or not (ally is HeroBase):
+			continue
+		var h := ally as HeroBase
+		if h.is_alive() and h.global_position.distance_squared_to(global_position) <= 400.0 * 400.0 \
+				and h.get_max_health() > 0.0 and h.get_health() / h.get_max_health() < 0.85:
+			return true
+	return false
 
 # Tank behavior: peel for the most-threatened ally. Reads from the team
 # blackboard instead of walking groups manually — same logic, but now uses

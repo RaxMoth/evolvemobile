@@ -8,6 +8,14 @@ class_name MobBase
 @export var base_attack_damage: float = 5.0
 @export var attack_cooldown: float = 1.5
 
+@export_group("Mob Rewards")
+## In-round XP shared by heroes near the kill (README mob table "Hero XP").
+## `xp_value` (EntityBase) stays the MONSTER's XP for the kill.
+@export var hero_xp_value: float = 6.0
+## Heroes within this distance of the kill share hero_xp_value: 100% at the
+## kill, falling to 50% at the edge (README "XP Radius: 800 units").
+@export var hero_xp_radius: float = 800.0
+
 @export_group("Mob Behavior")
 @export var base_idle_retarget_time: float = 1.2
 @export var base_idle_wander_radius: float = 120.0
@@ -235,7 +243,24 @@ func _on_attack_timer_timeout() -> void:
 func _on_mob_death() -> void:
 	"""Hook for subclasses (loot, VFX). EntityBase._on_dead_state_entered then
 	calls _release_or_free() — pooled mobs are parked, not freed."""
-	pass
+	_share_hero_xp()
+
+
+## README "Hero Leveling (In-Round)": every hero within hero_xp_radius of the
+## kill gets hero_xp_value scaled 100% → 50% by distance, whoever landed the
+## blow (so a group clearing a camp levels together).
+func _share_hero_xp() -> void:
+	if hero_xp_value <= 0.0 or hero_xp_radius <= 0.0:
+		return
+	var r_sq := hero_xp_radius * hero_xp_radius
+	for h in EntityRegistry.heroes:
+		if not is_instance_valid(h) or not (h is HeroBase) or not (h as HeroBase).is_alive():
+			continue
+		var d_sq := h.global_position.distance_squared_to(global_position)
+		if d_sq > r_sq:
+			continue
+		var share: float = lerpf(1.0, 0.5, sqrt(d_sq) / hero_xp_radius)
+		(h as HeroBase).gain_xp(hero_xp_value * share)
 
 # ============================================
 # Pooling (see SpawnManager.acquire_mob / release_mob)

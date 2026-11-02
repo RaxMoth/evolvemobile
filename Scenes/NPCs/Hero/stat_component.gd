@@ -8,6 +8,12 @@ signal leveled_up(new_level: int)
 @export var base_stats: HeroStats
 
 var level: int = 1
+## In-round XP toward the next level (README: ~80 XP per level).
+var current_xp: float = 0.0
+const XP_PER_LEVEL: float = 80.0
+const MAX_LEVEL: int = 10
+
+signal xp_changed(current: float, needed: float)
 
 var current_stats := {
 	"max_health": 0.0,
@@ -74,6 +80,13 @@ func get_attack_range() -> float:
 func get_attack_damage() -> float:
 	return current_stats.attack_damage
 
+## Everything that scales basic/ability damage beyond the ability's own number:
+## per-level growth, additive and multiplicative upgrades, relative to level 1.
+func get_damage_scale() -> float:
+	if base_stats == null or base_stats.base_attack_damage <= 0.0:
+		return float(stat_modifiers.get("attack_damage_mult", 1.0))
+	return float(current_stats.attack_damage) / base_stats.base_attack_damage
+
 func get_attack_speed_multiplier() -> float:
 	return stat_modifiers.attack_speed_mult
 
@@ -131,17 +144,30 @@ func _on_death() -> void:
 	# Override in subclass or connect to signal
 	pass
 
+## In-round XP. Levels up as often as the amount allows (capped at MAX_LEVEL).
+func add_xp(amount: float) -> void:
+	if amount <= 0.0 or level >= MAX_LEVEL or not is_alive():
+		return
+	current_xp += amount
+	while current_xp >= XP_PER_LEVEL and level < MAX_LEVEL:
+		current_xp -= XP_PER_LEVEL
+		level_up()
+	if level >= MAX_LEVEL:
+		current_xp = 0.0
+	xp_changed.emit(current_xp, XP_PER_LEVEL)
+
 func level_up() -> void:
 	level += 1
-	var old_max_health = current_stats.max_health
+	var old_max_health: float = current_stats.max_health
 	_recalculate_all_stats()
 	
-	# Heal to full on level up
-	var health_gained = current_stats.max_health - old_max_health
-	current_stats.current_health += health_gained
+	# The max-HP gained this level is also healed (README: slow growth).
+	var health_gained: float = current_stats.max_health - old_max_health
+	current_stats.current_health = minf(current_stats.max_health, current_stats.current_health + health_gained)
 	
 	leveled_up.emit(level)
-	print(base_stats.hero_name + " leveled up to " + str(level) + "!")
+	health_changed.emit(current_stats.current_health, current_stats.max_health)
+	Globals.debug_log(base_stats.hero_name, " leveled up to ", level)
 
 func set_level(new_level: int) -> void:
 	level = max(1, new_level)

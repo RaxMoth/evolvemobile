@@ -1,6 +1,11 @@
 extends AbilityBase
 class_name IreliaBasicAttack
 
+## Taunting strike: flat threat added on the struck enemy's threat table per
+## hit (on top of damage × taunt_strength). Without it a 5-damage tank never
+## out-threatened the DPS, so mob packs stayed on whoever pulled them.
+@export var taunt_threat: float = 40.0
+
 func can_use(caster: Node2D) -> bool:
 	return caster.has_method("is_alive") and caster.is_alive()
 
@@ -17,6 +22,10 @@ func execute(caster: Node2D, target: Node2D = null, _override_damage: float = -1
 
 		var final_damage = damage * damage_mult
 		EventBus.deal_damage(caster, target, final_damage, self)
+		if taunt_threat > 0.0 and is_instance_valid(target):
+			var team: TeamBlackboard = TeamRegistry.team_of(target)
+			if team:
+				team.bump_threat(target, caster, taunt_threat)
 
 		_create_attack_effect(caster, target)
 

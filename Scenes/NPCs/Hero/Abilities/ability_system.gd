@@ -122,17 +122,18 @@ func _get_hero_stats() -> HeroStatsComponent:
 		_hero_stats = owner_entity.get_node_or_null("HeroStats") as HeroStatsComponent
 	return _hero_stats
 
-# Total damage multiplier: passive ability × permanent attack_damage upgrades.
+# Total damage multiplier: passive ability × hero damage scale (level + upgrades).
 func get_damage_multiplier() -> float:
 	var multiplier: float = 1.0
 	if passive_ability:
 		multiplier *= passive_ability.get_damage_multiplier(owner_entity)
 	var stats := _get_hero_stats()
 	if stats:
-		multiplier *= float(stats.stat_modifiers.get("attack_damage_mult", 1.0))
+		# Level growth + permanent attack_damage upgrades, relative to level 1.
+		multiplier *= stats.get_damage_scale()
 	return multiplier
 
-# Total attack speed multiplier: passive ability × permanent attack_speed upgrades.
+# Total attack speed multiplier: passive × permanent attack_speed upgrades × temporary boosts.
 func get_attack_speed_multiplier() -> float:
 	var multiplier: float = 1.0
 	if passive_ability:
@@ -140,4 +141,6 @@ func get_attack_speed_multiplier() -> float:
 	var stats := _get_hero_stats()
 	if stats:
 		multiplier *= stats.get_attack_speed_multiplier()
+	if owner_entity is HeroBase:
+		multiplier *= (owner_entity as HeroBase).get_attack_speed_boost()
 	return multiplier

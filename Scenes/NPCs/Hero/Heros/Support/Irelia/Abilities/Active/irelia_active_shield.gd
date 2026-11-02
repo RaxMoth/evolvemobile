@@ -8,7 +8,7 @@ func execute(caster: Node2D, _target: Node2D = null, _override_damage: float = -
 	var shielded_count = 0
 	
 	for hero in heroes:
-		if not hero.has_method("is_alive") or not hero.is_alive():
+		if not (hero is HeroBase) or not hero.is_alive():
 			continue
 		
 		_apply_shield(hero)
@@ -29,22 +29,9 @@ func _apply_shield(hero: Node2D) -> void:
 	shield.owner_hero = hero
 	hero.add_child(shield)
 	
-	# Override take_damage to use shield
-	if not hero.has_method("_original_take_damage"):
-		_hook_damage_function(hero, shield)
-	
 	# Visual feedback
 	_create_shield_applied_effect(hero)
 
-func _hook_damage_function(hero: Node2D, shield: Node) -> void:
-	# Store original take_damage
-	if hero.has_meta("original_take_damage"):
-		return # Already hooked
-	
-	hero.set_meta("original_take_damage", true)
-	
-	# The shield will intercept damage in its absorb_damage method
-	# We need to modify the hero's take_damage to check for shield
 
 func _create_shield_applied_effect(hero: Node2D) -> void:
 	# Blue expanding circle
