@@ -1,4 +1,4 @@
-[gd_scene load_steps=7 format=3 uid="uid://dmwsr7r1rglla"]
+[gd_scene load_steps=8 format=3 uid="uid://dmwsr7r1rglla"]
 
 [ext_resource type="Script" uid="uid://bqnd1nwlvm5hc" path="res://Scenes/NPCs/Hero/Heros/Support/Ted/Abilities/Passive/teds_pet.gd" id="1_pet"]
 [ext_resource type="Texture2D" uid="uid://dbitmrq0kvfo6" path="res://Scenes/NPCs/Hero/Heros/Support/Ted/Abilities/Passive/Assets/down_stand.png" id="2_62k54"]
@@ -7,6 +7,9 @@
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_pet"]
 radius = 14.035668
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_petbody"]
+radius = 16.0
 
 [sub_resource type="SpriteFrames" id="SpriteFrames_63u05"]
 animations = [{
@@ -31,6 +34,14 @@ script = ExtResource("1_pet")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
 shape = SubResource("CircleShape2D_pet")
+
+[node name="Body" type="Area2D" parent="."]
+collision_layer = 2
+collision_mask = 0
+monitoring = false
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Body"]
+shape = SubResource("CircleShape2D_petbody")
 
 [node name="Sprite2D" type="AnimatedSprite2D" parent="."]
 modulate = Color(0.6, 0.4, 0.2, 1)

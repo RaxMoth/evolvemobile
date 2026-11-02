@@ -17,6 +17,10 @@ var _boost_timer: float = 0.0
 
 const FOLLOW_DISTANCE: float = 100.0
 const SEARCH_RADIUS: float = 400.0
+## The pet only fights enemies this close to Ted, and drops a target that
+## gets 1.5x this far from him. Measured from the pet itself it chased the
+## monster across the map and killed it alone, far from every hero.
+@export var leash_radius: float = 350.0
 
 # ADDED: Navigation system
 var navigation_agent: NavigationAgent2D = null
@@ -120,14 +124,34 @@ func _follow_owner(delta: float) -> void:
 	else:
 		velocity = velocity.lerp(Vector2.ZERO, 10.0 * delta)
 
-## Alive, in the tree and not absurdly far (a reused pooled node can respawn anywhere).
+## Alive, in the tree and still near Ted (a reused pooled node can respawn anywhere).
 func _target_ok() -> bool:
-	return is_instance_valid(current_target) and current_target.is_inside_tree() \
-		and EntityRegistry.is_entity_alive(current_target) \
-		and global_position.distance_squared_to(current_target.global_position) <= SEARCH_RADIUS * SEARCH_RADIUS * 2.25
+	if not (is_instance_valid(current_target) and current_target.is_inside_tree() \
+			and EntityRegistry.is_entity_alive(current_target)):
+		return false
+	var keep: float = leash_radius * 1.5
+	return _anchor().distance_squared_to(current_target.global_position) <= keep * keep
 
+## Nearest living enemy to the pet that is within leash_radius of Ted.
 func _find_target() -> void:
-	current_target = EntityRegistry.nearest(EntityRegistry.enemies, global_position, SEARCH_RADIUS)
+	var anchor: Vector2 = _anchor()
+	var leash_sq: float = leash_radius * leash_radius
+	var best: Node2D = null
+	var best_sq: float = SEARCH_RADIUS * SEARCH_RADIUS
+	for e in EntityRegistry.enemies:
+		if not is_instance_valid(e) or not e.is_inside_tree() or not EntityRegistry.is_entity_alive(e):
+			continue
+		if anchor.distance_squared_to(e.global_position) > leash_sq:
+			continue
+		var d_sq: float = global_position.distance_squared_to(e.global_position)
+		if d_sq < best_sq:
+			best_sq = d_sq
+			best = e
+	current_target = best
+
+
+func _anchor() -> Vector2:
+	return owner_entity.global_position if is_instance_valid(owner_entity) else global_position
 
 func _attack_target(delta: float) -> void:
 	if not _target_ok():

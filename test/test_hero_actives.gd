@@ -96,3 +96,37 @@ func test_heroes_focus_wounded_enemies() -> void:
 	for n in [vlad, a, b]:
 		if is_instance_valid(n):
 			n.queue_free()
+
+
+func test_teds_pet_is_targetable_and_stays_leashed_to_ted() -> void:
+	var ted := await spawn_entity("res://Scenes/NPCs/Hero/Heros/Support/Ted/Ted.tscn", Vector2(0, 0))
+	TickScheduler.unregister(ted)
+	await wait_frames(3)
+	var pet: Node2D = null
+	for e in EntityRegistry.hero_side:
+		if is_instance_valid(e) and not (e is HeroBase) and e.get("owner_entity") == ted:
+			pet = e
+	assert_true(pet != null, "Ted's passive spawned the pet")
+	if pet == null:
+		ted.queue_free()
+		return
+	pet.global_position = Vector2(0, 0)
+	var near_bat := await spawn_entity("res://Scenes/NPCs/Mob/Mobs/Bat/Bat.tscn", Vector2(200, 0))
+	var far_bat := await spawn_entity("res://Scenes/NPCs/Mob/Mobs/Bat/Bat.tscn", Vector2(-380, 0))
+	TickScheduler.unregister(near_bat)
+	TickScheduler.unregister(far_bat)
+	# Enemies can target the pet now (it had no area on the hero layer).
+	var body := pet.get_node_or_null(^"Body") as Area2D
+	assert_true(body != null and body.collision_layer == GameUtils.LAYER_BODY_HERO, "hitbox on the hero layer")
+	assert_true((near_bat as EntityBase)._can_target_area(body), "a mob may target the pet")
+	# Leash: only enemies near TED count, however close they are to the pet.
+	ted.global_position = Vector2(-2000, 0)
+	pet.call("_find_target")
+	assert_true(pet.get("current_target") == null, "nothing within the leash of Ted")
+	ted.global_position = Vector2(0, 0)
+	pet.call("_find_target")
+	assert_true(pet.get("current_target") == near_bat, "nearest enemy inside the leash")
+	ted.global_position = Vector2(-2000, 0)
+	assert_false(pet.call("_target_ok"), "drops the target once Ted is far away")
+	for n in [ted, near_bat, far_bat]:
+		n.queue_free()

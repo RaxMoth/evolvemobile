@@ -82,7 +82,8 @@ func _on_damage_applied(packet: Object) -> void:
 	var amount: float = float(packet.get("amount"))
 	if src == null or dst == null or not is_instance_valid(src) or not is_instance_valid(dst):
 		return
-	var src_hero := _is(src, "HeroBase")
+	# Ted's pet fights for the heroes (group "Hero", not a HeroBase).
+	var src_hero := _is(src, "HeroBase") or (src is Node and (src as Node).is_in_group("Hero"))
 	if src_hero:
 		var hn := String((src as Node).name)
 		_hero_damage[hn] = float(_hero_damage.get(hn, 0.0)) + amount
