@@ -62,11 +62,12 @@ func test_vlad_actually_swings_at_an_adjacent_enemy() -> void:
 
 
 func test_monster_ability_damage_matches_the_readme_per_stage() -> void:
-	# README tables already include the stage multiplier (12/17/24 = 12 x 1.0/1.4/2.0).
+	# README tables already include the stage multiplier. Stage 3 hits lighter
+	# than stage 2 but much more often (v13 balance), so the DPS still rises.
 	var g := await spawn_entity(MONSTER, Vector2(4000, 4000))
 	TickScheduler.unregister(g)
 	var m := g as MonsterBase
-	var expected := {1: [12.0, 18.0], 2: [17.0, 25.0, 32.0], 3: [24.0, 36.0, 50.0]}
+	var expected := {1: [12.0, 18.0], 2: [17.0, 25.0, 32.0], 3: [12.0, 36.0, 25.0]}
 	for stage in [1, 2, 3]:
 		if stage > 1:
 			m.gain_xp(1000.0)
