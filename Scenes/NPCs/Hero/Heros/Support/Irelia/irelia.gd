@@ -83,7 +83,13 @@ func _get_idle_wander_radius() -> float:
 func _on_idle_state_processing(delta: float) -> void:
 	if not is_instance_valid(navigation_agent_2d):
 		return
-	
+	# With group exploration running, the formation keeps Irelia with the team
+	# (she leads it as formation_rank 0): follow the controller's target like
+	# every hero. Wandering around the allies' centre here stalled the group.
+	if use_exploration_target and exploration_target != Vector2.ZERO:
+		super._on_idle_state_processing(delta)
+		return
+
 	# Wander near allies instead of random
 	_idle_timer -= delta
 	if _idle_timer <= 0.0 or global_position.distance_squared_to(_idle_goal) < 64.0:

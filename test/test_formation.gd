@@ -49,6 +49,13 @@ func test_tank_leads_healer_trails_and_followers_pace_on_the_leader() -> void:
 	assert_true((irelia as HeroBase).exploration_target.distance_to(ctrl.current_group_target) < 150.0,
 		"the leader heads for the group target")
 
+	# The leader really walks there: Irelia's own idle used to wander around
+	# her allies and ignore the exploration target, stalling the whole group.
+	irelia._idle_timer = 0.0
+	irelia._on_idle_state_processing(0.016)
+	assert_true(irelia._idle_goal.distance_to((irelia as HeroBase).exploration_target) < 1.0,
+		"the leader's idle goal is the exploration target")
+
 	irelia.queue_free()
 	await wait_frames(2)
 	ctrl._cleanup_freed_heroes()
