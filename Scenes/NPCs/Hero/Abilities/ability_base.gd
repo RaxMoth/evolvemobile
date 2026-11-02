@@ -28,6 +28,11 @@ enum AbilityType {
 @export var cooldown_per_stage: Array[float] = []
 @export var range_per_stage: Array[float] = []
 @export var aoe_per_stage: Array[float] = []
+## Not usable below this monster stage (cooldown parked at LOCKED_COOLDOWN).
+## A skill node can lower it (Grount "Early Slam"); an early unlock uses the
+## numbers of the first stage that has data in the per-stage tables.
+@export var unlock_stage: int = 1
+const LOCKED_COOLDOWN: float = 999999.0
 
 # Ability-specific properties (set by subclasses)
 @export_group("Ability Properties")
@@ -42,6 +47,9 @@ enum AbilityType {
 # four stage-driven properties after reading the stage values.
 var meta_mults: Dictionary = {}
 var meta_adds: Dictionary = {}
+## Unmodified value of each property a modifier touched, so stacked nodes and
+## re-applied stage stats never compound (base + a1 + a2, not base + 2*a1 + a2).
+var _base_values: Dictionary = {}
 
 
 ## Record and apply a permanent modifier to one property (cooldown, damage,
@@ -51,11 +59,29 @@ func apply_meta_modifier(prop: String, value: float, multiplicative: bool) -> vo
 	if not (prop in self):
 		push_warning("%s has no property '%s' for a meta-skill modifier" % [ability_name, prop])
 		return
+	var base: float = _base_of(prop)
 	if multiplicative:
 		meta_mults[prop] = float(meta_mults.get(prop, 1.0)) * value
 	else:
 		meta_adds[prop] = float(meta_adds.get(prop, 0.0)) + value
-	set(prop, _modified(prop, float(get(prop))))
+	_set_number(prop, _modified(prop, base))
+
+
+func _base_of(prop: String) -> float:
+	if not _base_values.has(prop):
+		_base_values[prop] = float(get(prop))
+	return float(_base_values[prop])
+
+
+## Int and bool exports (extra_targets, unlock_stage, flags) keep their type.
+func _set_number(prop: String, value: float) -> void:
+	match typeof(get(prop)):
+		TYPE_INT:
+			set(prop, roundi(value))
+		TYPE_BOOL:
+			set(prop, value > 0.5)
+		_:
+			set(prop, value)
 
 
 func _modified(prop: String, base_value: float) -> float:
@@ -101,30 +127,45 @@ func get_damage_multiplier(_caster: Node2D) -> float:
 func get_attack_speed_multiplier(_caster: Node2D) -> float:
 	return attack_speed_modifier
 
-# Get stat for specific stage
+# Get stat for specific stage (an empty table falls back to the unmodified base).
 func get_damage_for_stage(stage: int) -> float:
 	if damage_per_stage.size() >= stage and stage > 0:
 		return damage_per_stage[stage - 1]
-	return damage
+	return _base_of("damage")
 
 func get_cooldown_for_stage(stage: int) -> float:
 	if cooldown_per_stage.size() >= stage and stage > 0:
 		return cooldown_per_stage[stage - 1]
-	return cooldown
+	return _base_of("cooldown")
 
 func get_range_for_stage(stage: int) -> float:
 	if range_per_stage.size() >= stage and stage > 0:
 		return range_per_stage[stage - 1]
-	return ability_range
+	return _base_of("ability_range")
 
 func get_aoe_for_stage(stage: int) -> float:
 	if aoe_per_stage.size() >= stage and stage > 0:
 		return aoe_per_stage[stage - 1]
-	return area_of_effect
+	return _base_of("area_of_effect")
+
+
+func is_unlocked_at(stage: int) -> bool:
+	return stage >= unlock_stage
+
+
+## First stage whose damage table entry is set (Ground Slam: stage 2).
+func _first_stage_with_data() -> int:
+	for i in range(damage_per_stage.size()):
+		if damage_per_stage[i] > 0.0:
+			return i + 1
+	return 1
 
 # Apply stage-specific stats to this ability
 func apply_stage_stats(stage: int) -> void:
-	damage = _modified("damage", get_damage_for_stage(stage))
-	cooldown = _modified("cooldown", get_cooldown_for_stage(stage))
-	ability_range = _modified("ability_range", get_range_for_stage(stage))
-	area_of_effect = _modified("area_of_effect", get_aoe_for_stage(stage))
+	var data_stage: int = maxi(stage, _first_stage_with_data())
+	damage = _modified("damage", get_damage_for_stage(data_stage))
+	cooldown = _modified("cooldown", get_cooldown_for_stage(data_stage))
+	ability_range = _modified("ability_range", get_range_for_stage(data_stage))
+	area_of_effect = _modified("area_of_effect", get_aoe_for_stage(data_stage))
+	if not is_unlocked_at(stage):
+		cooldown = LOCKED_COOLDOWN

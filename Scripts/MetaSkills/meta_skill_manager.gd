@@ -141,6 +141,7 @@ func _seed_hero_trees() -> void:
 		[&"r3_hp", "Veteran Scout", "+15% Max HP", 3, "max_health", 1.15],
 		[&"r2_dropcd", "Fast Resupply", "Supply Drop cooldown -20%", 2, "cooldown", 0.80, "Emergency Supply Drop"],
 		[&"r3_dropheal", "Field Hospital", "Supply Drop heals +50%", 3, "heal_amount", 1.50, "Emergency Supply Drop"],
+		[&"r2_triple", "Triple Shot", "Sniper shots also hit 2 enemies near the target", 2, "extra_targets", 2.0, "Adaptive Weapon", false],
 	])
 	_seed_character_tree(hero_tree_id(&"vlad"), "Vlad — Blood Rites",
 		"Vlad's personal upgrades. Bought with Steel.", PersistedData.STEEL, HERO_TIER_COSTS, [
@@ -194,6 +195,8 @@ func _seed_monster_trees() -> void:
 		[&"g2_cleavecd", "Quick Cleave", "Front Cleave cooldown -15%", 2, "cooldown", 0.85, "Front Cleave"],
 		[&"g3_dash", "Long Charge", "Ram Dash distance +33%", 3, "dash_distance", 1.33, "Ram Dash"],
 		[&"g3_slam", "Wider Slam", "Ground Slam radius +20%", 3, "slam_radius", 1.20, "Ground Slam"],
+		[&"g1_stun", "Stunning Charge", "Ram Dash stuns for 0.5 s", 1, "stun_duration", 0.5, "Ram Dash", false],
+		[&"g2_earlyslam", "Early Slam", "Ground Slam unlocks at Stage 1", 2, "unlock_stage", -1.0, "Ground Slam", false],
 	])
 
 
@@ -210,8 +213,11 @@ func _seed_character_tree(tree_id: StringName, display_name: String, description
 		var tier: int = int(spec[3])
 		var cost: int = tier_costs[clampi(tier - 1, 0, tier_costs.size() - 1)]
 		if spec.size() >= 7:
+			# Optional 8th element: false = additive (behaviour nodes that switch
+			# a mechanic on: stun_duration +0.5, extra_targets +2, unlock_stage -1).
+			var multiplicative: bool = bool(spec[7]) if spec.size() >= 8 else true
 			t.nodes.append(MetaSkillNode.make_ability(StringName(spec[0]), String(spec[1]), String(spec[2]),
-				tier, cost, currency, String(spec[6]), String(spec[4]), float(spec[5])))
+				tier, cost, currency, String(spec[6]), String(spec[4]), float(spec[5]), multiplicative))
 		else:
 			t.nodes.append(MetaSkillNode.make(StringName(spec[0]), String(spec[1]), String(spec[2]),
 				tier, cost, currency, String(spec[4]), float(spec[5])))

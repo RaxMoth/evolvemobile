@@ -8,6 +8,10 @@ class_name RiverBasicAttack
 @export var sniper_cooldown: float = 1.1
 @export var heal_range: float = 150.0
 @export var heal_cooldown: float = 1.4
+## River tree "Triple Shot": each sniper shot also hits up to this many other
+## enemies within extra_target_radius of the main target (0 = single target).
+@export var extra_targets: int = 0
+@export var extra_target_radius: float = 160.0
 
 func _init() -> void:
 	ability_name = "Adaptive Weapon"
@@ -53,9 +57,28 @@ func _execute_sniper(caster: Node2D, target: Node2D) -> void:
 
 		# Visual feedback
 		_create_sniper_effect(caster, target)
+		if extra_targets > 0:
+			for extra in _extra_targets_near(caster, target):
+				EventBus.deal_damage(caster, extra, final_damage, self)
+				_create_sniper_effect(caster, extra)
 
 		# Update cooldown to sniper speed
 		cooldown = sniper_cooldown
+
+## The `extra_targets` closest living enemies around the main target.
+func _extra_targets_near(caster: Node2D, primary: Node2D) -> Array[Node2D]:
+	var r_sq: float = extra_target_radius * extra_target_radius
+	var at: Vector2 = primary.global_position
+	var found: Array[Node2D] = []
+	for e in EntityRegistry.targets_for(caster):
+		if e == primary or not is_instance_valid(e) or not EntityRegistry.is_entity_alive(e):
+			continue
+		if e.global_position.distance_squared_to(at) <= r_sq:
+			found.append(e)
+	found.sort_custom(func(a: Node2D, b: Node2D) -> bool:
+		return a.global_position.distance_squared_to(at) < b.global_position.distance_squared_to(at))
+	return found.slice(0, extra_targets)
+
 
 func _execute_heal(caster: Node2D, target: Node2D) -> void:
 	# If no target, find nearest ally

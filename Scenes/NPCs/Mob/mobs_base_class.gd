@@ -237,7 +237,7 @@ func _on_attack_timer_timeout() -> void:
 	# Clear the swing flag first: if the target vanished mid-swing the old
 	# code left `attacking` stuck at true and the mob never attacked again.
 	attacking = false
-	if is_target_valid():
+	if is_target_valid() and not is_stunned():  # a stun interrupts the swing
 		_perform_basic_attack()
 
 func _on_mob_death() -> void:

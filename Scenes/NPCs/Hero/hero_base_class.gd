@@ -55,6 +55,8 @@ func _process(delta: float) -> void:
 		_attack_speed_boost_timer -= delta
 		if _attack_speed_boost_timer <= 0.0:
 			_attack_speed_boost = 1.0
+	if is_stunned():
+		return
 	if auto_use_active and is_alive():
 		_auto_active_timer -= delta
 		if _auto_active_timer <= 0.0:

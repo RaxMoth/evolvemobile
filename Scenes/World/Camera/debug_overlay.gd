@@ -122,6 +122,8 @@ func _collect_snapshots() -> void:
 		snap.state_str = _state_name_of(entity)
 		if entity is EntityBase:
 			snap.state_str += " [" + TickScheduler.lod_name(TickScheduler.lod_of(entity as EntityBase)) + "]"
+			if (entity as EntityBase).is_stunned():
+				snap.state_str += " STUN"
 		if entity is MonsterBase:
 			var m := entity as MonsterBase
 			if m.strategy_profile and m.strategy_profile.enabled:

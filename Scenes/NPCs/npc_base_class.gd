@@ -116,6 +116,7 @@ var _target_reeval_timer: float = 0.0
 # Phase A polish
 var _personal_distance_offset: float = 0.0  ## Picked once in _ready: ± distance_jitter
 var _flinch_timer: float = 0.0               ## > 0 while flinching from a recent hit
+var _stun_timer: float = 0.0                 ## > 0 while stunned: no movement, attacks or casts
 var _facing_angle: float = 0.0               ## Smoothed sprite rotation target
 
 # TickScheduler (AI LOD)
@@ -220,8 +221,24 @@ func _tick(delta: float) -> void:
 	if not _ready_done or not is_instance_valid(state_chart) or not state_chart.is_node_ready():
 		return
 	_tick_delta = delta
+	if _stun_timer > 0.0:
+		# Stunned: the AI does not step at all (no steering, swings or casts).
+		_stun_timer = maxf(_stun_timer - delta, 0.0)
+		return
 	_pre_tick(delta)
 	state_chart.step()
+
+
+## Freeze this entity's AI for `duration` seconds (Ram Dash stun node). A
+## shorter stun never cuts a running one short.
+func apply_stun(duration: float) -> void:
+	if duration <= 0.0 or not is_alive():
+		return
+	_stun_timer = maxf(_stun_timer, duration)
+
+
+func is_stunned() -> bool:
+	return _stun_timer > 0.0
 
 func _pre_tick(_delta: float) -> void:
 	"""Per-tick work independent of the active state (MobBase: leash check)."""

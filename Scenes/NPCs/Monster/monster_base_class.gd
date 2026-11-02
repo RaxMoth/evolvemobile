@@ -120,10 +120,8 @@ func _configure_abilities_for_stage(stage: int) -> void:
 		Globals.debug_log("  ✓ Ability 2: ", ability_2.ability_name, " - Damage: ", ability_2.damage, ", CD: ", ability_2.cooldown)
 	
 	if ability_3:
+		# Locked below its unlock_stage (Ground Slam: 2, or 1 with "Early Slam").
 		ability_3.apply_stage_stats(stage)
-		# Lock ability until stage 2
-		if stage < 2:
-			ability_3.cooldown = 999999.0
 		Globals.debug_log("  ✓ Ability 3: ", ability_3.ability_name, " - Damage: ", ability_3.damage, ", CD: ", ability_3.cooldown)
 
 func _update_stage_scale(stage: int) -> void:
@@ -417,7 +415,7 @@ func _try_use_ability(ability_name: String, ability: AbilityBase) -> bool:
 func _cast(ability_name: String, ability: AbilityBase, cast_target: Node2D) -> bool:
 	if not ability or ability_cooldowns.get(ability_name, 0.0) > 0.0:
 		return false
-	if not ability.can_use(self):
+	if not ability.is_unlocked_at(current_stage) or not ability.can_use(self):
 		return false
 	# Apply damage multiplier from resource
 	var effective_damage: float = ability.damage * damage_multiplier
@@ -676,8 +674,7 @@ func _is_busy() -> bool:
 
 
 func _slam_ready() -> bool:
-	# The slam is locked at stage 1 via a 999999 cooldown, not the cooldown map.
-	return ability_3 != null and ability_3.cooldown < 99999.0 and is_ability_ready("ability_3")
+	return ability_3 != null and ability_3.is_unlocked_at(current_stage) and is_ability_ready("ability_3")
 
 
 ## Fight: Ground Slam when it would hit enough targets, else Front Cleave

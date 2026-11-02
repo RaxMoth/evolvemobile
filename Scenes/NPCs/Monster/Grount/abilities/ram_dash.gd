@@ -7,6 +7,9 @@ extends AbilityBase
 ## A targeted dash ends this far in front of the target (Front Cleave range)
 ## instead of always travelling the full distance and overshooting by 200+ px.
 @export var dash_stop_short: float = 40.0
+## Grount tree "Stunning Charge": every entity the dash hits is stunned this
+## long (0 = no stun).
+@export var stun_duration: float = 0.0
 
 var is_dashing: bool = false
 var dash_direction: Vector2 = Vector2.ZERO
@@ -119,6 +122,8 @@ func _check_dash_collisions(caster: Node2D, previous_pos: Vector2) -> void:
 		if can_hit:
 			EventBus.deal_damage(caster, entity, _effective_damage, self)
 			_hit_entities.append(entity) # Mark as hit
+			if stun_duration > 0.0 and entity is EntityBase:
+				(entity as EntityBase).apply_stun(stun_duration)
 
 			# Apply knockback
 			if entity.has_method("apply_knockback"):
