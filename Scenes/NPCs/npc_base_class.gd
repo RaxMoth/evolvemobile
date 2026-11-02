@@ -240,6 +240,21 @@ func apply_stun(duration: float) -> void:
 func is_stunned() -> bool:
 	return _stun_timer > 0.0
 
+
+## Re-pick the idle goal on the next idle tick (a new exploration target).
+func request_idle_retarget() -> void:
+	_idle_timer = 0.0
+
+
+## Move instantly (match setup) and drop the old path so the AI re-plans from here.
+func teleport_to(pos: Vector2) -> void:
+	global_position = pos
+	_idle_goal = pos
+	_idle_timer = 0.0
+	_last_nav_target_pos = Vector2(INF, INF)
+	if is_instance_valid(navigation_agent_2d):
+		navigation_agent_2d.target_position = pos
+
 func _pre_tick(_delta: float) -> void:
 	"""Per-tick work independent of the active state (MobBase: leash check)."""
 	pass

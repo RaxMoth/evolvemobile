@@ -289,6 +289,7 @@ func prepare_for_pool() -> void:
 	is_in_combat = false
 	is_on_cooldown = false
 	_flinch_timer = 0.0
+	_stun_timer = 0.0  # a stun only decays while in the tree; never carry it into the next life
 	_idle_timer = 0.0
 	_target_reeval_timer = 0.0
 	strafe_timer = 0.0

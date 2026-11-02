@@ -6,6 +6,7 @@ extends TestCase
 const GROUNT := "res://Scenes/NPCs/Monster/Grount/Grount.tscn"
 const VLAD := "res://Scenes/NPCs/Hero/Heros/DMG/Vlad/Vlad.tscn"
 const BAT := "res://Scenes/NPCs/Mob/Mobs/Bat/Bat.tscn"
+const HOG := "res://Scenes/NPCs/Mob/Mobs/Hog/Hog.tscn"
 const AREA := "res://Scenes/World/MobSpawnArea/MobSpawnArea.tscn"
 
 
@@ -121,21 +122,26 @@ func test_ground_slam_keeps_the_evolved_scale_and_stage_radius() -> void:
 
 
 func test_cast_lock_allows_one_ability_per_lock_window() -> void:
+	# Start with ONE hero in range so the first cast is the non-channeling
+	# Front Cleave: only the cast lock (not a dash/leap in progress) can then
+	# refuse the slam that becomes possible in the same frame.
 	var g := await _frozen(GROUNT, Vector2(0, 0))
 	g.gain_xp(1000.0)
 	g.gain_xp(0.0)
 	var v := await _frozen(VLAD, Vector2(40, 0))
-	var w := await _frozen(VLAD, Vector2(40, 30))
 	g.target = v.get_node("Body")
 	g.target_entity = v
 	await wait_seconds(0.7)
-	for i in 3:
-		g._choose_and_use_ability_combo()
-	var used := 0
-	for key in ["ability_1", "ability_2", "ability_3"]:
-		if not g.is_ability_ready(key):
-			used += 1
-	assert_eq(used, 1, "exactly one ability fired")
+	g._choose_and_use_ability_combo()
+	assert_false(g.is_ability_ready("ability_1"), "Front Cleave fired on the lone hero")
+	assert_true(g._cast_lock > 0.0, "the cast started the lock")
+	var w := await _frozen(VLAD, Vector2(40, 30))
+	g._cast_lock = g.strategy_profile.cast_lock_time  # spawning took frames
+	g._choose_and_use_ability_combo()
+	assert_true(g.is_ability_ready("ability_3"), "slam refused while the lock runs")
+	await wait_seconds(g.strategy_profile.cast_lock_time + 0.05)
+	g._choose_and_use_ability_combo()
+	assert_false(g.is_ability_ready("ability_3"), "slam fires once the lock expired")
 	for n in [g, v, w]:
 		n.queue_free()
 
@@ -175,3 +181,104 @@ func test_low_hp_monster_rests_ignores_mobs_and_regenerates() -> void:
 	assert_false(g.is_resting(), "back to farming at resume_hp_pct")
 	g.queue_free()
 	bat.queue_free()
+
+
+
+func _camp(mgr: SpawnManager, mob_path: String, pos: Vector2) -> MobSpawnArea:
+	var area := (load(AREA) as PackedScene).instantiate() as MobSpawnArea
+	area.mob_scene = load(mob_path)
+	area.mob_count = 3
+	area.auto_spawn_on_ready = false
+	area.position = pos
+	mgr.add_child(area)
+	area.virtual_count = 3
+	mgr.active_spawn_areas.append(area)
+	return area
+
+
+func test_stage_1_farms_bats_and_leaves_hogs_alone() -> void:
+	var g := await _frozen(GROUNT, Vector2(0, 0))
+	var bat := await _frozen(BAT, Vector2(100, 0))
+	var hog := await _frozen(HOG, Vector2(-100, 0))
+	g._update_strategy()
+	assert_true(g._score_target(bat) > 0.0, "bats are stage-1 food")
+	assert_true(g._score_target(hog) < 0.0, "a 100-HP hog is too tough at stage 1")
+	var mgr := SpawnManager.new()
+	mgr.auto_activate_on_ready = false
+	mgr.add_to_group(&"SpawnManager")
+	add_child(mgr)
+	var bats := _camp(mgr, BAT, Vector2(4000, 0))
+	_camp(mgr, HOG, Vector2(-2500, 0))
+	assert_eq(g._pick_camp(), bats, "the nearer hog camp is skipped")
+	g.gain_xp(1000.0)
+	g._update_strategy()
+	assert_true(g._score_target(hog) > 0.0, "stage 2 farms hogs")
+	for n in [g, bat, hog, mgr]:
+		n.queue_free()
+
+
+
+func test_random_reachable_point_skips_unreachable_islands() -> void:
+	var region := NavigationRegion2D.new()
+	var poly := NavigationPolygon.new()
+	poly.agent_radius = 0.0
+	var src := NavigationMeshSourceGeometryData2D.new()
+	src.add_traversable_outline(PackedVector2Array([Vector2(0, 0), Vector2(1000, 0), Vector2(1000, 200), Vector2(0, 200)]))
+	src.add_traversable_outline(PackedVector2Array([Vector2(2000, 0), Vector2(2100, 0), Vector2(2100, 100), Vector2(2000, 100)]))
+	NavigationServer2D.bake_from_source_geometry_data(poly, src)
+	region.navigation_polygon = poly
+	add_child(region)
+	await wait_physics_frames(6)  # polygons land one map sync after the region
+	var w := region.get_world_2d()
+	assert_true(GameUtils.usable_nav_map(w).is_valid(), "test map synced")
+	for i in range(20):
+		var p := GameUtils.random_reachable_point(w, Rect2(500, 0, 1700, 200), Vector2(10, 10), Vector2(-1, -1))
+		assert_true(p.x >= 499.0 and p.x <= 1000.5, "only the reachable part of the zone: %s" % str(p))
+	assert_eq(GameUtils.random_reachable_point(w, Rect2(1990, 0, 200, 100), Vector2(10, 10), Vector2(-1, -1)),
+		Vector2(-1, -1), "a zone that only covers an island falls back")
+	region.queue_free()
+	await wait_physics_frames(6)
+	assert_false(GameUtils.usable_nav_map(w).is_valid(), "map back to empty for the other tests")
+
+
+func _bake_rect(rect: Rect2) -> NavigationRegion2D:
+	var region := NavigationRegion2D.new()
+	var poly := NavigationPolygon.new()
+	poly.agent_radius = 0.0
+	var src := NavigationMeshSourceGeometryData2D.new()
+	src.add_traversable_outline(PackedVector2Array([rect.position, Vector2(rect.end.x, rect.position.y), rect.end, Vector2(rect.position.x, rect.end.y)]))
+	NavigationServer2D.bake_from_source_geometry_data(poly, src)
+	region.navigation_polygon = poly
+	add_child(region)
+	await wait_physics_frames(6)
+	return region
+
+
+func test_flee_slides_along_a_wall_instead_of_freezing() -> void:
+	var region := await _bake_rect(Rect2(0, 0, 1000, 1000))
+	var g := await _frozen(GROUNT, Vector2(30, 30))
+	var a := await _frozen(VLAD, Vector2(230, 230))
+	var b := await _frozen(VLAD, Vector2(250, 200))
+	g._update_strategy()
+	assert_eq(g.strategy, MonsterBase.Strategy.FARM)
+	var dest: Vector2 = g._get_smart_idle_destination()
+	assert_true(dest.distance_to(g.global_position) > 16.0, "cornered flee still moves (got %s)" % str(dest))
+	for n in [g, a, b, region]:
+		n.queue_free()
+	await wait_physics_frames(6)
+
+
+func test_gap_close_refuses_a_target_the_strategy_rejects() -> void:
+	var g := await _frozen(GROUNT, Vector2(0, 0))
+	g.gain_xp(1000.0)
+	g._update_strategy()
+	assert_eq(g.strategy, MonsterBase.Strategy.AMBUSH)
+	var h := await _frozen(VLAD, Vector2(250, 0))
+	var b := await _frozen(VLAD, Vector2(300, 40))
+	var c := await _frozen(VLAD, Vector2(300, -40))
+	g.target = h.get_node("Body")
+	g.target_entity = h
+	assert_true(g._score_target(h) < 0.0, "three heroes together: not an ambush target")
+	assert_false(g._try_gap_close(), "no dash into a group the strategy avoids")
+	for n in [g, h, b, c]:
+		n.queue_free()

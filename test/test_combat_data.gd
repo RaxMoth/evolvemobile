@@ -59,3 +59,22 @@ func test_vlad_actually_swings_at_an_adjacent_enemy() -> void:
 		assert_true(hog.get_health() < hog.get_max_health(), "and the Hog took damage")
 		hog.queue_free()
 	vlad.queue_free()
+
+
+func test_monster_ability_damage_matches_the_readme_per_stage() -> void:
+	# README tables already include the stage multiplier (12/17/24 = 12 x 1.0/1.4/2.0).
+	var g := await spawn_entity(MONSTER, Vector2(4000, 4000))
+	TickScheduler.unregister(g)
+	var m := g as MonsterBase
+	var expected := {1: [12.0, 18.0], 2: [17.0, 25.0, 32.0], 3: [24.0, 36.0, 50.0]}
+	for stage in [1, 2, 3]:
+		if stage > 1:
+			m.gain_xp(1000.0)
+		assert_eq(m.current_stage, stage)
+		var want: Array = expected[stage]
+		var meta: float = m._meta_damage_mult
+		assert_near(m.effective_ability_damage(m.ability_1), want[0] * meta, 0.01, "Front Cleave at stage %d" % stage)
+		assert_near(m.effective_ability_damage(m.ability_2), want[1] * meta, 0.01, "Ram Dash at stage %d" % stage)
+		if want.size() > 2:
+			assert_near(m.effective_ability_damage(m.ability_3), want[2] * meta, 0.01, "Ground Slam at stage %d" % stage)
+	g.queue_free()

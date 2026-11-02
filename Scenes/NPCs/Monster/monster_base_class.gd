@@ -409,6 +409,16 @@ func _try_use_ability(ability_name: String, ability: AbilityBase) -> bool:
 	return _cast(ability_name, ability, target_entity)
 
 
+## Damage one cast of `ability` deals. README per-stage tables already include
+## the stage multiplier (Front Cleave 12/17/24 = 12 x 1.0/1.4/2.0, Ram Dash
+## 18/25/36), so a tabled ability only gets the permanent skill-tree bonus;
+## applying the stage multiplier again made a stage-3 cleave hit for 48.
+func effective_ability_damage(ability: AbilityBase) -> float:
+	if ability.damage_per_stage.is_empty():
+		return ability.damage * damage_multiplier
+	return ability.damage * _meta_damage_mult
+
+
 ## Cast with an explicit target (null = facing-direction cast, e.g. an escape
 ## dash). Starts the shared cast lock so abilities never fire on consecutive
 ## frames while another one is still moving the monster.
@@ -417,9 +427,7 @@ func _cast(ability_name: String, ability: AbilityBase, cast_target: Node2D) -> b
 		return false
 	if not ability.is_unlocked_at(current_stage) or not ability.can_use(self):
 		return false
-	# Apply damage multiplier from resource
-	var effective_damage: float = ability.damage * damage_multiplier
-	ability.execute(self, cast_target, effective_damage)
+	ability.execute(self, cast_target, effective_ability_damage(ability))
 	ability_cooldowns[ability_name] = ability.cooldown
 	if strategy_profile:
 		_cast_lock = strategy_profile.cast_lock_time
@@ -520,6 +528,9 @@ func _score_target(target_node: Node2D) -> float:
 	var is_hero: bool = target_node.is_in_group("Hero")
 	if _resting and not is_hero:
 		return -1000.0
+	if not is_hero and strategy != Strategy.HUNT and target_node is EntityBase \
+			and (target_node as EntityBase).get_max_health() > strategy_profile.max_mob_health_for_stage(current_stage):
+		return -1000.0  # too tough to farm at this stage: walk on, it leashes home
 	if is_hero and not _may_engage_hero(target_node):
 		return -1000.0
 	var score: float = super._score_target(target_node)
@@ -585,6 +596,8 @@ func _pick_camp() -> MobSpawnArea:
 		var available: int = camp.spawned_mobs.size() + camp.virtual_count
 		if available <= 0:
 			continue
+		if _camp_mob_health(camp) > p.max_mob_health_for_stage(current_stage):
+			continue
 		if EntityRegistry.count_within(EntityRegistry.heroes, camp.global_position, p.camp_hero_avoid_radius, 1) > 0:
 			continue
 		var score: float = available * 100.0 - global_position.distance_to(camp.global_position)
@@ -598,29 +611,45 @@ func _pick_camp() -> MobSpawnArea:
 
 
 ## Stay put once clear of every camp with mobs left; otherwise step away from
-## the nearest one.
+## all camps within rest_camp_clearance at once (stepping away from only the
+## nearest one ping-ponged between two camps).
 func _get_rest_destination() -> Vector2:
 	var mgr := EntityRegistry.singleton(&"SpawnManager") as SpawnManager
 	if mgr == null:
 		return global_position
-	var nearest_camp: Vector2 = global_position
-	var best_d: float = INF
+	var clearance: float = strategy_profile.rest_camp_clearance
+	var push := Vector2.ZERO
 	for camp in mgr.get_active_spawns():
 		if not is_instance_valid(camp) or camp.spawned_mobs.size() + camp.virtual_count <= 0:
 			continue
-		var d: float = global_position.distance_squared_to(camp.global_position)
-		if d < best_d:
-			best_d = d
-			nearest_camp = camp.global_position
-	var clearance: float = strategy_profile.rest_camp_clearance
-	if best_d > clearance * clearance:
+		var off: Vector2 = global_position - camp.global_position
+		var d: float = off.length()
+		if d < clearance:
+			push += off.normalized() * (clearance - d) if d > 0.001 else Vector2.from_angle(_facing_angle + PI)
+	if push.length_squared() < 0.0001:
 		return global_position
-	var away: Vector2 = global_position - nearest_camp
-	away = away.normalized() if away.length_squared() > 0.0001 else Vector2.from_angle(_facing_angle + PI)
-	var dest: Vector2 = global_position + away * idle_wander_radius
+	var dest: Vector2 = global_position + push.normalized() * idle_wander_radius
 	if _score_destination(dest) <= -1000.0:
 		return super._get_smart_idle_destination()
 	return dest
+
+
+## Max HP of the mobs a camp spawns (cached per mob scene; read from an
+## instance that never enters the tree, so nothing registers).
+static var _scene_mob_health: Dictionary = {}
+
+func _camp_mob_health(camp: MobSpawnArea) -> float:
+	if not camp.spawned_mobs.is_empty() and is_instance_valid(camp.spawned_mobs[0]):
+		return camp.spawned_mobs[0].get_max_health()
+	if camp.mob_scene == null:
+		return 0.0
+	var key: String = camp.mob_scene.resource_path
+	if not _scene_mob_health.has(key):
+		var probe := camp.mob_scene.instantiate() as MobBase
+		_scene_mob_health[key] = probe.max_health if probe else 0.0
+		if probe:
+			probe.free()
+	return float(_scene_mob_health[key])
 
 
 ## A reachable point away from the heroes close by (heroes outrun a stage-1
@@ -638,17 +667,23 @@ func _get_flee_destination() -> Vector2:
 	centroid /= float(n)
 	var away: Vector2 = global_position - centroid
 	away = away.normalized() if away.length_squared() > 0.0001 else Vector2.from_angle(_facing_angle + PI)
+	# Widen the fan and shorten the step before giving up: against a wall the
+	# straight-away candidates are all off the mesh, and returning our own
+	# position froze the monster there while ranged heroes shot it.
 	var best: Vector2 = global_position
 	var best_d: float = -1.0
-	for deg: float in [-60.0, -30.0, 0.0, 30.0, 60.0]:
-		var p2: Vector2 = global_position + away.rotated(deg_to_rad(deg)) * idle_wander_radius
-		if _score_destination(p2) <= -1000.0:
-			continue  # off the navigation mesh
-		var d: float = p2.distance_squared_to(centroid)
-		if d > best_d:
-			best_d = d
-			best = p2
-	return best
+	for radius: float in [idle_wander_radius, idle_wander_radius * 0.5]:
+		for deg: float in [0.0, -30.0, 30.0, -60.0, 60.0, -90.0, 90.0, -120.0, 120.0, -150.0, 150.0]:
+			var p2: Vector2 = global_position + away.rotated(deg_to_rad(deg)) * radius
+			if _score_destination(p2) <= -1000.0:
+				continue  # off the navigation mesh
+			var d: float = p2.distance_squared_to(centroid)
+			if d > best_d:
+				best_d = d
+				best = p2
+		if best_d >= 0.0:
+			return best
+	return super._get_smart_idle_destination()
 
 
 ## Irelia's taunt marks us with a TauntEffect child carrying the taunter.
@@ -719,6 +754,11 @@ func _try_gap_close() -> bool:
 	if strategy != Strategy.AMBUSH and strategy != Strategy.HUNT:
 		return false
 	if not target_entity.is_in_group("Hero") and not p.dash_on_mobs:
+		return false
+	# The target may have become off-limits since the last re-evaluation (a
+	# second hero joined an ambushed one); the dash would land inside the
+	# cornered radius and force the fight the strategy refused.
+	if _score_target(target_entity) <= 0.0:
 		return false
 	var d: float = distance_to_target()
 	if d < p.dash_min_range or d > ability_2.get_reach():

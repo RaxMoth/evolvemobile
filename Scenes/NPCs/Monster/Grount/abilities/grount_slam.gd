@@ -72,9 +72,11 @@ func _perform_jump(caster: Node2D, start_pos: Vector2, target_pos: Vector2) -> v
 		var base: Vector2 = vis.scale
 		var mid_tween := caster.create_tween()
 		mid_tween.tween_property(vis, "scale", base * 1.2, jump_duration * 0.5)
-		mid_tween.parallel().tween_property(vis, "modulate:a", 0.7, jump_duration * 0.5)
+		# self_modulate: the evolution flash tweens `modulate` back to the value it
+		# captured, which could be mid-leap translucent and stick for good.
+		mid_tween.parallel().tween_property(vis, "self_modulate:a", 0.7, jump_duration * 0.5)
 		mid_tween.tween_property(vis, "scale", base, jump_duration * 0.5)
-		mid_tween.parallel().tween_property(vis, "modulate:a", 1.0, jump_duration * 0.5)
+		mid_tween.parallel().tween_property(vis, "self_modulate:a", 1.0, jump_duration * 0.5)
 	
 	# Wait for jump to complete
 	var tree := caster.get_tree()
@@ -98,8 +100,8 @@ func _perform_slam(caster: Node2D) -> void:
 	query.shape = shape
 	query.transform = Transform2D(0, caster.global_position)
 	query.collide_with_areas = true
-	# Bodies too: Ted's pet is a CharacterBody2D on LAYER_BODY_HERO (entity roots are
-	# plain Node2Ds, so it is the only physics body these masks can return).
+	# Bodies too (Ted's pet is a CharacterBody2D); hit_entities dedupes an
+	# entity reached through both its body and its "Body" area.
 	query.collide_with_bodies = true
 	query.collision_mask = GameUtils.MASK_MONSTER_TARGETS
 	

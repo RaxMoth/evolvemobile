@@ -45,8 +45,12 @@ func execute(caster: Node2D, target: Node2D = null, override_damage: float = -1.
 	dash_remaining = dash_distance
 	if target and is_instance_valid(target):
 		var to_t: Vector2 = target.global_position - caster.global_position
-		dash_direction = to_t.normalized()
+		dash_direction = to_t.normalized() if to_t.length_squared() > 0.01 else Vector2.from_angle(caster.sprite.rotation)
 		dash_remaining = clampf(to_t.length() - dash_stop_short, 0.0, dash_distance)
+		if dash_remaining <= 0.0:
+			# Point-blank (legacy fight logic casts at any range): ram through the
+			# target instead of fizzling while the caller spends the cooldown.
+			dash_remaining = minf(dash_distance, to_t.length() + dash_stop_short)
 	else:
 		dash_direction = Vector2.from_angle(caster.sprite.rotation)
 	if dash_remaining <= 0.0 or dash_direction == Vector2.ZERO:

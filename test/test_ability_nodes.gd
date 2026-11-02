@@ -166,3 +166,12 @@ func test_triple_shot_hits_two_more_enemies_near_the_target() -> void:
 	assert_eq((far as EntityBase).get_health(), (far as EntityBase).get_max_health(), "out of the radius")
 	for n in [river, main, near_a, near_b, near_c, far]:
 		n.queue_free()
+
+
+func test_a_pooled_mob_does_not_keep_its_stun() -> void:
+	var bat := await _frozen(BAT, Vector2(0, 0))
+	(bat as EntityBase).apply_stun(0.5)
+	assert_true((bat as EntityBase).is_stunned())
+	(bat as MobBase).prepare_for_pool()
+	assert_false((bat as EntityBase).is_stunned(), "the next life starts unstunned")
+	bat.queue_free()

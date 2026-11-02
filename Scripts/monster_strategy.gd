@@ -22,7 +22,7 @@ extends Resource
 ## A hero this close is fought regardless of strategy (README "Desperation").
 @export var cornered_radius: float = 70.0
 ## HUNT looks for heroes this far away.
-@export var hunt_sense_radius: float = 1500.0
+@export var hunt_sense_radius: float = 12000.0
 @export var strategy_eval_interval: float = 0.5
 
 @export_group("Retreat")
@@ -53,6 +53,11 @@ extends Resource
 @export_group("Farming")
 ## Camps with a hero this close are skipped.
 @export var camp_hero_avoid_radius: float = 500.0
+## Per stage (index 0 = stage 1): only farm camps whose mobs have at most this
+## much max HP, and leave tougher mobs alone (walk on; they leash home).
+## Stage-1 Grount (Front Cleave 12 dmg / 4.5 s) lost ~350 HP to a 3-Hog camp
+## without killing one.
+@export var farm_max_mob_health: Array[float] = [60.0, 150.0, 1000.0]
 
 @export_group("Combos")
 ## Minimum gap between two casts (no Slam+Dash+Cleave on consecutive frames).
@@ -65,3 +70,9 @@ extends Resource
 @export var dash_on_mobs: bool = false
 ## A hero this close while farming/retreating triggers an escape dash.
 @export var escape_dash_radius: float = 110.0
+
+
+func max_mob_health_for_stage(stage: int) -> float:
+	if farm_max_mob_health.is_empty():
+		return INF
+	return farm_max_mob_health[clampi(stage - 1, 0, farm_max_mob_health.size() - 1)]

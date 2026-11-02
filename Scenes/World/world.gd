@@ -1,5 +1,12 @@
 extends Node2D
 
+@export_group("Monster Spawn")
+## README "Monster spawns weak (Stage 1) in Zone 3, random in zone": the
+## monster is moved to a random reachable point of this rectangle when the
+## match starts. Off = it stays where World.tscn places it.
+@export var randomize_monster_spawn: bool = true
+@export var monster_spawn_zone: Rect2 = Rect2(3500, 300, 2000, 4800)
+
 var exploration_controller: HeroExplorationController
 
 func _ready():
@@ -12,6 +19,27 @@ func _ready():
 	_setup_fog()
 	_setup_player_vision()
 	_setup_exploration_controller()
+	if randomize_monster_spawn:
+		_place_monster()
+
+
+## The scene placed Grount at (1715, 309), inside the heroes' own spawn zone:
+## heroes met the stage-1 monster after ~50 s in half the simulated matches.
+func _place_monster() -> void:
+	# A region's polygons reach the navigation map one sync after the region
+	# itself (queries return the origin until then). The per-tile map takes
+	# ~1 s to become queryable, so retry for up to 3 s.
+	for i in range(180):
+		await get_tree().physics_frame
+		var monster := EntityRegistry.first_monster() as MonsterBase
+		if monster == null or not monster.is_alive():
+			return
+		var from: Vector2 = EntityRegistry.heroes[0].global_position if not EntityRegistry.heroes.is_empty() else global_position
+		var spot: Vector2 = GameUtils.random_reachable_point(get_world_2d(), monster_spawn_zone, from, Vector2.INF)
+		if spot.is_finite():
+			monster.teleport_to(spot)
+			return
+	push_warning("Monster spawn: no reachable point in %s; keeping the scene position" % str(monster_spawn_zone))
 
 
 func _exit_tree() -> void:

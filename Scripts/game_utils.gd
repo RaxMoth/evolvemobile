@@ -4,9 +4,9 @@ extends Node
 ## Entities expose ONE monitorable Area2D ("Body", r≈31) on their faction
 ## layer; their DetectionArea is on no layer and masks only enemy bodies, so
 ## mob-vs-mob areas never pair up and AoE queries see each entity once.
-## Ted's pet is a CharacterBody2D on LAYER_BODY_HERO (no Area2D), so it is
-## reachable by monster AoE queries (collide_with_bodies) but never aggroed
-## by DetectionAreas, which only react to areas.
+## Ted's pet is a CharacterBody2D with its own "Body" Area2D on LAYER_BODY_HERO,
+## so DetectionAreas (which only react to areas) can aggro it and AoE queries
+## resolve it through that area (its physics body maps to its parent node).
 const LAYER_WORLD: int = 1
 const LAYER_BODY_HERO: int = 2
 const LAYER_BODY_MOB: int = 4
@@ -32,6 +32,36 @@ func usable_nav_map(world: World2D) -> RID:
 	if NavigationServer2D.map_get_regions(nav_map).is_empty():
 		return RID()
 	return nav_map
+
+
+## A random point inside `rect` that lies on the navigation mesh and is not on
+## an isolated nav island (the map has one-tile islands): a path from it
+## toward `from` must either arrive or leave the point by at least
+## `min_reach` px. (Long paths on the per-tile map stop at the path search's
+## polygon limit, so "the path arrives" alone would reject the far side of
+## the map.) Returns `fallback` when the map cannot answer yet or no sample
+## qualifies. A region's polygons arrive one map sync after the region itself
+## (queries return the origin until then), so callers at startup retry.
+func random_reachable_point(world: World2D, rect: Rect2, from: Vector2, fallback: Vector2,
+		tries: int = 32, min_reach: float = 256.0) -> Vector2:
+	var nav_map: RID = usable_nav_map(world)
+	if not nav_map.is_valid():
+		return fallback
+	var start: Vector2 = NavigationServer2D.map_get_closest_point(nav_map, from)
+	if start.distance_to(from) > 64.0:
+		return fallback  # the map has regions but no queryable polygons yet
+	for i in range(tries):
+		var p := Vector2(randf_range(rect.position.x, rect.end.x), randf_range(rect.position.y, rect.end.y))
+		var on_mesh: Vector2 = NavigationServer2D.map_get_closest_point(nav_map, p)
+		if not rect.grow(8.0).has_point(on_mesh):
+			continue
+		var path: PackedVector2Array = NavigationServer2D.map_get_path(nav_map, on_mesh, start, true)
+		if path.is_empty():
+			continue
+		var end: Vector2 = path[path.size() - 1]
+		if end.distance_to(start) <= 8.0 or end.distance_to(on_mesh) >= min_reach:
+			return on_mesh
+	return fallback
 
 
 ## Walk from `from` toward `to` in `step` px increments and return the last
