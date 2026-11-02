@@ -27,8 +27,16 @@ const DEFAULT_MAX_DURATION_SEC: float = 600.0  # 10 minutes
 var chosen_side: int = MatchRewards.Side.HEROES
 
 var max_match_duration: float = DEFAULT_MAX_DURATION_SEC
-var match_start_time: float
 var match_ended_flag: bool = false  # idempotency guard for _end_match
+## True only between World's start_new_match() and the end/abort of that match.
+## The clock never runs in menus.
+var _match_active: bool = false
+## Unpaused GAME time since the match started (not wall clock: a paused tree or
+## a backgrounded app must not eat into the 10-minute cap).
+var _match_time: float = 0.0
+## Largest frame delta the clock accepts (a resume from background can deliver
+## one huge delta).
+const MAX_CLOCK_STEP: float = 0.25
 
 var heroes_alive: int = 0
 ## match_timer_changed is a UI signal; 4 Hz is plenty and keeps _process cheap.
@@ -55,17 +63,24 @@ func _ready() -> void:
 	# start_new_match() which world.gd calls on each World _ready.
 	# NOTE: GameManager is reachable directly as an autoload (`GameManager.x`)
 	# from anywhere — no group is needed, so we don't add_to_group here.
-	process_mode = Node.PROCESS_MODE_ALWAYS  # timer ticks even during brief pauses
+	# ALWAYS so _process keeps running while the result screen pauses the tree;
+	# the clock itself only advances while unpaused (see _process).
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	EventBus.entity_died.connect(_on_entity_died)
-	# Initial match — in case the player launched straight into World.tscn.
-	start_new_match()
+	# Record evolution as it happens: the old death-only update paid a monster
+	# that WON (or survived to the timeout) as stage 1.
+	EventBus.monster_evolved.connect(_on_monster_evolved)
+	# No match here: world.gd calls start_new_match() on every World load. The
+	# old unconditional call started the 10-minute clock in the main menu, which
+	# ended a phantom "match" (result screen + rewards) after 10 idle minutes.
 
 
 func start_new_match() -> void:
 	## Called by world.gd on each World scene load (initial launch + every
 	## "Play Again"). Resets per-match state so kills/timer don't carry
 	## over from a previous match.
-	match_start_time = Time.get_ticks_msec() / 1000.0
+	_match_time = 0.0
+	_match_active = true
 	match_ended_flag = false
 	heroes_alive = 0
 	monster_alive = false
@@ -79,8 +94,10 @@ func start_new_match() -> void:
 
 
 func _process(delta: float) -> void:
-	if match_ended_flag:
+	if not _match_active or match_ended_flag:
 		return
+	if not get_tree().paused:
+		_match_time += minf(delta, MAX_CLOCK_STEP)
 	# Check the hard cap every frame; emit the visible timer at 4 Hz.
 	var elapsed: float = _elapsed()
 	var remaining: float = maxf(0.0, max_match_duration - elapsed)
@@ -93,7 +110,17 @@ func _process(delta: float) -> void:
 
 
 func _elapsed() -> float:
-	return (Time.get_ticks_msec() / 1000.0) - match_start_time
+	return _match_time
+
+
+## World is leaving the tree without a decided match (scene change): stop the
+## clock so nothing ends a match that no longer exists.
+func abort_match() -> void:
+	_match_active = false
+
+
+func is_match_active() -> bool:
+	return _match_active and not match_ended_flag
 
 
 # ============================================
@@ -132,6 +159,10 @@ func _hero_id_from(node: Node) -> StringName:
 	return StringName(lowered)
 
 
+func _on_monster_evolved(_monster: Node, stage: int) -> void:
+	monster_stage_reached = maxi(monster_stage_reached, stage)
+
+
 func _on_entity_died(entity: Node, _killer: Node) -> void:
 	if not is_instance_valid(entity):
 		return
@@ -147,7 +178,9 @@ func _on_entity_died(entity: Node, _killer: Node) -> void:
 		if m.has_method("get_stage"):
 			monster_stage_reached = maxi(monster_stage_reached, m.get_stage())
 
-	# Match-end checks.
+	# Match-end checks (only while a match is running).
+	if not is_match_active():
+		return
 	if entity is MonsterBase:
 		monster_alive = false
 		_end_match_with_outcome(MatchRewards.Outcome.WIN)
@@ -170,6 +203,7 @@ func _end_match_with_outcome(outcome: int) -> void:
 	if match_ended_flag:
 		return
 	match_ended_flag = true
+	_match_active = false
 
 	var duration := _elapsed()
 	# `outcome` is the heroes' perspective (the legacy signals below keep it).

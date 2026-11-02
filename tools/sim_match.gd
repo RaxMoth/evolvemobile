@@ -1,0 +1,207 @@
+extends SceneTree
+
+## Headless auto-play match: loads World.tscn with both sides AI-controlled,
+## runs it at a fixed 60 Hz step as fast as the CPU allows, and prints ONE
+## JSON line describing the result. Use through tools/sim.sh (temp copies,
+## isolated user://, many seeds in parallel). Never run against the real
+## project directory with a newer editor binary.
+##
+##   godot --headless --fixed-fps 60 --max-fps 0 --path <copy> \
+##         -s res://tools/sim_match.gd -- <seed> [heroes|monster] [cap_seconds]
+
+const WORLD := "res://Scenes/World/World.tscn"
+const FPS := 60.0
+
+var _seed: int = 1
+var _side: String = "heroes"
+var _cap_s: float = 660.0
+var _frames: int = 0
+var _done: bool = false
+
+var _first_contact_s: float = -1.0
+var _hero_dmg_to_monster: float = 0.0
+var _monster_dmg_to_heroes: float = 0.0
+var _hero_deaths: Array = []
+var _monster_stage_times: Array = []
+var _mob_kills_by_monster: int = 0
+var _mob_kills_by_heroes: int = 0
+var _hero_damage: Dictionary = {}      # hero name -> damage dealt
+var _hero_state_s: Dictionary = {}     # hero name -> {state: seconds}
+var _hero_attack_casts: Dictionary = {} # hero name -> basic attacks executed
+
+
+func _initialize() -> void:
+	var args := OS.get_cmdline_user_args()
+	if args.size() > 0:
+		_seed = int(args[0])
+	if args.size() > 1:
+		_side = String(args[1])
+	if args.size() > 2:
+		_cap_s = float(args[2])
+	# Autoload globals are not compile-time identifiers inside a -s script;
+	# go through the root and start on the first frame (root is in the tree).
+	process_frame.connect(_start, CONNECT_ONE_SHOT)
+
+
+func _start() -> void:
+	seed(_seed)
+	var gm := root.get_node("GameManager")
+	gm.set("chosen_side", 1 if _side == "monster" else 0)
+	gm.connect("match_ended", _on_match_ended)
+	var bus := root.get_node("EventBus")
+	bus.connect("damage_applied", _on_damage_applied)
+	bus.connect("entity_died", _on_entity_died)
+	bus.connect("monster_evolved", _on_monster_evolved)
+	bus.connect("ability_cast", _on_ability_cast)
+	var world := (load(WORLD) as PackedScene).instantiate()
+	root.add_child(world)
+	current_scene = world
+	process_frame.connect(_tick)
+
+
+func _t() -> float:
+	return _frames / FPS
+
+
+func _tick() -> void:
+	_frames += 1
+	if _frames % 6 == 0:  # sample hero states at 10 Hz
+		for h in root.get_node("EntityRegistry").get("heroes"):
+			if is_instance_valid(h):
+				var n := String((h as Node).name)
+				var st := _state_of(h as Node)
+				var d: Dictionary = _hero_state_s.get_or_add(n, {})
+				d[st] = float(d.get(st, 0.0)) + 0.1
+	if not _done and _t() >= _cap_s:
+		_finish("cap", "none")
+
+
+func _on_damage_applied(packet: Object) -> void:
+	var src: Object = packet.get("source")
+	var dst: Object = packet.get("target")
+	var amount: float = float(packet.get("amount"))
+	if src == null or dst == null or not is_instance_valid(src) or not is_instance_valid(dst):
+		return
+	var src_hero := _is(src, "HeroBase")
+	if src_hero:
+		var hn := String((src as Node).name)
+		_hero_damage[hn] = float(_hero_damage.get(hn, 0.0)) + amount
+	var dst_hero := _is(dst, "HeroBase")
+	var src_mon := _is(src, "MonsterBase")
+	var dst_mon := _is(dst, "MonsterBase")
+	if (src_hero and dst_mon) or (src_mon and dst_hero):
+		if _first_contact_s < 0.0:
+			_first_contact_s = _t()
+	if src_hero and dst_mon:
+		_hero_dmg_to_monster += amount
+	elif src_mon and dst_hero:
+		_monster_dmg_to_heroes += amount
+
+
+func _on_entity_died(entity: Object, killer: Object) -> void:
+	if _is(entity, "MobBase"):
+		if killer != null and is_instance_valid(killer):
+			if _is(killer, "MonsterBase"):
+				_mob_kills_by_monster += 1
+			elif _is(killer, "HeroBase") or _is(killer, "Node2D"):
+				_mob_kills_by_heroes += 1
+		return
+	if _is(entity, "HeroBase"):
+		var m := _monster()
+		var pos: Vector2 = (entity as Node2D).global_position
+		var allies_500 := 0
+		var allies_fighting := 0
+		for h in root.get_node("EntityRegistry").get("heroes"):
+			if h == entity or not is_instance_valid(h):
+				continue
+			if (h as Node2D).global_position.distance_to(pos) <= 500.0:
+				allies_500 += 1
+				if h.call("is_target_valid"):
+					allies_fighting += 1
+		var attackers := 0
+		for e in root.get_node("EntityRegistry").get("enemies"):
+			if is_instance_valid(e) and e.get("target_entity") == entity:
+				attackers += 1
+		_hero_deaths.append({
+			"hero": String((entity as Node).name),
+			"t": snappedf(_t(), 0.1),
+			"stage": int(m.get("current_stage")) if m else -1,
+			"by": String((killer as Node).name) if killer != null and is_instance_valid(killer) else "",
+			"level": int((entity as Node).get_node("HeroStats").get("level")),
+			"allies_500": allies_500,
+			"allies_fighting": allies_fighting,
+			"attackers": attackers,
+			"state": _state_of(entity as Node),
+		})
+
+
+func _on_ability_cast(caster: Object, ability: Object, _target: Object) -> void:
+	if _is(caster, "HeroBase") and ability != null and int(ability.get("ability_type")) == 2:
+		var n := String((caster as Node).name)
+		_hero_attack_casts[n] = int(_hero_attack_casts.get(n, 0)) + 1
+
+
+func _on_monster_evolved(_m: Object, stage: int) -> void:
+	_monster_stage_times.append({"stage": stage, "t": snappedf(_t(), 0.1)})
+
+
+func _on_match_ended(winner: String, _game_time: float) -> void:
+	_finish("end", winner)
+
+
+func _finish(reason: String, winner: String) -> void:
+	if _done:
+		return
+	_done = true
+	var m := _monster()
+	var gm := root.get_node("GameManager")
+	var reg := root.get_node("EntityRegistry")
+	var out := {
+		"seed": _seed,
+		"side": _side,
+		"reason": reason,
+		"winner": winner,
+		"t": snappedf(_t(), 0.1),
+		"game_clock": snappedf(float(gm.call("get_match_elapsed")), 0.1),
+		"monster_stage": int(gm.get("monster_stage_reached")),
+		"monster_hp_pct": snappedf(float(m.call("get_health")) / maxf(1.0, float(m.call("get_max_health"))), 0.01) if m else 0.0,
+		"monster_xp": snappedf(float(m.get("current_xp")), 1.0) if m else -1.0,
+		"heroes_alive": (reg.get("heroes") as Array).size(),
+		"hero_deaths": _hero_deaths,
+		"evolutions": _monster_stage_times,
+		"first_contact": snappedf(_first_contact_s, 0.1),
+		"hero_dmg_to_monster": roundi(_hero_dmg_to_monster),
+		"monster_dmg_to_heroes": roundi(_monster_dmg_to_heroes),
+		"mob_kills_monster": _mob_kills_by_monster,
+		"mob_kills_heroes": _mob_kills_by_heroes,
+		"hero_damage": _hero_damage,
+		"hero_states": _hero_state_s,
+		"hero_basic_casts": _hero_attack_casts,
+	}
+	print("SIM_RESULT " + JSON.stringify(out))
+	quit()
+
+
+func _state_of(entity: Node) -> String:
+	var chart: Node = entity.get_node_or_null("%StateChart")
+	if chart == null or chart.get_child_count() == 0:
+		return ""
+	for child in chart.get_child(0).get_children():
+		if "active" in child and child.get("active"):
+			return String(child.name)
+	return ""
+
+
+func _monster() -> Node2D:
+	return root.get_node("EntityRegistry").call("first_monster") as Node2D
+
+
+func _is(o: Object, cls: String) -> bool:
+	if o == null:
+		return false
+	var s: Script = o.get_script()
+	while s != null:
+		if s.get_global_name() == cls:
+			return true
+		s = s.get_base_script()
+	return o.is_class(cls)

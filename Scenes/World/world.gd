@@ -14,6 +14,12 @@ func _ready():
 	_setup_exploration_controller()
 
 
+func _exit_tree() -> void:
+	# Leaving the World without a decided match (e.g. a scene change): stop the
+	# match clock. "Play Again" re-enters and calls start_new_match() again.
+	GameManager.abort_match()
+
+
 func _setup_player_vision():
 	## Vision = which entity reveals the fog of war as it moves. Whoever
 	## the player is controlling sees through their avatar's eyes. The
