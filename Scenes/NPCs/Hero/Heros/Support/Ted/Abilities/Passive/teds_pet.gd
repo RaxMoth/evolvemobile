@@ -38,6 +38,7 @@ func _exit_tree() -> void:
 
 func _ready() -> void:
 	current_health = max_health
+	_update_health_bar()
 	# NOTE: "Hero" group is declared in TedsPet.tscn (`groups=["Hero"]`).
 	# No add_to_group() call is needed here.
 	
@@ -59,6 +60,7 @@ func _setup_navigation_agent() -> void:
 	navigation_agent.target_desired_distance = 4.0
 	navigation_agent.avoidance_enabled = false
 	navigation_agent.radius = 10.0
+	GameUtils.configure_nav_agent(navigation_agent)
 
 func _setup_navigation_map() -> void:
 	# Wait for scene to be ready
@@ -208,11 +210,20 @@ func _receive_damage(packet: DamagePacket) -> void:
 	if current_health <= 0.0:
 		return
 	current_health -= packet.amount
+	_update_health_bar()
 
 	if current_health <= 0.0:
 		died.emit()
 		EventBus.notify_died(self, packet.source)
 		queue_free()
+
+## Mobs and the monster can target the pet now: keep its bar honest.
+func _update_health_bar() -> void:
+	var bar := get_node_or_null(^"HealthBar") as ProgressBar
+	if bar:
+		bar.max_value = max_health
+		bar.value = maxf(current_health, 0.0)
+
 
 ## Rally Cry: faster attacks for `duration` seconds.
 func set_attack_speed_boost(multiplier: float, duration: float = 5.0) -> void:

@@ -348,6 +348,7 @@ func _setup_navigation() -> void:
 	navigation_agent_2d.simplify_path = true
 	navigation_agent_2d.target_desired_distance = 4.0
 	navigation_agent_2d.avoidance_enabled = false
+	GameUtils.configure_nav_agent(navigation_agent_2d)
 
 # ============================================
 # SECTION 6: VIRTUAL METHODS (TO OVERRIDE)

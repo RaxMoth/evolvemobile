@@ -12,6 +12,17 @@ const LAYER_BODY_HERO: int = 2
 const LAYER_BODY_MOB: int = 4
 const LAYER_BODY_MONSTER: int = 8
 const LAYER_ABILITY_ZONE: int = 16
+## Path search budget for every NavigationAgent2D. World.tscn's TileMapLayer
+## makes one navigation region PER TILE (~38k), and at the engine default
+## (4096 polygons) any path longer than ~2500 px stopped half-way: an agent
+## that fell behind its group walked to the cut-off point and stayed there.
+const NAV_MAX_SEARCH_POLYGONS: int = 16384
+
+## Apply the project's path search budget (property exists since Godot 4.5).
+func configure_nav_agent(agent: NavigationAgent2D) -> void:
+	if agent and "path_search_max_polygons" in agent:
+		agent.set("path_search_max_polygons", NAV_MAX_SEARCH_POLYGONS)
+
 ## What each faction may hit (mirrors can_entity_target below).
 const MASK_HERO_TARGETS: int = LAYER_BODY_MOB | LAYER_BODY_MONSTER
 const MASK_MOB_TARGETS: int = LAYER_BODY_HERO | LAYER_BODY_MONSTER

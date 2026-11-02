@@ -72,6 +72,7 @@ func test_walking_heroes_are_not_flagged_as_stuck() -> void:
 	add_child(ctrl)
 	await wait_frames(2)
 	ctrl.set_process(false)
+	ctrl.hero_stuck_anchor.clear()  # a hero seen for the first time
 	(vlad as HeroBase).set_exploration_target(Vector2(5000, 0))
 	for i in range(400):  # 6.7 s at 1.3 px per frame (a walking hero)
 		vlad.global_position += Vector2(1.3, 0)
@@ -83,3 +84,24 @@ func test_walking_heroes_are_not_flagged_as_stuck() -> void:
 	assert_true((vlad as HeroBase).exploration_target != Vector2(5000, 0), "a truly stuck hero gets a detour")
 	vlad.queue_free()
 	ctrl.queue_free()
+
+
+func test_exploration_ignores_off_map_fog_and_abandons_stalled_waypoints() -> void:
+	var fog := (load("res://Scenes/World/FogOfWar/FogOfWarSystem.tscn") as PackedScene).instantiate() as FogOfWarSystem
+	fog.world_size = Vector2(3200, 3200)
+	add_child(fog)
+	var vlad := await _frozen(VLAD, Vector2(100, 100))
+	var ctrl := (load(CTRL) as PackedScene).instantiate() as HeroExplorationController
+	add_child(ctrl)
+	await wait_frames(2)
+	ctrl.set_process(false)
+	ctrl.fog_system = fog
+	assert_eq(ctrl._count_unexplored_in_area(Vector2(-400, -400), 150.0), 0, "off-map tiles are not 'unexplored'")
+	assert_true(ctrl._count_unexplored_in_area(Vector2(400, 400), 150.0) > 0, "in-map fog still counts")
+	ctrl.current_group_target = Vector2(2000, 2000)
+	for i in range(10):
+		ctrl._track_stall(vlad.global_position)
+	assert_true(ctrl._is_abandoned(Vector2(2000, 2000)), "a waypoint the group stopped approaching is abandoned")
+	assert_false(ctrl._is_abandoned(Vector2(600, 600)))
+	for n in [vlad, ctrl, fog]:
+		n.queue_free()

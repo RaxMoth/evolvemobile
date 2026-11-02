@@ -55,6 +55,14 @@ var hero_stuck_timers: Dictionary = {}
 var hero_stuck_anchor: Dictionary = {}
 
 var explored_targets: Array[Vector2] = []
+## Waypoints the group stopped making progress toward (walled-off fog,
+## unreachable pockets): skipped from then on so exploration moves on.
+var _unreachable_targets: Array[Vector2] = []
+var _stall_time: float = 0.0
+var _last_group_center: Vector2 = Vector2.INF
+## Seconds of < 60 px group progress (out of combat) before a waypoint is
+## abandoned. The group used to sit in a corner for minutes.
+@export var waypoint_stall_timeout: float = 9.0
 var current_exploration_zone: Vector2 = Vector2.ZERO
 
 func _ready() -> void:
@@ -128,6 +136,8 @@ func _update_exploration_targets() -> void:
 	# Check if we reached the current target
 	if group_center.distance_to(current_group_target) < waypoint_reached_distance:
 		explored_targets.append(current_group_target)
+	else:
+		_track_stall(group_center)
 	
 	# Find next target preferring forward direction
 	var unexplored_target = _find_next_exploration_zone(group_center)
@@ -176,8 +186,8 @@ func _find_next_exploration_zone(from_position: Vector2) -> Vector2:
 		for distance in distances:
 			var check_pos = from_position + direction * distance
 			
-			# Skip recently explored
-			if _is_recently_explored(check_pos):
+			# Skip recently explored, abandoned and off-map points
+			if _is_recently_explored(check_pos) or _is_abandoned(check_pos) or not _in_fog_bounds(check_pos):
 				continue
 			
 			# Count unexplored tiles
@@ -200,7 +210,50 @@ func _find_next_exploration_zone(from_position: Vector2) -> Vector2:
 					best_score = score
 					best_target = check_pos
 	
-	return best_target
+	return _snap_to_nav(best_target) if best_target != Vector2.ZERO else best_target
+
+
+## Group made < 60 px of progress for waypoint_stall_timeout seconds while
+## nobody fought: give the current waypoint up.
+func _track_stall(group_center: Vector2) -> void:
+	var fighting: bool = false
+	for hero in heroes:
+		if is_instance_valid(hero) and hero.has_method("is_target_valid") and hero.call("is_target_valid"):
+			fighting = true
+			break
+	if fighting or not _last_group_center.is_finite() or group_center.distance_to(_last_group_center) > 60.0:
+		_stall_time = 0.0
+		_last_group_center = group_center
+		return
+	_stall_time += exploration_update_interval
+	if _stall_time >= waypoint_stall_timeout:
+		_unreachable_targets.append(current_group_target)
+		if _unreachable_targets.size() > 32:
+			_unreachable_targets.remove_at(0)
+		_stall_time = 0.0
+		_last_group_center = group_center
+
+
+func _is_abandoned(pos: Vector2) -> bool:
+	for t in _unreachable_targets:
+		if t.distance_squared_to(pos) < 250.0 * 250.0:
+			return true
+	return false
+
+
+func _in_fog_bounds(pos: Vector2) -> bool:
+	if not fog_system:
+		return true
+	return Rect2(fog_system.world_offset, fog_system.world_size).has_point(pos)
+
+
+## Closest walkable point (exploration samples land in walls and water).
+func _snap_to_nav(pos: Vector2) -> Vector2:
+	var nav_map: RID = GameUtils.usable_nav_map(get_viewport().world_2d if get_viewport() else null)
+	if not nav_map.is_valid():
+		return pos
+	var on_mesh: Vector2 = NavigationServer2D.map_get_closest_point(nav_map, pos)
+	return on_mesh if on_mesh != Vector2.ZERO else pos
 
 func _get_random_unexplored_position(near_position: Vector2) -> Vector2:
 	"""Find random unexplored position near group"""
@@ -213,8 +266,8 @@ func _get_random_unexplored_position(near_position: Vector2) -> Vector2:
 		var distance = randf_range(300, 600)
 		var candidate = near_position + Vector2.from_angle(angle) * distance
 		
-		if not fog_system.is_tile_explored(candidate):
-			return candidate
+		if _in_fog_bounds(candidate) and not _is_abandoned(candidate) and not fog_system.is_tile_explored(candidate):
+			return _snap_to_nav(candidate)
 	
 	# Fallback
 	return _get_random_map_position()
@@ -344,7 +397,9 @@ func _count_unexplored_in_area(center: Vector2, radius: float) -> int:
 		for y in range(-radius, radius, step):
 			var check_pos = center + Vector2(x, y)
 			
-			if check_pos.distance_to(center) <= radius:
+			if check_pos.distance_to(center) <= radius and _in_fog_bounds(check_pos):
+				# Off-map tiles read as "unexplored" and dragged the group into
+				# the map's edge for minutes.
 				if not fog_system.is_tile_explored(check_pos):
 					count += 1
 	
@@ -483,7 +538,9 @@ func _check_stuck_heroes(delta: float) -> void:
 		# (Comparing with the previous FRAME flagged every walking hero: they
 		# move ~1.3 px per frame.) Heroes fighting or parked at their goal are
 		# not stuck.
-		var anchor: Vector2 = hero_stuck_anchor.get(hero, current_pos)
+		if not hero_stuck_anchor.has(hero):
+			hero_stuck_anchor[hero] = current_pos
+		var anchor: Vector2 = hero_stuck_anchor[hero]
 		var busy: bool = hero.has_method("is_target_valid") and hero.call("is_target_valid")
 		var goal: Variant = hero.get("exploration_target")
 		var parked: bool = goal is Vector2 and current_pos.distance_to(goal) <= waypoint_reached_distance
