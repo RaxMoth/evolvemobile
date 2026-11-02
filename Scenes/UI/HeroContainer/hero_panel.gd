@@ -26,8 +26,10 @@ var hero: Node = null
 var _is_active: bool = false
 var _is_hovered: bool = false
 
-# Per-ability cooldown trackers keyed by ability_type.
-var _cooldown_trackers: Dictionary = {}
+var _ability_system: AbilitySystem = null
+# Last overlay value written per icon, so the shader parameter is only set
+# when it actually changes.
+var _shown_progress: Dictionary = {}  # AbilityType -> float
 
 # How fast the hover/active visual fades. Higher = snappier.
 const VISUAL_LERP_SPEED: float = 12.0
@@ -87,6 +89,7 @@ func set_active(active: bool) -> void:
 func _process(delta: float) -> void:
 	# Lerp the visual response toward the desired state. Cheap, smooth.
 	_update_visual_state(false, delta)
+	_update_cooldown_overlays()
 
 
 func _update_visual_state(snap: bool, delta: float = 0.0) -> void:
@@ -105,7 +108,7 @@ func _update_visual_state(snap: bool, delta: float = 0.0) -> void:
 		scale = Vector2(target_scale, target_scale)
 		return
 
-	var t: float = clamp(VISUAL_LERP_SPEED * delta, 0.0, 1.0)
+	var t: float = clampf(VISUAL_LERP_SPEED * delta, 0.0, 1.0)
 	modulate = modulate.lerp(Color(target_brightness, target_brightness, target_brightness), t)
 	scale = scale.lerp(Vector2(target_scale, target_scale), t)
 
@@ -155,24 +158,22 @@ func _update_health_color(current: float, max_hp: float) -> void:
 
 
 func _setup_abilities() -> void:
-	var ability_system = hero.get_node_or_null("AbilitySystem") as AbilitySystem
-	if not ability_system:
+	_ability_system = hero.get_node_or_null("AbilitySystem") as AbilitySystem
+	_shown_progress.clear()
+	if not _ability_system:
 		return
 
-	if passive_icon and ability_system.passive_ability:
-		passive_icon.texture = ability_system.passive_ability.icon
-	if active_icon and ability_system.active_ability:
-		active_icon.texture = ability_system.active_ability.icon
+	if passive_icon and _ability_system.passive_ability:
+		passive_icon.texture = _ability_system.passive_ability.icon
+	if active_icon and _ability_system.active_ability:
+		active_icon.texture = _ability_system.active_ability.icon
 		_setup_cooldown_shader(active_icon)
-	if basic_icon and ability_system.basic_attack:
-		basic_icon.texture = ability_system.basic_attack.icon
+	if basic_icon and _ability_system.basic_attack:
+		basic_icon.texture = _ability_system.basic_attack.icon
 		_setup_cooldown_shader(basic_icon)
-	if ult_icon and ability_system.ultimate_ability:
-		ult_icon.texture = ability_system.ultimate_ability.icon
+	if ult_icon and _ability_system.ultimate_ability:
+		ult_icon.texture = _ability_system.ultimate_ability.icon
 		_setup_cooldown_shader(ult_icon)
-
-	if not ability_system.ability_used.is_connected(_on_ability_used):
-		ability_system.ability_used.connect(_on_ability_used)
 
 
 func _setup_cooldown_shader(icon_node: TextureRect) -> void:
@@ -186,37 +187,26 @@ func _setup_cooldown_shader(icon_node: TextureRect) -> void:
 	icon_node.material = shader_material
 
 
-func _on_ability_used(used_ability: AbilityBase) -> void:
-	if used_ability.ability_type == AbilityBase.AbilityType.PASSIVE:
+## The overlay reads the AbilitySystem's real cooldown every frame. It used to
+## run its own timer per cast, which drifted from the real cooldown (attack
+## speed boosts, a paused tree) and stacked loops when an ability was recast.
+func _update_cooldown_overlays() -> void:
+	if not is_instance_valid(_ability_system):
 		return
-	var icon: TextureRect = _icon_for_type(used_ability.ability_type)
-	if icon:
-		_animate_cooldown(icon, used_ability.cooldown)
+	_show_cooldown(active_icon, AbilityBase.AbilityType.ACTIVE)
+	_show_cooldown(basic_icon, AbilityBase.AbilityType.BASIC_ATTACK)
+	_show_cooldown(ult_icon, AbilityBase.AbilityType.ULTIMATE)
 
 
-func _icon_for_type(t: AbilityBase.AbilityType) -> TextureRect:
-	match t:
-		AbilityBase.AbilityType.ACTIVE: return active_icon
-		AbilityBase.AbilityType.BASIC_ATTACK: return basic_icon
-		AbilityBase.AbilityType.ULTIMATE: return ult_icon
-	return null
-
-
-func _animate_cooldown(icon_node: TextureRect, cooldown_duration: float) -> void:
-	if not icon_node.material or cooldown_duration <= 0.0:
+func _show_cooldown(icon_node: TextureRect, t: AbilityBase.AbilityType) -> void:
+	if icon_node == null:
 		return
-	var tracker_id := icon_node.get_instance_id()
-	_cooldown_trackers[tracker_id] = true
-
-	var elapsed: float = 0.0
-	while elapsed < cooldown_duration:
-		if not is_instance_valid(icon_node) or not _cooldown_trackers.get(tracker_id, false):
-			break
-		elapsed += get_process_delta_time()
-		var progress: float = elapsed / cooldown_duration
-		icon_node.material.set_shader_parameter("progress", progress)
-		await get_tree().process_frame
-
-	if is_instance_valid(icon_node):
-		icon_node.material.set_shader_parameter("progress", 1.0)
-	_cooldown_trackers.erase(tracker_id)
+	var mat := icon_node.material as ShaderMaterial
+	if mat == null:
+		return
+	var progress: float = _ability_system.get_cooldown_progress(t)
+	var shown: float = _shown_progress.get(t, -1.0)
+	if absf(progress - shown) < 0.002:
+		return
+	_shown_progress[t] = progress
+	mat.set_shader_parameter("progress", progress)

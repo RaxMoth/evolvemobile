@@ -13,6 +13,10 @@ var owner_entity: Node2D
 var _hero_stats: HeroStatsComponent = null  # cached; monsters have none
 var cooldowns: Dictionary = {} # AbilityType -> time_remaining
 var _last_emitted_cooldowns: Dictionary = {} # Track last emitted values to reduce signal spam
+## The cooldown each ability started at on its last cast, so the HUD can draw
+## remaining / total (the remaining time shrinks faster than wall time when
+## attack speed is boosted, and freezes while the tree is paused).
+var _cooldown_totals: Dictionary = {} # AbilityType -> float
 
 func _ready() -> void:
 	owner_entity = get_parent()
@@ -93,6 +97,10 @@ func _use_ability(ability: AbilityBase, ability_type: AbilityBase.AbilityType, t
 	if not is_on_cooldown(ability_type) and ability.can_use(owner_entity):
 		ability.execute(owner_entity, target)
 		cooldowns[ability_type] = ability.cooldown
+		_cooldown_totals[ability_type] = ability.cooldown
+		# Arms the "ready again" emit in _process (it never fired before:
+		# this entry stayed 0 forever).
+		_last_emitted_cooldowns[ability_type] = ability.cooldown
 		ability_used.emit(ability)
 		EventBus.notify_ability_cast(owner_entity, ability, target)
 		return true
@@ -104,6 +112,14 @@ func is_on_cooldown(ability_type: AbilityBase.AbilityType) -> bool:
 
 func get_cooldown_remaining(ability_type: AbilityBase.AbilityType) -> float:
 	return cooldowns.get(ability_type, 0.0)
+
+## 0.0 right after a cast, 1.0 when ready. Polled by the hero panel overlay.
+func get_cooldown_progress(ability_type: AbilityBase.AbilityType) -> float:
+	var remaining: float = cooldowns.get(ability_type, 0.0)
+	var total: float = _cooldown_totals.get(ability_type, 0.0)
+	if remaining <= 0.0 or total <= 0.0:
+		return 1.0
+	return clampf(1.0 - remaining / total, 0.0, 1.0)
 
 func get_ability_by_type(ability_type: AbilityBase.AbilityType) -> AbilityBase:
 	match ability_type:

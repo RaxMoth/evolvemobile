@@ -1,22 +1,19 @@
 shader_type canvas_item;
 
-// Camera-following fog shader.
+// World-space fog. The fog quad is static and covers the world plus a border
+// (see FogOfWarSystem._setup_fog_sprite); every fragment looks up the
+// exploration texel of its WORLD position, so the fog never moves with the
+// camera.
 //
-// The fog sprite is positioned and sized to match the visible viewport
-// each frame (see FogOfWarSystem._process). To still sample the world-
-// space exploration map correctly, the vertex shader computes each
-// fragment's WORLD position (not screen position) and the fragment
-// shader divides by world_size to get a UV into the exploration map.
-//
-// This way the fog quad is small (viewport-sized), but the fog content
-// still corresponds to fixed world-space tiles.
+// The texture has exactly grid_size texels of tile_size world pixels each, so
+// the UV is mapped by grid_size * tile_size (not a free world_size that may
+// not be a whole number of tiles). Outside the map is always fogged: with the
+// default repeat sampling the border used to show explored tiles from the
+// opposite edge.
 
-uniform sampler2D exploration_map : filter_nearest;
+uniform sampler2D exploration_map : filter_nearest, repeat_disable;
 uniform vec4 fog_color : source_color = vec4(0.0, 0.0, 0.0, 0.8);
 uniform vec2 world_offset = vec2(0.0, 0.0);
-uniform vec2 world_size = vec2(2000.0, 2000.0);
-
-// Legacy uniforms kept so existing material set_shader_parameter calls don't error.
 uniform float tile_size = 32.0;
 uniform vec2 grid_size = vec2(100.0, 100.0);
 
@@ -28,7 +25,8 @@ void vertex() {
 }
 
 void fragment() {
-	vec2 tex_uv = (world_pos - world_offset) / world_size;
-	float explored = texture(exploration_map, tex_uv).r;
+	vec2 tex_uv = (world_pos - world_offset) / (grid_size * tile_size);
+	vec2 inside2 = step(vec2(0.0), tex_uv) * step(tex_uv, vec2(1.0));
+	float explored = texture(exploration_map, clamp(tex_uv, 0.0, 1.0)).r * inside2.x * inside2.y;
 	COLOR = mix(fog_color, vec4(0.0, 0.0, 0.0, 0.0), explored);
 }
