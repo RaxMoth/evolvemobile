@@ -52,6 +52,7 @@ var _heading: Vector2 = Vector2.RIGHT
 const FORMATION_SLOTS = [Vector2(0, 0), Vector2(-0.6, -1), Vector2(-0.6, 1), Vector2(-1.4, 0)]
 var hero_last_positions: Dictionary = {}
 var hero_stuck_timers: Dictionary = {}
+var hero_stuck_anchor: Dictionary = {}
 
 var explored_targets: Array[Vector2] = []
 var current_exploration_zone: Vector2 = Vector2.ZERO
@@ -138,6 +139,13 @@ func _update_exploration_targets() -> void:
 	else:
 		# Fallback: random unexplored area
 		current_group_target = _get_random_unexplored_position(group_center)
+	# The slots turn to the new target at once; make the leader re-pick its
+	# idle goal now instead of walking to the old one for idle_retarget_time.
+	if is_instance_valid(_formation_leader):
+		if _formation_leader.has_method("set_exploration_target"):
+			_formation_leader.set_exploration_target(current_group_target)
+		if _formation_leader.has_method("request_idle_retarget"):
+			_formation_leader.request_idle_retarget()
 
 func _find_next_exploration_zone(from_position: Vector2) -> Vector2:
 	if not fog_system:
@@ -235,6 +243,7 @@ func _calculate_group_velocity() -> Vector2:
 # ============================================
 
 func _cleanup_freed_heroes() -> void:
+	var reslot: bool = false
 	for i in range(heroes.size() - 1, -1, -1):
 		var hero = heroes[i]
 		
@@ -244,10 +253,15 @@ func _cleanup_freed_heroes() -> void:
 			hero_formation_offset.erase(hero)
 			if _formation_slots.has(hero) or hero == _formation_leader:
 				_formation_slots.erase(hero)
-				_formation_leader = null  # re-slot the survivors below
+				reslot = true
 			hero_last_positions.erase(hero)
 			hero_stuck_timers.erase(hero)
+			hero_stuck_anchor.erase(hero)
 			cached_boids_data.erase(hero)
+	# Re-rank the survivors in the same frame: until then followers fell back
+	# to the far group target and ran ahead of the slow leader.
+	if reslot:
+		_setup_formation()
 
 func _find_heroes() -> void:
 	heroes.clear()
@@ -385,6 +399,13 @@ func _apply_cached_boids(hero: Node2D) -> void:
 		return
 	
 	var data = cached_boids_data[hero]
+	if use_formation and formation_follow_leader and hero == _formation_leader:
+		# The leader heads for the bare group target. Boids terms (separation
+		# from a flank or the pet) pushed its goal past the target, the heading
+		# reversed, and the whole formation shuttled around every waypoint.
+		if hero.has_method("set_exploration_target"):
+			hero.set_exploration_target(current_group_target)
+		return
 	var formation_offset: Vector2 = hero_formation_offset.get(hero, Vector2.ZERO)
 	var base_target: Vector2 = current_group_target + formation_offset
 	if use_formation and formation_follow_leader and is_instance_valid(_formation_leader) \
@@ -458,18 +479,25 @@ func _check_stuck_heroes(delta: float) -> void:
 			hero_stuck_timers[hero] = 0.0
 			continue
 		
-		var last_pos = hero_last_positions[hero]
-
-		if current_pos.distance_to(last_pos) < 5.0:
+		# Stuck = not left a 5 px circle around an anchor for stuck_detection_time.
+		# (Comparing with the previous FRAME flagged every walking hero: they
+		# move ~1.3 px per frame.) Heroes fighting or parked at their goal are
+		# not stuck.
+		var anchor: Vector2 = hero_stuck_anchor.get(hero, current_pos)
+		var busy: bool = hero.has_method("is_target_valid") and hero.call("is_target_valid")
+		var goal: Variant = hero.get("exploration_target")
+		var parked: bool = goal is Vector2 and current_pos.distance_to(goal) <= waypoint_reached_distance
+		if busy or parked or current_pos.distance_to(anchor) > 5.0:
+			hero_stuck_anchor[hero] = current_pos
+			hero_stuck_timers[hero] = 0.0
+		else:
 			hero_stuck_timers[hero] += delta
-			
 			if hero_stuck_timers[hero] > stuck_detection_time:
 				_unstuck_hero(hero)
 				hero_stuck_timers[hero] = 0.0
-		else:
-			hero_stuck_timers[hero] = 0.0
-		
-		hero_last_positions[hero] = current_pos
+				hero_stuck_anchor[hero] = current_pos
+
+		hero_last_positions[hero] = current_pos  # per-frame: velocity / alignment
 
 func _unstuck_hero(hero: Node2D) -> void:
 	# Try to find an unexplored area nearby

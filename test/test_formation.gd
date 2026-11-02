@@ -64,3 +64,22 @@ func test_tank_leads_healer_trails_and_followers_pace_on_the_leader() -> void:
 		"a flank takes over when the leader dies")
 	for n in [ted, vlad, river, ctrl]:
 		n.queue_free()
+
+
+func test_walking_heroes_are_not_flagged_as_stuck() -> void:
+	var vlad := await _frozen(VLAD, Vector2(0, 0))
+	var ctrl := (load(CTRL) as PackedScene).instantiate() as HeroExplorationController
+	add_child(ctrl)
+	await wait_frames(2)
+	ctrl.set_process(false)
+	(vlad as HeroBase).set_exploration_target(Vector2(5000, 0))
+	for i in range(400):  # 6.7 s at 1.3 px per frame (a walking hero)
+		vlad.global_position += Vector2(1.3, 0)
+		ctrl._check_stuck_heroes(1.0 / 60.0)
+	assert_true(float(ctrl.hero_stuck_timers.get(vlad, 0.0)) < 1.0, "moving, so never stuck")
+	assert_eq((vlad as HeroBase).exploration_target, Vector2(5000, 0), "no detour written")
+	for i in range(400):  # really stuck: same spot for 6.7 s
+		ctrl._check_stuck_heroes(1.0 / 60.0)
+	assert_true((vlad as HeroBase).exploration_target != Vector2(5000, 0), "a truly stuck hero gets a detour")
+	vlad.queue_free()
+	ctrl.queue_free()
