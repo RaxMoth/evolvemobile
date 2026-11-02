@@ -53,9 +53,25 @@ func test_ai_reveals_feed_memory_without_clearing_the_players_fog() -> void:
 
 
 func test_hero_vision_radius_comes_from_hero_stats() -> void:
-	var vlad := await spawn_entity(VLAD, Vector2.ZERO)
-	TickScheduler.unregister(vlad)
-	var vision := FogOfWarHelper.add_vision_to_hero(vlad, 250.0)
-	assert_true(vision != null and vision == vlad.get_node("VisionArea"), "reuses the scene VisionArea")
-	assert_near(vision.vision_radius, 250.0, 0.01, "the requested radius is applied, not the scene's 160")
-	vlad.queue_free()
+	# In both play modes: the radius is applied by HeroBase from HeroStats,
+	# overriding the scene values (HeroBaseClass.tscn 160, River.tscn 120).
+	for path in [VLAD, "res://Scenes/NPCs/Hero/Heros/Healer/River/River.tscn"]:
+		var hero := await spawn_entity(path, Vector2.ZERO)
+		TickScheduler.unregister(hero)
+		var want: float = (hero.get_node("HeroStats") as HeroStatsComponent).base_stats.vision_radius
+		var vision := hero.get_node("VisionArea") as VisionArea
+		assert_near(vision.vision_radius, want, 0.01, "%s sees its HeroStats radius" % hero.name)
+		var again := FogOfWarHelper.add_vision_to_hero(hero, 333.0)
+		assert_true(again == vision, "the helper reuses the scene VisionArea")
+		assert_near(vision.vision_radius, 333.0, 0.01, "and applies the requested radius")
+		hero.queue_free()
+
+
+func test_monster_player_vision_does_not_feed_the_hero_ai_memory() -> void:
+	var fog := (load(FOG) as PackedScene).instantiate() as FogOfWarSystem
+	fog.world_size = Vector2(3200, 3200)
+	add_child(fog)
+	fog.reveal_area(Vector2(800, 800), 64.0, true, false)
+	assert_true(fog.exploration_image.get_pixel(25, 25).r > 0.5, "the monster player sees it")
+	assert_false(fog.is_tile_explored(Vector2(800, 800)), "the hero AI did not explore it")
+	fog.queue_free()

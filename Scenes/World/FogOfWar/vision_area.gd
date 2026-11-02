@@ -8,6 +8,10 @@ signal area_revealed(cells: Array)
 ## False for the AI side's vision when the player plays the other side: it
 ## still feeds the AI's exploration memory but never clears the player's fog.
 @export var reveals_display: bool = true
+## False for the monster player's own vision: it clears the player's fog but
+## must not count as "explored by the AI heroes" (that steered the heroes away
+## from wherever the monster had been).
+@export var feeds_ai_memory: bool = true
 
 var revealed_cells: Dictionary = {}  # Track what this hero has revealed
 var update_timer: float = 0.0
@@ -38,7 +42,7 @@ func _update_vision() -> void:
 		return
 	
 	# Reveal area around hero
-	fog_system.reveal_area(global_position, vision_radius, reveals_display)
+	fog_system.reveal_area(global_position, vision_radius, reveals_display, feeds_ai_memory)
 
 func set_vision_radius(radius: float) -> void:
 	vision_radius = radius

@@ -87,7 +87,7 @@ func _on_damage_applied(packet: Object) -> void:
 	if src_hero:
 		var hn := String((src as Node).name)
 		_hero_damage[hn] = float(_hero_damage.get(hn, 0.0)) + amount
-	var dst_hero := _is(dst, "HeroBase")
+	var dst_hero := _is(dst, "HeroBase") or (dst is Node and (dst as Node).is_in_group("Hero"))
 	var src_mon := _is(src, "MonsterBase")
 	var dst_mon := _is(dst, "MonsterBase")
 	if (src_hero and dst_mon) or (src_mon and dst_hero):

@@ -102,7 +102,9 @@ func _check_if_should_disappear() -> void:
 		if entity.has_method("get_parent"):
 			entity = entity.get_parent()
 		
-		if entity and entity.is_in_group("Hero"):
+		# Only heroes the kit can heal (Ted's pet has a hitbox on the hero
+		# layer now and kept the kit alive for its whole lifetime).
+		if entity and entity is HeroBase:
 			heroes_in_range += 1
 			if not healed_heroes.has(entity):
 				# Still heroes to heal

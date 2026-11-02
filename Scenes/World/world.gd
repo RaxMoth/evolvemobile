@@ -8,6 +8,9 @@ extends Node2D
 @export var monster_spawn_zone: Rect2 = Rect2(3500, 300, 2000, 4800)
 
 var exploration_controller: HeroExplorationController
+## Emitted once the monster stands at its match spawn (or placement gave up).
+signal monster_placed
+var _monster_placed: bool = false
 
 func _ready():
 	# Tell GameManager a fresh match has started. This resets per-match
@@ -19,6 +22,7 @@ func _ready():
 	_setup_fog()
 	_setup_player_vision()
 	_setup_exploration_controller()
+	_monster_placed = not randomize_monster_spawn
 	if randomize_monster_spawn:
 		_place_monster()
 
@@ -33,13 +37,21 @@ func _place_monster() -> void:
 		await get_tree().physics_frame
 		var monster := EntityRegistry.first_monster() as MonsterBase
 		if monster == null or not monster.is_alive():
+			_finish_monster_placement()
 			return
 		var from: Vector2 = EntityRegistry.heroes[0].global_position if not EntityRegistry.heroes.is_empty() else global_position
 		var spot: Vector2 = GameUtils.random_reachable_point(get_world_2d(), monster_spawn_zone, from, Vector2.INF)
 		if spot.is_finite():
 			monster.teleport_to(spot)
+			_finish_monster_placement()
 			return
 	push_warning("Monster spawn: no reachable point in %s; keeping the scene position" % str(monster_spawn_zone))
+	_finish_monster_placement()
+
+
+func _finish_monster_placement() -> void:
+	_monster_placed = true
+	monster_placed.emit()
 
 
 func _exit_tree() -> void:
@@ -120,12 +132,18 @@ func _setup_monster_vision():
 		push_warning("Monster-side play but no monster found in 'Monster' group!")
 		return
 
+	# Vision only once the monster stands at its match spawn: revealing at the
+	# scene position first left a cleared circle where it never was.
+	if not _monster_placed:
+		await monster_placed
 	for monster in monsters:
-		if not (monster is MonsterBase):
+		if not (monster is MonsterBase) or not is_instance_valid(monster):
 			continue
 		# Vision scales loosely with hunt-distance budget. 350 is a comfortable
 		# hunting cone that still leaves the map feeling explore-able.
-		FogOfWarHelper.add_vision_to_hero(monster, 350.0)
+		var monster_vision := FogOfWarHelper.add_vision_to_hero(monster, 350.0)
+		if monster_vision:
+			monster_vision.feeds_ai_memory = false
 
 	# The AI heroes keep their scene VisionArea (it is their exploration
 	# memory) but must not clear the monster player's fog: that leaked their

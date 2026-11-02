@@ -42,6 +42,12 @@ func _ready() -> void:
 		stats.leveled_up.connect(_on_level_changed)
 	_setup_combat_role_from_stats()
 	_apply_match_config(MatchConfig.for_current_match())
+	# The scene VisionArea (HeroBaseClass.tscn 160, River.tscn 120) takes its
+	# radius from HeroStats in both play modes: it is also the hero AI's
+	# exploration memory, which must not depend on the side the player chose.
+	var vision := get_node_or_null(^"VisionArea") as VisionArea
+	if vision:
+		vision.set_vision_radius(stats.base_stats.vision_radius)
 
 	# Apply permanent meta-skill upgrades to this hero's stats BEFORE
 	# super._ready() so the EntityBase HUD setup reads the post-bonus

@@ -80,7 +80,7 @@ func _setup_fog_sprite() -> void:
 	fog_material.set_shader_parameter("grid_size", Vector2(grid_width, grid_height))
 	fog_sprite.material = fog_material
 
-func reveal_area(world_position: Vector2, radius: float, display: bool = true) -> void:
+func reveal_area(world_position: Vector2, radius: float, display: bool = true, memory: bool = true) -> void:
 	# floori, not int(): int() truncates toward zero, so a point just left of
 	# or above the map revealed column/row 0.
 	var grid_x: int = floori((world_position.x - world_offset.x) / tile_size)
@@ -105,7 +105,7 @@ func reveal_area(world_position: Vector2, radius: float, display: bool = true) -
 		for y in range(y_start, y_end):
 			var dy: int = (y - grid_y) * ts
 			if float(dx_sq + dy * dy) <= radius_sq:
-				if _ai_image.get_pixel(x, y).r < 0.5:
+				if memory and _ai_image.get_pixel(x, y).r < 0.5:
 					_ai_image.set_pixel(x, y, Color.WHITE)
 				if display and exploration_image.get_pixel(x, y).r < 0.5:
 					exploration_image.set_pixel(x, y, Color.WHITE)
