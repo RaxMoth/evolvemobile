@@ -670,6 +670,53 @@ func test_gravity_slam_never_pulls_through_a_wall() -> void:
 	await wait_physics_frames(6)  # map back to empty for the other tests
 
 
+# ---------- shared overlap query ----------
+
+## GameUtils.entities_in_circle (Front Cleave, Ram Dash, Ground Slam): every
+## overlapping entity once, in the order a direct intersect_shape returns
+## them, never the excluded caster. The shared query and shape take each
+## call's own centre, radius and mask.
+func test_entities_in_circle_matches_a_direct_overlap_query() -> void:
+	var g := await _grount()
+	var v := await _hero(Vector2(60, 0))
+	var bat := await _bat(Vector2(0, 60))
+	var world: World2D = g.get_world_2d()
+	# The monster layer too, so the query reaches the caster's own Body.
+	var all_bodies: int = GameUtils.LAYER_BODY_HERO | GameUtils.LAYER_BODY_MOB | GameUtils.LAYER_BODY_MONSTER
+	var shape := CircleShape2D.new()
+	shape.radius = 80.0
+	var query := PhysicsShapeQueryParameters2D.new()
+	query.shape = shape
+	query.transform = Transform2D(0.0, g.global_position)
+	query.collide_with_areas = true
+	query.collide_with_bodies = true
+	query.collision_mask = all_bodies
+	var direct: Array[Node2D] = []
+	var reached_caster := false
+	for hit: Dictionary in world.direct_space_state.intersect_shape(query, 32):
+		var e: Node2D = Globals.get_entity_from_collider(hit["collider"] as Node)
+		if e == g:
+			reached_caster = true
+		elif not direct.has(e):
+			direct.append(e)
+	assert_true(reached_caster, "the direct query reaches the caster")
+	var found: Array[Node2D] = GameUtils.entities_in_circle(world, g.global_position, 80.0, all_bodies, true, g)
+	assert_eq(found, direct, "physics result order")
+	assert_eq(found.size(), 2)
+	assert_eq(found.count(v), 1, "the hero once")
+	assert_eq(found.count(bat), 1, "the bat once")
+	assert_false(found.has(g), "never the excluded caster")
+	assert_true(GameUtils.entities_in_circle(world, g.global_position, 80.0, all_bodies, true).has(g),
+		"no exclude: the caster counts too")
+	var only_bat: Array[Node2D] = [bat]
+	assert_eq(GameUtils.entities_in_circle(world, g.global_position, 80.0, GameUtils.LAYER_BODY_MOB, true, g),
+		only_bat, "this call's mask")
+	assert_true(GameUtils.entities_in_circle(world, Vector2(5000, -5000), 80.0, all_bodies, true, g).is_empty(),
+		"this call's centre")
+	assert_true(GameUtils.entities_in_circle(world, g.global_position, 1.0, all_bodies, true, g).is_empty(),
+		"this call's radius")
+
+
 # ---------- skill-tree screen ----------
 
 func test_skill_screen_renders_and_gates_tier_4() -> void:

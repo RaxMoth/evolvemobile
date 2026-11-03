@@ -1,6 +1,9 @@
 class_name BullRamDash
 extends AbilityBase
 
+## Entities this close to the bull's centre are hit as it passes.
+const DASH_HIT_RADIUS: float = 40.0
+
 @export var dash_distance: float = 300.0
 @export var dash_speed: float = 500.0
 ## Not implemented: no entity has apply_knockback (see PROGRESS)
@@ -43,17 +46,18 @@ func execute(caster: Node2D, target: Node2D = null, override_damage: float = -1.
 	_hit_entities.clear() # Reset hit tracking
 	
 	# Toward the target (stopping short), or along the facing for an escape dash.
+	var facing: Vector2 = Vector2.from_angle((caster as EntityBase).sprite.rotation)
 	dash_remaining = dash_distance
 	if target and is_instance_valid(target):
 		var to_t: Vector2 = target.global_position - caster.global_position
-		dash_direction = to_t.normalized() if to_t.length_squared() > 0.01 else Vector2.from_angle(caster.sprite.rotation)
+		dash_direction = to_t.normalized() if to_t.length_squared() > 0.01 else facing
 		dash_remaining = clampf(to_t.length() - dash_stop_short, 0.0, dash_distance)
 		if dash_remaining <= 0.0:
 			# Point-blank (legacy fight logic casts at any range): ram through the
 			# target instead of fizzling while the caller spends the cooldown.
 			dash_remaining = minf(dash_distance, to_t.length() + dash_stop_short)
 	else:
-		dash_direction = Vector2.from_angle(caster.sprite.rotation)
+		dash_direction = facing
 	if dash_remaining <= 0.0 or dash_direction == Vector2.ZERO:
 		return
 	
@@ -90,42 +94,13 @@ func _dash_update(caster: Node2D) -> void:
 	if is_dashing:
 		caster.get_tree().create_timer(0.0).timeout.connect(_dash_update.bind(caster))
 
+## Hit every target within DASH_HIT_RADIUS of the bull, once per dash.
 func _check_dash_collisions(caster: Node2D) -> void:
-	# Check for entities hit during dash
-	var space_state = caster.get_world_2d().direct_space_state
-	var query = PhysicsShapeQueryParameters2D.new()
-	var shape = CircleShape2D.new()
-	shape.radius = 40.0 # Hit radius during dash
-	query.shape = shape
-	query.transform = Transform2D(0, caster.global_position)
-	query.collide_with_areas = true
-	# Bodies too: Ted's pet is a CharacterBody2D on LAYER_BODY_HERO (entity roots are
-	# plain Node2Ds, so it is the only physics body these masks can return).
-	query.collide_with_bodies = true
-	query.collision_mask = GameUtils.MASK_MONSTER_TARGETS
-	
-	var results = space_state.intersect_shape(query, 32)
-	
-	for result in results:
-		var collider = result.collider
-		var entity = Globals.get_entity_from_collider(collider)
-		
-		if entity == caster or not entity:
+	for entity in GameUtils.entities_in_circle(caster.get_world_2d(), caster.global_position,
+			DASH_HIT_RADIUS, GameUtils.MASK_MONSTER_TARGETS, true, caster):
+		if _hit_entities.has(entity) or not GameUtils.can_entity_target(caster, entity):
 			continue
-		
-		# Don't hit the same entity twice during one dash
-		if _hit_entities.has(entity):
-			continue
-		
-		# FIXED: Proper targeting - Heroes OR Mobs (but not other Monsters)
-		var can_hit = false
-		if entity.is_in_group("Hero"):
-			can_hit = true
-		elif entity.is_in_group("Enemy") and not entity.is_in_group("Monster"):
-			can_hit = true # Hit Mobs
-		
-		if can_hit:
-			EventBus.deal_damage(caster, entity, _effective_damage, self)
-			_hit_entities.append(entity) # Mark as hit
-			if stun_duration > 0.0 and entity is EntityBase:
-				(entity as EntityBase).apply_stun(stun_duration)
+		EventBus.deal_damage(caster, entity, _effective_damage, self)
+		_hit_entities.append(entity)
+		if stun_duration > 0.0 and entity is EntityBase:
+			(entity as EntityBase).apply_stun(stun_duration)

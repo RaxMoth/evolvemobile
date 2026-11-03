@@ -102,40 +102,10 @@ func _perform_jump(caster: Node2D, target_pos: Vector2) -> void:
 func _perform_slam(caster: Node2D) -> void:
 	# Gravity Slam first: the damage lands on the pulled positions.
 	_pull_enemies(caster)
-	
-	# Deal AOE damage
-	var space_state = caster.get_world_2d().direct_space_state
-	var query = PhysicsShapeQueryParameters2D.new()
-	var shape = CircleShape2D.new()
-	shape.radius = slam_radius
-	query.shape = shape
-	query.transform = Transform2D(0, caster.global_position)
-	query.collide_with_areas = true
-	# Bodies too (Ted's pet is a CharacterBody2D); hit_entities dedupes an
-	# entity reached through both its body and its "Body" area.
-	query.collide_with_bodies = true
-	query.collision_mask = GameUtils.MASK_MONSTER_TARGETS
-	
-	var results = space_state.intersect_shape(query, 32)
-	var hit_entities: Array = []
-	
-	for result in results:
-		var collider = result.collider
-		var entity = Globals.get_entity_from_collider(collider)
-		
-		if entity == caster or not entity or hit_entities.has(entity):
-			continue
-		hit_entities.append(entity)
-		
-		if _can_hit(entity):
+	for entity in GameUtils.entities_in_circle(caster.get_world_2d(), caster.global_position,
+			slam_radius, GameUtils.MASK_MONSTER_TARGETS, true, caster):
+		if GameUtils.can_entity_target(caster, entity):
 			EventBus.deal_damage(caster, entity, _effective_damage, self)
-
-
-## The slam's target rule: heroes (Ted's pet included) or mobs, never another monster.
-func _can_hit(entity: Node) -> bool:
-	if entity.is_in_group("Hero"):
-		return true
-	return entity.is_in_group("Enemy") and not entity.is_in_group("Monster")
 
 
 ## Gravity Slam: drag every living slam target within pull_radius of the impact
@@ -155,7 +125,8 @@ func _pull_enemies(caster: Node2D) -> void:
 	# hero_side (heroes + Ted's pet) and mobs: disjoint, de-duplicated lists,
 	# so every entity moves at most once per slam.
 	for e in EntityRegistry.targets_for(caster):
-		if not is_instance_valid(e) or e == caster or e.is_queued_for_deletion() or not _can_hit(e):
+		if not is_instance_valid(e) or e == caster or e.is_queued_for_deletion() \
+				or not GameUtils.can_entity_target(caster, e):
 			continue
 		if not EntityRegistry.is_entity_alive(e):
 			continue  # corpses stay where they fell

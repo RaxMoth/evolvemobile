@@ -21,58 +21,19 @@ func apply_stage_stats(stage: int) -> void:
 		cone_angle = cone_angle_per_stage[stage - 1]
 
 func execute(caster: Node2D, _target: Node2D = null, override_damage: float = -1.0) -> void:
-	var effective_damage = override_damage if override_damage >= 0.0 else damage
-	
-	var sprite = caster.get_node("Sprite2D")
-	var forward_dir = Vector2.from_angle(sprite.rotation)
-	
-	var space_state = caster.get_world_2d().direct_space_state
-	var query = PhysicsShapeQueryParameters2D.new()
-	var shape = CircleShape2D.new()
+	var effective_damage: float = override_damage if override_damage >= 0.0 else damage
+	var forward_dir: Vector2 = Vector2.from_angle((caster as EntityBase).sprite.rotation)
+	var half_cone: float = deg_to_rad(cone_angle * 0.5)
 	# Titan Form's flat reach (MonsterBase.get_range_bonus) widens the Fight
 	# gate; the hit radius grows with it or a Titan whiffs at the gate's edge.
-	shape.radius = cone_range + _caster_range_bonus(caster)
-	query.shape = shape
-	query.transform = Transform2D(0, caster.global_position)
-	query.collide_with_areas = true
-	# Bodies too: Ted's pet is a CharacterBody2D on LAYER_BODY_HERO (entity roots are
-	# plain Node2Ds, so it is the only physics body these masks can return).
-	query.collide_with_bodies = true
-	query.collision_mask = GameUtils.MASK_MONSTER_TARGETS
-	
-	var results = space_state.intersect_shape(query, 32)
-
-	var half_cone: float = deg_to_rad(cone_angle * 0.5)
-	var checked_entities: Array = [] # Track which actual entities we've checked
-	
-	for result in results:
-		var collider = result.collider
-		var entity = Globals.get_entity_from_collider(collider)
-		
-		if not entity or entity == caster:
+	var radius: float = cone_range + _caster_range_bonus(caster)
+	for entity in GameUtils.entities_in_circle(caster.get_world_2d(), caster.global_position,
+			radius, GameUtils.MASK_MONSTER_TARGETS, true, caster):
+		# Only what stands in the frontal cone.
+		var to_entity: Vector2 = (entity.global_position - caster.global_position).normalized()
+		if absf(forward_dir.angle_to(to_entity)) > half_cone:
 			continue
-		
-		# Skip if we already checked this entity (multiple colliders per entity)
-		if checked_entities.has(entity):
-			continue
-		
-		checked_entities.append(entity)
-		
-		# Check if entity is in front cone
-		var to_entity = (entity.global_position - caster.global_position).normalized()
-		var angle_to_entity: float = forward_dir.angle_to(to_entity)
-
-		if absf(angle_to_entity) > half_cone:
-			continue
-
-		# Check targeting
-		var can_hit := false
-		if entity.is_in_group("Hero"):
-			can_hit = true
-		elif entity.is_in_group("Enemy") and not entity.is_in_group("Monster"):
-			can_hit = true
-
-		if can_hit:
+		if GameUtils.can_entity_target(caster, entity):
 			EventBus.deal_damage(caster, entity, effective_damage, self)
 
 

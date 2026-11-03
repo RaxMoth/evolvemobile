@@ -172,6 +172,45 @@ func can_entity_target(attacker: Node, target: Node) -> bool:
 	return false
 
 # ============================================
+# OVERLAP QUERIES
+# ============================================
+
+## Shared by every entities_in_circle() call (Ram Dash queries on each dash
+## frame): each call overwrites all of their state before its synchronous use.
+var _overlap_shape: CircleShape2D = null
+var _overlap_query: PhysicsShapeQueryParameters2D = null
+
+
+## Entities whose collider overlaps the circle, once each, in physics result
+## order; never `exclude`. Areas always count; `collide_bodies` adds physics
+## bodies: Ted's pet is a CharacterBody2D on LAYER_BODY_HERO (entity roots are
+## plain Node2Ds, so it is the only physics body the body layers can return).
+## Colliders resolve through Globals.get_entity_from_collider (owner first).
+func entities_in_circle(world: World2D, center: Vector2, radius: float, mask: int,
+		collide_bodies: bool, exclude: Node = null, max_results: int = 32) -> Array[Node2D]:
+	if _overlap_query == null:
+		_overlap_shape = CircleShape2D.new()
+		_overlap_query = PhysicsShapeQueryParameters2D.new()
+		_overlap_query.shape = _overlap_shape
+	_overlap_shape.radius = radius
+	_overlap_query.transform = Transform2D(0.0, center)
+	_overlap_query.collision_mask = mask
+	_overlap_query.collide_with_areas = true
+	_overlap_query.collide_with_bodies = collide_bodies
+	var found: Array[Node2D] = []
+	var seen: Dictionary = {}
+	for hit: Dictionary in world.direct_space_state.intersect_shape(_overlap_query, max_results):
+		var collider: Node = hit["collider"] as Node
+		if collider == null:
+			continue
+		var entity: Node2D = Globals.get_entity_from_collider(collider)
+		if entity == null or entity == exclude or seen.has(entity):
+			continue
+		seen[entity] = true
+		found.append(entity)
+	return found
+
+# ============================================
 # FOG OF WAR UTILITIES
 # ============================================
 
