@@ -1,8 +1,6 @@
 extends AbilityBase
 class_name IreliaActiveShield
 
-@export var shield_scene: PackedScene
-
 func execute(caster: Node2D, _target: Node2D = null, _override_damage: float = -1.0) -> void:
 	var heroes = caster.get_tree().get_nodes_in_group("Hero")
 	

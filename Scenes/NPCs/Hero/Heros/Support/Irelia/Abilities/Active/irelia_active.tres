@@ -3,12 +3,8 @@
 [ext_resource type="Texture2D" uid="uid://0vlvy3mej50h" path="res://Assets/Icon.jpg" id="1_5qiow"]
 [ext_resource type="Script" uid="uid://de7cq4nmteyi6" path="res://Scenes/NPCs/Hero/Heros/Support/Irelia/Abilities/Active/irelia_active_shield.gd" id="1_7h08t"]
 
-[sub_resource type="Resource" id="Resource_c8yqg"]
-metadata/__load_path__ = "res://Scenes/NPCs/Hero/Heros/Support/Irelia/Abilities/active/Shield/Shield.tscn"
-
 [resource]
 script = ExtResource("1_7h08t")
-shield_scene = SubResource("Resource_c8yqg")
 ability_name = "Divine Shield"
 icon = ExtResource("1_5qiow")
 description = "Shield all heroes for 18 HP for 7 seconds"
