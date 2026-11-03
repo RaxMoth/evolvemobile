@@ -4,10 +4,10 @@ extends Node2D
 
 ## SpawnZone - a visual, named, color-coded radius indicator.
 ##
-## Used as a child of MobSpawnArea (and anything else that needs a "ring" of
-## influence). Each zone OWNS its radius — designers can edit it in the
-## inspector or via the tool draw, and the parent reads from it. This means
-## one source of truth: the zone node.
+## Used as a child of MobSpawnArea (LeashZone, ActivationZone,
+## DeactivationZone). The zone is only a visual mirror: the parent
+## MobSpawnArea's exported radii are the source of truth and its setters push
+## them into `radius` here. Edit the radii on the MobSpawnArea, not on the zone.
 ##
 ## In-editor, draws a labeled outline so you can see all the spawn zones
 ## stacked at once. At runtime, drawing is off by default (no per-frame cost)
@@ -15,7 +15,7 @@ extends Node2D
 
 @export var radius: float = 200.0:
 	set(value):
-		radius = max(0.0, value)
+		radius = maxf(0.0, value)
 		queue_redraw()
 
 @export var color: Color = Color(1.0, 0.85, 0.2, 0.9):
@@ -69,17 +69,3 @@ func _draw() -> void:
 			# Approximate text centering — fallback_font doesn't expose width
 			# cheaply; close enough for a debug label.
 			draw_string(font, Vector2(-text.length() * 3.0, -radius - 6.0), text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, color)
-
-
-# ============================================
-# Public API
-# ============================================
-
-## Is `world_pos` inside this zone? Uses global_position as the center.
-func contains(world_pos: Vector2) -> bool:
-	return global_position.distance_squared_to(world_pos) <= radius * radius
-
-## Distance from this zone's center to `world_pos`. Cheap squared-distance
-## variant available via `distance_squared_to` if you need it.
-func distance_to(world_pos: Vector2) -> float:
-	return global_position.distance_to(world_pos)

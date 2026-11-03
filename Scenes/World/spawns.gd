@@ -103,10 +103,10 @@ func _collect_all_spawns() -> void:
 			all_spawn_areas.append(child)
 
 func _deactivate_all_spawns() -> void:
-	# Disable everything by default — including making sure no auto-spawn
-	# fires. Lazy activation will pick winners next.
+	# Disable everything by default; _activate_random_spawns picks the winners
+	# next. This runs after every area's _ready, so it also overrides any
+	# population an area seeded from its own auto_spawn_on_ready.
 	for spawn in all_spawn_areas:
-		spawn.auto_spawn_on_ready = false
 		spawn.visible = false
 		# Drop real mobs, forget pending respawns and invalidate any respawn
 		# coroutine still waiting (randomize re-run / Shift+R).
@@ -195,28 +195,6 @@ func _exit_tree() -> void:
 
 func get_active_spawns() -> Array[MobSpawnArea]:
 	return active_spawn_areas
-
-func get_total_spawns() -> int:
-	return all_spawn_areas.size()
-
-func get_active_count() -> int:
-	return active_spawn_areas.size()
-
-## Total mob population across all eligible areas (real + virtual).
-func get_total_mob_population() -> int:
-	var total := 0
-	for spawn in active_spawn_areas:
-		if is_instance_valid(spawn):
-			total += spawn.total_mob_count()
-	return total
-
-## Currently instantiated (real nodes) — useful for HUD or perf metrics.
-func get_live_mob_count() -> int:
-	var total := 0
-	for spawn in active_spawn_areas:
-		if is_instance_valid(spawn):
-			total += spawn.spawned_mobs.size()
-	return total
 
 func _input(event: InputEvent) -> void:
 	if not OS.is_debug_build():

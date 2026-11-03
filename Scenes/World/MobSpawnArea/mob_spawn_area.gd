@@ -34,6 +34,11 @@ signal area_deactivated
 @export var mob_scene: PackedScene
 @export var mob_count: int = 1
 @export var respawn_time: float = 10.0
+## Seeds virtual_count with mob_count in _ready. Under a SpawnManager that
+## randomizes on ready (the World), the manager owns eligibility: its
+## randomize_spawns() resets every area after this _ready and re-seeds only
+## the camps it picks, so this flag has no effect there. It is honoured for
+## standalone areas and for areas added to a manager that does not randomize.
 @export var auto_spawn_on_ready: bool = true
 
 @export_group("Lazy Spawning")
@@ -54,19 +59,19 @@ signal area_deactivated
 ## scene tree.
 @export var leash_distance: float = 500.0:
 	set(value):
-		leash_distance = max(0.0, value)
+		leash_distance = maxf(0.0, value)
 		_sync_zone(&"LeashZone", leash_distance)
 		update_configuration_warnings()
 
 @export var activation_radius: float = 900.0:
 	set(value):
-		activation_radius = max(0.0, value)
+		activation_radius = maxf(0.0, value)
 		_sync_zone(&"ActivationZone", activation_radius)
 		update_configuration_warnings()
 
 @export var deactivation_radius: float = 1200.0:
 	set(value):
-		deactivation_radius = max(0.0, value)
+		deactivation_radius = maxf(0.0, value)
 		_sync_zone(&"DeactivationZone", deactivation_radius)
 		update_configuration_warnings()
 
@@ -81,13 +86,6 @@ signal area_deactivated
 	set(value):
 		debug_color = value
 		queue_redraw()
-
-# ============================================
-# Zone children — visual mirrors of the @export radii above.
-# ============================================
-@onready var leash_zone: SpawnZone = get_node_or_null("LeashZone")
-@onready var activation_zone: SpawnZone = get_node_or_null("ActivationZone")
-@onready var deactivation_zone: SpawnZone = get_node_or_null("DeactivationZone")
 
 # ============================================
 # State
@@ -257,14 +255,6 @@ func _release(mob: MobBase) -> void:
 # ============================================
 # Spawning
 # ============================================
-
-func spawn_mobs() -> void:
-	if not mob_scene:
-		push_error("MobSpawnArea: No mob scene assigned!")
-		return
-	for i in range(mob_count):
-		spawn_single_mob()
-
 
 func spawn_single_mob() -> MobBase:
 	var mob := _acquire_mob()

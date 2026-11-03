@@ -19,7 +19,6 @@ chase_distance = 400.0
 hide_when_full = true
 
 [node name="DetectionArea" parent="." index="3"]
-visible = true
 collision_mask = 10
 
 [node name="Body" parent="." index="4"]

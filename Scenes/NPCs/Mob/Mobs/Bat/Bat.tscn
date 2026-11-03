@@ -69,7 +69,6 @@ animations = [{
 
 [node name="Bat" groups=["Enemy"] instance=ExtResource("1_u0xgj")]
 base_move_speed = 150.0
-show_detection_radius = true
 xp_value = 8.0
 hero_xp_value = 6.0
 max_chase_distance = 100.0
