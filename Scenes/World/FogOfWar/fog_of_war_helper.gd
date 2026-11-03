@@ -1,16 +1,16 @@
 extends Node
 class_name FogOfWarHelper
 
-## Helper to add fog of war vision to heroes
-## Each hero gets their own vision area with customizable radius
+## Gives an entity fog-of-war vision. World uses it for the monster player's
+## VisionArea; heroes carry theirs in HeroBaseClass.tscn, sized by
+## HeroBase._ready from HeroStats.
 
 const VISION_SCENE = preload("res://Scenes/World/FogOfWar/VisionArea.tscn")
 
-## Add vision to a specific hero with custom radius
+## Add vision to an entity with a custom radius
 static func add_vision_to_hero(hero: Node2D, vision_radius: float = 200.0) -> VisionArea:
-	# HeroBaseClass.tscn already gives every hero a VisionArea (160 px, River
-	# 120): apply the requested radius to it. Returning it unchanged ignored
-	# HeroStats.vision_radius, which the minimap's fairness rule uses.
+	# An entity that already has a VisionArea (every hero, from
+	# HeroBaseClass.tscn) keeps it and gets the requested radius.
 	if hero.has_node("VisionArea"):
 		var existing := hero.get_node("VisionArea") as VisionArea
 		if existing:
@@ -22,33 +22,3 @@ static func add_vision_to_hero(hero: Node2D, vision_radius: float = 200.0) -> Vi
 	vision.vision_radius = vision_radius
 	hero.add_child(vision)
 	return vision
-
-## Add vision to all heroes in scene (finds them automatically)
-static func add_vision_to_all_heroes(vision_radius: float = 200.0) -> int:
-	var tree = Engine.get_main_loop() as SceneTree
-	if not tree:
-		push_error("Could not get SceneTree")
-		return 0
-	
-	var heroes = tree.get_nodes_in_group("Hero")
-	var count = 0
-	
-	for hero in heroes:
-		if hero is Node2D:
-			add_vision_to_hero(hero, vision_radius)
-			count += 1
-	return count
-
-## Remove vision from a hero
-static func remove_vision_from_hero(hero: Node2D) -> void:
-	if hero.has_node("VisionArea"):
-		var vision = hero.get_node("VisionArea")
-		vision.queue_free()
-
-## Change vision radius for a hero
-static func set_hero_vision_radius(hero: Node2D, new_radius: float) -> void:
-	if hero.has_node("VisionArea"):
-		var vision = hero.get_node("VisionArea")
-		vision.set_vision_radius(new_radius)
-	else:
-		push_warning("Hero has no VisionArea: ", hero.name)

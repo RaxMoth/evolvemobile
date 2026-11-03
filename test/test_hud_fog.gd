@@ -4,6 +4,9 @@ extends TestCase
 
 const FOG := "res://Scenes/World/FogOfWar/FogOfWarSystem.tscn"
 const VLAD := "res://Scenes/NPCs/Hero/Heros/DMG/Vlad/Vlad.tscn"
+const WORLD := "res://Scenes/World/World.tscn"
+## README hero vision ranges (HeroStats.vision_radius), by World.tscn node name.
+const HERO_VISION := {"River": 300.0, "Vlad": 250.0, "Ted": 220.0, "Irelia": 200.0}
 
 
 func test_fog_world_snaps_to_whole_tiles_and_covers_border() -> void:
@@ -63,6 +66,46 @@ func test_hero_vision_radius_comes_from_hero_stats() -> void:
 		assert_true(again == vision, "the helper reuses the scene VisionArea")
 		assert_near(vision.vision_radius, 333.0, 0.01, "and applies the requested radius")
 		hero.queue_free()
+
+
+func test_world_hero_vision_radii_in_both_play_modes() -> void:
+	# HeroBase._ready is the only writer of a hero's radius. World adds no hero
+	# vision; monster-side play gives the monster a VisionArea of World's
+	# monster_vision_radius and keeps the AI heroes off the player's fog.
+	var side_before: int = GameManager.chosen_side
+	for side: int in [MatchRewards.Side.HEROES, MatchRewards.Side.MONSTER]:
+		var monster_side := side == MatchRewards.Side.MONSTER
+		var mode := "monster side" if monster_side else "hero side"
+		GameManager.chosen_side = side
+		var world := (load(WORLD) as PackedScene).instantiate()
+		add_child(world)
+		await wait_frames(2)
+		for hero_name: String in HERO_VISION:
+			var vision := world.get_node("Heros/%s/VisionArea" % hero_name) as VisionArea
+			assert_near(vision.vision_radius, float(HERO_VISION[hero_name]), 0.01, "%s, %s" % [hero_name, mode])
+		var grount := world.get_node("Grount")
+		if monster_side:
+			# The monster gets its vision once it stands at its match spawn.
+			for i in range(240):
+				if grount.has_node(^"VisionArea"):
+					break
+				await wait_physics_frames(1)
+			var monster_vision := grount.get_node_or_null(^"VisionArea") as VisionArea
+			assert_true(monster_vision != null, "the monster player has vision")
+			if monster_vision:
+				assert_near(monster_vision.vision_radius, 350.0, 0.01, "World.monster_vision_radius")
+				assert_false(monster_vision.feeds_ai_memory, "not the hero AI's memory")
+		else:
+			assert_false(grount.has_node(^"VisionArea"), "the AI monster carries no vision")
+		for hero_name: String in HERO_VISION:
+			var vision := world.get_node("Heros/%s/VisionArea" % hero_name) as VisionArea
+			assert_near(vision.vision_radius, float(HERO_VISION[hero_name]), 0.01, "%s still, %s" % [hero_name, mode])
+			assert_eq(vision.reveals_display, not monster_side, "%s clears the player's fog only on the hero side" % hero_name)
+		world.queue_free()
+		await wait_frames(2)
+	GameManager.chosen_side = side_before
+	GameManager.match_ended_flag = true  # the runner's guard; World's start_new_match cleared it
+	AudioManager.stop_music()  # World started the match music
 
 
 func test_monster_player_vision_does_not_feed_the_hero_ai_memory() -> void:

@@ -218,7 +218,8 @@ func _end_match_with_outcome(outcome: int) -> void:
 		monster_stage_reached
 	)
 
-	# Emit legacy signals for any listeners (world.gd hooks them).
+	# Legacy result signals: match_ended feeds analytics, audio and the sim;
+	# heroes_won / monster_won have no in-game listener.
 	if outcome == MatchRewards.Outcome.WIN:
 		heroes_won.emit()
 		match_ended.emit("Heroes", duration)

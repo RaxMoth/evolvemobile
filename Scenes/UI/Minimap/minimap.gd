@@ -14,7 +14,9 @@ extends Control
 @export var pet_color: Color = Color(0.7, 0.9, 1.0, 0.8)
 @export var monster_color: Color = Color(1.0, 0.35, 0.3)
 @export var frame_color: Color = Color(1.0, 1.0, 1.0, 0.55)
-## Monster-side vision radius used to decide which heroes it can see.
+## Monster-side vision radius used to decide which heroes it can see while
+## the monster has no VisionArea (World gives it one, sized by World's
+## monster_vision_radius, once it stands at its match spawn).
 @export var monster_vision_radius: float = 350.0
 
 @onready var fog_view: TextureRect = %FogView
@@ -67,23 +69,29 @@ func map_to_world(local_pos: Vector2) -> Vector2:
 
 
 # ---------- visibility rules ----------
+# Both read the viewer's VisionArea radius, i.e. exactly what clears the fog
+# around it (heroes: HeroStats, applied by HeroBase._ready).
 
 func monster_visible_to_heroes(monster_pos: Vector2) -> bool:
 	for h in EntityRegistry.heroes:
-		if not is_instance_valid(h):
-			continue
-		var stats := h.get_node_or_null("HeroStats") as HeroStatsComponent
-		var r: float = stats.base_stats.vision_radius if stats and stats.base_stats else 200.0
-		if h.global_position.distance_squared_to(monster_pos) <= r * r:
+		if is_instance_valid(h) and _sees(h, monster_pos, 0.0):
 			return true
 	return false
 
 
 func hero_visible_to_monster(hero_pos: Vector2) -> bool:
 	for m in EntityRegistry.monsters:
-		if is_instance_valid(m) and m.global_position.distance_squared_to(hero_pos) <= monster_vision_radius * monster_vision_radius:
+		if is_instance_valid(m) and _sees(m, hero_pos, monster_vision_radius):
 			return true
 	return false
+
+
+## True when `pos` lies within the viewer's VisionArea radius, or within
+## `fallback` when the viewer has no VisionArea.
+func _sees(viewer: Node2D, pos: Vector2, fallback: float) -> bool:
+	var vision := viewer.get_node_or_null(^"VisionArea") as VisionArea
+	var r: float = vision.vision_radius if vision else fallback
+	return viewer.global_position.distance_squared_to(pos) <= r * r
 
 
 # ---------- drawing ----------

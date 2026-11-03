@@ -1,8 +1,6 @@
 extends Area2D
 class_name VisionArea
 
-signal area_revealed(cells: Array)
-
 @export var vision_radius: float = 200.0
 @export var reveal_update_interval: float = 0.7
 ## False for the AI side's vision when the player plays the other side: it
@@ -13,14 +11,14 @@ signal area_revealed(cells: Array)
 ## from wherever the monster had been).
 @export var feeds_ai_memory: bool = true
 
-var revealed_cells: Dictionary = {}  # Track what this hero has revealed
 var update_timer: float = 0.0
 
 func _ready() -> void:
 	# CollisionShape2D + Area2D collision flags (layer 0, mask 0, monitoring
 	# off, monitorable off) are all declared in VisionArea.tscn. We just
-	# sync the shape's radius to the @export vision_radius — callers
-	# (FogOfWarHelper.add_vision_to_hero) override the radius per-hero.
+	# sync the shape's radius to the @export vision_radius. set_vision_radius
+	# overrides it per entity: HeroBase._ready from HeroStats, and
+	# FogOfWarHelper.add_vision_to_hero for the monster player.
 	var collision := get_node_or_null("CollisionShape2D") as CollisionShape2D
 	if collision and collision.shape is CircleShape2D:
 		(collision.shape as CircleShape2D).radius = vision_radius

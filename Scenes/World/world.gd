@@ -7,6 +7,12 @@ extends Node2D
 @export var randomize_monster_spawn: bool = true
 @export var monster_spawn_zone: Rect2 = Rect2(3500, 300, 2000, 4800)
 
+@export_group("Vision")
+## Monster-side play: reveal radius of the monster player's VisionArea, wider
+## than any hero's (the minimap's fairness rule reads it from that VisionArea).
+## Hero radii come from HeroStats (applied by HeroBase._ready).
+@export var monster_vision_radius: float = 350.0
+
 var exploration_controller: HeroExplorationController
 ## Emitted once the monster stands at its match spawn (or placement gave up).
 signal monster_placed
@@ -18,7 +24,6 @@ func _ready():
 	# autoload and its _ready only fires once per game launch, not per match.
 	GameManager.start_new_match()
 	AudioManager.play_music(&"match")
-	_connect_to_game_manager()
 	_setup_fog()
 	_setup_player_vision()
 	_setup_exploration_controller()
@@ -61,30 +66,13 @@ func _exit_tree() -> void:
 
 func _setup_player_vision():
 	## Vision = which entity reveals the fog of war as it moves. Whoever
-	## the player is controlling sees through their avatar's eyes. The
-	## OTHER side stays AI-controlled but doesn't carry vision components,
-	## so they appear fogged-out to the player when out of sight.
+	## the player is controlling sees through their avatar's eyes. Every hero
+	## carries a scene VisionArea sized from HeroStats by HeroBase._ready
+	## (it is also the hero AI's exploration memory), so hero-side play needs
+	## nothing here; monster-side play gives the monster one and stops the
+	## AI heroes' vision from clearing the player's fog.
 	if GameManager.chosen_side == MatchRewards.Side.MONSTER:
 		_setup_monster_vision()
-	else:
-		_setup_hero_vision()
-
-func _connect_to_game_manager():
-	GameManager.heroes_won.connect(_on_heroes_won)
-	GameManager.monster_won.connect(_on_monster_won)
-	GameManager.match_ended.connect(_on_match_ended)
-
-func _on_heroes_won():
-	Globals.debug_log("🎉 HEROES VICTORY!")
-	# TODO: Show victory screen
-
-func _on_monster_won():
-	Globals.debug_log("💀 MONSTER VICTORY!")
-	# TODO: Show defeat screen
-
-func _on_match_ended(winner: String, time: float):
-	Globals.debug_log("🏆 Match ended - Winner: " + winner + " in " + str(round(time * 10) / 10.0) + "s")
-	# TODO: Display stats, transition to menu, etc.
 
 func _setup_fog():
 	# Explicit type so the parser knows the script's exported properties
@@ -98,32 +86,11 @@ func _setup_fog():
 
 	add_child(fog)
 
-func _setup_hero_vision():
-	## Hero-side: each hero gets their own VisionArea so the team's combined
-	## vision drives fog reveal. River sees furthest (scout), Irelia closest.
-	await get_tree().process_frame
-
-	var heroes = get_tree().get_nodes_in_group("Hero")
-	if heroes.is_empty():
-		push_warning("No heroes found! Make sure heroes are in 'Hero' group")
-		return
-
-	for hero in heroes:
-		# Skip Ted's pet (also in Hero group but isn't a HeroBase).
-		if not (hero is HeroBase):
-			continue
-		# Per-hero reveal radius lives on the HeroStats resource (River sees
-		# furthest as the scout, Irelia closest) — no name matching.
-		var stats := hero.get_node_or_null("HeroStats") as HeroStatsComponent
-		var vision: float = stats.base_stats.vision_radius if stats and stats.base_stats else 200.0
-		FogOfWarHelper.add_vision_to_hero(hero, vision)
-
-
 func _setup_monster_vision():
 	## Monster-side: the monster IS the player's avatar — fog reveals
 	## around it. Heroes are now the unseen AI threats; the player only
 	## spots them when they wander into the monster's vision cone.
-	## Wider radius than any single hero (the monster is the apex predator).
+	## Wider radius than any single hero (monster_vision_radius).
 	await get_tree().process_frame
 
 	var monsters = get_tree().get_nodes_in_group("Monster")
@@ -138,9 +105,7 @@ func _setup_monster_vision():
 	for monster in monsters:
 		if not (monster is MonsterBase) or not is_instance_valid(monster):
 			continue
-		# Vision scales loosely with hunt-distance budget. 350 is a comfortable
-		# hunting cone that still leaves the map feeling explore-able.
-		var monster_vision := FogOfWarHelper.add_vision_to_hero(monster, 350.0)
+		var monster_vision := FogOfWarHelper.add_vision_to_hero(monster, monster_vision_radius)
 		if monster_vision:
 			monster_vision.feeds_ai_memory = false
 

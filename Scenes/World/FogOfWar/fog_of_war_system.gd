@@ -15,9 +15,9 @@ class_name FogOfWarSystem
 var exploration_texture: ImageTexture
 ## What the PLAYER has seen (drawn by the fog shader and the minimap).
 var exploration_image: Image
-## What the AI heroes have explored (is_tile_explored / exploration %): their
-## reveals land here even when they must not clear the player's fog
-## (monster-side play), so the hero AI keeps a correct memory.
+## What the AI heroes have explored (is_tile_explored): their reveals land
+## here even when they must not clear the player's fog (monster-side play),
+## so the hero AI keeps a correct memory.
 var _ai_image: Image
 var grid_width: int
 var grid_height: int
@@ -123,34 +123,3 @@ func is_tile_explored(world_position: Vector2) -> bool:
 		return false
 
 	return _ai_image.get_pixel(grid_x, grid_y).r > 0.5
-
-func get_exploration_percentage() -> float:
-	var total_tiles = grid_width * grid_height
-	var explored_tiles = 0
-
-	for x in range(grid_width):
-		for y in range(grid_height):
-			if _ai_image.get_pixel(x, y).r > 0.5:
-				explored_tiles += 1
-
-	return (float(explored_tiles) / float(total_tiles)) * 100.0
-
-func clear_fog() -> void:
-	exploration_image.fill(Color.WHITE)
-	_ai_image.fill(Color.WHITE)
-	_texture_dirty = true
-
-func reset_fog() -> void:
-	exploration_image.fill(Color.BLACK)
-	_ai_image.fill(Color.BLACK)
-	_texture_dirty = true
-
-func save_exploration_state() -> PackedByteArray:
-	return exploration_image.get_data()
-
-func load_exploration_state(data: PackedByteArray) -> void:
-	var loaded_image = Image.create_from_data(grid_width, grid_height, false, Image.FORMAT_R8, data)
-	if loaded_image and not loaded_image.is_empty():
-		exploration_image = loaded_image
-		_ai_image = loaded_image.duplicate() as Image
-		_texture_dirty = true
