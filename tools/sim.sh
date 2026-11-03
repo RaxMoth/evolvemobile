@@ -7,6 +7,13 @@
 # Works on temp copies of the project (one per worker, each with its own
 # isolated user:// via override.cfg), never on the real project directory.
 # Prints a summary: win rate, match length, first contact, evolution timing.
+#
+# Timing differs from a device: headless, nothing is drawn, so the
+# VisibleOnScreenNotifier2D signals never fire and no mob is ever on screen.
+# Every mob ticks its AI at 20/10/3 Hz (TickScheduler NEAR/MID/FAR); on a
+# device the mobs inside the camera rect tick every frame (60 Hz). Heroes and
+# the monster tick every frame in both. tools/bench.sh's onscreen=1 measures
+# the device's cost.
 setopt NULL_GLOB
 GODOT="${GODOT:-/Applications/Godot.app/Contents/MacOS/Godot}"
 RUNS="${1:-24}"; SIDE="${2:-heroes}"; WORKERS="${3:-6}"; CAP="${4:-660}"

@@ -125,6 +125,19 @@ A bugfix may change the trace only where the fix explains it; then also run `too
       knob: stage-3 monster damage x0.9 (user decision).
 - [x] Movement no longer runs on the state chart's per-frame `state_processing` — P4 drives the
       active state through `StateChart.step()` from TickScheduler at an LOD rate (FULL/20/10/3 Hz).
+- [ ] Headless runs never put a mob on screen: nothing is drawn, so VisibleOnScreenNotifier2D never
+      fires. In `tools/sim.sh` and a plain `tools/bench.sh` every mob ticks at 20/10/3 Hz (NEAR/MID/FAR)
+      and only the heroes and the monster tick every frame; on a device every mob inside the camera
+      rect ticks at 60 Hz. A sim/device timing difference to keep in mind (mob reaction 50–333 ms vs
+      16 ms), not changed. `tools/bench.sh` now prints the mean entities per LOD bucket (`lod_FULL` …)
+      and takes a 5th arg `onscreen=1`, which marks the mobs inside the MainCam rect (+64 px) on screen
+      every frame. The headless viewport is 1280×1280, so the rect is 640×640 world px at zoom 2.
+      `tools/bench.sh 3 2 1800 600 0|1` (230 mobs), three calls per mode, alternating, load 5–6 on
+      8 cores: onscreen=0: FULL 4.5–5.0, frame mean 1.31–1.44 ms, p99 3.3–3.6 ms, CPU 4.9–5.3 s;
+      onscreen=1: FULL 8.5–8.7 (about 4 mobs on screen), mean 1.39–1.54 ms, p99 3.5–3.8 ms, CPU
+      5.4–5.7 s (0.3 s of it the bench's own marking); its third call hit 94–108 ms load hitches (mean
+      1.83, p99 6.9 ms). At default zoom the FULL path adds ~0.1 ms. Open: F3 numbers on a device,
+      also at pinch zoom 0.5.
 - [x] Hot `get_nodes_in_group` sites → `EntityRegistry` (P3). ~20 cold one-shot/per-cast sites remain
       (world.gd, main_cam.gd, game_manager.gd, hero_container.gd, Irelia/River casts) — fine as is.
 - [x] Legacy in-round `Scripts/Skilltree/` removed (zero references outside the folder).
