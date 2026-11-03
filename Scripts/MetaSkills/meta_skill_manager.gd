@@ -36,16 +36,16 @@ func _ready() -> void:
 	_seed_monster_trees()
 
 
-static func hero_tree_id(hero_id: StringName) -> StringName:
+func hero_tree_id(hero_id: StringName) -> StringName:
 	return StringName(TREE_HERO_PREFIX + String(hero_id))
 
 
-static func monster_tree_id(monster_id: StringName) -> StringName:
+func monster_tree_id(monster_id: StringName) -> StringName:
 	return StringName(TREE_MONSTER_PREFIX + String(monster_id))
 
 
 ## The stable id of a spawned hero, read from its HeroStats resource.
-static func hero_id_of(hero: Node) -> StringName:
+func hero_id_of(hero: Node) -> StringName:
 	var stats := hero.get_node_or_null("HeroStats") as HeroStatsComponent
 	if stats == null or stats.base_stats == null:
 		return &""

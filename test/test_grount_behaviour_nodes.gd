@@ -11,8 +11,6 @@ const BAT := "res://Scenes/NPCs/Mob/Mobs/Bat/Bat.tscn"
 const PET := "res://Scenes/NPCs/Hero/Heros/Support/Ted/Abilities/Passive/TedsPet.tscn"
 const AREA := "res://Scenes/World/MobSpawnArea/MobSpawnArea.tscn"
 const SCREEN := "res://Scenes/UI/MetaSkills/MetaSkillScreen.tscn"
-## The autoload's script, for its static helpers (called on the type, not the instance).
-const META_SKILLS := preload("res://Scripts/MetaSkills/meta_skill_manager.gd")
 
 ## Second Wind is not seeded yet (MetaSkillManager.GROUNT_SECOND_WIND_SPEC):
 ## the test that needs it adds it to the Grount tree and after_each removes it.
@@ -35,7 +33,7 @@ func after_each() -> void:
 
 
 func _tree() -> StringName:
-	return META_SKILLS.monster_tree_id(&"grount")
+	return MetaSkillManager.monster_tree_id(&"grount")
 
 
 ## Own these Grount nodes (skips the tier chain and the Leaves).
