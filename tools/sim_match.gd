@@ -7,14 +7,23 @@ extends SceneTree
 ## project directory with a newer editor binary.
 ##
 ##   godot --headless --fixed-fps 60 --max-fps 0 --path <copy> \
-##         -s res://tools/sim_match.gd -- <seed> [heroes|monster] [cap_seconds]
+##         -s res://tools/sim_match.gd -- <seed> [heroes|monster] [cap_seconds] [trace]
+##
+## With "trace" it also prints a determinism fingerprint of the match state
+## every TRACE_EVERY frames (`SIM_TRACE <frame> <hash>`) and once at the end
+## (`SIM_TRACE_END <frame> <reason> <winner> <hash>`). tools/sim_trace.sh
+## compares those lines between two trees to prove a refactor changed nothing.
 
 const WORLD := "res://Scenes/World/World.tscn"
 const FPS := 60.0
+const TRACE_EVERY := 60
+## EntityRegistry lists hashed by the trace, walked in list order.
+const TRACE_LISTS: Array[String] = ["hero_side", "monsters", "mobs"]
 
 var _seed: int = 1
 var _side: String = "heroes"
 var _cap_s: float = 660.0
+var _trace: bool = false
 var _frames: int = 0
 var _done: bool = false
 
@@ -40,6 +49,8 @@ func _initialize() -> void:
 		_side = String(args[1])
 	if args.size() > 2:
 		_cap_s = float(args[2])
+	if args.size() > 3:
+		_trace = String(args[3]) == "trace"
 	# Autoload globals are not compile-time identifiers inside a -s script;
 	# go through the root and start on the first frame (root is in the tree).
 	process_frame.connect(_start, CONNECT_ONE_SHOT)
@@ -74,6 +85,8 @@ func _tick() -> void:
 				var st := _state_of(h as Node)
 				var d: Dictionary = _hero_state_s.get_or_add(n, {})
 				d[st] = float(d.get(st, 0.0)) + 0.1
+	if _trace and not _done and _frames % TRACE_EVERY == 0:
+		print("SIM_TRACE %d %d" % [_frames, _trace_hash("")])
 	if not _done and _t() >= _cap_s:
 		_finish("cap", "none")
 
@@ -192,6 +205,9 @@ func _finish(reason: String, winner: String) -> void:
 		"monster_dmg_taken": _monster_dmg_taken,
 		"monster_killer": _monster_killer,
 	}
+	if _trace:
+		var tail := "%s %s" % [reason, winner]
+		print("SIM_TRACE_END %d %s %d" % [_frames, tail, _trace_hash(tail)])
 	print("SIM_RESULT " + JSON.stringify(out))
 	quit()
 
@@ -204,6 +220,42 @@ func _state_of(entity: Node) -> String:
 		if "active" in child and child.get("active"):
 			return String(child.name)
 	return ""
+
+
+## Determinism fingerprint: per entity its class, position (1 px), health and
+## active state; monster stage and XP; the match's mob kill count. Never hash
+## node names: pooled mobs and VFX get auto-names (@Bat@N) from a global
+## counter, so adding an unrelated node anywhere would rename later mobs.
+func _trace_hash(tail: String) -> int:
+	var reg := root.get_node("EntityRegistry")
+	var parts := PackedStringArray()
+	for list_name in TRACE_LISTS:
+		parts.append(list_name)
+		for e in reg.get(list_name):
+			if is_instance_valid(e):
+				parts.append(_trace_entity(e as Node2D, list_name == "monsters"))
+	parts.append(str(root.get_node("GameManager").get("mob_kills")))
+	parts.append(tail)
+	return "|".join(parts).hash()
+
+
+func _trace_entity(e: Node2D, is_monster: bool) -> String:
+	var scr: Script = e.get_script()
+	var hp := 0.0
+	if e.has_method("get_health"):
+		hp = float(e.call("get_health"))
+	elif "current_health" in e:  # Ted's pet
+		hp = float(e.get("current_health"))
+	var s := "%s %d %d %d %s" % [
+		String(scr.get_global_name()) if scr else "",
+		int(snappedf(e.global_position.x, 1.0)),
+		int(snappedf(e.global_position.y, 1.0)),
+		roundi(hp),
+		_state_of(e),
+	]
+	if is_monster:
+		s += " %d %d" % [int(e.get("current_stage")), roundi(float(e.get("current_xp")))]
+	return s
 
 
 func _monster() -> Node2D:

@@ -97,6 +97,19 @@ Spec source: `README.md` + `Docs/INSTRUCTOR.md` (roadmap, "Current Status & Road
 
 - (none)
 
+## Verification gate
+
+Every change that must not alter gameplay (the code cleanup's refactors) passes all three:
+`tools/lint.sh` (errors=0), `tools/run_tests.sh` (exit 0), and
+`BASELINE=<parent trace> tools/sim_trace.sh > <new trace>` (exit 0): seeds 1-3 × heroes/monster as full
+matches in parallel (~40 s), byte-identical to the trace recorded on the parent commit. Baseline traces
+live in the session scratchpad, not in the repo. Every 60 frames the trace hashes each EntityRegistry
+entity's class, position (1 px), health and active state, the monster's stage and XP and the mob kill
+count — never node names (pooled mobs get counter-based auto-names). The temp copies turn off the
+navigation server's asynchronous map/region iterations (override.cfg only): with them on, two runs of
+one seed diverged from frame 180; with them off, runs match from the first line, also under heavy load.
+A bugfix may change the trace only where the fix explains it; then also run `tools/sim.sh 24 heroes 6`.
+
 ## Tech Debt / Improvements
 
 - [x] Debug `print()` statements — all game code goes through `Globals.debug_log` (only the
