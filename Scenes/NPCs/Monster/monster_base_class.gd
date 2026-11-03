@@ -1,8 +1,6 @@
 extends EntityBase
 class_name MonsterBase
 
-signal stage_changed(new_stage: int)
-
 @export_group("Monster Configuration")
 @export var monster_stats: MonsterStats
 @export var visual_config: MonsterVisualConfig
@@ -117,9 +115,7 @@ func _process(delta: float) -> void:
 func _apply_stage_configuration(stage: int) -> void:
 	if not monster_stats:
 		return
-	
-	Globals.debug_log("\n▶ Applying Stage ", stage, " Configuration for ", name)
-	
+
 	var new_health: float = _max_health_for_stage(stage)
 
 	if stage == 1 or heal_to_full_on_evolution:
@@ -147,16 +143,13 @@ func _get_entity_level() -> int:
 func _configure_abilities_for_stage(stage: int) -> void:
 	if ability_1:
 		ability_1.apply_stage_stats(stage)
-		Globals.debug_log("  ✓ Ability 1: ", ability_1.ability_name, " - Damage: ", ability_1.damage, ", CD: ", ability_1.cooldown)
-	
+
 	if ability_2:
 		ability_2.apply_stage_stats(stage)
-		Globals.debug_log("  ✓ Ability 2: ", ability_2.ability_name, " - Damage: ", ability_2.damage, ", CD: ", ability_2.cooldown)
-	
+
 	if ability_3:
 		# Locked below its unlock_stage (Ground Slam: 2, or 1 with "Early Slam").
 		ability_3.apply_stage_stats(stage)
-		Globals.debug_log("  ✓ Ability 3: ", ability_3.ability_name, " - Damage: ", ability_3.damage, ", CD: ", ability_3.cooldown)
 
 func _update_stage_scale(stage: int) -> void:
 	if not monster_stats:
@@ -301,11 +294,7 @@ func _check_evolution() -> void:
 func _evolve_to_stage(new_stage: int) -> void:
 	var old_stage = current_stage
 	current_stage = new_stage
-	
-	Globals.debug_log("╔════════════════════════════════════╗")
-	Globals.debug_log("║  " + name + " EVOLVED TO STAGE " + str(current_stage) + "!  ║")
-	Globals.debug_log("╚════════════════════════════════════╝")
-	
+
 	# Reset cooldowns on evolution
 	for key in ability_cooldowns.keys():
 		ability_cooldowns[key] = 0.0
@@ -319,9 +308,7 @@ func _evolve_to_stage(new_stage: int) -> void:
 	_on_stage_entered(current_stage, old_stage)
 	# Grount "Second Wind" tops the evolution heal up.
 	_apply_evolution_bonus_heal(current_stage)
-	
-	# Emit signal
-	stage_changed.emit(current_stage)
+
 	EventBus.notify_monster_evolved(self, current_stage)
 
 func _get_next_evolution_threshold() -> int:
@@ -461,10 +448,12 @@ func _update_stage_visuals(stage: int) -> void:
 	if animated_sprite.sprite_frames and animated_sprite.sprite_frames.has_animation(animation_name):
 		animated_sprite.play(animation_name)
 	else:
+		if animated_sprite.sprite_frames == null:
+			push_warning(name + " has no SpriteFrames!")
+			return
 		var available_anims = animated_sprite.sprite_frames.get_animation_names()
 		if available_anims.size() > 0:
 			animated_sprite.play(available_anims[0])
-			Globals.debug_log(name + " using fallback animation: " + available_anims[0])
 		else:
 			push_warning(name + " has no animations available!")
 	
@@ -480,9 +469,9 @@ func _play_stage_effect(stage: int) -> void:
 			3: flash_color = Color(1.8, 0.8, 0.8) # Red
 		
 		var original = animated_sprite.modulate
-		var tween = create_tween()
-		tween.tween_property(animated_sprite, "modulate", flash_color, 0.2)
-		tween.tween_property(animated_sprite, "modulate", original, 0.3)
+		var flash_tween: Tween = create_tween()
+		flash_tween.tween_property(animated_sprite, "modulate", flash_color, 0.2)
+		flash_tween.tween_property(animated_sprite, "modulate", original, 0.3)
 	
 	# Expanding ring effect
 	var effect = Node2D.new()
@@ -503,7 +492,7 @@ func _play_stage_effect(stage: int) -> void:
 		var angle = i * TAU / 32
 		circle.add_point(Vector2(cos(angle), sin(angle)) * 50)
 	
-	var tween = effect.create_tween()
+	var tween: Tween = effect.create_tween()
 	tween.set_parallel(true)
 	tween.tween_property(effect, "scale", Vector2(5, 5), 0.8)
 	tween.tween_property(circle, "modulate:a", 0.0, 0.8)
@@ -525,23 +514,20 @@ func _choose_and_use_ability() -> void:
 		return
 	match current_stage:
 		1:
-			_try_use_ability("ability_1", ability_1)
+			_cast("ability_1", ability_1, target_entity)
 		2:
 			if ability_cooldowns["ability_2"] <= 0.0 and ability_2:
-				_try_use_ability("ability_2", ability_2)
+				_cast("ability_2", ability_2, target_entity)
 			else:
-				_try_use_ability("ability_1", ability_1)
+				_cast("ability_1", ability_1, target_entity)
 		_:
 			# Stage 3: Prioritize abilities
 			if ability_cooldowns["ability_3"] <= 0.0 and ability_3:
-				_try_use_ability("ability_3", ability_3)
+				_cast("ability_3", ability_3, target_entity)
 			elif ability_cooldowns["ability_2"] <= 0.0 and ability_2:
-				_try_use_ability("ability_2", ability_2)
+				_cast("ability_2", ability_2, target_entity)
 			else:
-				_try_use_ability("ability_1", ability_1)
-
-func _try_use_ability(ability_name: String, ability: AbilityBase) -> bool:
-	return _cast(ability_name, ability, target_entity)
+				_cast("ability_1", ability_1, target_entity)
 
 
 ## Damage one cast of `ability` deals. README per-stage tables already include
@@ -971,40 +957,11 @@ func _on_fight_state_processing(delta: float) -> void:
 	super._on_fight_state_processing(delta)
 
 # ============================================
-# Death
-# ============================================
-
-func _on_dead_state_entered() -> void:
-	_on_monster_death()
-	super._on_dead_state_entered()
-
-func _on_monster_death() -> void:
-	# Override in child classes for custom death behavior
-	pass
-
-# ============================================
 # Helper Methods
 # ============================================
 
-func get_evolution_progress() -> float:
-	var next_threshold = _get_next_evolution_threshold()
-	if next_threshold >= 999999:
-		return 1.0
-	
-	var prev_threshold = 0
-	if current_stage > 1:
-		prev_threshold = monster_stats.get_xp_threshold_for_stage(current_stage)
-	
-	var xp_in_stage = current_xp - prev_threshold
-	var xp_needed = next_threshold - prev_threshold
-	
-	return xp_in_stage / float(xp_needed)
-
 func get_stage() -> int:
 	return current_stage
-
-func get_xp() -> float:
-	return current_xp
 
 func get_ability_cooldown(ability_name: String) -> float:
 	return ability_cooldowns.get(ability_name, 0.0)

@@ -8,15 +8,6 @@ font_size = 18
 
 [node name="Monster" groups=["Enemy", "Monster"] instance=ExtResource("1_cqly6")]
 script = ExtResource("2_yeqw1")
-monster_stats = null
-ability_1 = null
-ability_2 = null
-ability_3 = null
-passive_ability = null
-stage_1_animation = "phase_1"
-stage_2_animation = "phase_2"
-stage_3_animation = "phase_3"
-enable_stage_effects = true
 
 [node name="DetectionArea" parent="." index="3"]
 collision_mask = 6
