@@ -1,7 +1,9 @@
 #!/bin/zsh
 # Headless test run on a throwaway copy of the project.
 #  - never touches the real save file: override.cfg points user:// at
-#    "evolvemobile_tests" (test/test_meta_skills.gd refuses to run otherwise)
+#    "evolvemobile_tests_<pid>" (tests that touch the save refuse to run unless
+#    the user dir contains "evolvemobile_tests"); one dir per run, so concurrent
+#    runs cannot wipe each other's save files
 #  - never lets a newer editor re-import/migrate the real project
 #  - runs at a fixed 60 fps with no frame cap (as sim.sh/bench.sh do): every
 #    delta is 1/60 s and game time runs ahead of the wall clock, so a test that
@@ -14,10 +16,10 @@ set -e
 GODOT="${GODOT:-/Applications/Godot.app/Contents/MacOS/Godot}"
 SRC="$(cd "$(dirname "$0")/.." && pwd)"
 TMP="$(mktemp -d)"
-trap 'rm -rf "$TMP"' EXIT
+USERDIR="evolvemobile_tests_$$"
+trap 'rm -rf "$TMP" "$HOME/Library/Application Support/$USERDIR"' EXIT
 rsync -a --exclude .git --exclude .DS_Store "$SRC/" "$TMP/proj/"
-printf '[application]\nconfig/use_custom_user_dir=true\nconfig/custom_user_dir_name="evolvemobile_tests"\n\n[navigation]\nworld/map_use_async_iterations=false\nworld/region_use_async_iterations=false\n' > "$TMP/proj/override.cfg"
-rm -rf "$HOME/Library/Application Support/evolvemobile_tests"
+printf '[application]\nconfig/use_custom_user_dir=true\nconfig/custom_user_dir_name="%s"\n\n[navigation]\nworld/map_use_async_iterations=false\nworld/region_use_async_iterations=false\n' "$USERDIR" > "$TMP/proj/override.cfg"
 "$GODOT" --headless --import --path "$TMP/proj" > "$TMP/import.log" 2>&1 || true
 set +e
 "$GODOT" --headless --fixed-fps 60 --max-fps 0 --path "$TMP/proj" -s res://test/run_tests.gd > "$TMP/run.log" 2>&1

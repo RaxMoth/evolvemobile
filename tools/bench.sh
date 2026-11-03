@@ -14,9 +14,9 @@ GODOT="${GODOT:-/Applications/Godot.app/Contents/MacOS/Godot}"
 RUNS="${1:-3}"; MULT="${2:-2}"; FRAMES="${3:-1800}"; WARMUP="${4:-600}"
 SRC="$(cd "$(dirname "$0")/.." && pwd)"
 TMP="$(mktemp -d)"
-trap 'rm -rf "$TMP" "$HOME/Library/Application Support/evolvemobile_bench"' EXIT
+trap 'rm -rf "$TMP" "$HOME/Library/Application Support/evolvemobile_bench_$$"' EXIT
 rsync -a --exclude .git --exclude .DS_Store "$SRC/" "$TMP/proj/"
-printf '[application]\nconfig/use_custom_user_dir=true\nconfig/custom_user_dir_name="evolvemobile_bench"\n' > "$TMP/proj/override.cfg"
+printf '[application]\nconfig/use_custom_user_dir=true\nconfig/custom_user_dir_name="evolvemobile_bench_%d"\n' "$$" > "$TMP/proj/override.cfg"
 "$GODOT" --headless --import --path "$TMP/proj" > "$TMP/import.log" 2>&1
 for ((r = 1; r <= RUNS; r++)); do
   /usr/bin/time -p "$GODOT" --headless --fixed-fps 60 --max-fps 0 --path "$TMP/proj" \

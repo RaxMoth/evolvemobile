@@ -12,12 +12,13 @@ GODOT="${GODOT:-/Applications/Godot.app/Contents/MacOS/Godot}"
 RUNS="${1:-24}"; SIDE="${2:-heroes}"; WORKERS="${3:-6}"; CAP="${4:-660}"
 SRC="$(cd "$(dirname "$0")/.." && pwd)"
 TMP="$(mktemp -d)"
-trap 'rm -rf "$TMP"; for i in {0..63}; do rm -rf "$HOME/Library/Application Support/evolvemobile_sim_$i"; done' EXIT
+# One user dir per worker AND per run: concurrent sim.sh runs must not share saves.
+trap 'rm -rf "$TMP"; for i in {0..63}; do rm -rf "$HOME/Library/Application Support/evolvemobile_sim_$$_$i"; done' EXIT
 rsync -a --exclude .git --exclude .DS_Store "$SRC/" "$TMP/base/"
 "$GODOT" --headless --import --path "$TMP/base" > "$TMP/import.log" 2>&1
 for ((w = 0; w < WORKERS; w++)); do
   cp -R "$TMP/base" "$TMP/w$w"
-  printf '[application]\nconfig/use_custom_user_dir=true\nconfig/custom_user_dir_name="evolvemobile_sim_%d"\n' "$w" > "$TMP/w$w/override.cfg"
+  printf '[application]\nconfig/use_custom_user_dir=true\nconfig/custom_user_dir_name="evolvemobile_sim_%d_%d"\n' "$$" "$w" > "$TMP/w$w/override.cfg"
 done
 for ((w = 0; w < WORKERS; w++)); do
   (
