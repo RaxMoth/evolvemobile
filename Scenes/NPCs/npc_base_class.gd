@@ -933,7 +933,7 @@ func _score_destination(point: Vector2) -> float:
 	var current_facing = sprite.rotation if sprite else 0.0
 	var to_point = (point - global_position).normalized()
 	var point_angle = to_point.angle()
-	var angle_diff = abs(GameUtils.angle_difference(current_facing, point_angle))
+	var angle_diff = abs(GameUtils.wrapped_angle_delta(current_facing, point_angle))
 	score += (PI - angle_diff) * 50.0
 	
 	if is_in_group("Hero"):

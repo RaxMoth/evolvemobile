@@ -200,7 +200,7 @@ func _find_next_exploration_zone(from_position: Vector2) -> Vector2:
 				# Bonus for forward direction
 				if prefer_forward_exploration:
 					var to_target = (check_pos - from_position).normalized()
-					var angle_diff = abs(GameUtils.angle_difference(forward_angle, to_target.angle()))
+					var angle_diff = abs(GameUtils.wrapped_angle_delta(forward_angle, to_target.angle()))
 					score += (PI - angle_diff) * 50.0
 				
 				# Slight penalty for distance (prefer closer if equally good)
