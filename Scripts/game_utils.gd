@@ -12,10 +12,11 @@ const LAYER_BODY_HERO: int = 2
 const LAYER_BODY_MOB: int = 4
 const LAYER_BODY_MONSTER: int = 8
 const LAYER_ABILITY_ZONE: int = 16
-## Path search budget for every NavigationAgent2D. World.tscn's TileMapLayer
-## makes one navigation region PER TILE (~38k), and at the engine default
-## (4096 polygons) any path longer than ~2500 px stopped half-way: an agent
-## that fell behind its group walked to the cut-off point and stayed there.
+## Path search budget for every NavigationAgent2D: above the polygon count of
+## the baked world mesh (~2,100, Scenes/World/world_navigation.tres), so no
+## path is ever cut short. (With the old one-region-per-tile map, ~38,000
+## polygons, paths longer than ~2500 px stopped half-way at the engine default
+## of 4096.)
 const NAV_MAX_SEARCH_POLYGONS: int = 16384
 
 ## Apply the project's path search budget (property exists since Godot 4.5).
@@ -48,9 +49,9 @@ func usable_nav_map(world: World2D) -> RID:
 ## A random point inside `rect` that lies on the navigation mesh and is not on
 ## an isolated nav island (the map has one-tile islands): a path from it
 ## toward `from` must either arrive or leave the point by at least
-## `min_reach` px. (Long paths on the per-tile map stop at the path search's
-## polygon limit, so "the path arrives" alone would reject the far side of
-## the map.) Returns `fallback` when the map cannot answer yet or no sample
+## `min_reach` px. (A path can stop at the path search's polygon limit, so
+## "the path arrives" alone could reject the far side of the map.) Returns
+## `fallback` when the map cannot answer yet or no sample
 ## qualifies. A region's polygons arrive one map sync after the region itself
 ## (queries return the origin until then), so callers at startup retry.
 func random_reachable_point(world: World2D, rect: Rect2, from: Vector2, fallback: Vector2,

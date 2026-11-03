@@ -932,9 +932,11 @@ Max out hero trees → Unlock new heroes → Compete on leaderboards
 - [ ] 60 fps @ 150 mobs on a mid-range phone — code side landed 2026-10-14 (see `PROGRESS.md`); device
       measurement and the balance retune of the now-smaller aggro / AoE ranges are pending
 - [x] Fog of war recalculated every frame — fixed (dirty flag, one texture update per frame)
-- [ ] `World.tscn`'s Ground TileMapLayer produces one navigation region per tile (~38,000): the map
-      needs ~1 s before it answers queries and long paths need a 16,384-polygon search budget.
-      Baking the walkable area into one `NavigationRegion2D` (editor) would fix both
+- [x] One navigation region per Ground tile (~38,000) made every path query cost ~3–5 ms — fixed:
+      the walkable area is baked into one `NavigationRegion2D` ("Navigation",
+      `Scenes/World/world_navigation.tres`, ~2,100 polygons). After editing the Ground tiles, re-bake
+      with `tools/bake_nav.sh` or the editor's Bake NavigationPolygon button (a test fails on a
+      stale bake). Stress config (232 mobs, headless): frame time 30.6 → 2.1 ms, p99 185 → 5.4 ms
 
 **Balance**:
 

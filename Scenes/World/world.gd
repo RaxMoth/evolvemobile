@@ -31,8 +31,7 @@ func _ready():
 ## heroes met the stage-1 monster after ~50 s in half the simulated matches.
 func _place_monster() -> void:
 	# A region's polygons reach the navigation map one sync after the region
-	# itself (queries return the origin until then). The per-tile map takes
-	# ~1 s to become queryable, so retry for up to 3 s.
+	# itself (queries return the origin until then), so retry for up to 3 s.
 	for i in range(180):
 		await get_tree().physics_frame
 		var monster := EntityRegistry.first_monster() as MonsterBase
