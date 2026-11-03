@@ -16,7 +16,6 @@ signal selected(hero: Node)
 @onready var name_label: Label = $VBoxContainer/HeroName
 @onready var portrait: TextureRect = $VBoxContainer/HeroPortrait
 @onready var health_bar: ProgressBar = $VBoxContainer/HealthBar
-@onready var ability_container: HBoxContainer = $VBoxContainer/AbilityContainer
 @onready var passive_icon: TextureRect = $VBoxContainer/AbilityContainer/Passive
 @onready var active_icon: TextureRect = $VBoxContainer/AbilityContainer/Active
 @onready var basic_icon: TextureRect = $VBoxContainer/AbilityContainer/BasicAttack

@@ -597,7 +597,8 @@ A 53-agent read-only review (5 lenses × 2 refuters per finding) of commits P0�
   recompute per approaching mob per frame); new `_set_nav_target()` forced sibling keeps the lazy
   cache in sync at the idle-goal sites (EntityBase/MobBase/Irelia); cache seeded with INF so the
   first call always paths; strafe moves directly (the ~1 px nav target it pushed was swallowed by
-  the lazy helper) and is rate-independent. `GameManager.match_timer_changed` emitted at 4 Hz.
+  the lazy helper) and is rate-independent. `GameManager.match_timer_changed` emitted at 4 Hz
+  (the signal had no listener and was removed later in the 2026-11 cleanup).
 - Verified: headless 4.7.2 import + load of 79 scripts / 60 resources — 0 errors; greps: 0 orphan
   names, every `intersect_shape` file sets a mask, `target_position =` only in the two nav helpers.
 

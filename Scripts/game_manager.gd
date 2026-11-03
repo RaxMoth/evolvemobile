@@ -8,10 +8,7 @@ extends Node
 ##   • Monster dead      → HEROES win   (heroes-side WIN for the player)
 ##   • 10-min timeout    → MONSTER win  (heroes failed to find them in time)
 
-signal heroes_won
-signal monster_won
 signal match_ended(winner: String, time: float)
-signal match_timer_changed(remaining: float)
 
 const MATCH_RESULT_SCENE: PackedScene = preload("res://Scenes/UI/MatchResult/MatchResult.tscn")
 
@@ -39,9 +36,6 @@ var _match_time: float = 0.0
 const MAX_CLOCK_STEP: float = 0.25
 
 var heroes_alive: int = 0
-## match_timer_changed is a UI signal; 4 Hz is plenty and keeps _process cheap.
-const TIMER_EMIT_INTERVAL: float = 0.25
-var _timer_emit_accum: float = 0.0
 var monster_alive: bool = false
 var monster_stage_reached: int = 1
 var mob_kills: int = 0
@@ -98,14 +92,8 @@ func _process(delta: float) -> void:
 		return
 	if not get_tree().paused:
 		_match_time += minf(delta, MAX_CLOCK_STEP)
-	# Check the hard cap every frame; emit the visible timer at 4 Hz.
-	var elapsed: float = _elapsed()
-	var remaining: float = maxf(0.0, max_match_duration - elapsed)
-	_timer_emit_accum -= delta
-	if _timer_emit_accum <= 0.0:
-		_timer_emit_accum += TIMER_EMIT_INTERVAL
-		match_timer_changed.emit(remaining)
-	if remaining <= 0.0:
+	# Check the hard cap every frame.
+	if _elapsed() >= max_match_duration:
 		_end_match_timeout()
 
 
@@ -206,7 +194,7 @@ func _end_match_with_outcome(outcome: int) -> void:
 	_match_active = false
 
 	var duration := _elapsed()
-	# `outcome` is the heroes' perspective (the legacy signals below keep it).
+	# `outcome` is the heroes' perspective (match_ended below keeps it).
 	# Rewards, label and jingle must use the PLAYED side's perspective.
 	var player_outcome := MatchRewards.outcome_for_side(chosen_side, outcome)
 	var result := MatchRewards.compute(
@@ -218,13 +206,10 @@ func _end_match_with_outcome(outcome: int) -> void:
 		monster_stage_reached
 	)
 
-	# Legacy result signals: match_ended feeds analytics, audio and the sim;
-	# heroes_won / monster_won have no in-game listener.
+	# match_ended feeds analytics, audio and the sim.
 	if outcome == MatchRewards.Outcome.WIN:
-		heroes_won.emit()
 		match_ended.emit("Heroes", duration)
 	else:
-		monster_won.emit()
 		match_ended.emit("Monster", duration)
 
 	_apply_rewards_to_save(result)
@@ -266,12 +251,6 @@ func _show_result_screen(result: MatchRewards.Result) -> void:
 # ============================================
 # Public read-only helpers (HUDs / debug overlay can use these)
 # ============================================
-
-func get_match_remaining() -> float:
-	if match_ended_flag:
-		return 0.0
-	return maxf(0.0, max_match_duration - _elapsed())
-
 
 func get_match_elapsed() -> float:
 	return _elapsed()

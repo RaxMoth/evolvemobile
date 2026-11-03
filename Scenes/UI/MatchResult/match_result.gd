@@ -26,14 +26,6 @@ const MAIN_MENU_SCENE: PackedScene = preload("res://Scenes/UI/MainMenu/MainMenu.
 ## via [connection] entries in MatchResult.tscn.
 
 
-func _ready() -> void:
-	# process_mode = ALWAYS is set in the .tscn on the CanvasLayer and both
-	# Buttons so the screen stays responsive while the world is paused.
-	# Button `pressed` signals are connected scene-side too — see the
-	# [connection] entries at the bottom of MatchResult.tscn.
-	pass
-
-
 func populate(result: MatchRewards.Result) -> void:
 	if not is_inside_tree():
 		# populate() may be called before _ready completes — defer until

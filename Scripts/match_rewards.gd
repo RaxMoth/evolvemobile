@@ -118,10 +118,6 @@ static func outcome_label(outcome: int) -> String:
 	return ""
 
 
-static func side_label(side: int) -> String:
-	return "Heroes" if side == Side.HEROES else "Monster"
-
-
 static func format_duration(sec: float) -> String:
 	var total: int = int(sec)
 	# Intentional integer division — total and 60 are both int and we want int.

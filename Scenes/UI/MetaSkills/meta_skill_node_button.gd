@@ -12,8 +12,6 @@ const COLOR_UNLOCKED   := Color(0.40, 0.85, 0.40)  # green
 const COLOR_AVAILABLE  := Color(0.95, 0.85, 0.30)  # gold
 const COLOR_LOCKED     := Color(0.45, 0.45, 0.50)  # gray
 const COLOR_TIER_GATED := Color(0.30, 0.30, 0.35)  # dark gray
-const COLOR_TEXT_LIGHT := Color(0.10, 0.10, 0.10)
-const COLOR_TEXT_DARK  := Color(0.92, 0.92, 0.96)
 
 var tree_id: StringName = &""
 var node_def: MetaSkillNode = null
