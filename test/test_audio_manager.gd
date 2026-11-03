@@ -11,11 +11,14 @@ func test_every_key_has_a_stream() -> void:
 
 
 func test_same_key_is_rate_limited() -> void:
-	await wait_seconds(0.06)
+	# The rate limit runs on the wall clock (Time.get_ticks_msec) while the suite
+	# runs at a fixed fps, so wait in real time. The first wait clears a "cast"
+	# played by an earlier test.
+	OS.delay_msec(60)
 	assert_true(AudioManager.play_sfx(&"cast", Vector2.ZERO), "first play goes through")
 	assert_false(AudioManager.play_sfx(&"cast", Vector2.ZERO), "retrigger inside 50 ms is dropped")
 	assert_true(AudioManager.play_sfx(&"ult", Vector2.ZERO), "a different key is independent")
-	await wait_seconds(0.06)
+	OS.delay_msec(60)
 	assert_true(AudioManager.play_sfx(&"cast", Vector2.ZERO), "allowed again after the window")
 
 

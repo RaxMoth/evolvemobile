@@ -31,9 +31,9 @@ func test_hero_ability_node_modifies_only_that_heros_copy() -> void:
 	assert_eq(ult.ability_name, "Blood Bomb")
 	assert_true(ult.resource_path.is_empty(), "hero owns a copy of the ability")
 	assert_near(ult.area_of_effect, 150.0 * 1.25, 0.01)
-	var shared: AbilityBase = load("res://Scenes/NPCs/Hero/Heros/DMG/Vlad/Abilities/ult/ult_bomb.tres") if ResourceLoader.exists("res://Scenes/NPCs/Hero/Heros/DMG/Vlad/Abilities/ult/ult_bomb.tres") else null
-	if shared:
-		assert_near(shared.area_of_effect, 150.0, 0.01, "shared resource untouched")
+	var shared := load("res://Scenes/NPCs/Hero/Heros/DMG/Vlad/Abilities/ult/ult.tres") as AbilityBase
+	assert_true(shared != null, "shared Blood Bomb resource")
+	assert_near(shared.area_of_effect, 150.0, 0.01, "shared resource untouched")
 	var other := await spawn_entity(VLAD, Vector2(3000, 0))
 	# Both Vlads get it (same tree) but each on its own copy.
 	assert_true((other.get_node("AbilitySystem") as AbilitySystem).ultimate_ability != ult)
