@@ -25,7 +25,12 @@ set +e
 "$GODOT" --headless --fixed-fps 60 --max-fps 0 --path "$TMP/proj" -s res://test/run_tests.gd > "$TMP/run.log" 2>&1
 STATUS=$?
 grep -v "Could not create child process" "$TMP/run.log"
-# Only SCRIPT ERROR lines fail the run: some tests provoke engine ERROR
-# lines on purpose (e.g. loading a corrupt save file).
+# Only SCRIPT ERROR lines and broken scene wiring fail the run: some tests
+# provoke other engine ERROR lines on purpose (e.g. loading a corrupt save
+# file). Broken wiring only shows up at runtime, as an engine ERROR when a
+# signal is connected ("nonexistent signal") or fires ("Method not found";
+# Godot 4.7.2 stays silent there) or when a state-chart transition is taken
+# ("is not a state"). tools/lint_all.gd checks the scenes statically.
 if grep -q "SCRIPT ERROR" "$TMP/run.log"; then echo "(script errors above)"; exit 1; fi
+if grep -qE "Method not found|nonexistent signal|is not a state" "$TMP/run.log"; then echo "(broken scene wiring above)"; exit 1; fi
 exit $STATUS

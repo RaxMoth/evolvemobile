@@ -61,9 +61,6 @@ shape = SubResource("CircleShape2D_o028b")
 unique_name_in_owner = true
 path_max_distance = 50.0
 
-[node name="AttackTimer" type="Timer" parent="."]
-unique_name_in_owner = true
-
 [node name="StateChart" type="Node" parent="."]
 unique_name_in_owner = true
 script = ExtResource("3_u53yq")
@@ -133,7 +130,6 @@ rect = Rect2(-48, -64, 96, 112)
 
 [connection signal="area_entered" from="DetectionArea" to="." method="_on_detection_area_area_entered"]
 [connection signal="area_exited" from="DetectionArea" to="." method="_on_detection_area_area_exited"]
-[connection signal="timeout" from="AttackTimer" to="." method="_on_attack_timer_timeout"]
 [connection signal="state_entered" from="StateChart/CompoundState/Idle" to="." method="_on_idle_state_entered"]
 [connection signal="state_stepped" from="StateChart/CompoundState/Idle" to="." method="_on_idle_state_stepped"]
 [connection signal="state_entered" from="StateChart/CompoundState/Approach" to="." method="_on_approach_state_entered"]
