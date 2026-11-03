@@ -5,12 +5,8 @@ extends TestCase
 const LOG := "user://analytics.jsonl"
 
 
-func _isolated() -> bool:
-	return OS.get_user_data_dir().contains("evolvemobile_tests")
-
-
 func before_each() -> void:
-	if _isolated():
+	if is_isolated():
 		PersistedData.wipe_progress(false)
 		AnalyticsSink.set_opt_out(false)
 		AnalyticsSink.flush()
@@ -31,8 +27,7 @@ func _lines() -> Array[String]:
 
 
 func test_events_are_buffered_then_written_as_json_lines() -> void:
-	if not _isolated():
-		skip("user:// is not the isolated test dir")
+	if not require_isolated():
 		return
 	AnalyticsSink.track(&"unit_a", {"x": 1})
 	AnalyticsSink.track(&"unit_b", {"y": "two"})
@@ -52,8 +47,7 @@ func test_events_are_buffered_then_written_as_json_lines() -> void:
 
 
 func test_opt_out_drops_events_and_provider_receives_them_otherwise() -> void:
-	if not _isolated():
-		skip("user:// is not the isolated test dir")
+	if not require_isolated():
 		return
 	var seen: Array = []
 	AnalyticsSink.set_provider(func(e: Dictionary) -> void: seen.append(e.get("name")))
@@ -69,8 +63,7 @@ func test_opt_out_drops_events_and_provider_receives_them_otherwise() -> void:
 
 
 func test_skill_unlock_is_tracked_through_the_manager_signal() -> void:
-	if not _isolated():
-		skip("user:// is not the isolated test dir")
+	if not require_isolated():
 		return
 	PersistedData.add_currency(PersistedData.GOLD, 200)
 	assert_true(MetaSkillManager.unlock(MetaSkillManager.TREE_HERO_BASE, &"t1_hp"))

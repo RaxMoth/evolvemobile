@@ -5,12 +5,8 @@ extends TestCase
 const SCENE := "res://Scenes/UI/PreRoundSetup/PreRoundSetup.tscn"
 
 
-func _isolated() -> bool:
-	return OS.get_user_data_dir().contains("evolvemobile_tests")
-
-
 func before_each() -> void:
-	if _isolated():
+	if is_isolated():
 		PersistedData.wipe_progress(false)
 
 
@@ -32,8 +28,7 @@ func test_derived_values_follow_the_sliders() -> void:
 
 
 func test_roundtrip_through_settings() -> void:
-	if not _isolated():
-		skip("user:// is not the isolated test dir")
+	if not require_isolated():
 		return
 	var defaults := MatchConfig.from_settings()
 	assert_near(defaults.aggression, 0.5)
@@ -52,8 +47,7 @@ func test_roundtrip_through_settings() -> void:
 
 
 func test_setup_screen_emits_and_persists_the_choice() -> void:
-	if not _isolated():
-		skip("user:// is not the isolated test dir")
+	if not require_isolated():
 		return
 	var screen := (load(SCENE) as PackedScene).instantiate() as PreRoundSetup
 	add_child(screen)
@@ -74,8 +68,7 @@ func test_setup_screen_emits_and_persists_the_choice() -> void:
 
 
 func test_spawned_hero_uses_the_chosen_strategy() -> void:
-	if not _isolated():
-		skip("user:// is not the isolated test dir")
+	if not require_isolated():
 		return
 	var c := MatchConfig.new()
 	c.aggression = 1.0

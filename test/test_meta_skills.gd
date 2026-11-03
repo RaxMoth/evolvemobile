@@ -6,18 +6,13 @@ extends TestCase
 const TREE := &"hero_base"
 
 
-func _isolated() -> bool:
-	return OS.get_user_data_dir().contains("evolvemobile_tests")
-
-
 func before_each() -> void:
-	if _isolated():
+	if is_isolated():
 		PersistedData.wipe_progress(false)
 
 
 func test_tier_two_is_gated_until_tier_one_unlocked() -> void:
-	if not _isolated():
-		skip("user:// is not the isolated test dir")
+	if not require_isolated():
 		return
 	PersistedData.add_currency(PersistedData.GOLD, 1000)
 	assert_false(MetaSkillManager.is_node_available(TREE, &"t2_dmg"), "tier 2 locked before any tier 1 node")
@@ -33,8 +28,7 @@ func test_tier_two_is_gated_until_tier_one_unlocked() -> void:
 
 
 func test_unlock_fails_when_unaffordable() -> void:
-	if not _isolated():
-		skip("user:// is not the isolated test dir")
+	if not require_isolated():
 		return
 	PersistedData.add_currency(PersistedData.GOLD, 50)
 	assert_false(MetaSkillManager.unlock(TREE, &"t1_hp"))

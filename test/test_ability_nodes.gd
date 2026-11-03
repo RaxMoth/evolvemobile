@@ -9,18 +9,13 @@ const RIVER := "res://Scenes/NPCs/Hero/Heros/Healer/River/River.tscn"
 const BAT := "res://Scenes/NPCs/Mob/Mobs/Bat/Bat.tscn"
 
 
-func _isolated() -> bool:
-	return OS.get_user_data_dir().contains("evolvemobile_tests")
-
-
 func before_each() -> void:
-	if _isolated():
+	if is_isolated():
 		PersistedData.wipe_progress(false)
 
 
 func test_hero_ability_node_modifies_only_that_heros_copy() -> void:
-	if not _isolated():
-		skip("user:// is not the isolated test dir")
+	if not require_isolated():
 		return
 	PersistedData.add_currency(PersistedData.STEEL, 1000)
 	assert_true(MetaSkillManager.unlock(MetaSkillManager.hero_tree_id(&"vlad"), &"v1_dmg"))
@@ -42,8 +37,7 @@ func test_hero_ability_node_modifies_only_that_heros_copy() -> void:
 
 
 func test_monster_ability_nodes_survive_evolution() -> void:
-	if not _isolated():
-		skip("user:// is not the isolated test dir")
+	if not require_isolated():
 		return
 	PersistedData.add_currency(PersistedData.LEAVES, 2000)
 	var tree := MetaSkillManager.monster_tree_id(&"grount")
@@ -63,12 +57,6 @@ func test_monster_ability_nodes_survive_evolution() -> void:
 	assert_eq(grount.current_stage, 2)
 	assert_near(cleave.cooldown, cleave.get_cooldown_for_stage(2) * 0.85, 0.001, "multiplier re-applied after evolution")
 	grount.queue_free()
-
-
-func _frozen(path: String, pos: Vector2) -> Node2D:
-	var e := await spawn_entity(path, pos)
-	TickScheduler.unregister(e)
-	return e
 
 
 func test_stacked_modifiers_apply_to_the_unmodified_base() -> void:
@@ -92,10 +80,9 @@ func test_stacked_modifiers_apply_to_the_unmodified_base() -> void:
 
 
 func test_early_slam_unlocks_ground_slam_at_stage_1() -> void:
-	if not _isolated():
-		skip("user:// is not the isolated test dir")
+	if not require_isolated():
 		return
-	var locked := await _frozen(GROUNT, Vector2(3000, 0))
+	var locked := await spawn_frozen(GROUNT, Vector2(3000, 0))
 	assert_false(locked.ability_3.is_unlocked_at(1), "Ground Slam is a stage-2 unlock by default")
 	assert_true(locked.ability_3.cooldown >= AbilityBase.LOCKED_COOLDOWN)
 	assert_false(locked._slam_ready())
@@ -105,7 +92,7 @@ func test_early_slam_unlocks_ground_slam_at_stage_1() -> void:
 	var tree := MetaSkillManager.monster_tree_id(&"grount")
 	assert_true(MetaSkillManager.unlock(tree, &"g1_stun"))
 	assert_true(MetaSkillManager.unlock(tree, &"g2_earlyslam"))
-	var g := await _frozen(GROUNT, Vector2(3000, 0))
+	var g := await spawn_frozen(GROUNT, Vector2(3000, 0))
 	var slam: AbilityBase = g.ability_3
 	assert_eq(g.current_stage, 1)
 	assert_true(slam.is_unlocked_at(1))
@@ -116,13 +103,12 @@ func test_early_slam_unlocks_ground_slam_at_stage_1() -> void:
 
 
 func test_stunning_charge_stuns_what_the_dash_hits() -> void:
-	if not _isolated():
-		skip("user:// is not the isolated test dir")
+	if not require_isolated():
 		return
 	PersistedData.add_currency(PersistedData.LEAVES, 1000)
 	assert_true(MetaSkillManager.unlock(MetaSkillManager.monster_tree_id(&"grount"), &"g1_stun"))
-	var g := await _frozen(GROUNT, Vector2(0, 0))
-	var v := await _frozen(VLAD, Vector2(220, 0))
+	var g := await spawn_frozen(GROUNT, Vector2(0, 0))
+	var v := await spawn_frozen(VLAD, Vector2(220, 0))
 	assert_near(float(g.ability_2.get("stun_duration")), 0.5, 0.001)
 	g.target = v.get_node("Body")
 	g.target_entity = v
@@ -138,19 +124,18 @@ func test_stunning_charge_stuns_what_the_dash_hits() -> void:
 
 
 func test_triple_shot_hits_two_more_enemies_near_the_target() -> void:
-	if not _isolated():
-		skip("user:// is not the isolated test dir")
+	if not require_isolated():
 		return
 	PersistedData.add_currency(PersistedData.STEEL, 1000)
 	var tree := MetaSkillManager.hero_tree_id(&"river")
 	assert_true(MetaSkillManager.unlock(tree, &"r1_range"))
 	assert_true(MetaSkillManager.unlock(tree, &"r2_triple"))
-	var river := await _frozen(RIVER, Vector2(0, 0))
-	var main := await _frozen(BAT, Vector2(200, 0))
-	var near_a := await _frozen(BAT, Vector2(260, 0))
-	var near_b := await _frozen(BAT, Vector2(200, 80))
-	var near_c := await _frozen(BAT, Vector2(200, -120))
-	var far := await _frozen(BAT, Vector2(200, 600))
+	var river := await spawn_frozen(RIVER, Vector2(0, 0))
+	var main := await spawn_frozen(BAT, Vector2(200, 0))
+	var near_a := await spawn_frozen(BAT, Vector2(260, 0))
+	var near_b := await spawn_frozen(BAT, Vector2(200, 80))
+	var near_c := await spawn_frozen(BAT, Vector2(200, -120))
+	var far := await spawn_frozen(BAT, Vector2(200, 600))
 	var shot: AbilityBase = (river.get_node("AbilitySystem") as AbilitySystem).basic_attack
 	assert_eq(int(shot.get("extra_targets")), 2)
 	var bats: Array[Node2D] = [main, near_a, near_b, near_c, far]
@@ -169,7 +154,7 @@ func test_triple_shot_hits_two_more_enemies_near_the_target() -> void:
 
 
 func test_a_pooled_mob_does_not_keep_its_stun() -> void:
-	var bat := await _frozen(BAT, Vector2(0, 0))
+	var bat := await spawn_frozen(BAT, Vector2(0, 0))
 	(bat as EntityBase).apply_stun(0.5)
 	assert_true((bat as EntityBase).is_stunned())
 	(bat as MobBase).prepare_for_pool()

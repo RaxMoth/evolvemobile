@@ -2,8 +2,6 @@ extends TestCase
 
 ## Regressions found by the adversarial review of the performance pass.
 
-const BAT := "res://Scenes/NPCs/Mob/Mobs/Bat/Bat.tscn"
-const AREA := "res://Scenes/World/MobSpawnArea/MobSpawnArea.tscn"
 const VLAD := "res://Scenes/NPCs/Hero/Heros/DMG/Vlad/Vlad.tscn"
 const GROUNT := "res://Scenes/NPCs/Monster/Grount/Grount.tscn"
 const PET := "res://Scenes/NPCs/Hero/Heros/Support/Ted/Abilities/Passive/TedsPet.tscn"
@@ -13,18 +11,8 @@ var area: MobSpawnArea
 
 
 func before_each() -> void:
-	mgr = SpawnManager.new()
-	mgr.auto_activate_on_ready = false
-	mgr.enable_lazy_activation = false
-	add_child(mgr)
-	area = (load(AREA) as PackedScene).instantiate() as MobSpawnArea
-	area.mob_scene = load(BAT)
-	area.mob_count = 2
-	area.auto_spawn_on_ready = false
-	area.respawn_time = 60.0
-	area.position = Vector2(2000, 2000)
-	mgr.add_child(area)
-	area.virtual_count = area.mob_count
+	mgr = make_spawn_manager(2, 60.0, Vector2(2000, 2000)) as SpawnManager
+	area = mgr.get_child(0) as MobSpawnArea
 
 
 func after_each() -> void:

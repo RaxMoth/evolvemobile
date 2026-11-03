@@ -7,12 +7,8 @@ const VLAD := "res://Scenes/NPCs/Hero/Heros/DMG/Vlad/Vlad.tscn"
 const GROUNT := "res://Scenes/NPCs/Monster/Grount/Grount.tscn"
 
 
-func _isolated() -> bool:
-	return OS.get_user_data_dir().contains("evolvemobile_tests")
-
-
 func before_each() -> void:
-	if _isolated():
+	if is_isolated():
 		PersistedData.wipe_progress(false)
 
 
@@ -29,8 +25,7 @@ func test_hero_and_monster_ids_come_from_resources() -> void:
 
 
 func test_per_monster_tree_reaches_the_spawned_monster() -> void:
-	if not _isolated():
-		skip("user:// is not the isolated test dir")
+	if not require_isolated():
 		return
 	PersistedData.add_currency(PersistedData.LEAVES, 500)
 	assert_true(MetaSkillManager.unlock(MetaSkillManager.monster_tree_id(&"grount"), &"g1_dmg"))

@@ -7,12 +7,8 @@ const RIVER := "res://Scenes/NPCs/Hero/Heros/Healer/River/River.tscn"
 const PET := "res://Scenes/NPCs/Hero/Heros/Support/Ted/Abilities/Passive/TedsPet.tscn"
 
 
-func _isolated() -> bool:
-	return OS.get_user_data_dir().contains("evolvemobile_tests")
-
-
 func before_each() -> void:
-	if _isolated():
+	if is_isolated():
 		PersistedData.wipe_progress(false)
 
 
@@ -38,8 +34,7 @@ func test_pet_respawns_only_after_the_timer() -> void:
 
 
 func test_damage_and_attack_speed_nodes_reach_combat() -> void:
-	if not _isolated():
-		skip("user:// is not the isolated test dir")
+	if not require_isolated():
 		return
 	PersistedData.add_currency(PersistedData.STEEL, 1000)
 	assert_true(MetaSkillManager.unlock(MetaSkillManager.hero_tree_id(&"vlad"), &"v1_dmg"))
@@ -53,8 +48,7 @@ func test_damage_and_attack_speed_nodes_reach_combat() -> void:
 
 
 func test_hero_spawns_at_full_upgraded_health() -> void:
-	if not _isolated():
-		skip("user:// is not the isolated test dir")
+	if not require_isolated():
 		return
 	PersistedData.add_currency(PersistedData.GOLD, 1000)
 	assert_true(MetaSkillManager.unlock(MetaSkillManager.TREE_HERO_BASE, &"t1_hp"))

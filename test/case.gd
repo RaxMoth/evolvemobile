@@ -80,5 +80,72 @@ func spawn_entity(scene_path: String, pos: Vector2 = Vector2.ZERO) -> Node2D:
 	return inst
 
 
+## spawn_entity with the AI frozen (unregistered from TickScheduler), so the
+## test drives every rule by hand.
+func spawn_frozen(scene_path: String, pos: Vector2) -> Node2D:
+	var e := await spawn_entity(scene_path, pos)
+	# By node path: the -s runner compiles TestCase before autoload names exist
+	# as globals, so TestCase names no autoload and no project class.
+	get_tree().root.get_node(^"TickScheduler").unregister(e)
+	return e
+
+
+# ---------- fixtures ----------
+
+## True when user:// is the throwaway dir tools/run_tests.sh sets up, so the
+## test may wipe and rewrite the save file.
+func is_isolated() -> bool:
+	return OS.get_user_data_dir().contains("evolvemobile_tests")
+
+
+## Guard for tests that write the save file: skips the test and returns false
+## unless user:// is the isolated test dir.
+func require_isolated() -> bool:
+	if is_isolated():
+		return true
+	skip("user:// is not the isolated test dir")
+	return false
+
+
+## A SpawnManager (no auto or lazy activation) under the sandbox whose only
+## child, get_child(0), is a Bat MobSpawnArea at area_pos: world-eligible but
+## not activated yet. Returned as Node, its script loaded by path (see
+## spawn_frozen).
+func make_spawn_manager(mob_count: int, respawn_time: float, area_pos: Vector2 = Vector2.ZERO) -> Node:
+	var mgr: Node = (load("res://Scenes/World/spawns.gd") as GDScript).new()
+	mgr.auto_activate_on_ready = false
+	mgr.enable_lazy_activation = false
+	add_child(mgr)
+	var area := (load("res://Scenes/World/MobSpawnArea/MobSpawnArea.tscn") as PackedScene).instantiate() as Node2D
+	area.mob_scene = load("res://Scenes/NPCs/Mob/Mobs/Bat/Bat.tscn")
+	area.mob_count = mob_count
+	area.auto_spawn_on_ready = false
+	area.respawn_time = respawn_time
+	area.position = area_pos
+	mgr.add_child(area)
+	area.virtual_count = mob_count  # what SpawnManager._make_spawn_world_eligible does
+	return mgr
+
+
+## A NavigationRegion2D baked from one traversable outline, added under the
+## sandbox; free it (and wait 6 physics frames) to empty the map again.
+func bake_nav_outline(points: PackedVector2Array) -> NavigationRegion2D:
+	var region := NavigationRegion2D.new()
+	var poly := NavigationPolygon.new()
+	poly.agent_radius = 0.0
+	var src := NavigationMeshSourceGeometryData2D.new()
+	src.add_traversable_outline(points)
+	NavigationServer2D.bake_from_source_geometry_data(poly, src)
+	region.navigation_polygon = poly
+	add_child(region)
+	await wait_physics_frames(6)  # polygons land one map sync after the region
+	return region
+
+
+func bake_nav_rect(rect: Rect2) -> NavigationRegion2D:
+	return await bake_nav_outline(PackedVector2Array([rect.position, Vector2(rect.end.x, rect.position.y),
+		rect.end, Vector2(rect.position.x, rect.end.y)]))
+
+
 func _suffix(msg: String) -> String:
 	return "" if msg.is_empty() else " — " + msg

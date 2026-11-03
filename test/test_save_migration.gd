@@ -6,12 +6,8 @@ extends TestCase
 const SAVE := "user://save.cfg"
 
 
-func _isolated() -> bool:
-	return OS.get_user_data_dir().contains("evolvemobile_tests")
-
-
 func before_each() -> void:
-	if _isolated():
+	if is_isolated():
 		for f in [SAVE, SAVE + ".v0.bak", SAVE + ".v1.bak", SAVE + ".v2.bak", SAVE + ".corrupt.bak"]:
 			if FileAccess.file_exists(f):
 				DirAccess.remove_absolute(ProjectSettings.globalize_path(f))
@@ -28,8 +24,7 @@ func _write_v1(values: Dictionary, with_version: bool = true) -> void:
 
 
 func test_v1_save_is_backed_up_and_normalized() -> void:
-	if not _isolated():
-		skip("user:// is not the isolated test dir")
+	if not require_isolated():
 		return
 	_write_v1({
 		"currency": {"steel": 12.6, "gold": -5, "leaves": "40"},
@@ -61,8 +56,7 @@ func test_v1_save_is_backed_up_and_normalized() -> void:
 
 
 func test_unversioned_save_counts_as_v1() -> void:
-	if not _isolated():
-		skip("user:// is not the isolated test dir")
+	if not require_isolated():
 		return
 	_write_v1({"currency": {"steel": 5}}, false)
 	PersistedData.load_data()
@@ -72,8 +66,7 @@ func test_unversioned_save_counts_as_v1() -> void:
 
 
 func test_current_save_is_not_backed_up_or_rewritten() -> void:
-	if not _isolated():
-		skip("user:// is not the isolated test dir")
+	if not require_isolated():
 		return
 	# A hand-written current-version file with a sentinel timestamp.
 	var cfg := ConfigFile.new()
@@ -97,8 +90,7 @@ func test_current_save_is_not_backed_up_or_rewritten() -> void:
 
 
 func test_reset_progress_keeps_preferences() -> void:
-	if not _isolated():
-		skip("user:// is not the isolated test dir")
+	if not require_isolated():
 		return
 	PersistedData.wipe_progress(false)
 	PersistedData.add_currency(PersistedData.GOLD, 300)
@@ -115,8 +107,7 @@ func test_reset_progress_keeps_preferences() -> void:
 
 
 func test_corrupt_save_is_kept_aside_and_defaults_seeded() -> void:
-	if not _isolated():
-		skip("user:// is not the isolated test dir")
+	if not require_isolated():
 		return
 	var f := FileAccess.open(SAVE, FileAccess.WRITE)
 	f.store_string("this is = not [ a config\n[[[")

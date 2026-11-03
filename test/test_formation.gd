@@ -10,19 +10,13 @@ const TED := "res://Scenes/NPCs/Hero/Heros/Support/Ted/Ted.tscn"
 const RIVER := "res://Scenes/NPCs/Hero/Heros/Healer/River/River.tscn"
 
 
-func _frozen(path: String, pos: Vector2) -> Node2D:
-	var e := await spawn_entity(path, pos)
-	TickScheduler.unregister(e)
-	return e
-
-
 func test_tank_leads_healer_trails_and_followers_pace_on_the_leader() -> void:
 	# Roster order puts the fast melee first: the old index-based slots made
 	# Ted the "leader" and he reached every camp alone.
-	var ted := await _frozen(TED, Vector2(0, 0))
-	var vlad := await _frozen(VLAD, Vector2(40, 0))
-	var river := await _frozen(RIVER, Vector2(80, 0))
-	var irelia := await _frozen(IRELIA, Vector2(120, 0))
+	var ted := await spawn_frozen(TED, Vector2(0, 0))
+	var vlad := await spawn_frozen(VLAD, Vector2(40, 0))
+	var river := await spawn_frozen(RIVER, Vector2(80, 0))
+	var irelia := await spawn_frozen(IRELIA, Vector2(120, 0))
 	var ctrl := (load(CTRL) as PackedScene).instantiate() as HeroExplorationController
 	add_child(ctrl)
 	await wait_frames(2)
@@ -67,7 +61,7 @@ func test_tank_leads_healer_trails_and_followers_pace_on_the_leader() -> void:
 
 
 func test_walking_heroes_are_not_flagged_as_stuck() -> void:
-	var vlad := await _frozen(VLAD, Vector2(0, 0))
+	var vlad := await spawn_frozen(VLAD, Vector2(0, 0))
 	var ctrl := (load(CTRL) as PackedScene).instantiate() as HeroExplorationController
 	add_child(ctrl)
 	await wait_frames(2)
@@ -90,7 +84,7 @@ func test_exploration_ignores_off_map_fog_and_abandons_stalled_waypoints() -> vo
 	var fog := (load("res://Scenes/World/FogOfWar/FogOfWarSystem.tscn") as PackedScene).instantiate() as FogOfWarSystem
 	fog.world_size = Vector2(3200, 3200)
 	add_child(fog)
-	var vlad := await _frozen(VLAD, Vector2(100, 100))
+	var vlad := await spawn_frozen(VLAD, Vector2(100, 100))
 	var ctrl := (load(CTRL) as PackedScene).instantiate() as HeroExplorationController
 	add_child(ctrl)
 	await wait_frames(2)

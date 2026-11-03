@@ -6,12 +6,8 @@ const RIVER := "res://Scenes/NPCs/Hero/Heros/Healer/River/River.tscn"
 const VLAD := "res://Scenes/NPCs/Hero/Heros/DMG/Vlad/Vlad.tscn"
 
 
-func _isolated() -> bool:
-	return OS.get_user_data_dir().contains("evolvemobile_tests")
-
-
 func before_each() -> void:
-	if _isolated():
+	if is_isolated():
 		PersistedData.wipe_progress(false)
 
 
@@ -37,8 +33,7 @@ func test_every_character_has_a_tree_with_the_right_currency() -> void:
 
 
 func test_hero_tree_applies_only_to_that_hero() -> void:
-	if not _isolated():
-		skip("user:// is not the isolated test dir")
+	if not require_isolated():
 		return
 	PersistedData.add_currency(PersistedData.STEEL, 1000)
 	assert_true(MetaSkillManager.unlock(MetaSkillManager.hero_tree_id(&"river"), &"r1_range"))
@@ -54,8 +49,7 @@ func test_hero_tree_applies_only_to_that_hero() -> void:
 
 
 func test_monster_tree_merges_with_base_tree() -> void:
-	if not _isolated():
-		skip("user:// is not the isolated test dir")
+	if not require_isolated():
 		return
 	PersistedData.add_currency(PersistedData.LEAVES, 500)
 	PersistedData.add_currency(PersistedData.GOLD, 500)

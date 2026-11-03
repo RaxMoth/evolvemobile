@@ -19,12 +19,8 @@ const META_SKILLS := preload("res://Scripts/MetaSkills/meta_skill_manager.gd")
 var _added_second_wind: MetaSkillNode = null
 
 
-func _isolated() -> bool:
-	return OS.get_user_data_dir().contains("evolvemobile_tests")
-
-
 func before_each() -> void:
-	if _isolated():
+	if is_isolated():
 		PersistedData.wipe_progress(false)
 
 
@@ -34,7 +30,7 @@ func after_each() -> void:
 	if _added_second_wind != null:
 		MetaSkillManager.get_tree_def(_tree()).nodes.erase(_added_second_wind)
 		_added_second_wind = null
-	if _isolated():
+	if is_isolated():
 		PersistedData.wipe_progress(false)
 
 
@@ -56,22 +52,16 @@ func _add_second_wind() -> void:
 	t.nodes.append(_added_second_wind)
 
 
-func _frozen(path: String, pos: Vector2) -> Node2D:
-	var e := await spawn_entity(path, pos)
-	TickScheduler.unregister(e)
-	return e
-
-
 func _grount(pos: Vector2 = Vector2.ZERO) -> MonsterBase:
-	return (await _frozen(GROUNT, pos)) as MonsterBase
+	return (await spawn_frozen(GROUNT, pos)) as MonsterBase
 
 
 func _hero(pos: Vector2) -> EntityBase:
-	return (await _frozen(VLAD, pos)) as EntityBase
+	return (await spawn_frozen(VLAD, pos)) as EntityBase
 
 
 func _bat(pos: Vector2) -> MobBase:
-	return (await _frozen(BAT, pos)) as MobBase
+	return (await spawn_frozen(BAT, pos)) as MobBase
 
 
 ## Ted's pet (a CharacterBody2D, not an EntityBase) owned by a far-away hero.
@@ -162,15 +152,14 @@ func test_grount_tree_lists_its_shipped_nodes() -> void:
 		ids.sort()
 		assert_eq(ids, expected[tier], "tier %d" % tier)
 	assert_true(t.find_node(&"g3_evoheal") == null, "Second Wind is not in the shipped tree yet")
-	if _isolated():
+	if is_isolated():
 		PersistedData.add_currency(PersistedData.LEAVES, 5000)
 		_grant(["g1_dmg", "g2_hp"])
 		assert_false(MetaSkillManager.unlock(_tree(), &"g3_evoheal"), "so it cannot be bought")
 
 
 func test_tier_4_is_gated_until_a_tier_3_node_is_unlocked() -> void:
-	if not _isolated():
-		skip("user:// is not the isolated test dir")
+	if not require_isolated():
 		return
 	PersistedData.add_currency(PersistedData.LEAVES, 100 + 500 + 1000 + 2000)
 	assert_true(MetaSkillManager.unlock(_tree(), &"g1_dmg"))
@@ -184,8 +173,7 @@ func test_tier_4_is_gated_until_a_tier_3_node_is_unlocked() -> void:
 
 
 func test_additive_keys_sum_from_zero_and_multiplicative_keys_are_unchanged() -> void:
-	if not _isolated():
-		skip("user:// is not the isolated test dir")
+	if not require_isolated():
 		return
 	assert_true(MetaSkillManager.collect_monster_modifiers(&"grount").is_empty(), "fresh save: no modifiers")
 	_grant(["g2_hp", "g3_enrage", "g4_titan", "g3_pull"])
@@ -200,8 +188,7 @@ func test_additive_keys_sum_from_zero_and_multiplicative_keys_are_unchanged() ->
 # ---------- fresh save ----------
 
 func test_behaviour_nodes_are_off_on_a_fresh_save() -> void:
-	if not _isolated():
-		skip("user:// is not the isolated test dir")
+	if not require_isolated():
 		return
 	assert_true(MetaSkillManager.collect_monster_modifiers(&"grount").is_empty(), "no unlock leaked in from an earlier test")
 	var g := await _grount()
@@ -241,8 +228,7 @@ func test_behaviour_nodes_are_off_on_a_fresh_save() -> void:
 
 
 func test_range_nodes_alone_keep_the_stock_fight_leave_distance() -> void:
-	if not _isolated():
-		skip("user:// is not the isolated test dir")
+	if not require_isolated():
 		return
 	_grant(["g1_range"])
 	PersistedData.set_unlocked_skills(MetaSkillManager.TREE_MONSTER_BASE, ["mt3_range"])
@@ -255,8 +241,7 @@ func test_range_nodes_alone_keep_the_stock_fight_leave_distance() -> void:
 # ---------- Enrage ----------
 
 func test_enrage_below_20_percent_without_compounding() -> void:
-	if not _isolated():
-		skip("user:// is not the isolated test dir")
+	if not require_isolated():
 		return
 	_grant(["g1_dmg", "g3_enrage"])
 	var g := await _grount()
@@ -293,8 +278,7 @@ func test_enrage_below_20_percent_without_compounding() -> void:
 
 
 func test_enrage_ends_on_rest_regen_and_on_evolution() -> void:
-	if not _isolated():
-		skip("user:// is not the isolated test dir")
+	if not require_isolated():
 		return
 	_grant(["g3_enrage"])
 	var g := await _grount()
@@ -322,8 +306,7 @@ func test_enrage_ends_on_rest_regen_and_on_evolution() -> void:
 
 
 func test_enrage_threshold_counts_the_titan_bonus() -> void:
-	if not _isolated():
-		skip("user:// is not the isolated test dir")
+	if not require_isolated():
 		return
 	_grant(["g3_enrage", "g4_titan"])
 	var g := await _grount()
@@ -338,8 +321,7 @@ func test_enrage_threshold_counts_the_titan_bonus() -> void:
 
 
 func test_enrage_and_titan_show_in_the_f3_overlay() -> void:
-	if not _isolated():
-		skip("user:// is not the isolated test dir")
+	if not require_isolated():
 		return
 	_grant(["g3_enrage", "g4_titan", "g3_pull"])
 	var g := await _grount()
@@ -382,8 +364,7 @@ func test_f3_line_copes_with_a_monster_without_ground_slam() -> void:
 # ---------- Second Wind ----------
 
 func test_second_wind_heals_200_on_stage_2_capped_at_max() -> void:
-	if not _isolated():
-		skip("user:// is not the isolated test dir")
+	if not require_isolated():
 		return
 	_add_second_wind()
 	_grant(["g3_evoheal"])
@@ -420,8 +401,7 @@ func test_second_wind_heals_200_on_stage_2_capped_at_max() -> void:
 # ---------- Titan Form ----------
 
 func test_titan_form_on_stage_3() -> void:
-	if not _isolated():
-		skip("user:// is not the isolated test dir")
+	if not require_isolated():
 		return
 	_grant(["g1_range", "g4_titan"])
 	var g := await _grount()
@@ -464,8 +444,7 @@ func test_titan_form_on_stage_3() -> void:
 ## still at its stage-2 size: the circle shrank to ~143 px for a few frames and
 ## Grount dropped the hero it was chasing just as it evolved.
 func test_titan_evolution_never_shrinks_the_aggro_circle() -> void:
-	if not _isolated():
-		skip("user:// is not the isolated test dir")
+	if not require_isolated():
 		return
 	_grant(["g4_titan"])
 	var g := await _grount()
@@ -505,8 +484,7 @@ func test_titan_evolution_never_shrinks_the_aggro_circle() -> void:
 
 
 func test_titan_fight_holds_and_the_cleave_reaches_its_range() -> void:
-	if not _isolated():
-		skip("user:// is not the isolated test dir")
+	if not require_isolated():
 		return
 	_grant(["g1_range", "g4_titan"])
 	PersistedData.set_unlocked_skills(MetaSkillManager.TREE_MONSTER_BASE, ["mt3_range"])
@@ -527,8 +505,7 @@ func test_titan_fight_holds_and_the_cleave_reaches_its_range() -> void:
 
 
 func test_titan_cleave_reaches_teds_pet_at_100_px() -> void:
-	if not _isolated():
-		skip("user:// is not the isolated test dir")
+	if not require_isolated():
 		return
 	_grant(["g4_titan"])
 	var g := await _grount()
@@ -546,8 +523,7 @@ func test_titan_cleave_reaches_teds_pet_at_100_px() -> void:
 # ---------- Gravity Slam ----------
 
 func test_gravity_slam_pulls_then_damages() -> void:
-	if not _isolated():
-		skip("user:// is not the isolated test dir")
+	if not require_isolated():
 		return
 	_grant(["g3_pull"])
 	var g := await _grount()
@@ -584,8 +560,7 @@ func test_gravity_slam_pulls_then_damages() -> void:
 ## targets compared centres only, so a target pulled to slam_radius + 15 px got
 ## away while one standing there was hit.
 func test_a_pull_cut_short_hits_like_standing_there() -> void:
-	if not _isolated():
-		skip("user:// is not the isolated test dir")
+	if not require_isolated():
 		return
 	_grant(["g3_pull"])
 	var g := await _grount()
@@ -617,8 +592,7 @@ func test_a_pull_cut_short_hits_like_standing_there() -> void:
 
 
 func test_gravity_slam_skips_the_dead_and_keeps_stuns() -> void:
-	if not _isolated():
-		skip("user:// is not the isolated test dir")
+	if not require_isolated():
 		return
 	_grant(["g3_pull"])
 	var g := await _grount()
@@ -636,8 +610,7 @@ func test_gravity_slam_skips_the_dead_and_keeps_stuns() -> void:
 
 
 func test_a_pulled_hero_does_not_corner_a_farming_monster() -> void:
-	if not _isolated():
-		skip("user:// is not the isolated test dir")
+	if not require_isolated():
 		return
 	_grant(["g3_pull"])
 	var g := await _grount()
@@ -653,8 +626,7 @@ func test_a_pulled_hero_does_not_corner_a_farming_monster() -> void:
 
 
 func test_an_idle_camp_mob_is_held_at_its_camp_edge() -> void:
-	if not _isolated():
-		skip("user:// is not the isolated test dir")
+	if not require_isolated():
 		return
 	_grant(["g3_pull"])
 	var g := await _grount()
@@ -676,13 +648,12 @@ func test_an_idle_camp_mob_is_held_at_its_camp_edge() -> void:
 
 
 func test_gravity_slam_never_pulls_through_a_wall() -> void:
-	if not _isolated():
-		skip("user:// is not the isolated test dir")
+	if not require_isolated():
 		return
 	_grant(["g3_pull"])
 	# An L: the hero stands in the vertical arm, the monster in the horizontal
 	# one; the straight line between them crosses the notch (off the mesh).
-	var region := await _bake_outline(PackedVector2Array([Vector2(0, 0), Vector2(400, 0), Vector2(400, 100),
+	var region := await bake_nav_outline(PackedVector2Array([Vector2(0, 0), Vector2(400, 0), Vector2(400, 100),
 		Vector2(100, 100), Vector2(100, 400), Vector2(0, 400)]))
 	var g := await _grount(Vector2(200, 50))
 	var v := await _hero(Vector2(50, 180))
@@ -701,24 +672,10 @@ func test_gravity_slam_never_pulls_through_a_wall() -> void:
 	await wait_physics_frames(6)  # map back to empty for the other tests
 
 
-func _bake_outline(points: PackedVector2Array) -> NavigationRegion2D:
-	var region := NavigationRegion2D.new()
-	var poly := NavigationPolygon.new()
-	poly.agent_radius = 0.0
-	var src := NavigationMeshSourceGeometryData2D.new()
-	src.add_traversable_outline(points)
-	NavigationServer2D.bake_from_source_geometry_data(poly, src)
-	region.navigation_polygon = poly
-	add_child(region)
-	await wait_physics_frames(6)  # polygons land one map sync after the region
-	return region
-
-
 # ---------- skill-tree screen ----------
 
 func test_skill_screen_renders_and_gates_tier_4() -> void:
-	if not _isolated():
-		skip("user:// is not the isolated test dir")
+	if not require_isolated():
 		return
 	# The headless root viewport is not portrait: lay the screen out at 720 px.
 	var portrait := SubViewport.new()

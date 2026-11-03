@@ -99,8 +99,7 @@ func test_heroes_focus_wounded_enemies() -> void:
 
 
 func test_teds_pet_is_targetable_and_stays_leashed_to_ted() -> void:
-	var ted := await spawn_entity("res://Scenes/NPCs/Hero/Heros/Support/Ted/Ted.tscn", Vector2(0, 0))
-	TickScheduler.unregister(ted)
+	var ted := await spawn_frozen("res://Scenes/NPCs/Hero/Heros/Support/Ted/Ted.tscn", Vector2(0, 0))
 	await wait_frames(3)
 	var pet: Node2D = null
 	for e in EntityRegistry.hero_side:

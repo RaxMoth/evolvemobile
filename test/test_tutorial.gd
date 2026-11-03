@@ -5,18 +5,13 @@ extends TestCase
 const SCENE := "res://Scenes/UI/Tutorial/TutorialOverlay.tscn"
 
 
-func _isolated() -> bool:
-	return OS.get_user_data_dir().contains("evolvemobile_tests")
-
-
 func before_each() -> void:
-	if _isolated():
+	if is_isolated():
 		PersistedData.wipe_progress(false)
 
 
 func test_walkthrough_marks_seen_and_frees_itself() -> void:
-	if not _isolated():
-		skip("user:// is not the isolated test dir")
+	if not require_isolated():
 		return
 	assert_false(TutorialOverlay.has_been_seen())
 	var overlay := (load(SCENE) as PackedScene).instantiate() as TutorialOverlay
@@ -43,8 +38,7 @@ func test_walkthrough_marks_seen_and_frees_itself() -> void:
 
 
 func test_skip_still_marks_seen() -> void:
-	if not _isolated():
-		skip("user:// is not the isolated test dir")
+	if not require_isolated():
 		return
 	var overlay := (load(SCENE) as PackedScene).instantiate() as TutorialOverlay
 	add_child(overlay)

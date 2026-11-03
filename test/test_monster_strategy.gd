@@ -10,14 +10,8 @@ const HOG := "res://Scenes/NPCs/Mob/Mobs/Hog/Hog.tscn"
 const AREA := "res://Scenes/World/MobSpawnArea/MobSpawnArea.tscn"
 
 
-func _frozen(path: String, pos: Vector2) -> Node2D:
-	var e := await spawn_entity(path, pos)
-	TickScheduler.unregister(e)
-	return e
-
-
 func test_strategy_follows_stage() -> void:
-	var g := await _frozen(GROUNT, Vector2(0, 0))
+	var g := await spawn_frozen(GROUNT, Vector2(0, 0))
 	g._update_strategy()
 	assert_eq(g.strategy, MonsterBase.Strategy.FARM, "stage 1 hides and farms")
 	g.gain_xp(1000.0)
@@ -30,9 +24,9 @@ func test_strategy_follows_stage() -> void:
 
 
 func test_hurt_early_monster_retreats_but_stage_3_hunts() -> void:
-	var g := await _frozen(GROUNT, Vector2(0, 0))
-	var a := await _frozen(VLAD, Vector2(200, 0))
-	var b := await _frozen(VLAD, Vector2(-200, 0))
+	var g := await spawn_frozen(GROUNT, Vector2(0, 0))
+	var a := await spawn_frozen(VLAD, Vector2(200, 0))
+	var b := await spawn_frozen(VLAD, Vector2(-200, 0))
 	g.current_health = 0.2 * g.get_max_health()
 	g._update_strategy()
 	assert_eq(g.strategy, MonsterBase.Strategy.RETREAT)
@@ -46,8 +40,8 @@ func test_hurt_early_monster_retreats_but_stage_3_hunts() -> void:
 
 
 func test_farming_monster_ignores_heroes_unless_cornered() -> void:
-	var g := await _frozen(GROUNT, Vector2(0, 0))
-	var v := await _frozen(VLAD, Vector2(150, 0))
+	var g := await spawn_frozen(GROUNT, Vector2(0, 0))
+	var v := await spawn_frozen(VLAD, Vector2(150, 0))
 	g._update_strategy()
 	assert_true(g._score_target(v) < 0.0, "a hero 150 px away is not engaged at stage 1")
 	v.global_position = Vector2(50, 0)
@@ -57,14 +51,14 @@ func test_farming_monster_ignores_heroes_unless_cornered() -> void:
 
 
 func test_ambush_only_engages_isolated_heroes() -> void:
-	var g := await _frozen(GROUNT, Vector2(0, 0))
+	var g := await spawn_frozen(GROUNT, Vector2(0, 0))
 	g.gain_xp(1000.0)
-	var lone := await _frozen(VLAD, Vector2(200, 0))
+	var lone := await spawn_frozen(VLAD, Vector2(200, 0))
 	g._update_strategy()
 	assert_eq(g.strategy, MonsterBase.Strategy.AMBUSH)
 	assert_true(g._may_engage_hero(lone), "isolated hero")
-	var b := await _frozen(VLAD, Vector2(250, 50))
-	var c := await _frozen(VLAD, Vector2(250, -50))
+	var b := await spawn_frozen(VLAD, Vector2(250, 50))
+	var c := await spawn_frozen(VLAD, Vector2(250, -50))
 	assert_false(g._may_engage_hero(lone), "three heroes together are not ambushed")
 	for n in [g, lone, b, c]:
 		n.queue_free()
@@ -82,7 +76,7 @@ func test_the_monster_activates_camps_so_it_can_farm() -> void:
 	mgr.add_child(area)
 	area.virtual_count = 3
 	mgr.active_spawn_areas.append(area)
-	var g := await _frozen(GROUNT, Vector2(5000, 5000))
+	var g := await spawn_frozen(GROUNT, Vector2(5000, 5000))
 	await wait_seconds(0.4)
 	assert_true(area.is_active, "a camp next to the monster activates (no hero needed)")
 	assert_eq(area.spawned_mobs.size(), 3)
@@ -91,8 +85,8 @@ func test_the_monster_activates_camps_so_it_can_farm() -> void:
 
 
 func test_ram_dash_stops_in_cleave_range_instead_of_overshooting() -> void:
-	var g := await _frozen(GROUNT, Vector2(0, 0))
-	var v := await _frozen(VLAD, Vector2(220, 0))
+	var g := await spawn_frozen(GROUNT, Vector2(0, 0))
+	var v := await spawn_frozen(VLAD, Vector2(220, 0))
 	g.target = v.get_node("Body")
 	g.target_entity = v
 	assert_true(g._cast("ability_2", g.ability_2, v))
@@ -106,7 +100,7 @@ func test_ram_dash_stops_in_cleave_range_instead_of_overshooting() -> void:
 
 
 func test_ground_slam_keeps_the_evolved_scale_and_stage_radius() -> void:
-	var g := await _frozen(GROUNT, Vector2(0, 0))
+	var g := await spawn_frozen(GROUNT, Vector2(0, 0))
 	g.gain_xp(1000.0)
 	g.gain_xp(0.0)
 	assert_eq(g.current_stage, 3)
@@ -125,17 +119,17 @@ func test_cast_lock_allows_one_ability_per_lock_window() -> void:
 	# Start with ONE hero in range so the first cast is the non-channeling
 	# Front Cleave: only the cast lock (not a dash/leap in progress) can then
 	# refuse the slam that becomes possible in the same frame.
-	var g := await _frozen(GROUNT, Vector2(0, 0))
+	var g := await spawn_frozen(GROUNT, Vector2(0, 0))
 	g.gain_xp(1000.0)
 	g.gain_xp(0.0)
-	var v := await _frozen(VLAD, Vector2(40, 0))
+	var v := await spawn_frozen(VLAD, Vector2(40, 0))
 	g.target = v.get_node("Body")
 	g.target_entity = v
 	await wait_seconds(0.7)
 	g._choose_and_use_ability_combo()
 	assert_false(g.is_ability_ready("ability_1"), "Front Cleave fired on the lone hero")
 	assert_true(g._cast_lock > 0.0, "the cast started the lock")
-	var w := await _frozen(VLAD, Vector2(40, 30))
+	var w := await spawn_frozen(VLAD, Vector2(40, 30))
 	g._cast_lock = g.strategy_profile.cast_lock_time  # spawning took frames
 	g._choose_and_use_ability_combo()
 	assert_true(g.is_ability_ready("ability_3"), "slam refused while the lock runs")
@@ -147,8 +141,8 @@ func test_cast_lock_allows_one_ability_per_lock_window() -> void:
 
 
 func test_taunt_overrides_strategy() -> void:
-	var g := await _frozen(GROUNT, Vector2(0, 0))
-	var v := await _frozen(VLAD, Vector2(300, 0))
+	var g := await spawn_frozen(GROUNT, Vector2(0, 0))
+	var v := await spawn_frozen(VLAD, Vector2(300, 0))
 	var fx := Node.new()
 	fx.name = "TauntEffect"
 	fx.set_meta("taunter", v)
@@ -161,8 +155,8 @@ func test_taunt_overrides_strategy() -> void:
 
 
 func test_low_hp_monster_rests_ignores_mobs_and_regenerates() -> void:
-	var g := await _frozen(GROUNT, Vector2(0, 0))
-	var bat := await _frozen(BAT, Vector2(100, 0))
+	var g := await spawn_frozen(GROUNT, Vector2(0, 0))
+	var bat := await spawn_frozen(BAT, Vector2(100, 0))
 	g._update_strategy()
 	assert_true(g._score_target(bat) > 0.0, "a healthy farming monster takes mob fights")
 	var max_hp: float = g.get_max_health()
@@ -173,7 +167,7 @@ func test_low_hp_monster_rests_ignores_mobs_and_regenerates() -> void:
 	assert_true(g._score_target(bat) < 0.0, "resting: no new mob fights")
 	bat.target_entity = g
 	assert_true(g._score_target(bat) > 0.0, "resting, but a mob going for it gets fought back")
-	var hog := await _frozen(HOG, Vector2(-100, 0))
+	var hog := await spawn_frozen(HOG, Vector2(-100, 0))
 	hog.target_entity = g
 	assert_true(g._score_target(hog) < 0.0, "a mob above the stage-1 farming gate is still walked away from")
 	hog.queue_free()
@@ -194,9 +188,9 @@ func test_low_hp_monster_rests_ignores_mobs_and_regenerates() -> void:
 func test_stage_1_monster_flees_hogs_attacking_it_instead_of_farming_beside_them() -> void:
 	# Sim: Hogs pounded a stage-1 Grount to death while it kept farming the Bats
 	# next to them (~1 match in 8); fighting the Hogs back lost even more HP.
-	var g := await _frozen(GROUNT, Vector2(0, 0))
-	var bat := await _frozen(BAT, Vector2(60, 0))
-	var hog := await _frozen(HOG, Vector2(-60, 0))
+	var g := await spawn_frozen(GROUNT, Vector2(0, 0))
+	var bat := await spawn_frozen(BAT, Vector2(60, 0))
+	var hog := await spawn_frozen(HOG, Vector2(-60, 0))
 	bat.target_entity = null
 	hog.target_entity = null
 	g._update_strategy()
@@ -229,9 +223,9 @@ func _camp(mgr: SpawnManager, mob_path: String, pos: Vector2) -> MobSpawnArea:
 
 
 func test_stage_1_farms_bats_and_leaves_hogs_alone() -> void:
-	var g := await _frozen(GROUNT, Vector2(0, 0))
-	var bat := await _frozen(BAT, Vector2(100, 0))
-	var hog := await _frozen(HOG, Vector2(-100, 0))
+	var g := await spawn_frozen(GROUNT, Vector2(0, 0))
+	var bat := await spawn_frozen(BAT, Vector2(100, 0))
+	var hog := await spawn_frozen(HOG, Vector2(-100, 0))
 	bat.target_entity = null  # frozen, but their DetectionAreas may have spotted it
 	hog.target_entity = null  # (an attacking Hog makes the monster flee instead)
 	g._update_strategy()
@@ -275,24 +269,11 @@ func test_random_reachable_point_skips_unreachable_islands() -> void:
 	assert_false(GameUtils.usable_nav_map(w).is_valid(), "map back to empty for the other tests")
 
 
-func _bake_rect(rect: Rect2) -> NavigationRegion2D:
-	var region := NavigationRegion2D.new()
-	var poly := NavigationPolygon.new()
-	poly.agent_radius = 0.0
-	var src := NavigationMeshSourceGeometryData2D.new()
-	src.add_traversable_outline(PackedVector2Array([rect.position, Vector2(rect.end.x, rect.position.y), rect.end, Vector2(rect.position.x, rect.end.y)]))
-	NavigationServer2D.bake_from_source_geometry_data(poly, src)
-	region.navigation_polygon = poly
-	add_child(region)
-	await wait_physics_frames(6)
-	return region
-
-
 func test_flee_slides_along_a_wall_instead_of_freezing() -> void:
-	var region := await _bake_rect(Rect2(0, 0, 1000, 1000))
-	var g := await _frozen(GROUNT, Vector2(30, 30))
-	var a := await _frozen(VLAD, Vector2(230, 230))
-	var b := await _frozen(VLAD, Vector2(250, 200))
+	var region := await bake_nav_rect(Rect2(0, 0, 1000, 1000))
+	var g := await spawn_frozen(GROUNT, Vector2(30, 30))
+	var a := await spawn_frozen(VLAD, Vector2(230, 230))
+	var b := await spawn_frozen(VLAD, Vector2(250, 200))
 	g._update_strategy()
 	assert_eq(g.strategy, MonsterBase.Strategy.FARM)
 	var dest: Vector2 = g._get_smart_idle_destination()
@@ -303,13 +284,13 @@ func test_flee_slides_along_a_wall_instead_of_freezing() -> void:
 
 
 func test_gap_close_refuses_a_target_the_strategy_rejects() -> void:
-	var g := await _frozen(GROUNT, Vector2(0, 0))
+	var g := await spawn_frozen(GROUNT, Vector2(0, 0))
 	g.gain_xp(1000.0)
 	g._update_strategy()
 	assert_eq(g.strategy, MonsterBase.Strategy.AMBUSH)
-	var h := await _frozen(VLAD, Vector2(250, 0))
-	var b := await _frozen(VLAD, Vector2(300, 40))
-	var c := await _frozen(VLAD, Vector2(300, -40))
+	var h := await spawn_frozen(VLAD, Vector2(250, 0))
+	var b := await spawn_frozen(VLAD, Vector2(300, 40))
+	var c := await spawn_frozen(VLAD, Vector2(300, -40))
 	g.target = h.get_node("Body")
 	g.target_entity = h
 	assert_true(g._score_target(h) < 0.0, "three heroes together: not an ambush target")

@@ -25,8 +25,7 @@ func test_fog_world_snaps_to_whole_tiles_and_covers_border() -> void:
 
 
 func test_cooldown_progress_follows_the_real_cooldown() -> void:
-	var vlad := await spawn_entity(VLAD, Vector2.ZERO)
-	TickScheduler.unregister(vlad)
+	var vlad := await spawn_frozen(VLAD, Vector2.ZERO)
 	var asys := vlad.get_node("AbilitySystem") as AbilitySystem
 	var active := AbilityBase.AbilityType.ACTIVE
 	assert_eq(asys.get_cooldown_progress(active), 1.0, "ready before any cast")
@@ -56,8 +55,7 @@ func test_hero_vision_radius_comes_from_hero_stats() -> void:
 	# In both play modes: the radius is applied by HeroBase from HeroStats,
 	# overriding the scene values (HeroBaseClass.tscn 160, River.tscn 120).
 	for path in [VLAD, "res://Scenes/NPCs/Hero/Heros/Healer/River/River.tscn"]:
-		var hero := await spawn_entity(path, Vector2.ZERO)
-		TickScheduler.unregister(hero)
+		var hero := await spawn_frozen(path, Vector2.ZERO)
 		var want: float = (hero.get_node("HeroStats") as HeroStatsComponent).base_stats.vision_radius
 		var vision := hero.get_node("VisionArea") as VisionArea
 		assert_near(vision.vision_radius, want, 0.01, "%s sees its HeroStats radius" % hero.name)

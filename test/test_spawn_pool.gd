@@ -2,26 +2,14 @@ extends TestCase
 
 ## MobSpawnArea accounting + SpawnManager pooling (P0d / P5b regressions).
 
-const BAT := "res://Scenes/NPCs/Mob/Mobs/Bat/Bat.tscn"
-const AREA := "res://Scenes/World/MobSpawnArea/MobSpawnArea.tscn"
-
 var mgr: SpawnManager
 var area: MobSpawnArea
 var vlad: Node2D
 
 
 func before_each() -> void:
-	mgr = SpawnManager.new()
-	mgr.auto_activate_on_ready = false
-	mgr.enable_lazy_activation = false
-	add_child(mgr)
-	area = (load(AREA) as PackedScene).instantiate() as MobSpawnArea
-	area.mob_scene = load(BAT)
-	area.mob_count = 3
-	area.auto_spawn_on_ready = false
-	area.respawn_time = 0.2
-	mgr.add_child(area)
-	area.virtual_count = area.mob_count  # what SpawnManager._make_spawn_world_eligible does
+	mgr = make_spawn_manager(3, 0.2) as SpawnManager
+	area = mgr.get_child(0) as MobSpawnArea
 
 
 func after_each() -> void:
