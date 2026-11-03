@@ -146,6 +146,10 @@ func _on_approach_state_processing(delta: float) -> void:
 				if distance <= 150.0:
 					var dir: Vector2 = (ally.global_position - global_position).normalized()
 					sprite.rotation = dir.angle()
+				elif is_instance_valid(navigation_agent_2d):
+					# Path to the ally: a straight line went through walls.
+					_set_nav_target_lazy(ally.global_position)
+					_steer_along_nav(move_speed, delta)
 				else:
 					move_toward_point(ally.global_position, move_speed, delta)
 			else:

@@ -6,6 +6,9 @@ extends TestCase
 ## query cost milliseconds. The bake must match the tiles: after editing
 ## Ground, re-bake with tools/bake_nav.sh (or the editor's Bake
 ## NavigationPolygon button on the Navigation node), or this test fails.
+## Lone walkable tiles (no walkable neighbour: sealed one-tile islands inside
+## walls) are dropped by the bake (tools/bake_nav.gd MIN_ISLAND_AREA): nobody
+## can reach them, but closest-point snaps landed on them.
 
 const WORLD := "res://Scenes/World/World.tscn"
 ## Every Nth used Ground cell is checked (a full pass is ~38,000 queries).
@@ -39,14 +42,26 @@ func test_world_navigation_is_one_baked_region_matching_the_ground_tiles() -> vo
 
 	var walkable_off_mesh := 0
 	var wall_on_mesh := 0
+	var island_on_mesh := 0
+	var islands := 0
 	var checked := 0
 	var cells := ground.get_used_cells()
+	for cell in cells:
+		if _walkable(ground, cell) and _is_lone_tile(ground, cell):
+			islands += 1
+			var c := ground.map_to_local(cell)
+			if NavigationServer2D.map_get_closest_point(map, c).distance_to(c) <= 1.5:
+				island_on_mesh += 1
+	assert_true(islands > 0, "the map still has lone walkable tiles to drop (%d)" % islands)
+	assert_eq(island_on_mesh, 0, "lone walkable tiles (sealed islands) must not be on the mesh")
 	for i in range(0, cells.size(), SAMPLE_STRIDE):
 		var cell: Vector2i = cells[i]
 		var data := ground.get_cell_tile_data(cell)
 		var tile_nav: NavigationPolygon = data.get_navigation_polygon(0) if data else null
 		if tile_nav != null and not _covers_tile_center(tile_nav):
 			continue  # partial tile polygon: its centre is legitimately off-mesh
+		if tile_nav != null and _is_lone_tile(ground, cell):
+			continue  # a dropped island, checked above
 		var center := ground.map_to_local(cell)
 		var gap := NavigationServer2D.map_get_closest_point(map, center).distance_to(center)
 		if tile_nav != null and gap > 1.5:
@@ -72,3 +87,16 @@ func _covers_tile_center(tile_nav: NavigationPolygon) -> bool:
 		if Geometry2D.is_point_in_polygon(Vector2.ZERO, ring):
 			return true
 	return false
+
+
+func _walkable(ground: TileMapLayer, cell: Vector2i) -> bool:
+	var data := ground.get_cell_tile_data(cell)
+	return data != null and data.get_navigation_polygon(0) != null
+
+
+## No walkable tile shares an edge with it.
+func _is_lone_tile(ground: TileMapLayer, cell: Vector2i) -> bool:
+	for off: Vector2i in [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP, Vector2i.DOWN]:
+		if _walkable(ground, cell + off):
+			return false
+	return true

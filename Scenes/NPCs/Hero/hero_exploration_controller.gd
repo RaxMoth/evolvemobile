@@ -18,6 +18,11 @@ var cached_boids_data: Dictionary = {}
 @export var search_radius_per_check: float = 400.0
 @export var waypoint_reached_distance: float = 100.0
 @export var stuck_detection_time: float = 5.0
+## A hero that stays inside this radius for stuck_detection_time (out of combat,
+## away from its goal) is stuck. 5 px missed heroes jittering in a corner.
+@export var stuck_radius: float = 24.0
+## How long a stuck hero follows its detour before formation takes over again.
+@export var detour_time: float = 4.0
 @export var prefer_forward_exploration: bool = true # NEW: Prefer exploring forward
 
 @export_group("Movement Smoothing")
@@ -46,6 +51,9 @@ const FORMATION_SLOTS = [Vector2(0, 0), Vector2(-0.6, -1), Vector2(-0.6, 1), Vec
 var hero_last_positions: Dictionary = {}
 var hero_stuck_timers: Dictionary = {}
 var hero_stuck_anchor: Dictionary = {}
+## hero -> [detour target, seconds left]: honoured by _apply_cached_boids, which
+## otherwise rewrites every exploration target 10x per second.
+var _detours: Dictionary = {}
 
 ## Waypoints the group reached, newest last. Only the last
 ## RECENT_TARGET_MEMORY are kept (and read by _is_recently_explored).
@@ -140,9 +148,8 @@ func _find_next_exploration_zone(from_position: Vector2) -> Vector2:
 	if not fog_system:
 		return Vector2.ZERO
 	
-	var best_target = Vector2.ZERO
-	var best_score = - INF
-	
+	var candidates: Array = []  # [score, sample position], best first after sorting
+
 	# Determine forward direction from group movement
 	var group_velocity = _calculate_group_velocity()
 	var forward_angle = group_velocity.angle() if group_velocity.length() > 1.0 else 0.0
@@ -184,12 +191,42 @@ func _find_next_exploration_zone(from_position: Vector2) -> Vector2:
 				
 				# Slight penalty for distance (prefer closer if equally good)
 				score -= distance * 0.05
-				
-				if score > best_score:
-					best_score = score
-					best_target = check_pos
-	
-	return _snap_to_nav(best_target) if best_target != Vector2.ZERO else best_target
+				candidates.append([score, check_pos])
+
+	# Best first; equal scores keep sampling order (the old strict ">" kept the first).
+	candidates.sort_custom(func(a: Array, b: Array) -> bool: return float(a[0]) > float(b[0]))
+	return _first_reachable(candidates.map(func(c: Array) -> Vector2: return c[1]))
+
+
+## How many candidate waypoints may cost a path query per exploration update.
+const MAX_REACH_CHECKS: int = 8
+
+## First candidate the group can actually walk to, snapped onto the mesh.
+## Samples inside a wall snapped to the closest walkable point — often one of
+## the map's sealed one-tile islands — and the leader (with the whole group
+## behind it) stood at the wall facing it for half a minute. Unreachable
+## candidates are remembered so later samples around them are skipped too.
+func _first_reachable(positions: Array) -> Vector2:
+	var world: World2D = get_viewport().world_2d if get_viewport() else null
+	var from: Vector2 = _formation_leader.global_position if is_instance_valid(_formation_leader) else _calculate_group_center()
+	var checks: int = 0
+	for p: Vector2 in positions:
+		var snapped: Vector2 = _snap_to_nav(p)
+		if _is_abandoned(snapped):
+			continue
+		if GameUtils.nav_path_reaches(world, from, snapped):
+			return snapped
+		_mark_unreachable(snapped)
+		checks += 1
+		if checks >= MAX_REACH_CHECKS:
+			break
+	return Vector2.ZERO
+
+
+func _mark_unreachable(pos: Vector2) -> void:
+	_unreachable_targets.append(pos)
+	if _unreachable_targets.size() > 32:
+		_unreachable_targets.remove_at(0)
 
 
 ## Group made < 60 px of progress for waypoint_stall_timeout seconds while
@@ -206,9 +243,7 @@ func _track_stall(group_center: Vector2) -> void:
 		return
 	_stall_time += exploration_update_interval
 	if _stall_time >= waypoint_stall_timeout:
-		_unreachable_targets.append(current_group_target)
-		if _unreachable_targets.size() > 32:
-			_unreachable_targets.remove_at(0)
+		_mark_unreachable(current_group_target)
 		_stall_time = 0.0
 		_last_group_center = group_center
 
@@ -239,17 +274,23 @@ func _get_random_unexplored_position(near_position: Vector2) -> Vector2:
 	if not fog_system:
 		return _get_random_map_position()
 	
-	# Try 10 random points, pick first unexplored one
+	# Try 10 random points; the first unexplored one the group can reach wins
+	var candidates: Array = []
 	for i in range(10):
 		var angle = randf() * TAU
 		var distance = randf_range(300, 600)
 		var candidate = near_position + Vector2.from_angle(angle) * distance
-		
+
 		if _in_fog_bounds(candidate) and not _is_abandoned(candidate) and not fog_system.is_tile_explored(candidate):
-			return _snap_to_nav(candidate)
-	
-	# Fallback
-	return _get_random_map_position()
+			candidates.append(candidate)
+	var reachable: Vector2 = _first_reachable(candidates)
+	if reachable != Vector2.ZERO:
+		return reachable
+
+	# Fallback: anywhere on the map the group can walk to
+	var world: World2D = get_viewport().world_2d if get_viewport() else null
+	return GameUtils.random_reachable_point(world, Rect2(fog_system.world_offset, fog_system.world_size),
+		near_position, _get_random_map_position())
 
 func _calculate_group_velocity() -> Vector2:
 	"""Calculate average movement direction of group"""
@@ -288,6 +329,7 @@ func _cleanup_freed_heroes() -> void:
 			hero_last_positions.erase(hero)
 			hero_stuck_timers.erase(hero)
 			hero_stuck_anchor.erase(hero)
+			_detours.erase(hero)
 			cached_boids_data.erase(hero)
 	# Re-rank the survivors in the same frame: until then followers fell back
 	# to the far group target and ran ahead of the slow leader.
@@ -356,9 +398,17 @@ func _update_formation_offsets() -> void:
 	if to_target.length_squared() > 40.0 * 40.0:
 		_heading = to_target.normalized()
 	var right: Vector2 = _heading.orthogonal()
+	var world: World2D = get_viewport().world_2d if get_viewport() else null
+	var lead: Vector2 = _formation_leader.global_position
 	for hero in _formation_slots:
 		var slot: Vector2 = _formation_slots[hero]
-		hero_formation_offset[hero] = (_heading * slot.x + right * slot.y) * formation_spread
+		var offset: Vector2 = (_heading * slot.x + right * slot.y) * formation_spread
+		# A slot inside a wall sent its hero to the closest walkable point —
+		# often across the wall, in another corridor — where it stood for half
+		# a minute. Pull the slot back along the line to the leader instead.
+		if not GameUtils.is_on_nav(world, lead + offset):
+			offset = GameUtils.clamp_to_nav_segment(world, lead, lead + offset, 16.0) - lead
+		hero_formation_offset[hero] = offset
 
 
 func _count_unexplored_in_area(center: Vector2, radius: float) -> int:
@@ -420,6 +470,10 @@ func _apply_cached_boids(hero: Node2D) -> void:
 		return
 	
 	var data = cached_boids_data[hero]
+	if _detours.has(hero):
+		if hero.has_method("set_exploration_target"):
+			hero.set_exploration_target(_detours[hero][0])
+		return
 	if use_formation and formation_follow_leader and hero == _formation_leader:
 		# The leader heads for the bare group target. Boids terms (separation
 		# from a flank or the pet) pushed its goal past the target, the heading
@@ -496,17 +550,18 @@ func _check_stuck_heroes(delta: float) -> void:
 			hero_stuck_timers[hero] = 0.0
 			continue
 		
-		# Stuck = not left a 5 px circle around an anchor for stuck_detection_time.
-		# (Comparing with the previous FRAME flagged every walking hero: they
-		# move ~1.3 px per frame.) Heroes fighting or parked at their goal are
-		# not stuck.
+		_tick_detour(hero, current_pos, delta)
+		# Stuck = not left a stuck_radius circle around an anchor for
+		# stuck_detection_time. (Comparing with the previous FRAME flagged every
+		# walking hero: they move ~1.3 px per frame.) Heroes fighting or parked
+		# at their goal are not stuck.
 		if not hero_stuck_anchor.has(hero):
 			hero_stuck_anchor[hero] = current_pos
 		var anchor: Vector2 = hero_stuck_anchor[hero]
 		var busy: bool = hero.has_method("is_target_valid") and hero.call("is_target_valid")
 		var goal: Variant = hero.get("exploration_target")
 		var parked: bool = goal is Vector2 and current_pos.distance_to(goal) <= waypoint_reached_distance
-		if busy or parked or current_pos.distance_to(anchor) > 5.0:
+		if busy or parked or current_pos.distance_to(anchor) > stuck_radius:
 			hero_stuck_anchor[hero] = current_pos
 			hero_stuck_timers[hero] = 0.0
 		else:
@@ -518,29 +573,37 @@ func _check_stuck_heroes(delta: float) -> void:
 
 		hero_last_positions[hero] = current_pos  # per-frame: velocity / alignment
 
+## A stuck leader means the group target cannot be reached from here: give it
+## up and pick a new (reachable) one at once. A stuck follower — or a leader
+## with nothing better to go to — walks a reachable detour for detour_time.
 func _unstuck_hero(hero: Node2D) -> void:
-	# Try to find an unexplored area nearby
-	var new_target = Vector2.ZERO
-	
-	if fog_system:
-		for i in range(8):
-			var angle = i * TAU / 8.0
-			var offset = Vector2.from_angle(angle) * 200.0
-			var check_pos = hero.global_position + offset
-			
-			if not fog_system.is_tile_explored(check_pos):
-				new_target = check_pos
-				break
-	
-	# Fallback to random offset
-	if new_target == Vector2.ZERO:
-		new_target = hero.global_position + Vector2(
-			randf_range(-200, 200),
-			randf_range(-200, 200)
-		)
-	
+	if hero == _formation_leader and fog_system:
+		var old_target: Vector2 = current_group_target
+		_mark_unreachable(old_target)
+		_update_exploration_targets()
+		if current_group_target.distance_to(old_target) > waypoint_reached_distance:
+			return
+	var world: World2D = get_viewport().world_2d if get_viewport() else null
+	var pos: Vector2 = hero.global_position
+	var detour: Vector2 = GameUtils.random_reachable_point(world, Rect2(pos - Vector2(200, 200), Vector2(400, 400)), pos, Vector2.INF)
+	if not detour.is_finite():
+		# No navigation to ask (yet): any point clearly away from here.
+		detour = pos + Vector2.from_angle(randf() * TAU) * randf_range(120.0, 200.0)
+	_detours[hero] = [detour, detour_time]
 	if hero.has_method("set_exploration_target"):
-		hero.set_exploration_target(new_target)
+		hero.set_exploration_target(detour)
+	if hero.has_method("request_idle_retarget"):
+		hero.request_idle_retarget()
+
+
+func _tick_detour(hero: Node2D, pos: Vector2, delta: float) -> void:
+	if not _detours.has(hero):
+		return
+	var d: Array = _detours[hero]
+	d[1] = float(d[1]) - delta
+	if float(d[1]) <= 0.0 or pos.distance_to(d[0]) <= stuck_radius:
+		_detours.erase(hero)
+
 
 func _calculate_group_center() -> Vector2:
 	if heroes.is_empty():

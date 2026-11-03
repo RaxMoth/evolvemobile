@@ -178,8 +178,11 @@ func _navigate_to_position(target_pos: Vector2, speed: float, delta: float) -> v
 		velocity = (target_pos - global_position).normalized() * speed
 		return
 	
-	# Set navigation target
-	navigation_agent.target_position = target_pos
+	# Re-path only when the target moved: every assignment requests a new path,
+	# and this ran every physics frame.
+	if navigation_agent.target_position.distance_squared_to(target_pos) > 16.0 * 16.0 \
+			or navigation_agent.is_navigation_finished():
+		navigation_agent.target_position = target_pos
 	
 	# Check if we have a valid path
 	if navigation_agent.is_navigation_finished():

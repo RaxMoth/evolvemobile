@@ -98,7 +98,8 @@ func _pre_tick(_delta: float) -> void:
 func _handle_out_of_bounds() -> void:
 	# Clamp to spawn area during idle wandering
 	if spawn_area and spawn_area.has_method("clamp_position_to_area"):
-		global_position = spawn_area.clamp_position_to_area(global_position)
+		# The camp circle ignores walls: land on the closest walkable point.
+		global_position = GameUtils.snap_to_nav(get_world_2d(), spawn_area.clamp_position_to_area(global_position))
 	
 	# Check if too far from spawn (even during combat)
 	if spawn_position != Vector2.ZERO:

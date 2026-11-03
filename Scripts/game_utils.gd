@@ -102,6 +102,38 @@ func clamp_to_nav_segment(world: World2D, from: Vector2, to: Vector2, step: floa
 	return last_ok
 
 
+## True when `pos` lies on the navigation mesh (within 2 px). True as well
+## when the map cannot answer yet, so callers keep their pre-nav behaviour.
+func is_on_nav(world: World2D, pos: Vector2) -> bool:
+	var nav_map: RID = usable_nav_map(world)
+	if not nav_map.is_valid():
+		return true
+	return NavigationServer2D.map_get_closest_point(nav_map, pos).distance_squared_to(pos) <= 4.0
+
+
+## Closest point of the navigation mesh to `pos` (`pos` itself when the map
+## cannot answer yet).
+func snap_to_nav(world: World2D, pos: Vector2) -> Vector2:
+	var nav_map: RID = usable_nav_map(world)
+	if not nav_map.is_valid():
+		return pos
+	return NavigationServer2D.map_get_closest_point(nav_map, pos)
+
+
+## True when a path from `from` actually arrives within `tolerance` of `to`.
+## A goal on another part of the mesh (a sealed pocket, a tile island) gets a
+## path that stops at the closest reachable point — often right where the
+## walker already stands. True when the map cannot answer yet.
+func nav_path_reaches(world: World2D, from: Vector2, to: Vector2, tolerance: float = 32.0) -> bool:
+	var nav_map: RID = usable_nav_map(world)
+	if not nav_map.is_valid():
+		return true
+	var path: PackedVector2Array = NavigationServer2D.map_get_path(nav_map, from, to, true)
+	if path.is_empty():
+		return false
+	return path[path.size() - 1].distance_squared_to(to) <= tolerance * tolerance
+
+
 ## Signed shortest turn from angle `from` to angle `to`, in [-PI, PI].
 ## Not the engine's angle_difference(): that uses different float operations,
 ## and a last-bit change would perturb seeded sims.

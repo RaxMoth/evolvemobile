@@ -720,15 +720,25 @@ func _set_nav_target(target_pos: Vector2) -> void:
 	navigation_agent_2d.target_position = target_pos
 	_last_nav_target_pos = target_pos
 
-func move_toward_point(target_pos: Vector2, speed: float, delta: float) -> void:
-	"""Move directly toward point (no navigation). Step clamped to the distance."""
+## Move straight toward a point (no path), never through a wall: the step ends
+## where the navigation mesh does (fighters strafing in a fight walked through
+## walls). An entity already off the mesh moves freely so it is never frozen.
+## Returns false when a wall blocked the whole step.
+func move_toward_point(target_pos: Vector2, speed: float, delta: float) -> bool:
 	var to_target := target_pos - global_position
 	var dist := to_target.length()
 	if dist < 0.001:
-		return
+		return true
 	var dir := to_target / dist
-	position += dir * minf(speed * delta, dist)
+	var wanted: Vector2 = global_position + dir * minf(speed * delta, dist)
+	var world := get_world_2d()
+	if GameUtils.is_on_nav(world, global_position):
+		wanted = GameUtils.clamp_to_nav_segment(world, global_position, wanted)
 	_face(dir, delta)
+	if wanted.distance_squared_to(global_position) < 0.0001:
+		return false
+	global_position = wanted
+	return true
 
 func _move_toward_target(speed: float, delta: float) -> void:
 	"""Navigate toward current target"""
@@ -772,7 +782,8 @@ func _strafe_around_target(delta: float, dir: Vector2) -> void:
 	# swallowed, so strafing barely moved. Rate-independent now (no delta in
 	# the aim point; move_toward_point applies speed * delta).
 	var perpendicular := Vector2(-dir.y, dir.x) * strafe_direction
-	move_toward_point(global_position + perpendicular * 32.0, strafe_speed, delta)
+	if not move_toward_point(global_position + perpendicular * 32.0, strafe_speed, delta):
+		strafe_direction *= -1  # a wall: circle the other way instead of grinding on it
 
 # ============================================
 # SECTION 11: IDLE EXPLORATION

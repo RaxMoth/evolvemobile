@@ -61,7 +61,8 @@ func _process(_delta: float) -> void:
 			# Push back inside
 			var dir: Vector2 = (global_position - enemy.global_position).normalized()
 			var push_pos = global_position + dir * (cage_radius - 20)
-			enemy.global_position = push_pos
+			# Never through a wall (the push teleports).
+			enemy.global_position = GameUtils.clamp_to_nav_segment(get_world_2d(), enemy.global_position, push_pos)
 
 func _scan_for_enemies() -> void:
 	var space_state = get_world_2d().direct_space_state
