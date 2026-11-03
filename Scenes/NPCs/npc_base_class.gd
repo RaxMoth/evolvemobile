@@ -26,7 +26,6 @@ signal died
 @export var strafe_speed: float = 60.0
 
 @export_group("Smart Targeting")
-@export var enable_smart_targeting: bool = true
 @export var target_reeval_interval_approach: float = 0.5
 @export var target_reeval_interval_fight: float = 1.0
 @export var switch_threshold_approach: float = 30.0
@@ -94,7 +93,6 @@ signal died
 # Combat state
 var target: Node2D = null
 var target_entity: Node = null
-var is_on_cooldown: bool = false
 var last_attacker: Node2D = null
 
 # Movement & positioning
@@ -174,12 +172,6 @@ func _ready() -> void:
 	# turning starts at the right place.
 	if sprite:
 		_facing_angle = sprite.rotation
-
-	# NOTE: A global state-chart event bridge used to live here, forwarding
-	# every chart event into EventBus.entity_state_event. It's removed for now
-	# because there are no consumers yet and the per-event emit overhead
-	# adds up across many entities. Re-enable per-entity (or via an opt-in
-	# flag) when an actual consumer ships.
 
 	# Visual LOD: a mob that spawned off screen starts with its animation
 	# paused (the notifier only emits on CHANGES, so seed the initial state).
@@ -369,11 +361,11 @@ func _setup_navigation() -> void:
 # SECTION 6: VIRTUAL METHODS (TO OVERRIDE)
 # ============================================
 
+## Attack off cooldown? HeroBase, MobBase and MonsterBase override this.
+## NOTE: flinch is checked separately at the fight-loop call site (so
+## subclass overrides don't accidentally bypass it).
 func _is_attack_ready() -> bool:
-	"""Check if attack is off cooldown. Override in child classes.
-	NOTE: flinch is checked separately at the fight-loop call site (so
-	subclass overrides don't accidentally bypass it)."""
-	return not is_on_cooldown
+	return true
 
 func _can_act() -> bool:
 	"""Composite gate: attack ready AND not flinching. Used by the fight loop."""
@@ -441,52 +433,38 @@ func distance_to_target() -> float:
 # SECTION 8: TARGETING SYSTEM
 # ============================================
 
+## Find the best target area among all valid targets in detection area.
+## Returns the Area2D node (not the entity).
 func _find_best_target() -> Area2D:
-	"""Find the best target area among all valid targets in detection area.
-	Returns the Area2D node (not the entity)."""
-	if not enable_smart_targeting:
-		return _find_first_valid_target()
-	
 	if not is_instance_valid(detection_area):
 		return null
-	
+
 	var best_area: Area2D = null
 	var best_score: float = - INF
-	
+
 	for area in detection_area.get_overlapping_areas():
 		if not _can_target_area(area):
 			continue
-		
-		var entity = area.get_owner()
+
+		var entity: Node = area.get_owner()
 		if not is_instance_valid(entity):
 			continue
-		
-		var score = _score_target(entity)
+
+		var score: float = _score_target(entity)
 		if score > best_score:
 			best_score = score
 			best_area = area
-	
+
 	return best_area if best_score > 0.0 else null
 
-func _find_first_valid_target() -> Area2D:
-	"""Fallback: Find first valid target area (old behavior)"""
-	if not is_instance_valid(detection_area):
-		return null
-	
-	var areas = detection_area.get_overlapping_areas()
-	for area in areas:
-		if _can_target_area(area):
-			return area
-	return null
-
+## Calculate score for a target (higher = better).
+## Considers priority, distance, threat level, and engagement penalty.
 func _score_target(target_node: Node2D) -> float:
-	"""Calculate score for a target (higher = better).
-	Considers priority, distance, threat level, and engagement penalty."""
 	if not is_instance_valid(target_node):
 		return -1000.0
-	
-	var score = 0.0
-	var distance = global_position.distance_to(target_node.global_position)
+
+	var score: float = 0.0
+	var distance: float = global_position.distance_to(target_node.global_position)
 	
 	score += _get_target_priority(target_node)
 	score += _get_distance_score(distance)
@@ -523,13 +501,13 @@ func _get_distance_score(distance: float) -> float:
 	else:
 		return -50.0
 
+## Calculate threat score based on target behavior + team blackboard threat.
 func _get_threat_score(target_node: Node2D) -> float:
-	"""Calculate threat score based on target behavior + team blackboard threat."""
-	var threat = 0.0
+	var threat: float = 0.0
 
 	# Is target attacking me?
 	if "target_entity" in target_node:
-		var their_target = target_node.get("target_entity")
+		var their_target: Variant = target_node.get("target_entity")
 		if their_target == self:
 			threat += 30.0
 
@@ -545,7 +523,7 @@ func _get_threat_score(target_node: Node2D) -> float:
 				threat += low_hp_focus_weight * (1.0 - hp_frac)
 
 	# Is target far away (likely fleeing)?
-	var distance = global_position.distance_to(target_node.global_position)
+	var distance: float = global_position.distance_to(target_node.global_position)
 	if distance > 400.0 and is_target_valid() and target_entity == target_node:
 		threat -= 20.0
 
@@ -560,30 +538,24 @@ func _get_threat_score(target_node: Node2D) -> float:
 
 	return threat
 
+## Determine if should switch from current target to new target.
+## Uses provided threshold to prevent excessive switching.
 func _should_switch_target(new_target_area: Area2D, threshold: float) -> bool:
-	"""Determine if should switch from current target to new target.
-	Uses provided threshold to prevent excessive switching."""
-	if not enable_smart_targeting:
-		return not is_target_valid()
-	
 	if not is_target_valid():
 		return true
-	
-	var new_target_node = new_target_area.get_owner()
+
+	var new_target_node: Node = new_target_area.get_owner()
 	if not is_instance_valid(new_target_node):
 		return false
-	
-	var current_score = _score_target(target_entity)
-	var new_score = _score_target(new_target_node)
-	
+
+	var current_score: float = _score_target(target_entity)
+	var new_score: float = _score_target(new_target_node)
+
 	return new_score > current_score + threshold
 
 func _reevaluate_current_target(threshold: float) -> void:
-	if not enable_smart_targeting:
-		return
-	
-	var best_target_area = _find_best_target()
-	
+	var best_target_area: Area2D = _find_best_target()
+
 	if not best_target_area:
 		if is_target_valid() and pursue_out_of_sight_radius > 0.0 \
 				and global_position.distance_squared_to(target_entity.global_position) <= pursue_out_of_sight_radius * pursue_out_of_sight_radius:
@@ -594,8 +566,8 @@ func _reevaluate_current_target(threshold: float) -> void:
 			state_chart.send_event(CombatEvents.ENEMY_EXITED)
 		return
 	
-	var best_target_node = best_target_area.get_owner() if best_target_area else null
-	
+	var best_target_node: Node = best_target_area.get_owner()
+
 	if is_target_valid() and target_entity == best_target_node:
 		return
 	
@@ -661,101 +633,51 @@ func _can_target_area(area: Area2D) -> bool:
 # SECTION 9: DETECTION AREA SIGNALS
 # ============================================
 
+## Called when an area enters detection range
 func _on_detection_area_area_entered(area: Area2D) -> void:
-	"""Called when an area enters detection range"""
 	if area.get_owner() == self or area.get_parent() == self:
 		return
-	
+
 	var root := area.get_owner()
 	if not root:
 		return
-	
+
 	var can_target := _can_target_area(area)
 	if not can_target:
 		return
-	
-	if enable_smart_targeting:
-		var best_target_area = _find_best_target()
-		if best_target_area:
-			var best_target_node = best_target_area.get_owner()
-			if is_instance_valid(best_target_node):
-				target = best_target_area
-				target_entity = best_target_node
-				state_chart.send_event(CombatEvents.ENEMY_ENTERED)
-				_broadcast_aggro(best_target_node)
-	else:
-		target = area
-		target_entity = area.get_parent()
-		state_chart.send_event(CombatEvents.ENEMY_ENTERED)
-		_broadcast_aggro(target_entity)
 
+	var best_target_area: Area2D = _find_best_target()
+	if best_target_area:
+		var best_target_node: Node = best_target_area.get_owner()
+		if is_instance_valid(best_target_node):
+			target = best_target_area
+			target_entity = best_target_node
+			state_chart.send_event(CombatEvents.ENEMY_ENTERED)
+			_broadcast_aggro(best_target_node)
+
+## Called when an area exits detection range
 func _on_detection_area_area_exited(area: Area2D) -> void:
-	"""Called when an area exits detection range"""
 	if target == area:
-		if enable_smart_targeting:
-			_reevaluate_current_target(switch_threshold_approach)
-		else:
-			target = null
-			target_entity = null
-			state_chart.send_event(CombatEvents.ENEMY_EXITED)
+		_reevaluate_current_target(switch_threshold_approach)
 
 # ============================================
-# SECTION 10: COMBAT BEHAVIORS
+# SECTION 10: MOVEMENT & NAVIGATION
 # ============================================
 
-func _melee_combat_behavior(delta: float, distance: float, dir: Vector2) -> void:
-	"""Melee combat: Close distance and strafe while on cooldown"""
-	if _is_attack_ready() and distance <= attack_range:
-		return
-
-	var pref := _effective_preferred_distance()
-	if distance > pref + 10.0:
-		_move_toward_target(move_speed, delta)
-	elif distance < pref - 10.0:
-		_move_away_from_target(move_speed * 0.5, delta)
-	else:
-		if strafe_enabled:
-			_strafe_around_target(delta, dir)
-
-func _ranged_combat_behavior(delta: float, distance: float, dir: Vector2) -> void:
-	"""Ranged combat: Kite and maintain distance"""
-	if _is_attack_ready():
-		if distance >= min_distance and distance <= attack_range:
-			return
-
-	var pref := _effective_preferred_distance()
-	if distance < min_distance:
-		_kite_away_from_target(move_speed, delta)
-	elif distance < pref - 20.0:
-		_kite_away_from_target(move_speed, delta)
-	elif distance > pref + 30.0:
-		_move_toward_target(move_speed * 0.7, delta)
-	else:
-		if strafe_enabled:
-			_strafe_around_target(delta, dir)
-
-func _support_combat_behavior(delta: float, distance: float, dir: Vector2) -> void:
-	"""Support combat: Default to ranged behavior"""
-	_ranged_combat_behavior(delta, distance, dir)
-
-# ============================================
-# SECTION 11: MOVEMENT & NAVIGATION
-# ============================================
-
+## Rotate the sprite toward `dir` smoothly. Replaces the old
+## instant `sprite.rotation = dir.angle()` — entities now turn instead of snap.
 func _face(dir: Vector2, delta: float) -> void:
-	"""Rotate the sprite toward `dir` smoothly. Replaces the old
-	instant `sprite.rotation = dir.angle()` — entities now turn instead of snap."""
 	if not sprite or dir.length_squared() < 0.0001:
 		return
-	var target := dir.angle()
+	var aim := dir.angle()
 	if rotation_smooth_speed <= 0.0:
 		# Opt-out: instant rotation
-		sprite.rotation = target
-		_facing_angle = target
+		sprite.rotation = aim
+		_facing_angle = aim
 		return
-	# Exponential weight: frame-rate independent. The old linear
-	# clamp(speed * delta) hit 1.0 at <= 12 Hz, i.e. snapped at low LOD rates.
-	_facing_angle = lerp_angle(_facing_angle, target, 1.0 - exp(-rotation_smooth_speed * delta))
+	# Exponential weight: frame-rate independent. The old linear weight
+	# (speed * delta, clamped) hit 1.0 at <= 12 Hz, i.e. snapped at low LOD rates.
+	_facing_angle = lerp_angle(_facing_angle, aim, 1.0 - exp(-rotation_smooth_speed * delta))
 	sprite.rotation = _facing_angle
 
 ## Effective preferred distance including this entity's personal jitter.
@@ -815,23 +737,23 @@ func _move_toward_target(speed: float, delta: float) -> void:
 	_set_nav_target_lazy(target.global_position)
 	_steer_along_nav(speed, delta)
 
+## Navigate away from current target
 func _move_away_from_target(speed: float, delta: float) -> void:
-	"""Navigate away from current target"""
 	if not is_target_valid():
 		return
-	var away_dir = (global_position - target.global_position).normalized()
-	var away_point = global_position + away_dir * 100.0
+	var away_dir: Vector2 = (global_position - target.global_position).normalized()
+	var away_point: Vector2 = global_position + away_dir * 100.0
 	_set_nav_target_lazy(away_point)
 	_steer_along_nav(speed, delta)
 
+## Kite away from target with lateral movement
 func _kite_away_from_target(speed: float, delta: float) -> void:
-	"""Kite away from target with lateral movement"""
 	if not is_target_valid():
 		return
-	var away_dir = (global_position - target.global_position).normalized()
-	var perpendicular = Vector2(-away_dir.y, away_dir.x) * strafe_direction
-	var kite_dir = (away_dir + perpendicular * 0.3).normalized()
-	var kite_point = global_position + kite_dir * 80.0
+	var away_dir: Vector2 = (global_position - target.global_position).normalized()
+	var perpendicular: Vector2 = Vector2(-away_dir.y, away_dir.x) * strafe_direction
+	var kite_dir: Vector2 = (away_dir + perpendicular * 0.3).normalized()
+	var kite_point: Vector2 = global_position + kite_dir * 80.0
 	_set_nav_target_lazy(kite_point)
 	_steer_along_nav(speed, delta)
 
@@ -853,7 +775,7 @@ func _strafe_around_target(delta: float, dir: Vector2) -> void:
 	move_toward_point(global_position + perpendicular * 32.0, strafe_speed, delta)
 
 # ============================================
-# SECTION 12: IDLE EXPLORATION
+# SECTION 11: IDLE EXPLORATION
 # ============================================
 
 func _get_smart_idle_destination() -> Vector2:
@@ -884,17 +806,17 @@ func _get_exploration_target() -> Vector2:
 	
 	return Vector2.ZERO
 
+## Sample multiple random points and pick the best one. Off-mesh samples
+## (score -1000) never win; the fallback is staying put, which re-rolls on
+## the next tick.
 func _get_valid_random_destination() -> Vector2:
-	"""Sample multiple random points and pick the best one. Off-mesh samples
-	(score -1000) never win; the fallback is staying put, which re-rolls on
-	the next tick."""
-	var best_point = global_position
+	var best_point: Vector2 = global_position
 	var best_score: float = -999.0
-	var samples = 5
-	
+	var samples: int = 5
+
 	for i in range(samples):
-		var candidate = _generate_random_point()
-		var score = _score_destination(candidate)
+		var candidate: Vector2 = _generate_random_point()
+		var score: float = _score_destination(candidate)
 		
 		if score > best_score:
 			best_score = score
@@ -914,9 +836,9 @@ func _generate_random_point() -> Vector2:
 	var dist := randf_range(radius * 0.3, radius)
 	return global_position + dir * dist
 
+## Score a destination point (higher = better)
 func _score_destination(point: Vector2) -> float:
-	"""Score a destination point (higher = better)"""
-	var score = 0.0
+	var score: float = 0.0
 	
 	# Nav-mesh validity instead of raycasts: the TileSet has no physics layer,
 	# so the old wall rays (5 samples x 20 rays per retarget) could only ever
@@ -930,10 +852,10 @@ func _score_destination(point: Vector2) -> float:
 		if on_mesh.distance_squared_to(point) > 16.0 * 16.0:
 			return -1000.0
 	
-	var current_facing = sprite.rotation if sprite else 0.0
-	var to_point = (point - global_position).normalized()
-	var point_angle = to_point.angle()
-	var angle_diff = abs(GameUtils.wrapped_angle_delta(current_facing, point_angle))
+	var current_facing: float = sprite.rotation if sprite else 0.0
+	var to_point: Vector2 = (point - global_position).normalized()
+	var point_angle: float = to_point.angle()
+	var angle_diff: float = absf(GameUtils.wrapped_angle_delta(current_facing, point_angle))
 	score += (PI - angle_diff) * 50.0
 	
 	if is_in_group("Hero"):
@@ -946,7 +868,7 @@ func _score_destination(point: Vector2) -> float:
 	return score
 
 # ============================================
-# SECTION 13: XP SYSTEM
+# SECTION 12: XP SYSTEM
 # ============================================
 
 func _grant_xp_to_killer() -> void:
@@ -962,7 +884,7 @@ func _grant_xp_to_killer() -> void:
 			return
 
 # ============================================
-# SECTION 14: STATE CHART HANDLERS
+# SECTION 13: STATE CHART HANDLERS
 # ============================================
 
 ## Idle State - Wandering and waiting for targets
@@ -1003,27 +925,27 @@ func _on_approach_state_entered() -> void:
 	if not is_target_valid():
 		_check_for_nearby_enemies()
 
+## Process Approach state - chase target and periodically re-evaluate
 func _on_approach_state_processing(delta: float) -> void:
-	"""Process Approach state - chase target and periodically re-evaluate"""
 	if not is_target_valid():
 		state_chart.send_event(CombatEvents.ENEMY_EXITED)
 		return
 
-	if distance_to_target() <= max(attack_range, keep_distance):
+	if target.global_position.distance_to(global_position) <= maxf(attack_range, keep_distance):
 		state_chart.send_event(CombatEvents.ENEMY_FIGHT)
 		return
-	
+
 	# Periodic target re-evaluation while chasing
-	if enable_smart_targeting:
-		_target_reeval_timer -= delta
-		if _target_reeval_timer <= 0.0:
-			_target_reeval_timer += target_reeval_interval_approach
-			_reevaluate_current_target(switch_threshold_approach)
-			# Re-eval may have cleared target (and queued ENEMY_EXITED); the
-			# state transition is deferred to next frame, so bail now before
-			# dereferencing the now-null target below.
-			if not is_target_valid():
-				return
+	_target_reeval_timer -= delta
+	if _target_reeval_timer <= 0.0:
+		_target_reeval_timer += target_reeval_interval_approach
+		_reevaluate_current_target(switch_threshold_approach)
+		# Re-eval may have cleared target and sent ENEMY_EXITED. send_event
+		# runs the transition synchronously (the addon's step() does not lock
+		# the chart and the transitions have 0.0 delay), so re-check before
+		# using target.
+		if not is_target_valid():
+			return
 
 	if is_instance_valid(navigation_agent_2d):
 		# Lazy: only re-path when the target moved > _nav_update_threshold.
@@ -1042,28 +964,28 @@ func _on_fight_state_entered() -> void:
 	if not is_target_valid():
 		state_chart.send_event(CombatEvents.TARGET_LOST)
 
+## Process Fight state - combat and periodic re-evaluation
 func _on_fight_state_processing(delta: float) -> void:
-	"""Process Fight state - combat and periodic re-evaluation"""
 	if not is_target_valid():
 		state_chart.send_event(CombatEvents.TARGET_LOST)
 		return
 
-	var distance = distance_to_target()
+	var distance: float = target.global_position.distance_to(global_position)
 
 	if distance > max_distance:
 		state_chart.send_event(CombatEvents.RE_APPROACH)
 		return
-	
-	if enable_smart_targeting:
-		_target_reeval_timer -= delta
-		if _target_reeval_timer <= 0.0:
-			_target_reeval_timer += target_reeval_interval_fight
-			_reevaluate_current_target(switch_threshold_fight)
-			# Re-eval may have cleared target (and queued ENEMY_EXITED); the
-			# state transition is deferred to next frame, so bail now before
-			# dereferencing the now-null target below.
-			if not is_target_valid():
-				return
+
+	_target_reeval_timer -= delta
+	if _target_reeval_timer <= 0.0:
+		_target_reeval_timer += target_reeval_interval_fight
+		_reevaluate_current_target(switch_threshold_fight)
+		# Re-eval may have cleared target and sent ENEMY_EXITED. send_event
+		# runs the transition synchronously (the addon's step() does not lock
+		# the chart and the transitions have 0.0 delay), so re-check before
+		# using target.
+		if not is_target_valid():
+			return
 
 	# Decay flinch timer (blocks attacks while > 0).
 	if _flinch_timer > 0.0:
