@@ -50,6 +50,9 @@ var strategy: Strategy = Strategy.HUNT
 var _strategy_timer: float = 0.0
 var _heroes_near: int = 0
 var _had_heroes_near: bool = false
+## Mobs above this stage's farming gate that are attacking us (refreshed with
+## the strategy): we flee from them instead of farming next to them.
+var _mob_threats: Array[Node2D] = []
 var _cast_lock: float = 0.0
 var _resting: bool = false
 ## Seconds since the last damage packet (rest regeneration waits regen_delay).
@@ -609,7 +612,9 @@ func _update_strategy() -> void:
 	_heroes_near = EntityRegistry.count_within(EntityRegistry.heroes, global_position, p.hero_awareness_radius)
 	var next: Strategy = _compute_strategy()
 	var heroes_close: bool = _heroes_near > 0
-	if next != strategy or heroes_close != _had_heroes_near:
+	var was_threatened: bool = not _mob_threats.is_empty()
+	_mob_threats = _find_mob_threats(next)
+	if next != strategy or heroes_close != _had_heroes_near or was_threatened != not _mob_threats.is_empty():
 		strategy = next
 		_camp_goal = null
 		_idle_timer = 0.0  # Idle re-picks its destination on this step
@@ -663,6 +668,8 @@ func _score_target(target_node: Node2D) -> float:
 	var is_hero: bool = target_node.is_in_group("Hero")
 	if _resting and not is_hero and not _is_attacking_me(target_node):
 		return -1000.0
+	if not is_hero and not _mob_threats.is_empty():
+		return -1000.0  # a mob we cannot beat is on us: leave, don't farm beside it
 	if not is_hero and strategy != Strategy.HUNT and target_node is EntityBase \
 			and (target_node as EntityBase).get_max_health() > strategy_profile.max_mob_health_for_stage(current_stage):
 		return -1000.0  # too tough to farm at this stage: walk on, it leashes home
@@ -683,6 +690,20 @@ func _score_target(target_node: Node2D) -> float:
 ## Mobs above the farming gate still get walked away from (they leash home).
 func _is_attacking_me(node: Node2D) -> bool:
 	return node is EntityBase and (node as EntityBase).target_entity == self
+
+
+## Mobs above the farming gate that are going for us. A stage-1 Grount cannot
+## beat Hogs (fighting back lost more HP in the sim), and while it kept farming
+## the Bats next to them, the Hogs killed it (~1 match in 8).
+func _find_mob_threats(for_strategy: Strategy) -> Array[Node2D]:
+	var out: Array[Node2D] = []
+	if for_strategy == Strategy.HUNT:
+		return out
+	var gate: float = strategy_profile.max_mob_health_for_stage(current_stage)
+	for m in EntityRegistry.mobs:
+		if is_instance_valid(m) and _is_attacking_me(m) and (m as EntityBase).get_max_health() > gate:
+			out.append(m)
+	return out
 
 
 func _may_engage_hero(hero: Node2D) -> bool:
@@ -708,7 +729,8 @@ func _may_engage_hero(hero: Node2D) -> bool:
 func _get_smart_idle_destination() -> Vector2:
 	if not _strategy_enabled():
 		return super._get_smart_idle_destination()
-	if (strategy == Strategy.FARM or strategy == Strategy.RETREAT or _resting) and _heroes_near > 0:
+	if ((strategy == Strategy.FARM or strategy == Strategy.RETREAT or _resting) and _heroes_near > 0) \
+			or not _mob_threats.is_empty():
 		return _get_flee_destination()
 	if strategy == Strategy.HUNT:
 		var prey: Node2D = EntityRegistry.nearest(EntityRegistry.heroes, global_position, strategy_profile.hunt_sense_radius)
@@ -803,6 +825,10 @@ func _get_flee_destination() -> Vector2:
 	for h in EntityRegistry.heroes:
 		if is_instance_valid(h) and h.global_position.distance_squared_to(global_position) <= r_sq:
 			centroid += h.global_position
+			n += 1
+	for m in _mob_threats:
+		if is_instance_valid(m):
+			centroid += m.global_position
 			n += 1
 	if n == 0:
 		return super._get_smart_idle_destination()

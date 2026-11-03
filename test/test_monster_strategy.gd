@@ -191,6 +191,30 @@ func test_low_hp_monster_rests_ignores_mobs_and_regenerates() -> void:
 	bat.queue_free()
 
 
+func test_stage_1_monster_flees_hogs_attacking_it_instead_of_farming_beside_them() -> void:
+	# Sim: Hogs pounded a stage-1 Grount to death while it kept farming the Bats
+	# next to them (~1 match in 8); fighting the Hogs back lost even more HP.
+	var g := await _frozen(GROUNT, Vector2(0, 0))
+	var bat := await _frozen(BAT, Vector2(60, 0))
+	var hog := await _frozen(HOG, Vector2(-60, 0))
+	bat.target_entity = null
+	hog.target_entity = null
+	g._update_strategy()
+	assert_true(g._score_target(bat) > 0.0, "farming Bats while nothing tough is on it")
+	hog.target_entity = g
+	g._update_strategy()
+	assert_eq(g._mob_threats.size(), 1, "the attacking Hog is a threat")
+	assert_true(g._score_target(bat) < 0.0, "no Bat fights while a Hog is on it")
+	assert_true(g._score_target(hog) < 0.0, "and no Hog fight either (above the stage-1 farming gate)")
+	var dest: Vector2 = g._get_smart_idle_destination()
+	assert_true(dest.x > 0.0, "flees away from the Hog: %s" % str(dest))
+	hog.target_entity = null
+	g._update_strategy()
+	assert_true(g._mob_threats.is_empty(), "threat over once the Hog gives up")
+	assert_true(g._score_target(bat) > 0.0, "back to farming")
+	for n in [g, bat, hog]:
+		n.queue_free()
+
 
 func _camp(mgr: SpawnManager, mob_path: String, pos: Vector2) -> MobSpawnArea:
 	var area := (load(AREA) as PackedScene).instantiate() as MobSpawnArea
@@ -208,6 +232,8 @@ func test_stage_1_farms_bats_and_leaves_hogs_alone() -> void:
 	var g := await _frozen(GROUNT, Vector2(0, 0))
 	var bat := await _frozen(BAT, Vector2(100, 0))
 	var hog := await _frozen(HOG, Vector2(-100, 0))
+	bat.target_entity = null  # frozen, but their DetectionAreas may have spotted it
+	hog.target_entity = null  # (an attacking Hog makes the monster flee instead)
 	g._update_strategy()
 	assert_true(g._score_target(bat) > 0.0, "bats are stage-1 food")
 	assert_true(g._score_target(hog) < 0.0, "a 100-HP hog is too tough at stage 1")
