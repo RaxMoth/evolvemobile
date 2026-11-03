@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://l0ly3ihc4b8r"]
 
-[ext_resource type="Script" uid="uid://cu8ep18f6tvau" path="res://Scenes/World/DEBUGWORLD/fps_counter.gd" id="1_h2rvh"]
+[ext_resource type="Script" uid="uid://cu8ep18f6tvau" path="res://Scenes/World/Camera/fps_counter.gd" id="1_h2rvh"]
 
 [node name="FpsCounter" type="Label"]
 anchors_preset = 15
