@@ -11,11 +11,13 @@ var cached_boids_data: Dictionary = {}
 @export var group_exploration_enabled: bool = true
 @export var group_cohesion_radius: float = 200.0
 @export var personal_space_radius: float = 80.0
-@export var exploration_update_interval: float = 3.0
+## Not an export: _apply_match_config sets it from MatchConfig in _ready.
+var exploration_update_interval: float = 3.0
 
 @export_group("Exploration Settings")
 @export var exploration_tile_size: int = 32
-@export var search_radius_per_check: float = 400.0
+## Not an export: _apply_match_config sets it from MatchConfig in _ready.
+var search_radius_per_check: float = 400.0
 @export var waypoint_reached_distance: float = 100.0
 @export var stuck_detection_time: float = 5.0
 ## A hero that stays inside this radius for stuck_detection_time (out of combat,
@@ -27,7 +29,8 @@ var cached_boids_data: Dictionary = {}
 
 @export_group("Movement Smoothing")
 @export var use_formation: bool = true
-@export var formation_spread: float = 100.0
+## Not an export: _apply_match_config sets it from MatchConfig in _ready.
+var formation_spread: float = 100.0
 ## Followers keep their slot around the formation leader (HeroStats
 ## formation_rank 0, the tank), so the slowest hero sets the pace and the
 ## fastest melee no longer reaches every camp alone.
@@ -81,7 +84,8 @@ func _ready() -> void:
 	if heroes.size() > 0:
 		current_group_target = _calculate_group_center()
 
-## Pre-round strategy (PreRoundSetup → MatchConfig) overrides the scene defaults.
+## Pre-round strategy (PreRoundSetup → MatchConfig): the only writer of
+## exploration_update_interval, search_radius_per_check and formation_spread.
 func _apply_match_config(cfg: MatchConfig) -> void:
 	exploration_update_interval = cfg.exploration_update_interval()
 	search_radius_per_check = cfg.search_radius()

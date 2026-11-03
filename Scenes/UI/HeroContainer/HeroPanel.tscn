@@ -1,4 +1,4 @@
-[gd_scene load_steps=2 format=3 uid="uid://chero_panel_001"]
+[gd_scene load_steps=2 format=3 uid="uid://bgv1s8uin51rf"]
 
 [ext_resource type="Script" path="res://Scenes/UI/HeroContainer/hero_panel.gd" id="1_panel"]
 

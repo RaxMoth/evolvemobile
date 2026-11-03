@@ -5,10 +5,12 @@ class_name HeroBase
 @export var auto_use_ultimate: bool = true
 ## Don't auto-fire the ult unless at least this many enemies are within
 ## auto_ult_radius. Prevents Vlad from nuking a single bat with Blood Bomb.
-@export var auto_ult_min_enemies: int = 3
+## Not an export: _apply_match_config sets it from MatchConfig in _ready.
+var auto_ult_min_enemies: int = 3
 @export var auto_ult_radius: float = 200.0
 ## OR: auto-fire if any ally is below this HP fraction (panic ult).
-@export var auto_ult_panic_hp_pct: float = 0.25
+## Not an export: _apply_match_config sets it from MatchConfig in _ready.
+var auto_ult_panic_hp_pct: float = 0.25
 ## How often to evaluate the auto-ult conditions. 4 Hz is plenty.
 @export var auto_ult_check_interval: float = 0.25
 
@@ -41,9 +43,9 @@ func _ready() -> void:
 	stats.leveled_up.connect(_on_level_changed)
 	_setup_combat_role_from_stats()
 	_apply_match_config(MatchConfig.for_current_match())
-	# The scene VisionArea (HeroBaseClass.tscn 160, River.tscn 120) takes its
-	# radius from HeroStats in both play modes: it is also the hero AI's
-	# exploration memory, which must not depend on the side the player chose.
+	# The scene VisionArea (HeroBaseClass.tscn) takes its radius from
+	# HeroStats in both play modes: it is also the hero AI's exploration
+	# memory, which must not depend on the side the player chose.
 	var vision := get_node_or_null(^"VisionArea") as VisionArea
 	if vision:
 		vision.set_vision_radius(stats.base_stats.vision_radius)
@@ -101,8 +103,10 @@ func apply_attack_speed_boost(multiplier: float, duration: float) -> void:
 func get_attack_speed_boost() -> float:
 	return _attack_speed_boost
 
-## Pre-round strategy (PreRoundSetup → MatchConfig). Scene exports stay the
-## designer defaults; the player's sliders override them per match.
+## Pre-round strategy (PreRoundSetup → MatchConfig). Called from _ready, so
+## MatchConfig owns these values for every hero (the player's sliders, or the
+## neutral defaults when the heroes are the AI opponent). priority_mob stays
+## an EntityBase export because mobs and the monster use their scene value.
 func _apply_match_config(cfg: MatchConfig) -> void:
 	auto_ult_min_enemies = cfg.auto_ult_min_enemies()
 	auto_ult_panic_hp_pct = cfg.auto_ult_panic_hp_pct()

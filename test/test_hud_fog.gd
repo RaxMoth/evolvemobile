@@ -56,7 +56,7 @@ func test_ai_reveals_feed_memory_without_clearing_the_players_fog() -> void:
 
 func test_hero_vision_radius_comes_from_hero_stats() -> void:
 	# In both play modes: the radius is applied by HeroBase from HeroStats,
-	# overriding the scene values (HeroBaseClass.tscn 160, River.tscn 120).
+	# overriding the VisionArea.tscn default (100).
 	for path in [VLAD, "res://Scenes/NPCs/Hero/Heros/Healer/River/River.tscn"]:
 		var hero := await spawn_frozen(path, Vector2.ZERO)
 		var want: float = (hero.get_node("HeroStats") as HeroStatsComponent).base_stats.vision_radius
