@@ -1,6 +1,6 @@
 # Progress Tracker
 
-Last loop run: 2026-11-02 (monster strategy, hero formation, fog + cooldown UI fixes, behaviour skill nodes)
+Last loop run: 2026-11-03 (baked navigation mesh, monster AI fixes, Grount behaviour nodes, code cleanup in progress)
 Stack: godot
 
 Spec source: `README.md` + `Docs/INSTRUCTOR.md` (roadmap, "Current Status & Roadmap",
@@ -105,9 +105,11 @@ Spec source: `README.md` + `Docs/INSTRUCTOR.md` (roadmap, "Current Status & Road
       new virtual `get_max_health()` on EntityBase (Mob/Hero/Monster overrides).
 - [ ] Balance retune after P1 layer split (aggro 344→~203 px, AoE reach radius+172→radius+31, single
       hits, Mine/MediKit/TrapCage trigger on Body overlap) — playtest `detection_radius` + AoE radii.
-- [ ] Sim seed 24 (v13B balance): the stage-1 monster died at 220 s with zero hero/pet damage
-      recorded — either mobs killed it or some damage source is not attributed. Re-run the seed
-      with per-source damage logging.
+- [x] Sim seed 24 (v13B): the stage-1 monster died with no hero damage — mobs killed it. Fixed in
+      `81fa426` (a resting monster fights back attacking mobs) and `74e2bff` (it flees Hogs that
+      attack it instead of farming the Bats beside them); the sim now records `monster_killer`.
+- [ ] Balance retune after `74e2bff`: heroes 29% (24 seeds; the free stage-1 wins are gone). README
+      knob: stage-3 monster damage x0.9 (user decision).
 - [x] Movement no longer runs on the state chart's per-frame `state_processing` — P4 drives the
       active state through `StateChart.step()` from TickScheduler at an LOD rate (FULL/20/10/3 Hz).
 - [x] Hot `get_nodes_in_group` sites → `EntityRegistry` (P3). ~20 cold one-shot/per-cast sites remain
@@ -115,6 +117,26 @@ Spec source: `README.md` + `Docs/INSTRUCTOR.md` (roadmap, "Current Status & Road
 - [x] Legacy in-round `Scripts/Skilltree/` removed (zero references outside the folder).
 
 ## Changelog
+### 2026-11-03 — perf(nav): one baked navigation region; monster AI fixes; Grount behaviour nodes
+Commits `81fa426` resting monster fights back · `ed7bf1a` + `b8dc8ba` Grount behaviour nodes (workflow:
+design, critique, implement, 3-lens review, 5 confirmed findings fixed) · `3d4060a` `tools/bench.sh` ·
+`6485eab` baked navigation · `74e2bff` stage-1 monster flees attacking Hogs.
+- **Navigation**: Ground's per-tile navigation (~38,000 regions) made each path query cost ~4.4 ms and
+  each closest-point query ~1.5–1.9 ms (measured with an instrumented copy: `is_navigation_finished()`
+  runs the query). Baked into `Scenes/World/world_navigation.tres` (2,100 polygons, `tools/bake_nav.sh`,
+  staleness test). `tools/bench.sh 2 2 900 300` (232 mobs): frame mean 30.6 → 2.1 ms, p99 185 → 5.4 ms,
+  max 675 → 7.1 ms, CPU 33.5 → 4.4 s. A 24-seed sim takes ~5 min (was 35–60 min).
+
+| Run | What changed | Hero wins | Median length | Timeouts | Median first contact | Monster reached S3 | Hero deaths |
+|---|---|---|---|---|---|---|---|
+| v14 (48 seeds) | resting monster fights back attacking mobs | 40% | 457 s | 0 | 413 s | 45 | 105 |
+| v15 | baked navigation mesh | 42% | 467 s | 1 | 425 s | 20 | 45 |
+| v16 | stage-1 monster flees attacking Hogs | 29% | 445 s | 4 | 396 s | 18 | 46 |
+
+- Stage-1 deaths to mobs: v15 2/24 (99 s, 189 s; 790 mob damage each). A 330 s-cap probe showed the
+  pattern (Hogs hit it while it farmed Bats beside them): fighting Hogs back → 7/24 deaths; fleeing them
+  → 0/24 with the same mob damage taken. v16: 0 monster deaths to mobs.
+
 ### 2026-11-02 — feat/fix: monster strategy, formation, fog/cooldown UI, skill nodes, two review rounds, balance
 Commits `b22ecd1` monster strategy · `70de7f0` + `33d8cea` formation · `2cdbd5c` fog flicker + cooldown
 overlays · `387abc3` behaviour skill nodes · `9360899` fog layers + vision radii · `68fd729` pet ·
