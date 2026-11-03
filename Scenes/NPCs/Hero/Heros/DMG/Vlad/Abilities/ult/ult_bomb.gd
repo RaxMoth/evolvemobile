@@ -10,9 +10,6 @@ func _init() -> void:
 	description = "Creates a devastating explosion that damages all enemies in range"
 
 func execute(caster: Node2D, _target: Node2D = null, _override_damage: float = -1.0) -> void:
-	# Visual effect (optional - add later)
-	_create_explosion_effect(caster)
-	
 	# Find all entities in range
 	var space_state = caster.get_world_2d().direct_space_state
 	var query = PhysicsShapeQueryParameters2D.new()
@@ -47,18 +44,3 @@ func execute(caster: Node2D, _target: Node2D = null, _override_damage: float = -
 		if entity and entity.is_in_group("Enemy") and not hit_entities.has(entity):
 			hit_entities.append(entity)
 			EventBus.deal_damage(caster, entity, damage, self)
-
-func _create_explosion_effect(caster: Node2D) -> void:
-	# Simple visual feedback - could be expanded with particles later
-	var circle = Node2D.new()
-	caster.get_parent().add_child(circle)
-	circle.global_position = caster.global_position
-	circle.z_index = 10
-	
-	# Create a simple expanding circle effect
-	var tween = circle.create_tween()
-	tween.tween_method(_draw_explosion_circle.bind(circle), 0.0, area_of_effect, 0.3)
-	tween.tween_callback(circle.queue_free)
-
-func _draw_explosion_circle(_radius: float, circle_node: Node2D) -> void:
-	circle_node.queue_redraw()

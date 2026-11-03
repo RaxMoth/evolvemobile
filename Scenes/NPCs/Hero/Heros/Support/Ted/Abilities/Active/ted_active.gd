@@ -30,24 +30,6 @@ func execute(caster: Node2D, _target: Node2D = null, _override_damage: float = -
 	_create_rally_effect(caster)
 
 func _create_rally_effect(caster: Node2D) -> void:
-	# Create expanding orange ring effect
-	var effect = Node2D.new()
-	caster.get_parent().add_child(effect)
-	effect.global_position = caster.global_position
-	effect.z_index = 10
-	
-	# Draw expanding circle
-	var circle_visual = Node2D.new()
-	effect.add_child(circle_visual)
-	circle_visual.z_index = 10
-	
-	# Animate
-	var tween = effect.create_tween()
-	tween.set_parallel(true)
-	tween.tween_property(effect, "scale", Vector2(3, 3), 0.4)
-	tween.tween_property(effect, "modulate:a", 0.0, 0.4)
-	tween.tween_callback(effect.queue_free)
-	
 	# Flash Ted orange
 	var original_modulate = caster.modulate
 	var flash_tween = caster.create_tween()
