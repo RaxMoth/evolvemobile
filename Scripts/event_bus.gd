@@ -24,21 +24,11 @@ extends Node
 # --- Damage pipeline ---
 signal damage_requested(packet: DamagePacket)   ## Emitted before the hit lands. Mutate the packet here.
 signal damage_applied(packet: DamagePacket)     ## Emitted after the hit lands. For VFX/UI/audio.
-## Emitted after a heal lands. Reserved for the future heal pipeline; not
-## emitted by anything yet, but listeners can already subscribe.
-@warning_ignore("unused_signal")
-signal heal_applied(packet: DamagePacket)
 
 # --- Lifecycle ---
 signal entity_died(entity: Node, killer: Node)
 signal monster_evolved(monster: Node, stage: int)
 signal ability_cast(caster: Node, ability: AbilityBase, target: Node)
-
-# --- State chart bridge ---
-## Emitted when any entity's state chart processes an event. Bridged from
-## StateChart.event_received in EntityBase._ready(). Lets global systems
-## react to per-entity state events without binding to each entity directly.
-signal entity_state_event(entity: Node, event: StringName)
 
 
 ## Run an attack through the damage pipeline. Returns the final amount applied
@@ -54,13 +44,6 @@ func deal_damage(source: Node, target: Node, amount: float, ability: AbilityBase
 	if not is_instance_valid(target) or amount <= 0.0:
 		return 0.0
 	var packet := DamagePacket.make(source, target, amount, ability, damage_type)
-	return _route_packet(packet)
-
-
-## Lower-level entry: caller has already built a packet (e.g. with custom tags).
-func request_damage(packet: DamagePacket) -> float:
-	if packet == null or not is_instance_valid(packet.target):
-		return 0.0
 	return _route_packet(packet)
 
 
@@ -84,11 +67,6 @@ func _route_packet(packet: DamagePacket) -> float:
 
 	damage_applied.emit(packet)
 	return packet.amount
-
-
-## Bridge call from EntityBase: forwards a state chart event to the global bus.
-func notify_state_event(entity: Node, event: StringName) -> void:
-	entity_state_event.emit(entity, event)
 
 
 ## Called by EntityBase when an entity enters its Dead state.

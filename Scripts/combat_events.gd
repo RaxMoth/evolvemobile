@@ -18,10 +18,3 @@ const RE_APPROACH   := &"re_approach"
 const SELF_DEAD     := &"self_dead"
 ## Pooling: Dead -> Idle when a parked mob is respawned (see MobBase.on_spawned).
 const RESET         := &"reset"
-
-# --- Combat reactions (room to grow) ---
-# These are not yet wired into any chart transitions, but reserved as the
-# canonical names so VFX/AI/animation systems can listen on EventBus.
-const DAMAGED       := &"damaged"
-const HEALED        := &"healed"
-const STAGE_CHANGED := &"stage_changed"

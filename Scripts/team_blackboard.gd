@@ -6,7 +6,6 @@ extends RefCounted
 ## Holds:
 ##   - Live members of the team
 ##   - Threat table: per ally, who has been hitting them
-##   - Optional focus_target (the team's "kill this" call)
 ##
 ## Brains read this to make coordinated decisions instead of each entity
 ## scoring targets in isolation. Owned by TeamRegistry.
@@ -17,10 +16,6 @@ var members: Array[Node] = []
 # Threat: members[i] -> Dictionary { enemy: Node -> score: float }
 # Bumped on EventBus.damage_applied via TeamRegistry; decays over time.
 var threat: Dictionary = {}
-
-# Optional team-wide focus target. When set, brains may prefer this over
-# their own local scoring. Cleared when target dies / leaves combat.
-var focus_target: Node = null
 
 
 # ============================================
@@ -39,8 +34,6 @@ func add_member(entity: Node) -> void:
 func forget_attacker(entity: Node) -> void:
 	for ally in threat.keys():
 		(threat[ally] as Dictionary).erase(entity)
-	if focus_target == entity:
-		focus_target = null
 
 func remove_member(entity: Node) -> void:
 	members.erase(entity)
@@ -48,8 +41,6 @@ func remove_member(entity: Node) -> void:
 	# Drop any stale references to this entity in other allies' threat tables.
 	for ally in threat.keys():
 		threat[ally].erase(entity)
-	if focus_target == entity:
-		focus_target = null
 
 # ============================================
 # Threat

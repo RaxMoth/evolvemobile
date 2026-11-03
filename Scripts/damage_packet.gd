@@ -1,7 +1,7 @@
 class_name DamagePacket
 extends RefCounted
 
-## DamagePacket - mutable payload that flows through EventBus.request_damage().
+## DamagePacket - mutable payload that flows through EventBus.deal_damage().
 ## Listeners on EventBus.damage_requested can mutate `amount`, add `tags`, or
 ## flip `canceled` to fully block the hit. After the pipeline runs, the target's
 ## _receive_damage(packet) applies the final value, then damage_applied fires.
@@ -29,9 +29,6 @@ static func make(source_: Node, target_: Node, amount_: float, ability_: Ability
 	p.ability = ability_
 	p.damage_type = type_
 	return p
-
-func has_tag(tag: String) -> bool:
-	return tags.has(tag)
 
 func add_tag(tag: String) -> void:
 	if not tags.has(tag):
