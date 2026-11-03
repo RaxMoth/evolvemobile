@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="IreliaActiveShield" load_steps=4 format=3 uid="uid://dpxctbhrluxfq"]
+[gd_resource type="Resource" script_class="IreliaActiveShield" format=3 uid="uid://dpxctbhrluxfq"]
 
 [ext_resource type="Texture2D" uid="uid://0vlvy3mej50h" path="res://Assets/Icon.jpg" id="1_5qiow"]
 [ext_resource type="Script" uid="uid://de7cq4nmteyi6" path="res://Scenes/NPCs/Hero/Heros/Support/Irelia/Abilities/Active/irelia_active_shield.gd" id="1_7h08t"]
@@ -10,19 +10,8 @@ metadata/__load_path__ = "res://Scenes/NPCs/Hero/Heros/Support/Irelia/Abilities/
 script = ExtResource("1_7h08t")
 shield_scene = SubResource("Resource_c8yqg")
 ability_name = "Divine Shield"
-ability_type = 1
 icon = ExtResource("1_5qiow")
 description = "Shield all heroes for 18 HP for 7 seconds"
-damage = 0.0
 cooldown = 13.0
-ability_range = 100.0
 duration = 7.0
 heal_amount = 18.0
-area_of_effect = 0.0
-damage_per_stage = Array[float]([])
-cooldown_per_stage = Array[float]([])
-range_per_stage = Array[float]([])
-aoe_per_stage = Array[float]([])
-speed_modifier = 1.0
-damage_modifier = 1.0
-attack_speed_modifier = 1.0

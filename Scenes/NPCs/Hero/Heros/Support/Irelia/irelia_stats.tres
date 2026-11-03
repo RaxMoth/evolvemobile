@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="HeroStats" load_steps=3 format=3 uid="uid://dee3mmsm1t3fr"]
+[gd_resource type="Resource" script_class="HeroStats" format=3 uid="uid://dee3mmsm1t3fr"]
 
 [ext_resource type="Texture2D" uid="uid://bk17ahngrcr0" path="res://Scenes/NPCs/Hero/Heros/Support/Irelia/Assets/down_stand.png" id="1_15hgx"]
 [ext_resource type="Script" uid="uid://dvs6vqwnqtcd8" path="res://Scenes/NPCs/Hero/hero_stats.gd" id="1_stats"]
@@ -14,7 +14,6 @@ base_max_health = 160.0
 base_move_speed = 75.0
 base_attack_range = 120.0
 base_attack_damage = 5.0
-vision_radius = 200.0
 idle_retarget_time = 1.8
 idle_wander_radius = 80.0
 keep_distance = 100.0
@@ -26,6 +25,4 @@ formation_rank = 0
 preferred_distance = 90.0
 min_distance = 60.0
 max_distance = 140.0
-strafe_enabled = true
 strafe_speed = 55.0
-strafe_change_interval = 2.0

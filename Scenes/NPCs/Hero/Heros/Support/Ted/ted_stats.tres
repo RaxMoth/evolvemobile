@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="HeroStats" load_steps=3 format=3 uid="uid://tedstatsuid"]
+[gd_resource type="Resource" script_class="HeroStats" format=3 uid="uid://tedstatsuid"]
 
 [ext_resource type="Texture2D" uid="uid://bkp34raygt486" path="res://Scenes/NPCs/Hero/Heros/Support/Ted/Assets/up_walk1.png" id="1_hqpsv"]
 [ext_resource type="Script" uid="uid://dvs6vqwnqtcd8" path="res://Scenes/NPCs/Hero/hero_stats.gd" id="1_stats"]
@@ -21,10 +21,8 @@ keep_distance = 50.0
 health_per_level = 5.0
 damage_per_level = 1.6
 speed_per_level = 1.5
-combat_role = 0
 preferred_distance = 45.0
 min_distance = 20.0
 max_distance = 80.0
-strafe_enabled = true
 strafe_speed = 50.0
 strafe_change_interval = 2.5

@@ -1,7 +1,7 @@
 [gd_scene load_steps=3 format=3 uid="uid://cmatchres0001"]
 
 [ext_resource type="Script" path="res://Scenes/UI/MatchResult/match_result.gd" id="1_result"]
-[ext_resource type="Theme" uid="uid://buihunttheme01" path="res://Scenes/UI/Theme/ui_theme.tres" id="2_theme"]
+[ext_resource type="Theme" uid="uid://eroe1xxhr5fc" path="res://Scenes/UI/Theme/ui_theme.tres" id="2_theme"]
 
 [node name="MatchResult" type="CanvasLayer"]
 layer = 200

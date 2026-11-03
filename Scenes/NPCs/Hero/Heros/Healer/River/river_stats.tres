@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="HeroStats" load_steps=3 format=3 uid="uid://ds5ot14uvnu6"]
+[gd_resource type="Resource" script_class="HeroStats" format=3 uid="uid://ds5ot14uvnu6"]
 
 [ext_resource type="Texture2D" uid="uid://ddouityk5d4u1" path="res://Scenes/NPCs/Hero/Heros/Healer/River/Assets/down_stand.png" id="1_do80r"]
 [ext_resource type="Script" uid="uid://dvs6vqwnqtcd8" path="res://Scenes/NPCs/Hero/hero_stats.gd" id="1_stats"]
@@ -10,7 +10,6 @@ hero_name = "River"
 hero_class = "Support/Scout"
 description = "Versatile support who can swap between healing allies and sniping enemies from long range"
 portrait = ExtResource("1_do80r")
-base_max_health = 100.0
 base_move_speed = 85.0
 base_attack_range = 300.0
 base_attack_damage = 12.0
@@ -26,6 +25,4 @@ formation_rank = 2
 preferred_distance = 240.0
 min_distance = 180.0
 max_distance = 350.0
-strafe_enabled = true
 strafe_speed = 70.0
-strafe_change_interval = 2.0

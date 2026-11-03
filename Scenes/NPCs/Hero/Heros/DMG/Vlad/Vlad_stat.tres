@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="HeroStats" load_steps=3 format=3 uid="uid://m2m6oqcsafle"]
+[gd_resource type="Resource" script_class="HeroStats" format=3 uid="uid://m2m6oqcsafle"]
 
 [ext_resource type="Script" uid="uid://dvs6vqwnqtcd8" path="res://Scenes/NPCs/Hero/hero_stats.gd" id="1_aenkc"]
 [ext_resource type="Texture2D" uid="uid://dvv8w1iegdl1t" path="res://Scenes/NPCs/Hero/Heros/DMG/Vlad/Assets/down_stand.png" id="1_htbav"]
@@ -11,21 +11,15 @@ hero_class = "DPS/Berserker"
 description = "High-risk berserker who gains massive power when at low health"
 portrait = ExtResource("1_htbav")
 base_max_health = 110.0
-base_move_speed = 80.0
-base_attack_range = 50.0
-base_attack_damage = 10.0
 vision_radius = 250.0
-idle_retarget_time = 1.2
 idle_wander_radius = 120.0
 keep_distance = 40.0
 health_per_level = 6.0
 damage_per_level = 1.7
 speed_per_level = 1.2
-combat_role = 0
 preferred_distance = 40.0
 min_distance = 20.0
 max_distance = 120.0
-strafe_enabled = true
 strafe_speed = 75.0
 strafe_change_interval = 1.8
 metadata/_custom_type_script = "uid://dvs6vqwnqtcd8"
