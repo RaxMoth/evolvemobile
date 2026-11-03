@@ -37,9 +37,8 @@ func _ready() -> void:
 		push_error(name + " requires HeroStatsComponent with base_stats!")
 		return
 
-	if stats:
-		stats.health_changed.connect(_on_health_changed)
-		stats.leveled_up.connect(_on_level_changed)
+	stats.health_changed.connect(_on_health_changed)
+	stats.leveled_up.connect(_on_level_changed)
 	_setup_combat_role_from_stats()
 	_apply_match_config(MatchConfig.for_current_match())
 	# The scene VisionArea (HeroBaseClass.tscn 160, River.tscn 120) takes its
@@ -130,8 +129,8 @@ var use_exploration_target: bool = false
 var exploration_target_smooth: Vector2 = Vector2.ZERO # Smoothed target
 var target_smooth_speed: float = 5.0 # How fast to smooth
 
-func set_exploration_target(target: Vector2) -> void:
-	exploration_target = target
+func set_exploration_target(new_target: Vector2) -> void:
+	exploration_target = new_target
 	use_exploration_target = true
 
 func _setup_combat_role_from_stats() -> void:

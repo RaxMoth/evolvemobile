@@ -26,8 +26,6 @@ func _update_caster_weapon(caster: Node2D) -> void:
 	if not caster.has_node("AbilitySystem"):
 		return
 	
-	var ability_system = caster.get_node("AbilitySystem")
-	
 	# Swap the basic attack based on mode
 	match current_mode:
 		WeaponMode.SNIPER:

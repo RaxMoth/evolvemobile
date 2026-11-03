@@ -1,9 +1,6 @@
 extends Node
 class_name Shield
 
-signal shield_broken
-signal shield_expired
-
 var shield_amount: float = 0.0
 var max_shield: float = 0.0
 var duration: float = 0.0
@@ -52,9 +49,6 @@ func absorb_damage(amount: float) -> float:
 	
 	return amount - absorbed
 
-func get_shield_amount() -> float:
-	return shield_amount
-
 func get_shield_percent() -> float:
 	return shield_amount / max_shield if max_shield > 0 else 0.0
 
@@ -68,13 +62,11 @@ func _update_visual() -> void:
 		owner_hero.modulate = Color(1.0, 1.0, 1.0 + shield_percent * 0.5)
 
 func _break_shield() -> void:
-	shield_broken.emit()
 	if owner_hero:
 		owner_hero.modulate = Color.WHITE
 	queue_free()
 
 func _expire_shield() -> void:
-	shield_expired.emit()
 	if owner_hero:
 		owner_hero.modulate = Color.WHITE
 	queue_free()

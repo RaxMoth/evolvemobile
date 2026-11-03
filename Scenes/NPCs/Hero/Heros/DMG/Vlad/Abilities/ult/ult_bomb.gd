@@ -25,7 +25,6 @@ func execute(caster: Node2D, _target: Node2D = null, _override_damage: float = -
 	query.collision_mask = GameUtils.MASK_HERO_TARGETS
 	
 	var results = space_state.intersect_shape(query, 32)
-	var hit_count = 0
 	var hit_entities: Array = []
 	
 	for result in results:
@@ -48,9 +47,6 @@ func execute(caster: Node2D, _target: Node2D = null, _override_damage: float = -
 		if entity and entity.is_in_group("Enemy") and not hit_entities.has(entity):
 			hit_entities.append(entity)
 			EventBus.deal_damage(caster, entity, damage, self)
-			hit_count += 1
-	
-	Globals.debug_log(caster.name + " used Blood Bomb! Hit " + str(hit_count) + " targets")
 
 func _create_explosion_effect(caster: Node2D) -> void:
 	# Simple visual feedback - could be expanded with particles later

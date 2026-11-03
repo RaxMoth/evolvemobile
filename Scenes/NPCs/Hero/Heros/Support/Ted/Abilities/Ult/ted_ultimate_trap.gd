@@ -33,5 +33,3 @@ func execute(caster: Node2D, target: Node2D = null, _override_damage: float = -1
 		cage.duration = duration
 	if "cage_radius" in cage:
 		cage.cage_radius = area_of_effect
-	
-	Globals.debug_log(caster.name + " deployed Trap Cage!")

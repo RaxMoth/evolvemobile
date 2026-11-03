@@ -1,14 +1,12 @@
 extends HeroBase
 class_name Irelia
 
-func _ready() -> void:
-	# Tank archetype: taunt_strength (Irelia.tscn) multiplies the threat of her
-	# damage, and her basic attack adds a flat taunt on top (taunt_threat on the
-	# attack resource) so mobs actually turn to her.
-	super._ready()
-	# Shield absorption lives on the Shield node itself (it listens to
-	# EventBus.damage_requested for its owner), so Divine Shield protects every
-	# hero it is applied to — not only Irelia — and survives Irelia dying.
+## Tank archetype: taunt_strength (Irelia.tscn) multiplies the threat of her
+## damage, and her basic attack adds a flat taunt on top (taunt_threat on the
+## attack resource) so mobs actually turn to her.
+## Shield absorption lives on the Shield node itself (it listens to
+## EventBus.damage_requested for its owner), so Divine Shield protects every
+## hero it is applied to — not only Irelia — and survives Irelia dying.
 
 
 ## Divine Shield when someone close to Irelia (including herself) is hurt and
@@ -75,10 +73,6 @@ func _find_enemy_attacking(ally: Node2D) -> Node2D:
 	if d2 > 200.0 * 200.0:
 		return null
 	return top_attacker as Node2D
-
-# Irelia stays close to allies to protect them
-func _get_idle_wander_radius() -> float:
-	return 80.0 # Stay closer to team
 
 func _on_idle_state_processing(delta: float) -> void:
 	if not is_instance_valid(navigation_agent_2d):

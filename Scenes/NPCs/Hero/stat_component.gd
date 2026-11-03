@@ -13,8 +13,6 @@ var current_xp: float = 0.0
 const XP_PER_LEVEL: float = 80.0
 const MAX_LEVEL: int = 10
 
-signal xp_changed(current: float, needed: float)
-
 var current_stats := {
 	"max_health": 0.0,
 	"current_health": 0.0,
@@ -103,24 +101,6 @@ func add_stat_modifier(stat_name: String, value: float, is_multiplicative: bool 
 	
 	_recalculate_all_stats()
 
-func remove_stat_modifier(stat_name: String, value: float, is_multiplicative: bool = false) -> void:
-	var modifier_key := stat_name + ("_mult" if is_multiplicative else "_add")
-	
-	if is_multiplicative:
-		stat_modifiers[modifier_key] = float(stat_modifiers.get(modifier_key, 1.0)) / (value if value != 0.0 else 1.0)
-	else:
-		stat_modifiers[modifier_key] = float(stat_modifiers.get(modifier_key, 0.0)) - value
-	
-	_recalculate_all_stats()
-
-func clear_all_modifiers() -> void:
-	for key in stat_modifiers.keys():
-		if key.ends_with("_mult"):
-			stat_modifiers[key] = 1.0
-		else:
-			stat_modifiers[key] = 0.0
-	_recalculate_all_stats()
-
 ## Spawn-time refill after permanent max-HP upgrades were applied (the
 ## component initialised current_health before the modifiers existed).
 func refill_health() -> void:
@@ -129,9 +109,6 @@ func refill_health() -> void:
 func take_damage(amount: float) -> void:
 	current_stats.current_health = max(0.0, current_stats.current_health - amount)
 	health_changed.emit(current_stats.current_health, current_stats.max_health)
-	
-	if current_stats.current_health <= 0.0:
-		_on_death()
 
 func heal(amount: float) -> void:
 	current_stats.current_health = min(current_stats.max_health, current_stats.current_health + amount)
@@ -139,10 +116,6 @@ func heal(amount: float) -> void:
 
 func is_alive() -> bool:
 	return current_stats.current_health > 0.0
-
-func _on_death() -> void:
-	# Override in subclass or connect to signal
-	pass
 
 ## In-round XP. Levels up as often as the amount allows (capped at MAX_LEVEL).
 func add_xp(amount: float) -> void:
@@ -154,7 +127,6 @@ func add_xp(amount: float) -> void:
 		level_up()
 	if level >= MAX_LEVEL:
 		current_xp = 0.0
-	xp_changed.emit(current_xp, XP_PER_LEVEL)
 
 func level_up() -> void:
 	level += 1
@@ -167,21 +139,3 @@ func level_up() -> void:
 	
 	leveled_up.emit(level)
 	health_changed.emit(current_stats.current_health, current_stats.max_health)
-	Globals.debug_log(base_stats.hero_name, " leveled up to ", level)
-
-func set_level(new_level: int) -> void:
-	level = max(1, new_level)
-	#_recalculate_all_stats()
-
-func get_save_data() -> Dictionary:
-	return {
-		"level": level,
-		"current_health": current_stats.current_health,
-		"stat_modifiers": stat_modifiers.duplicate(),
-	}
-
-func load_save_data(data: Dictionary) -> void:
-	level = data.get("level", 1)
-	stat_modifiers = data.get("stat_modifiers", {}).duplicate()
-	_recalculate_all_stats()
-	current_stats.current_health = data.get("current_health", current_stats.max_health)

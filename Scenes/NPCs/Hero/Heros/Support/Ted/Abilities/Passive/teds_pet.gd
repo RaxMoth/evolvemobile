@@ -76,11 +76,9 @@ func _setup_navigation_map() -> void:
 		return
 	
 	navigation_agent.set_navigation_map(nav_map)
-	Globals.debug_log("Pet navigation setup complete!")
 
 func set_owner_entity(new_owner: Node2D) -> void:
 	owner_entity = new_owner
-	Globals.debug_log("Pet owner set to: " + owner_entity.name)
 
 func _physics_process(delta: float) -> void:
 	if not is_instance_valid(owner_entity):
@@ -177,8 +175,7 @@ func _attack_target(delta: float) -> void:
 func _navigate_to_position(target_pos: Vector2, speed: float, delta: float) -> void:
 	if not navigation_agent:
 		# Fallback to direct movement if navigation fails
-		var direction = (target_pos - global_position).normalized()
-		velocity = direction * speed
+		velocity = (target_pos - global_position).normalized() * speed
 		return
 	
 	# Set navigation target

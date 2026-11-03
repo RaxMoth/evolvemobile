@@ -31,5 +31,3 @@ func execute(caster: Node2D, _target: Node2D = null, _override_damage: float = -
 		mine.detection_radius = ability_range  # was bare `range` (GDScript builtin Callable)
 	if "owner_entity" in mine:
 		mine.owner_entity = caster
-	
-	Globals.debug_log(caster.name + " placed a mine!")

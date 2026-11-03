@@ -5,14 +5,12 @@ class_name IreliaActiveShield
 
 func execute(caster: Node2D, _target: Node2D = null, _override_damage: float = -1.0) -> void:
 	var heroes = caster.get_tree().get_nodes_in_group("Hero")
-	var shielded_count = 0
 	
 	for hero in heroes:
 		if not (hero is HeroBase) or not hero.is_alive():
 			continue
 		
 		_apply_shield(hero)
-		shielded_count += 1
 	
 	_create_shield_wave_effect(caster)
 

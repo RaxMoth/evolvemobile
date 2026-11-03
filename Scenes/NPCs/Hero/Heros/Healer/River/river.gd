@@ -102,7 +102,7 @@ func _get_move_speed() -> float:
 	
 	return base_speed
 
-func _on_fight_logic(delta: float) -> void:
+func _on_fight_logic(_delta: float) -> void:
 	if not ability_system:
 		return
 	

@@ -28,8 +28,6 @@ func execute(caster: Node2D, _target: Node2D = null, _override_damage: float = -
 	
 	# Visual feedback
 	_create_rally_effect(caster)
-	
-	Globals.debug_log(caster.name, " used Rally Cry!")
 
 func _create_rally_effect(caster: Node2D) -> void:
 	# Create expanding orange ring effect
