@@ -526,7 +526,7 @@ func _score_target(target_node: Node2D) -> float:
 	if taunter != null:
 		return 10000.0 if target_node == taunter else -1000.0
 	var is_hero: bool = target_node.is_in_group("Hero")
-	if _resting and not is_hero:
+	if _resting and not is_hero and not _is_attacking_me(target_node):
 		return -1000.0
 	if not is_hero and strategy != Strategy.HUNT and target_node is EntityBase \
 			and (target_node as EntityBase).get_max_health() > strategy_profile.max_mob_health_for_stage(current_stage):
@@ -541,6 +541,13 @@ func _score_target(target_node: Node2D) -> float:
 		Strategy.HUNT:
 			score += 50.0 if is_hero else -40.0
 	return score
+
+
+## Resting skips mob fights, but not mobs that are already going for us: a
+## resting monster that only walked away could be pecked to death by Bats.
+## Mobs above the farming gate still get walked away from (they leash home).
+func _is_attacking_me(node: Node2D) -> bool:
+	return node is EntityBase and (node as EntityBase).target_entity == self
 
 
 func _may_engage_hero(hero: Node2D) -> bool:

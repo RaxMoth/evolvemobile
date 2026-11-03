@@ -49,5 +49,10 @@ if deaths and "allies_500" in deaths[0]:
     print(f"hero deaths: {len(deaths)}  alone(no ally<500px) {alone}  ally fighting nearby {helped}"
           f"  median attackers {statistics.median(d['attackers'] for d in deaths):.0f}"
           f"  median level {statistics.median(d['level'] for d in deaths):.0f}")
+if "monster_killer" in rows[0]:
+    mk = Counter(r["monster_killer"] for r in rows if r["monster_killer"])
+    taken = {k: statistics.median(r["monster_dmg_taken"][k] for r in rows) for k in ("heroes", "mobs", "other")}
+    print("monster deaths by: " + (", ".join(f"{k} {v}" for k, v in mk.most_common()) or "-") +
+          "  damage taken median: " + ", ".join(f"{k} {v:.0f}" for k, v in taken.items()))
 print(f"mob kills: monster median {statistics.median(r['mob_kills_monster'] for r in rows):.0f}"
       f"  heroes median {statistics.median(r['mob_kills_heroes'] for r in rows):.0f}")

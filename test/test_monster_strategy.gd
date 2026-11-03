@@ -169,7 +169,15 @@ func test_low_hp_monster_rests_ignores_mobs_and_regenerates() -> void:
 	g.current_health = 0.3 * max_hp
 	g._pre_tick(0.1)
 	assert_true(g.is_resting(), "below rest_hp_pct")
+	bat.target_entity = null  # it may have spotted the monster already
 	assert_true(g._score_target(bat) < 0.0, "resting: no new mob fights")
+	bat.target_entity = g
+	assert_true(g._score_target(bat) > 0.0, "resting, but a mob going for it gets fought back")
+	var hog := await _frozen(HOG, Vector2(-100, 0))
+	hog.target_entity = g
+	assert_true(g._score_target(hog) < 0.0, "a mob above the stage-1 farming gate is still walked away from")
+	hog.queue_free()
+	bat.target_entity = null
 	g._since_damage = 0.0
 	var hp: float = g.current_health
 	g._pre_tick(1.0)

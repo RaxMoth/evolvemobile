@@ -28,6 +28,8 @@ var _mob_kills_by_heroes: int = 0
 var _hero_damage: Dictionary = {}      # hero name -> damage dealt
 var _hero_state_s: Dictionary = {}     # hero name -> {state: seconds}
 var _hero_attack_casts: Dictionary = {} # hero name -> basic attacks executed
+var _monster_dmg_taken: Dictionary = {"heroes": 0.0, "mobs": 0.0, "other": 0.0}
+var _monster_killer: String = ""
 
 
 func _initialize() -> void:
@@ -80,6 +82,8 @@ func _on_damage_applied(packet: Object) -> void:
 	var src: Object = packet.get("source")
 	var dst: Object = packet.get("target")
 	var amount: float = float(packet.get("amount"))
+	if dst != null and is_instance_valid(dst) and _is(dst, "MonsterBase"):
+		_monster_dmg_taken[_faction(src)] = float(_monster_dmg_taken[_faction(src)]) + amount
 	if src == null or dst == null or not is_instance_valid(src) or not is_instance_valid(dst):
 		return
 	# Ted's pet fights for the heroes (group "Hero", not a HeroBase).
@@ -100,6 +104,9 @@ func _on_damage_applied(packet: Object) -> void:
 
 
 func _on_entity_died(entity: Object, killer: Object) -> void:
+	if _is(entity, "MonsterBase"):
+		_monster_killer = _faction(killer)
+		return
 	if _is(entity, "MobBase"):
 		if killer != null and is_instance_valid(killer):
 			if _is(killer, "MonsterBase"):
@@ -155,6 +162,10 @@ func _finish(reason: String, winner: String) -> void:
 		return
 	_done = true
 	var m := _monster()
+	if _monster_killer == "" and m and not m.call("is_alive"):
+		# GameManager ends the match from the same entity_died emission, often
+		# before our handler runs: fall back to the monster's last attacker.
+		_monster_killer = _faction(m.get("last_attacker"))
 	var gm := root.get_node("GameManager")
 	var reg := root.get_node("EntityRegistry")
 	var out := {
@@ -178,6 +189,8 @@ func _finish(reason: String, winner: String) -> void:
 		"hero_damage": _hero_damage,
 		"hero_states": _hero_state_s,
 		"hero_basic_casts": _hero_attack_casts,
+		"monster_dmg_taken": _monster_dmg_taken,
+		"monster_killer": _monster_killer,
 	}
 	print("SIM_RESULT " + JSON.stringify(out))
 	quit()
@@ -195,6 +208,17 @@ func _state_of(entity: Node) -> String:
 
 func _monster() -> Node2D:
 	return root.get_node("EntityRegistry").call("first_monster") as Node2D
+
+
+## "heroes" (heroes and Ted's pet), "mobs", or "other" (no / freed source).
+func _faction(o: Object) -> String:
+	if o == null or not is_instance_valid(o):
+		return "other"
+	if _is(o, "HeroBase") or (o is Node and (o as Node).is_in_group("Hero")):
+		return "heroes"
+	if _is(o, "MobBase"):
+		return "mobs"
+	return "other"
 
 
 func _is(o: Object, cls: String) -> bool:
