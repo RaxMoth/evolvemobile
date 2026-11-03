@@ -134,7 +134,7 @@ func _apply_stage_configuration(stage: int) -> void:
 	
 	_update_stage_scale(stage)
 	# Titan Form's extra size must not widen the aggro circle (see
-	# _get_detection_shape_radius).
+	# _get_detection_shape_radius; the scale tween keeps it in step).
 	_update_detection_radius()
 
 func _get_entity_level() -> int:
@@ -166,9 +166,18 @@ func _update_stage_scale(stage: int) -> void:
 	tween.tween_property(self, "scale", target_scale, 0.5) \
 		.set_trans(Tween.TRANS_BACK) \
 		.set_ease(Tween.EASE_OUT)
+	if _titan_at(stage):
+		# The aggro radius follows the growing root scale step by step (see
+		# _get_detection_shape_radius): writing the Titan-sized radius before
+		# the body has grown shrank the circle and dropped the chase target.
+		tween.parallel().tween_method(_on_stage_scale_step, 0.0, 1.0, 0.5)
 	# Re-pin the HUD Control after each stage scale change so the floating
 	# HP bar stays at a constant pixel size even as the monster grows.
 	tween.tween_callback(_apply_ui_counter_scale)
+
+
+func _on_stage_scale_step(_progress: float) -> void:
+	_update_detection_radius()
 
 # ============================================
 # Combat Setup (Resource-Driven)
@@ -223,11 +232,15 @@ func _get_move_speed() -> float:
 func _get_attack_range() -> float:
 	return BASE_ATTACK_RANGE * _meta_range_mult + get_range_bonus()
 
-## The aggro circle is a child of the root, so it scales with the monster:
-## divide Titan Form's extra size back out (the stage scale still applies,
-## as before). The node buys size, HP and reach, not wider senses.
+## The aggro circle is a child of the root, so it scales with the monster. With
+## Titan Form its world radius follows the live root scale up to the stage's
+## own size and holds there: the extra size never widens it (the node buys size,
+## HP and reach, not wider senses), and mid-evolution, while the body is still
+## growing, it never drops below the radius it had before.
 func _get_detection_shape_radius() -> float:
-	return detection_radius / titan_scale_mult if is_titan() and titan_scale_mult > 0.0 else detection_radius
+	if not is_titan() or not monster_stats or scale.x <= 0.0:
+		return detection_radius
+	return detection_radius * minf(1.0, monster_stats.get_scale_for_stage(current_stage).x / scale.x)
 
 func _get_idle_retarget_time() -> float:
 	return 2.0

@@ -103,7 +103,7 @@ func _perform_jump(caster: Node2D, start_pos: Vector2, target_pos: Vector2) -> v
 func _perform_slam(caster: Node2D) -> void:
 	Globals.debug_log(caster.name, " SLAMS the ground!")
 	# Gravity Slam first: the damage lands on the pulled positions.
-	var pulled: Array[Node2D] = _pull_enemies(caster)
+	_pull_enemies(caster)
 	
 	# Deal AOE damage
 	var space_state = caster.get_world_2d().direct_space_state
@@ -133,17 +133,6 @@ func _perform_slam(caster: Node2D) -> void:
 		if _can_hit(entity):
 			EventBus.deal_damage(caster, entity, _effective_damage, self)
 			hit_count += 1
-	
-	# The query still saw the pre-pull positions (a moved entity's Body area
-	# reaches the physics server only at the next transform flush): pulled
-	# entities it missed are hit when they now stand inside the slam radius.
-	for e in pulled:
-		if not is_instance_valid(e) or hit_entities.has(e):
-			continue
-		hit_entities.append(e)
-		if caster.global_position.distance_to(e.global_position) <= slam_radius:
-			EventBus.deal_damage(caster, e, _effective_damage, self)
-			hit_count += 1
 
 
 ## The slam's target rule: heroes (Ted's pet included) or mobs, never another monster.
@@ -159,11 +148,10 @@ func _can_hit(entity: Node) -> bool:
 ## Distances are centre to centre; anything already closer stays put. An idle
 ## camp mob pulled past its camp's edge is held at the edge by its own leash on
 ## its next tick; a hero mid-Dash is carried on by the dash tween.
-func _pull_enemies(caster: Node2D) -> Array[Node2D]:
-	var out: Array[Node2D] = []
+func _pull_enemies(caster: Node2D) -> void:
+	last_pull_count = 0
 	if pull_radius <= 0.0:
-		last_pull_count = 0
-		return out
+		return
 	var center: Vector2 = caster.global_position
 	var world: World2D = caster.get_world_2d()
 	var r_sq: float = pull_radius * pull_radius
@@ -187,6 +175,18 @@ func _pull_enemies(caster: Node2D) -> Array[Node2D]:
 			(e as EntityBase).displace_to(dest)
 		else:
 			e.global_position = dest  # Ted's pet (CharacterBody2D) re-paths every physics frame
-		out.append(e)
-	last_pull_count = out.size()
-	return out
+		_sync_collision_transforms(e)
+		last_pull_count += 1
+
+
+## A moved node's collision shapes reach the physics server only at the next
+## transform flush. Push them now, so the slam's overlap query right after the
+## pull tests each target where the pull left it: one hit rule (its Body circle
+## overlaps the slam circle) whether a target was pulled there or stood there.
+## Ted's pet's CharacterBody2D still moves on the next physics step; its own
+## "Body" Area2D carries the hit, and a pull only ever brings a target closer.
+static func _sync_collision_transforms(node: Node) -> void:
+	if node is CollisionObject2D:
+		(node as CollisionObject2D).force_update_transform()
+	for c in node.get_children():
+		_sync_collision_transforms(c)

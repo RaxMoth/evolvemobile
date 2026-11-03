@@ -143,6 +143,31 @@ func test_grount_tree_has_a_2000_leaf_tier_4() -> void:
 	assert_true(hp != null and hp.stat_multiplicative and not hp.is_ability_node())
 
 
+## What a player can buy, read from the seeded tree itself (no test inserts).
+## Second Wind is deliberately absent until the evolution heal is decided
+## (MetaSkillManager.GROUNT_SECOND_WIND_SPEC): flip this when it is seeded.
+func test_grount_tree_lists_its_shipped_nodes() -> void:
+	var t: MetaSkillTree = MetaSkillManager.get_tree_def(_tree())
+	var expected: Dictionary = {
+		1: ["g1_dmg", "g1_range", "g1_speed", "g1_stun"],
+		2: ["g2_cleavecd", "g2_earlyslam", "g2_evo", "g2_hp"],
+		3: ["g3_dash", "g3_dmg", "g3_enrage", "g3_pull", "g3_slam", "g3_speed"],
+		4: ["g4_titan"],
+	}
+	assert_eq(t.max_tier(), 4)
+	for tier: int in expected:
+		var ids: Array = []
+		for n in t.nodes_in_tier(tier):
+			ids.append(String(n.id))
+		ids.sort()
+		assert_eq(ids, expected[tier], "tier %d" % tier)
+	assert_true(t.find_node(&"g3_evoheal") == null, "Second Wind is not in the shipped tree yet")
+	if _isolated():
+		PersistedData.add_currency(PersistedData.LEAVES, 5000)
+		_grant(["g1_dmg", "g2_hp"])
+		assert_false(MetaSkillManager.unlock(_tree(), &"g3_evoheal"), "so it cannot be bought")
+
+
 func test_tier_4_is_gated_until_a_tier_3_node_is_unlocked() -> void:
 	if not _isolated():
 		skip("user:// is not the isolated test dir")
@@ -435,6 +460,50 @@ func test_titan_form_on_stage_3() -> void:
 	assert_near(g.get_max_health(), stats.stage_3_health + 500.0, 0.001)
 
 
+## The Titan-sized aggro radius used to be written at once while the body was
+## still at its stage-2 size: the circle shrank to ~143 px for a few frames and
+## Grount dropped the hero it was chasing just as it evolved.
+func test_titan_evolution_never_shrinks_the_aggro_circle() -> void:
+	if not _isolated():
+		skip("user:// is not the isolated test dir")
+		return
+	_grant(["g4_titan"])
+	var g := await _grount()
+	var stats: MonsterStats = g.monster_stats
+	var shape := (g.get_node("DetectionArea/CollisionShape2D") as CollisionShape2D).shape as CircleShape2D
+	g.gain_xp(1000.0)
+	assert_eq(g.current_stage, 2)
+	await wait_seconds(0.7)  # stage-2 scale tween
+	var stage_2_aggro: float = shape.radius * g.scale.x
+	assert_near(stage_2_aggro, g.detection_radius * stats.stage_2_scale.x, 0.01)
+	# Chased from 200 px: inside the stage-2 circle (215 px + its Body), outside
+	# the one the early write gave (172 / 1.5 x 1.25 = 143 px + its Body).
+	var v := await _hero(Vector2(200, 0))
+	await wait_physics_frames(3)
+	var body := v.get_node("Body") as Area2D
+	assert_true(g.detection_area.overlaps_area(body), "setup: the hero is inside the stage-2 circle")
+	g.target = body
+	g.target_entity = v
+	g.gain_xp(0.0)
+	assert_eq(g.current_stage, 3)
+	assert_true(g.is_titan())
+	var smallest: float = shape.radius * g.scale.x
+	var largest: float = smallest
+	var kept: bool = true
+	for _i in range(45):  # the 0.5 s scale tween, frame by frame
+		await wait_physics_frames(1)
+		var world_r: float = shape.radius * g.scale.x
+		smallest = minf(smallest, world_r)
+		largest = maxf(largest, world_r)
+		kept = kept and g.target_entity == v and g.detection_area.overlaps_area(body)
+	await wait_seconds(0.3)
+	assert_true(smallest >= stage_2_aggro - 0.01, "never below the stage-2 circle (%.1f < %.1f px)" % [smallest, stage_2_aggro])
+	assert_true(largest <= g.detection_radius * stats.stage_3_scale.x + 0.01, "nor wider than the stage-3 one (%.1f px)" % largest)
+	assert_true(kept, "the chase target was never dropped")
+	assert_true(g.scale.is_equal_approx(stats.stage_3_scale * 1.5), "grown to %s" % str(g.scale))
+	assert_near(shape.radius * g.scale.x, g.detection_radius * stats.stage_3_scale.x, 0.01, "settles at the stage-3 value")
+
+
 func test_titan_fight_holds_and_the_cleave_reaches_its_range() -> void:
 	if not _isolated():
 		skip("user:// is not the isolated test dir")
@@ -507,6 +576,44 @@ func test_gravity_slam_pulls_then_damages() -> void:
 	assert_eq(b.global_position, Vector2(260, 0), "outside the 200 px pull")
 	assert_eq(b.get_health(), b.get_max_health())
 	assert_true(g.debug_meta_line().contains("pull(last 3)"), g.debug_meta_line())
+
+
+## A pull that ends short (a wall, here a longer stop distance) hits by the
+## same rule as standing on that spot: the Body circle overlaps the slam
+## circle. The query used to see the pre-pull spot, and the fallback for pulled
+## targets compared centres only, so a target pulled to slam_radius + 15 px got
+## away while one standing there was hit.
+func test_a_pull_cut_short_hits_like_standing_there() -> void:
+	if not _isolated():
+		skip("user:// is not the isolated test dir")
+		return
+	_grant(["g3_pull"])
+	var g := await _grount()
+	var slam := _slam_of(g, 5.0)
+	slam.slam_radius = 120.0  # the stage-2 radius
+	var a := await _hero(Vector2(190, 0))
+	var body_shape := (a.get_node("Body/CollisionShape2D") as CollisionShape2D).shape as CircleShape2D
+	var body_r: float = body_shape.radius * a.global_scale.x
+	# Centre outside the slam radius, Body circle inside it.
+	var inside: float = slam.slam_radius + body_r * 0.5
+	var stander := await _hero(Vector2(0, inside))  # already that close: not pulled
+	slam.pull_stop_distance = inside
+	slam._perform_slam(g)
+	assert_eq(slam.last_pull_count, 1)
+	assert_near(a.global_position.distance_to(g.global_position), inside, 0.5)
+	await wait_frames(1)
+	assert_true(stander.get_health() < stander.get_max_health(), "standing there: hit")
+	assert_true(a.get_health() < a.get_max_health(), "pulled there: hit as well")
+	# Just past the reach both miss.
+	var outside: float = slam.slam_radius + body_r + 8.0
+	var c := await _hero(Vector2(-190, 0))
+	var far_stander := await _hero(Vector2(0, -outside))
+	slam.pull_stop_distance = outside
+	slam._perform_slam(g)
+	assert_near(c.global_position.distance_to(g.global_position), outside, 0.5)
+	await wait_frames(1)
+	assert_eq(far_stander.get_health(), far_stander.get_max_health(), "standing there: missed")
+	assert_eq(c.get_health(), c.get_max_health(), "pulled there: missed as well")
 
 
 func test_gravity_slam_skips_the_dead_and_keeps_stuns() -> void:

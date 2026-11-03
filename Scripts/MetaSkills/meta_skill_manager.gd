@@ -132,7 +132,11 @@ const MONSTER_TIER_COSTS: Array[int] = [100, 500, 1000, 2000]
 ## (MonsterBase._apply_evolution_bonus_heal) and tested, but NOT seeded yet:
 ## evolution currently refills HP (MonsterBase.heal_to_full_on_evolution), so
 ## +200 capped at max would be a 1000-Leaf no-op. Append it to the Grount specs
-## once evolution heals by the README rule (new max HP - old max HP).
+## once evolution heals by the README rule (new max HP - old max HP) for every
+## monster: switching to that rule only while the node is owned would make the
+## purchase a net loss (README heal + 200 never beats a refill), and switching
+## it for everyone retunes the balance. test_grount_tree_lists_its_shipped_nodes
+## pins the tree's contents until that is decided.
 const GROUNT_SECOND_WIND_SPEC: Array = [&"g3_evoheal", "Second Wind", "Stage 2 evolution heals +200 HP", 3, "monster_stage_2_evo_heal", 200.0, "", false]
 
 
