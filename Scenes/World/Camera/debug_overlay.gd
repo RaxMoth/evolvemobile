@@ -14,10 +14,12 @@ class_name DebugOverlay
 ## immediately. When active, redraws at a throttled rate (default 10 Hz)
 ## rather than every frame.
 ##
-## Place this as a child of the camera's CanvasLayer so it stays at a
-## consistent screen-space position, but its `_draw` uses world coords by
-## reading the camera transform. (Actually we keep this as a Node2D inside
-## the CanvasLayer-free world tree so transforms are simple.)
+## Lives as a direct child of the GameCamera (MainCam.tscn) with
+## top_level = true: it ignores the camera's transform and draws on the world
+## canvas, so its local coordinates are world coordinates and _draw can use
+## global positions as-is. Never put it under a CanvasLayer: that draws the
+## world coordinates in screen space. The HUD text sits on its own
+## screen-space CanvasLayer, created in _ready.
 
 # ============================================
 # Tunables
@@ -66,7 +68,7 @@ func _ready() -> void:
 	add_child(hud_layer)
 	_hud_label = Label.new()
 	_hud_label.text = ""
-	_hud_label.position = Vector2(8, 8)
+	_hud_label.position = Vector2(8, 36)  # below MainCam's FpsCounter
 	_hud_label.add_theme_color_override("font_color", Color.WHITE)
 	_hud_label.add_theme_color_override("font_outline_color", Color.BLACK)
 	_hud_label.add_theme_constant_override("outline_size", 4)
@@ -224,9 +226,9 @@ func _draw() -> void:
 
 
 func _draw_entity(snap: EntitySnapshot) -> void:
-	# Local-space conversion: this Node2D is at the world origin (no transform
-	# of its own), so global positions are the right local coords for _draw.
-	# (As long as we don't move the DebugOverlay node in the scene.)
+	# top_level with an identity transform on the world canvas: global
+	# positions are the right local coords for _draw (as long as nothing
+	# moves the DebugOverlay node).
 	var p: Vector2 = snap.pos
 
 	# Active-hero ring.

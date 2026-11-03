@@ -2,19 +2,18 @@
 
 [ext_resource type="Script" uid="uid://brotennmld4rf" path="res://Scenes/World/Camera/main_cam.gd" id="1_yiek2"]
 [ext_resource type="PackedScene" uid="uid://bst8af4sj80cn" path="res://Scenes/UI/HeroContainer/HeroContainer.tscn" id="2_hero_ui"]
-[ext_resource type="PackedScene" uid="uid://cdebugoverlay001" path="res://Scenes/World/Camera/DebugOverlay.tscn" id="3_debug"]
+[ext_resource type="PackedScene" uid="uid://cpxp7p1b1p05y" path="res://Scenes/World/Camera/DebugOverlay.tscn" id="3_debug"]
 [ext_resource type="PackedScene" uid="uid://l0ly3ihc4b8r" path="res://Scenes/World/Camera/fps_counter.tscn" id="4_fps"]
 [ext_resource type="PackedScene" path="res://Scenes/UI/Minimap/Minimap.tscn" id="5_minimap"]
 
-[node name="MainCam" type="Camera2D"]
+[node name="MainCam" type="Camera2D" node_paths=PackedStringArray("debug_overlay")]
 script = ExtResource("1_yiek2")
+debug_overlay = NodePath("DebugOverlay")
 
 [node name="CanvasLayer" type="CanvasLayer" parent="."]
 
 [node name="HeroContainer" parent="CanvasLayer" instance=ExtResource("2_hero_ui")]
 unique_name_in_owner = true
-
-[node name="DebugOverlay" parent="CanvasLayer" instance=ExtResource("3_debug")]
 
 [node name="FpsCounter" parent="CanvasLayer" instance=ExtResource("4_fps")]
 anchors_preset = 0
@@ -26,3 +25,5 @@ grow_horizontal = 1
 grow_vertical = 1
 
 [node name="Minimap" parent="CanvasLayer" instance=ExtResource("5_minimap")]
+
+[node name="DebugOverlay" parent="." instance=ExtResource("3_debug")]

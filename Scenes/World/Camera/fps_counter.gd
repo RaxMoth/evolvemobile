@@ -7,6 +7,9 @@ var frame_count: int = 0
 var time_elapsed: float = 0.0
 var fps_history: Array[float] = []
 var max_history: int = 10
+# The font colour last applied: re-applying a theme override every update
+# notifies a theme change and relayouts the label, so only switch on change.
+var _font_color: Color = Color.YELLOW
 
 func _ready() -> void:
 	# Position in top-left corner
@@ -15,7 +18,7 @@ func _ready() -> void:
 	
 	# Style the label
 	add_theme_font_size_override("font_size", 16)
-	add_theme_color_override("font_color", Color.YELLOW)
+	add_theme_color_override("font_color", _font_color)
 	add_theme_color_override("font_outline_color", Color.BLACK)
 	add_theme_constant_override("outline_size", 2)
 
@@ -24,7 +27,7 @@ func _process(delta: float) -> void:
 	time_elapsed += delta
 	
 	if time_elapsed >= update_interval:
-		var current_fps = frame_count / time_elapsed
+		var current_fps: float = frame_count / time_elapsed
 		
 		# Update history for average
 		fps_history.append(current_fps)
@@ -32,7 +35,7 @@ func _process(delta: float) -> void:
 			fps_history.pop_front()
 		
 		# Calculate average
-		var avg_fps = 0.0
+		var avg_fps: float = 0.0
 		if show_average and fps_history.size() > 0:
 			for fps in fps_history:
 				avg_fps += fps
@@ -45,12 +48,14 @@ func _process(delta: float) -> void:
 			text = "FPS: %d" % current_fps
 		
 		# Color coding based on performance
+		var color: Color = Color.RED
 		if current_fps >= 55:
-			add_theme_color_override("font_color", Color.GREEN)
+			color = Color.GREEN
 		elif current_fps >= 30:
-			add_theme_color_override("font_color", Color.YELLOW)
-		else:
-			add_theme_color_override("font_color", Color.RED)
+			color = Color.YELLOW
+		if color != _font_color:
+			_font_color = color
+			add_theme_color_override("font_color", color)
 		
 		# Reset counters
 		frame_count = 0

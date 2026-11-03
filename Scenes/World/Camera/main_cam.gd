@@ -8,9 +8,11 @@ class_name GameCamera
 ## a hero by index, or Tab to cycle. The camera then tweens its follow_target
 ## to that hero with a brief easing — no instant snap.
 ##
-## Visual debug overlay: F3 toggles on/off. The overlay is a sibling Node2D
-## that draws entity AABBs, target lines, state labels, and threat info in
-## world space. Replaces the print-spam debugging pattern.
+## Visual debug overlay: F3 toggles on/off (debug builds). The overlay
+## (debug_overlay, wired in MainCam.tscn) is a top_level child Node2D, so it
+## draws entity rings, target lines, state labels and threat info in world
+## space on the world canvas; its HUD text sits on its own screen-space
+## CanvasLayer. Replaces the print-spam debugging pattern.
 
 # ============================================
 # Exports
@@ -45,12 +47,16 @@ class_name GameCamera
 @export_group("Screen Shake")
 @export var shake_enabled: bool = true
 
+@export_group("Debug Overlay")
+## The F3 overlay. Keep it a direct child of the camera (not under the
+## CanvasLayer): it draws world coordinates.
+@export var debug_overlay: DebugOverlay
+
 # ============================================
 # OnReady
 # ============================================
 
 @onready var hero_ui: HeroContainer = $CanvasLayer/HeroContainer as HeroContainer
-@onready var debug_overlay: Node2D = get_node_or_null("CanvasLayer/DebugOverlay") as Node2D
 
 # ============================================
 # State
@@ -126,12 +132,6 @@ func _follow_target(delta: float) -> void:
 		global_position = target_pos
 
 
-func set_follow_target(target: Node2D) -> void:
-	"""Hard-set the follow target without easing. Use switch_to_hero() for
-	the smooth-pan version."""
-	follow_target = target
-
-
 func switch_to_hero(hero: Node2D) -> void:
 	"""Smoothly tween the camera onto a new follow target. Cancels any
 	in-progress switch."""
@@ -201,7 +201,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("reset_camera_zoom"):
 		reset_zoom()
 	if event.is_action_pressed("center_camera") and follow_target:
-		center_on_position(follow_target.global_position, true)
+		center_on_position(follow_target.global_position)
 
 	# Numeric hero focus + Tab to cycle. Routes through HeroContainer so the
 	# panel highlight stays in sync.
@@ -284,8 +284,7 @@ func _toggle_debug_overlay() -> void:
 	if not is_instance_valid(debug_overlay):
 		return
 	debug_overlay.visible = not debug_overlay.visible
-	if debug_overlay.has_method("set_active"):
-		debug_overlay.set_active(debug_overlay.visible)
+	debug_overlay.set_active(debug_overlay.visible)
 
 
 # ============================================
@@ -364,12 +363,8 @@ func _update_shake(delta: float) -> void:
 		offset = Vector2.ZERO
 
 
-func center_on_position(pos: Vector2, instant: bool = false) -> void:
-	if instant:
-		global_position = pos
-	else:
-		var tween := create_tween()
-		tween.tween_property(self, "global_position", pos, 0.5)
+func center_on_position(pos: Vector2) -> void:
+	global_position = pos
 
 
 func get_viewport_rect_in_world() -> Rect2:
