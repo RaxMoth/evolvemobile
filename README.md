@@ -199,7 +199,8 @@ Power Level
 
 ### Evolution Mechanics
 
-- **Healing on Evolution**: Gains (new max HP - old max HP)
+- **Healing on Evolution**: Gains (new max HP - old max HP). The tuned build refills HP on evolution
+  instead (`MonsterBase.heal_to_full_on_evolution = true`; false = this README rule) — open decision
 - **Visual Changes**: Orange tint (Stage 2), Red glow (Stage 3)
 - **Screen Shake**: Alerts players to evolution
 - **Ability Unlocks**: Ground Slam unlocks at Stage 2
@@ -693,13 +694,19 @@ res://
 
 **Tier 3**:
 
-- Stage 2 Evolution Heal +200 HP
-- Ground Slam Pulls Enemies (200 radius pull)
-- Enrage at <20% HP (+30% speed, +50% dmg)
+- Stage 2 Evolution Heal +200 HP — *wired as "Second Wind", not in the tree yet: evolution currently
+  refills HP, so +200 would heal nothing (see Evolution Mechanics)*
+- Ground Slam Pulls Enemies (200 radius pull) — **Gravity Slam**: at impact, living heroes, Ted's pet
+  and mobs within 200 px are dragged to 80 px from the impact along the nav mesh (walls stop them),
+  then the slam damage lands
+- Enrage at <20% HP (+30% speed, +50% dmg) — **Enrage**: move speed and every cast; ends as soon as
+  HP is back at 20% of max (rest regen, evolution heal)
 
 **Tier 4**:
 
-- Ultimate: Titan Form (Stage 3: +50% size, +500 HP, +20 range)
+- Ultimate: Titan Form (Stage 3: +50% size, +500 HP, +20 range) — **Titan Form** (2000 Leaves): x1.5
+  scale on top of the stage-3 scale (aggro radius unchanged), +500 flat max HP (healed on reaching
+  Stage 3), +20 flat attack range, Front Cleave reach and Fight leave distance
 - Unlock: Second Ultimate Ability
 
 **Permanent XP** (Per Monster):
@@ -836,9 +843,12 @@ Max out hero trees → Unlock new heroes → Compete on leaderboards
 
 **High Priority**:
 
-- [ ] **Behaviour-changing skill nodes** — first three ship: Grount "Stunning Charge" (Ram Dash
-      stuns 0.5 s), "Early Slam" (Ground Slam at Stage 1), River "Triple Shot" (sniper shots hit 2
-      more enemies). Open: Slam pull, Enrage, trap/barrage slows, Titan Form, second ultimate
+- [ ] **Behaviour-changing skill nodes** — shipped: Grount "Stunning Charge" (Ram Dash stuns 0.5 s),
+      "Early Slam" (Ground Slam at Stage 1), "Gravity Slam" (200 px pull), "Enrage" (<20% HP: +30%
+      speed, +50% dmg), "Titan Form" (T4); River "Triple Shot" (sniper shots hit 2 more enemies).
+      Open: "Second Wind" (needs the evolution-heal decision), trap/barrage slows (River's README kit
+      — Snare Trap, Arrow Barrage — differs from the shipped Weapon Swap / Supply Drop), second
+      ultimate
 - [ ] **Device build** — export presets, measure the perf pass on a mid-range phone, retune the
       shrunken aggro / AoE ranges from the collision-layer split
 - [ ] **Real audio assets** — drop `.ogg`/`.wav` files into `Assets/Audio/` (keys in its README)
@@ -937,6 +947,9 @@ Max out hero trees → Unlock new heroes → Compete on leaderboards
 - [x] Loss-condition timer — 10-minute match cap in `GameManager`
 - [ ] Hero composition is fixed (can't choose which 4 heroes yet)
 - [ ] Monster spawn location is random within Zone 3 (should it become a strategic choice?)
+- [ ] Evolution refills the monster's HP, while this README says "new max HP - old max HP": decide
+      which rule ships (`MonsterBase.heal_to_full_on_evolution`), then seed Grount's "Second Wind"
+      (`MetaSkillManager.GROUNT_SECOND_WIND_SPEC`)
 
 ---
 

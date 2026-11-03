@@ -76,9 +76,10 @@ Spec source: `README.md` + `Docs/INSTRUCTOR.md` (roadmap, "Current Status & Road
       `HeroStats.hero_id`, hero vision radius now lives on HeroStats too). Ability-modifying nodes
       DONE: `MetaSkillNode.ability_name` + property (cooldown / damage / range / AoE / duration /
       heal / any ability export), applied to per-entity ability copies, re-applied through monster
-      stage changes; 2–3 per tree. Behaviour nodes STARTED: Grount "Stunning Charge" (Ram Dash
-      stun) and "Early Slam" (slam at Stage 1), River "Triple Shot". OPEN: Slam pull, Enrage,
-      trap/barrage slows, Titan Form, second ultimate (each needs its own ability code).
+      stage changes; 2–3 per tree. Behaviour nodes: Grount Stunning Charge, Early Slam, Gravity
+      Slam, Enrage, Titan Form (T4, 2000 Leaves) and River Triple Shot ship. Second Wind is wired but
+      held back (evolution heals to full — README says new max − old max: user decision). OPEN:
+      trap/barrage slows (River's README kit differs from the shipped one), second ultimate.
 - [ ] Hero composition selection — `HeroRoster.tres`, World spawns from `GameManager.selected_hero_ids`
 - [x] Tutorial / first-time-user flow — `TutorialOverlay` (4 data-driven steps, scene-side wiring,
       shown once via `tutorial_seen`, "How to play" footer button re-opens it); 2 tests.
