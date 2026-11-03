@@ -126,8 +126,6 @@ func _should_auto_use_ultimate() -> bool:
 # Add to HeroBase class
 var exploration_target: Vector2 = Vector2.ZERO
 var use_exploration_target: bool = false
-var exploration_target_smooth: Vector2 = Vector2.ZERO # Smoothed target
-var target_smooth_speed: float = 5.0 # How fast to smooth
 
 func set_exploration_target(new_target: Vector2) -> void:
 	exploration_target = new_target

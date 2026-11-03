@@ -1,15 +1,9 @@
 extends Node
 class_name HeroExplorationController
 
-signal exploration_target_reached(position: Vector2)
-signal monster_detected(monster: Node2D)
-
 @export_group("Performance")
 @export var boids_update_interval: float = 0.1
 @export var max_separation_checks: int = 3
-## How often heroes check for a monster within 400 px (was every frame, Hero×Monster).
-@export var monster_check_interval: float = 0.25
-var _monster_check_timer: float = 0.0
 var boids_timer: float = 0.0
 var cached_boids_data: Dictionary = {}
 
@@ -41,7 +35,6 @@ var fog_system: FogOfWarSystem = null
 var current_group_target: Vector2 = Vector2.ZERO
 var exploration_timer: float = 0.0
 
-var hero_solo_mode: Dictionary = {}
 var hero_formation_offset: Dictionary = {}
 ## Slot per hero in the leader's frame (x = forward, y = right), in units of
 ## formation_spread. Pets have no slot (they follow their owner).
@@ -54,7 +47,10 @@ var hero_last_positions: Dictionary = {}
 var hero_stuck_timers: Dictionary = {}
 var hero_stuck_anchor: Dictionary = {}
 
+## Waypoints the group reached, newest last. Only the last
+## RECENT_TARGET_MEMORY are kept (and read by _is_recently_explored).
 var explored_targets: Array[Vector2] = []
+const RECENT_TARGET_MEMORY: int = 5
 ## Waypoints the group stopped making progress toward (walled-off fog,
 ## unreachable pockets): skipped from then on so exploration moves on.
 var _unreachable_targets: Array[Vector2] = []
@@ -63,7 +59,6 @@ var _last_group_center: Vector2 = Vector2.INF
 ## Seconds of < 60 px group progress (out of combat) before a waypoint is
 ## abandoned. The group used to sit in a corner for minutes.
 @export var waypoint_stall_timeout: float = 9.0
-var current_exploration_zone: Vector2 = Vector2.ZERO
 
 func _ready() -> void:
 	# NOTE: Group "HeroExplorationController" is declared in
@@ -98,30 +93,14 @@ func _process(delta: float) -> void:
 	
 	_update_hero_flow(delta)
 	_check_stuck_heroes(delta)
-	_monster_check_timer -= delta
-	if _monster_check_timer <= 0.0:
-		_monster_check_timer = monster_check_interval
-		_check_for_monsters()
 
 # ============================================
-# NEW: PUBLIC API FOR HEROES TO USE
+# PUBLIC API FOR HEROES TO USE
 # ============================================
 
 func get_current_group_target() -> Vector2:
 	"""Get the current exploration target for heroes to use in idle"""
 	return current_group_target
-
-func get_hero_exploration_target(hero: Node2D) -> Vector2:
-	"""Get specific target for a hero including formation offset"""
-	if not is_instance_valid(hero):
-		return Vector2.ZERO
-	
-	var formation_offset = hero_formation_offset.get(hero, Vector2.ZERO)
-	return current_group_target + formation_offset
-
-func is_hero_in_group_mode(hero: Node2D) -> bool:
-	"""Check if hero is following group exploration"""
-	return not hero_solo_mode.get(hero, false)
 
 # ============================================
 # IMPROVED EXPLORATION TARGET SELECTION
@@ -136,16 +115,16 @@ func _update_exploration_targets() -> void:
 	# Check if we reached the current target
 	if group_center.distance_to(current_group_target) < waypoint_reached_distance:
 		explored_targets.append(current_group_target)
+		if explored_targets.size() > RECENT_TARGET_MEMORY:
+			explored_targets.pop_front()
 	else:
 		_track_stall(group_center)
-	
+
 	# Find next target preferring forward direction
 	var unexplored_target = _find_next_exploration_zone(group_center)
-	
+
 	if unexplored_target != Vector2.ZERO:
 		current_group_target = unexplored_target
-		current_exploration_zone = unexplored_target
-		exploration_target_reached.emit(unexplored_target)
 	else:
 		# Fallback: random unexplored area
 		current_group_target = _get_random_unexplored_position(group_center)
@@ -302,7 +281,6 @@ func _cleanup_freed_heroes() -> void:
 		
 		if not is_instance_valid(hero):
 			heroes.remove_at(i)
-			hero_solo_mode.erase(hero)
 			hero_formation_offset.erase(hero)
 			if _formation_slots.has(hero) or hero == _formation_leader:
 				_formation_slots.erase(hero)
@@ -324,11 +302,8 @@ func _find_heroes() -> void:
 	for hero in found_heroes:
 		if hero is Node2D:
 			heroes.append(hero)
-			hero_solo_mode[hero] = false
 			hero_last_positions[hero] = hero.global_position
 			hero_stuck_timers[hero] = 0.0
-	
-	Globals.debug_log("HeroExplorationController: Found ", heroes.size(), " heroes")
 
 func _find_fog_system() -> void:
 	fog_system = EntityRegistry.singleton(&"FogOfWar") as FogOfWarSystem
@@ -405,14 +380,10 @@ func _count_unexplored_in_area(center: Vector2, radius: float) -> int:
 	
 	return count
 
-func _is_recently_explored(position: Vector2) -> bool:
-	var recent_memory = 5
-	var check_count = min(recent_memory, explored_targets.size())
-	
-	for i in range(explored_targets.size() - check_count, explored_targets.size()):
-		if explored_targets[i].distance_to(position) < 200.0:
+func _is_recently_explored(pos: Vector2) -> bool:
+	for t in explored_targets:
+		if t.distance_to(pos) < 200.0:
 			return true
-	
 	return false
 
 func _update_hero_flow(delta: float) -> void:
@@ -423,12 +394,7 @@ func _update_hero_flow(delta: float) -> void:
 		_recalculate_boids()
 	
 	for hero in heroes:
-		if not is_instance_valid(hero):
-			continue
-		
-		if hero_solo_mode.get(hero, false):
-			_update_solo_hero(hero, delta)
-		else:
+		if is_instance_valid(hero):
 			_apply_cached_boids(hero)
 
 func _recalculate_boids() -> void:
@@ -471,10 +437,6 @@ func _apply_cached_boids(hero: Node2D) -> void:
 	
 	if hero.has_method("set_exploration_target"):
 		hero.set_exploration_target(final_target)
-
-func _update_solo_hero(hero: Node2D, _delta: float) -> void:
-	# Solo heroes just explore on their own
-	pass
 
 func _calculate_separation(hero: Node2D) -> Vector2:
 	var separation = Vector2.ZERO
@@ -602,30 +564,3 @@ func _get_random_map_position() -> Vector2:
 		randf_range(0, fog_system.world_size.x),
 		randf_range(0, fog_system.world_size.y)
 	) + fog_system.world_offset
-
-func _check_for_monsters() -> void:
-	const DETECT_RANGE_SQ: float = 400.0 * 400.0
-	for monster in EntityRegistry.monsters:
-		if not is_instance_valid(monster) or not EntityRegistry.is_entity_alive(monster):
-			continue
-		for hero in heroes:
-			if not is_instance_valid(hero):
-				continue
-			if hero.global_position.distance_squared_to(monster.global_position) < DETECT_RANGE_SQ:
-				monster_detected.emit(monster)
-				return
-
-func set_hero_mode(hero: Node2D, solo_mode: bool) -> void:
-	if hero in hero_solo_mode:
-		hero_solo_mode[hero] = solo_mode
-
-func get_hero_mode(hero: Node2D) -> bool:
-	return hero_solo_mode.get(hero, false)
-
-func get_exploration_progress() -> float:
-	if fog_system:
-		return fog_system.get_exploration_percentage()
-	return 0.0
-
-func force_update_targets() -> void:
-	exploration_timer = 0.0

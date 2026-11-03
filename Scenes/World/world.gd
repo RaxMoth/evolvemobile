@@ -162,14 +162,6 @@ func _setup_exploration_controller():
 	# this scene's instance if you ever want different defaults per map.
 	exploration_controller = HERO_EXPL_CTRL_SCENE.instantiate() as HeroExplorationController
 	add_child(exploration_controller)
-	exploration_controller.exploration_target_reached.connect(_on_exploration_target_reached)
-	exploration_controller.monster_detected.connect(_on_monster_detected)
-
-func _on_exploration_target_reached(position: Vector2) -> void:
-	pass
-
-func _on_monster_detected(monster: Node2D) -> void:
-	pass
 
 # ============================================
 # DEBUG FUNCTIONS (Optional - Press F1 to test)
