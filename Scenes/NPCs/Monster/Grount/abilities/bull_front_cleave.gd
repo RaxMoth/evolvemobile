@@ -20,7 +20,7 @@ func apply_stage_stats(stage: int) -> void:
 	if cone_angle_per_stage.size() >= stage and stage > 0:
 		cone_angle = cone_angle_per_stage[stage - 1]
 
-func execute(caster: Node2D, target: Node2D = null, override_damage: float = -1.0) -> void:
+func execute(caster: Node2D, _target: Node2D = null, override_damage: float = -1.0) -> void:
 	var effective_damage = override_damage if override_damage >= 0.0 else damage
 	
 	var sprite = caster.get_node("Sprite2D")
@@ -42,7 +42,7 @@ func execute(caster: Node2D, target: Node2D = null, override_damage: float = -1.
 	
 	var results = space_state.intersect_shape(query, 32)
 
-	var hit_count = 0
+	var half_cone: float = deg_to_rad(cone_angle * 0.5)
 	var checked_entities: Array = [] # Track which actual entities we've checked
 	
 	for result in results:
@@ -60,9 +60,9 @@ func execute(caster: Node2D, target: Node2D = null, override_damage: float = -1.
 		
 		# Check if entity is in front cone
 		var to_entity = (entity.global_position - caster.global_position).normalized()
-		var angle_to_entity = forward_dir.angle_to(to_entity)
+		var angle_to_entity: float = forward_dir.angle_to(to_entity)
 
-		if abs(angle_to_entity) > deg_to_rad(cone_angle / 2.0):
+		if absf(angle_to_entity) > half_cone:
 			continue
 
 		# Check targeting
@@ -74,23 +74,9 @@ func execute(caster: Node2D, target: Node2D = null, override_damage: float = -1.
 
 		if can_hit:
 			EventBus.deal_damage(caster, entity, effective_damage, self)
-			hit_count += 1
-	
-	_create_cleave_effect(caster, forward_dir)
 
 
 func _caster_range_bonus(caster: Node2D) -> float:
 	if caster != null and caster.has_method(&"get_range_bonus"):
 		return float(caster.call(&"get_range_bonus"))
 	return 0.0
-
-
-func _create_cleave_effect(caster: Node2D, direction: Vector2) -> void:
-	var effect = Node2D.new()
-	caster.get_parent().add_child(effect)
-	effect.global_position = caster.global_position
-	effect.rotation = direction.angle()
-	
-	var tween = effect.create_tween()
-	tween.tween_property(effect, "modulate:a", 0.0, 0.3)
-	tween.tween_callback(effect.queue_free)

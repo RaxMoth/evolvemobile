@@ -189,7 +189,9 @@ Findings worth knowing:
   Farming Path, Tuning Knobs); stage-3 ability tables (fights end in ~16–18 s) vs the Balance Sheet
   Late row (40–45 s fights); Front Cleave stage-1 cooldown 2.5 s (data) vs 4.5 s; Bat 50 HP / 1.5 s
   (data) vs 25 HP / 0.6 s; `stage_N_damage_multiplier` has no effect on Grount (all abilities tabled);
-  hero kills pay the monster 100 XP (undocumented).
+  hero kills pay the monster 100 XP (undocumented); Ram Dash "Charge forward, knockback" (README
+  ability table) but no entity implements `apply_knockback`, so `knockback_force` does nothing (the
+  dead per-hit branch was removed in the cleanup; implementing knockback waits for a user decision).
 - v13B by stage at first contact: stage 1 → heroes 4/5, stage 3 → heroes 7/15 (47%, ~1,570 of 2,200 HP
   dealt), no contact (10-min timeout) → 4 runs. Stage-3 Cleave and Slam now hit lighter than at stage 2
   but recast faster, so the DPS still rises per stage (Cleave 5.7 → 6.7/s, Slam 2.1 → 2.8/s). Variant A

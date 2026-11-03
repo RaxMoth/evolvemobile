@@ -63,12 +63,11 @@ func execute(caster: Node2D, target: Node2D = null, override_damage: float = -1.
 		target_pos = start_pos + to_t.normalized() * minf(leap_distance, to_t.length())
 	target_pos = GameUtils.clamp_to_nav_segment(caster.get_world_2d(), start_pos, target_pos)
 	_airborne = true
-	Globals.debug_log(caster.name, " leaps into the air!")
 	
 	# Animate jump
-	_perform_jump(caster, start_pos, target_pos)
+	_perform_jump(caster, target_pos)
 
-func _perform_jump(caster: Node2D, start_pos: Vector2, target_pos: Vector2) -> void:
+func _perform_jump(caster: Node2D, target_pos: Vector2) -> void:
 	# Jump animation using tween
 	var tween = caster.create_tween()
 	tween.set_parallel(true)
@@ -101,7 +100,6 @@ func _perform_jump(caster: Node2D, start_pos: Vector2, target_pos: Vector2) -> v
 	_airborne = false
 
 func _perform_slam(caster: Node2D) -> void:
-	Globals.debug_log(caster.name, " SLAMS the ground!")
 	# Gravity Slam first: the damage lands on the pulled positions.
 	_pull_enemies(caster)
 	
@@ -119,7 +117,6 @@ func _perform_slam(caster: Node2D) -> void:
 	query.collision_mask = GameUtils.MASK_MONSTER_TARGETS
 	
 	var results = space_state.intersect_shape(query, 32)
-	var hit_count = 0
 	var hit_entities: Array = []
 	
 	for result in results:
@@ -132,7 +129,6 @@ func _perform_slam(caster: Node2D) -> void:
 		
 		if _can_hit(entity):
 			EventBus.deal_damage(caster, entity, _effective_damage, self)
-			hit_count += 1
 
 
 ## The slam's target rule: heroes (Ted's pet included) or mobs, never another monster.

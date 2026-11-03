@@ -3,6 +3,7 @@ extends AbilityBase
 
 @export var dash_distance: float = 300.0
 @export var dash_speed: float = 500.0
+## Not implemented: no entity has apply_knockback (see PROGRESS)
 @export var knockback_force: float = 200.0
 ## A targeted dash ends this far in front of the target (Front Cleave range)
 ## instead of always travelling the full distance and overshooting by 200+ px.
@@ -83,13 +84,13 @@ func _dash_update(caster: Node2D) -> void:
 		is_dashing = false  # hit a wall
 	
 	# Check for collisions during dash
-	_check_dash_collisions(caster, old_pos)
+	_check_dash_collisions(caster)
 	
 	# Continue dashing
 	if is_dashing:
 		caster.get_tree().create_timer(0.0).timeout.connect(_dash_update.bind(caster))
 
-func _check_dash_collisions(caster: Node2D, previous_pos: Vector2) -> void:
+func _check_dash_collisions(caster: Node2D) -> void:
 	# Check for entities hit during dash
 	var space_state = caster.get_world_2d().direct_space_state
 	var query = PhysicsShapeQueryParameters2D.new()
@@ -128,7 +129,3 @@ func _check_dash_collisions(caster: Node2D, previous_pos: Vector2) -> void:
 			_hit_entities.append(entity) # Mark as hit
 			if stun_duration > 0.0 and entity is EntityBase:
 				(entity as EntityBase).apply_stun(stun_duration)
-
-			# Apply knockback
-			if entity.has_method("apply_knockback"):
-				entity.apply_knockback(dash_direction * knockback_force)
