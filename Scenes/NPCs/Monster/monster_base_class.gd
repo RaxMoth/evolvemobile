@@ -474,29 +474,11 @@ func _play_stage_effect(stage: int) -> void:
 		flash_tween.tween_property(animated_sprite, "modulate", original, 0.3)
 	
 	# Expanding ring effect
-	var effect = Node2D.new()
-	get_parent().add_child(effect)
-	effect.global_position = global_position
-	effect.z_index = 10
-	
-	var circle = Line2D.new()
-	effect.add_child(circle)
-	
+	var ring_color: Color = Color.YELLOW
 	match stage:
-		2: circle.default_color = Color.ORANGE
-		3: circle.default_color = Color.RED
-		_: circle.default_color = Color.YELLOW
-	
-	circle.width = 5.0
-	for i in range(33):
-		var angle = i * TAU / 32
-		circle.add_point(Vector2(cos(angle), sin(angle)) * 50)
-	
-	var tween: Tween = effect.create_tween()
-	tween.set_parallel(true)
-	tween.tween_property(effect, "scale", Vector2(5, 5), 0.8)
-	tween.tween_property(circle, "modulate:a", 0.0, 0.8)
-	tween.tween_callback(effect.queue_free)
+		2: ring_color = Color.ORANGE
+		3: ring_color = Color.RED
+	RingPulse.spawn(get_parent(), global_position, ring_color, 50.0, 5.0, 5.0, 0.8, 10)
 
 # ============================================
 # Combat & AI

@@ -43,23 +43,5 @@ func _create_drop_effect(medikit: Node2D) -> void:
 	_create_impact_wave(medikit)
 
 func _create_impact_wave(medikit: Node2D) -> void:
-	var wave = Node2D.new()
-	medikit.get_parent().add_child(wave)
-	wave.global_position = medikit.global_position
-	wave.z_index = -1
-	
-	# Draw expanding circle
-	var circle = Line2D.new()
-	wave.add_child(circle)
-	circle.default_color = Color.GREEN
-	circle.width = 2.0
-	
-	for i in range(33):
-		var angle = i * TAU / 32
-		circle.add_point(Vector2(cos(angle), sin(angle)) * 10)
-	
-	var tween = wave.create_tween()
-	tween.set_parallel(true)
-	tween.tween_property(wave, "scale", Vector2(6, 6), 0.4)
-	tween.tween_property(circle, "modulate:a", 0.0, 0.4)
-	tween.tween_callback(wave.queue_free)
+	# Green ring under the entities where the kit lands
+	RingPulse.spawn(medikit.get_parent(), medikit.global_position, Color.GREEN, 10.0, 6.0, 2.0, 0.4, -1)

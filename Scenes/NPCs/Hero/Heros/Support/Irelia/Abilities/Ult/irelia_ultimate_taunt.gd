@@ -117,24 +117,5 @@ func _create_taunt_effect(caster: Node2D) -> void:
 	if not is_instance_valid(caster):
 		return
 	
-	# Red expanding ring around Irelia
-	var effect = Node2D.new()
-	caster.get_parent().add_child(effect)
-	effect.global_position = caster.global_position
-	effect.z_index = 10
-	
-	# Draw expanding circle
-	var circle = Line2D.new()
-	effect.add_child(circle)
-	circle.default_color = Color.RED
-	circle.width = 3.0
-	
-	for i in range(33):
-		var angle = i * TAU / 32
-		circle.add_point(Vector2(cos(angle), sin(angle)) * 50)
-	
-	var tween = effect.create_tween()
-	tween.set_parallel(true)
-	tween.tween_property(effect, "scale", Vector2(ability_range / 50.0, ability_range / 50.0), 0.5)
-	tween.tween_property(circle, "modulate:a", 0.0, 0.5)
-	tween.tween_callback(effect.queue_free)
+	# Red expanding ring around Irelia, out to the taunt range
+	RingPulse.spawn(caster.get_parent(), caster.global_position, Color.RED, 50.0, ability_range / 50.0, 3.0, 0.5, 10)
