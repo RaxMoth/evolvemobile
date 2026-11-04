@@ -65,21 +65,10 @@ func _process(_delta: float) -> void:
 			enemy.global_position = GameUtils.clamp_to_nav_segment(get_world_2d(), enemy.global_position, push_pos)
 
 func _scan_for_enemies() -> void:
-	var space_state = get_world_2d().direct_space_state
-	var query = PhysicsShapeQueryParameters2D.new()
-	var shape = CircleShape2D.new()
-	shape.radius = cage_radius
-	query.shape = shape
-	query.transform = Transform2D(0, global_position)
-	query.collide_with_areas = true
-	query.collide_with_bodies = false
-	query.collision_mask = GameUtils.MASK_HERO_TARGETS
-	
-	var results = space_state.intersect_shape(query, 32)
-	
-	for result in results:
-		var entity = _get_entity(result.collider)
-		if entity and not trapped_enemies.has(entity) and _is_valid_target(entity):
+	# Runs once, from _ready: entities_in_circle returns each entity once.
+	for entity in GameUtils.entities_in_circle(get_world_2d(), global_position, cage_radius,
+			GameUtils.MASK_HERO_TARGETS, false):
+		if entity is EntityBase and _is_valid_target(entity):
 			trapped_enemies.append(entity)
 			_trapped_life_ids[entity] = entity.get("life_id")
 			_apply_trap_effect(entity)

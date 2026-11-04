@@ -71,35 +71,12 @@ func _explode() -> void:
 	tween.tween_property(self, "modulate:a", 0.0, 0.2)
 	await get_tree().create_timer(explosion_delay).timeout
 	
-	var space_state = get_world_2d().direct_space_state
-	var query = PhysicsShapeQueryParameters2D.new()
-	var shape = CircleShape2D.new()
-	shape.radius = detection_radius
-	query.shape = shape
-	query.transform = Transform2D(0, global_position)
-	query.collide_with_areas = true
-	query.collide_with_bodies = false
-	query.collision_mask = GameUtils.MASK_HERO_TARGETS
-	
-	var results = space_state.intersect_shape(query, 32)
-	var hit_entities: Array = []
-	
-	for result in results:
-		var collider = result.collider
-		var entity = null
-		
-		if collider.has_method("get_parent"):
-			entity = collider.get_parent()
-		elif collider.has_method("get_owner"):
-			entity = collider.get_owner()
-		else:
-			entity = collider
-		
-		if entity == owner_entity:
-			continue
-		
-		if entity and entity.is_in_group("Enemy") and not hit_entities.has(entity):
-			hit_entities.append(entity)
+	# Every enemy in range, once each (never the placer). owner_entity is
+	# freed once the placer dies, and a freed object is no valid typed argument.
+	var placer: Node2D = owner_entity if is_instance_valid(owner_entity) else null
+	for entity in GameUtils.entities_in_circle(get_world_2d(), global_position, detection_radius,
+			GameUtils.MASK_HERO_TARGETS, false, placer):
+		if entity.is_in_group("Enemy"):
 			# The mine acts as the source — owner_entity is the placer for attribution
 			EventBus.deal_damage(owner_entity, entity, damage, null)
 	

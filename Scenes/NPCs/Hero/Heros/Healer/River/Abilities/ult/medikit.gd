@@ -83,28 +83,13 @@ func _create_heal_effect(hero: Node2D) -> void:
 	tween.tween_property(hero, "modulate", original_modulate, 0.2)
 
 func _check_if_should_disappear() -> void:
-	# Find all heroes in range
-	var space_state = get_world_2d().direct_space_state
-	var query = PhysicsShapeQueryParameters2D.new()
-	var shape = CircleShape2D.new()
-	shape.radius = detection_radius
-	query.shape = shape
-	query.transform = Transform2D(0, global_position)
-	query.collide_with_areas = true
-	query.collide_with_bodies = false
-	query.collision_mask = GameUtils.MASK_HEROES
-	
-	var results = space_state.intersect_shape(query, 32)
-	var heroes_in_range = 0
-	
-	for result in results:
-		var entity = result.collider
-		if entity.has_method("get_parent"):
-			entity = entity.get_parent()
-		
+	# Every hero in range, once each.
+	var heroes_in_range: int = 0
+	for entity in GameUtils.entities_in_circle(get_world_2d(), global_position, detection_radius,
+			GameUtils.MASK_HEROES, false):
 		# Only heroes the kit can heal (Ted's pet has a hitbox on the hero
 		# layer now and kept the kit alive for its whole lifetime).
-		if entity and entity is HeroBase:
+		if entity is HeroBase:
 			heroes_in_range += 1
 			if not healed_heroes.has(entity):
 				# Still heroes to heal
