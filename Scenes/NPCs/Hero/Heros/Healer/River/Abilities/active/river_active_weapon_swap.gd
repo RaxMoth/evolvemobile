@@ -1,6 +1,9 @@
 extends AbilityBase
 class_name RiverActiveWeaponSwap
 
+## River's two weapons. The current mode lives only here, on River's own copy
+## of this active (AbilitySystem.make_abilities_unique): River.get_weapon_mode()
+## and RiverBasicAttack read it, and only execute() changes it.
 enum WeaponMode {
 	SNIPER,
 	HEAL_STAFF
@@ -8,34 +11,11 @@ enum WeaponMode {
 
 var current_mode: WeaponMode = WeaponMode.SNIPER
 
-func execute(caster: Node2D, _target: Node2D = null, _override_damage: float = -1.0) -> void:
+func execute(_caster: Node2D, _target: Node2D = null, _override_damage: float = -1.0) -> void:
 	if current_mode == WeaponMode.SNIPER:
 		current_mode = WeaponMode.HEAL_STAFF
 	else:
 		current_mode = WeaponMode.SNIPER
-	
-	_update_caster_weapon(caster)
-
-func _update_caster_weapon(caster: Node2D) -> void:
-	if not caster.has_node("AbilitySystem"):
-		return
-	
-	# Swap the basic attack based on mode
-	match current_mode:
-		WeaponMode.SNIPER:
-			# Will use sniper attack
-			if caster.has_method("set_weapon_mode"):
-				caster.set_weapon_mode("sniper")
-		WeaponMode.HEAL_STAFF:
-			# Will use heal staff
-			if caster.has_method("set_weapon_mode"):
-				caster.set_weapon_mode("heal_staff")
 
 func get_current_mode() -> WeaponMode:
 	return current_mode
-
-func is_sniper_mode() -> bool:
-	return current_mode == WeaponMode.SNIPER
-
-func is_heal_mode() -> bool:
-	return current_mode == WeaponMode.HEAL_STAFF

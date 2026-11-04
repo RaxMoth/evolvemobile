@@ -19,16 +19,16 @@ func can_use(caster: Node2D) -> bool:
 	return true
 
 func execute(caster: Node2D, target: Node2D = null, _override_damage: float = -1.0) -> void:
-	# Check current weapon mode from River
+	# River's weapon mode (River.get_weapon_mode) picks the shot.
 	if not caster.has_method("get_weapon_mode"):
 		return
 	
-	var mode = caster.get_weapon_mode()
+	var mode: int = caster.get_weapon_mode()
 	
 	match mode:
-		0: # SNIPER mode
+		RiverActiveWeaponSwap.WeaponMode.SNIPER:
 			_execute_sniper(caster, target)
-		1: # HEAL_STAFF mode
+		RiverActiveWeaponSwap.WeaponMode.HEAL_STAFF:
 			_execute_heal(caster, target)
 
 func _execute_sniper(caster: Node2D, target: Node2D) -> void:
@@ -71,25 +71,16 @@ func _extra_targets_near(caster: Node2D, primary: Node2D) -> Array[Node2D]:
 	return found.slice(0, extra_targets)
 
 
+## River only swings the staff at the wounded ally she picked
+## (River._find_nearest_wounded_ally), never at herself.
 func _execute_heal(caster: Node2D, target: Node2D) -> void:
-	# If no target, find nearest ally
-	if not target:
-		target = _find_nearest_ally(caster)
-	
-	if not target:
+	if not target or target == caster:
 		return
 	
-	# Don't heal self
-	if target == caster:
-		return
-	
-	var distance = caster.global_position.distance_to(target.global_position)
+	var distance := caster.global_position.distance_to(target.global_position)
 	if distance <= heal_range:
-		# Apply healing
-		if target.has_method("heal"):
-			target.heal(heal_amount)
-		elif target.has_node("HeroStats"):
-			var stats = target.get_node("HeroStats")
+		var stats := target.get_node_or_null("HeroStats") as HeroStatsComponent
+		if stats:
 			stats.heal(heal_amount)
 		
 		# Visual feedback
@@ -98,38 +89,8 @@ func _execute_heal(caster: Node2D, target: Node2D) -> void:
 		# Update cooldown to heal speed
 		cooldown = heal_cooldown
 
-func _find_nearest_ally(caster: Node2D) -> Node2D:
-	var heroes = caster.get_tree().get_nodes_in_group("Hero")
-	var nearest: Node2D = null
-	var nearest_distance := INF
-	
-	for hero in heroes:
-		if hero == caster:
-			continue
-		
-		if not hero.has_method("is_alive") or not hero.is_alive():
-			continue
-		
-		var distance = caster.global_position.distance_to(hero.global_position)
-		if distance < nearest_distance and distance <= heal_range:
-			nearest_distance = distance
-			nearest = hero
-	
-	return nearest
-
 func _create_sniper_effect(caster: Node2D, target: Node2D) -> void:
 	GameUtils.flash_line(caster.get_parent(), caster.global_position, target.global_position, Color.ORANGE, 2.0, 0.3)
 
 func _create_heal_effect(caster: Node2D, target: Node2D) -> void:
 	GameUtils.flash_line(caster.get_parent(), caster.global_position, target.global_position, Color.GREEN, 3.0, 0.4)
-
-# Return current stats based on mode
-func get_current_range(caster: Node2D) -> float:
-	if caster.has_method("get_weapon_mode"):
-		return ability_range if caster.get_weapon_mode() == 0 else heal_range
-	return ability_range
-
-func get_current_cooldown(caster: Node2D) -> float:
-	if caster.has_method("get_weapon_mode"):
-		return sniper_cooldown if caster.get_weapon_mode() == 0 else heal_cooldown
-	return sniper_cooldown

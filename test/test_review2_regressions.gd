@@ -63,8 +63,12 @@ func test_river_exposes_weapon_mode_and_scaled_range() -> void:
 	assert_true(river.has_method("get_weapon_mode"), "RiverBasicAttack.execute needs it or River never attacks")
 	assert_eq(river.get_weapon_mode(), 0)
 	assert_near(river.attack_range, 300.0, 0.01)
-	river.set_weapon_mode("heal_staff")
-	assert_near(river.attack_range, river.heal_max_range, 0.01)
+	river._use_active_now()  # the Weapon Swap: flips the mode on River's own copy of the active
+	assert_eq(river.get_weapon_mode(), 1, "heal staff")
+	var basic := (river.get_node("AbilitySystem") as AbilitySystem).basic_attack as RiverBasicAttack
+	assert_near(river.attack_range, basic.heal_range, 0.01, "heal-mode reach is the staff's heal_range")
+	var shared: AbilityBase = load("res://Scenes/NPCs/Hero/Heros/Healer/River/Abilities/active/river_active.tres")
+	assert_eq(int(shared.get("current_mode")), 0, "the shared .tres keeps its mode")
 	river.queue_free()
 
 

@@ -1,17 +1,10 @@
 extends HeroBase
 class_name River
 
-enum WeaponMode {
-	SNIPER,
-	HEAL_STAFF
-}
-
 @export_group("Healer Behavior")
 ## Heal targets at or below this HP fraction. River's blackboard query
 ## skips fully-healthy allies so she only swaps to staff for real injuries.
 @export var heal_threshold_pct: float = 0.95
-## Maximum range to consider an ally for healing.
-@export var heal_max_range: float = 150.0
 ## Switch to the heal staff when an ally within heal_watch_range drops below
 ## this HP fraction; switch back to the sniper once every ally there is above
 ## sniper_return_pct (hysteresis so she does not flip-flop).
@@ -19,54 +12,36 @@ enum WeaponMode {
 @export var sniper_return_pct: float = 0.85
 @export var heal_watch_range: float = 350.0
 
-var current_weapon_mode: WeaponMode = WeaponMode.SNIPER
-
-func _ready() -> void:
-	# Healer archetype: don't pull threat through healing. The default 1.0
-	# is fine; lower could be set if heals start aggro-ing in playtests.
-	super._ready()
-
-	if ability_system and ability_system.active_ability:
-		ability_system.ability_used.connect(_on_ability_used)
-
-func _on_ability_used(ability: AbilityBase) -> void:
-	if ability is RiverActiveWeaponSwap:
-		current_weapon_mode = ability.get_current_mode()
-		_update_attack_range()
-
-func set_weapon_mode(mode: String) -> void:
-	match mode:
-		"sniper":
-			current_weapon_mode = WeaponMode.SNIPER
-		"heal_staff":
-			current_weapon_mode = WeaponMode.HEAL_STAFF
-	
-	_update_attack_range()
-
-func _update_attack_range() -> void:
-	if not ability_system:
-		return
-
-## Read by RiverBasicAttack.execute (0 = sniper, 1 = heal staff). Without it
-## the basic attack returned early and River never fired or healed.
+## Read by RiverBasicAttack.execute (a RiverActiveWeaponSwap.WeaponMode:
+## 0 = sniper, 1 = heal staff). The mode lives only on this River's own copy
+## of the Weapon Swap active, which flips it; without one she stays a sniper.
 func get_weapon_mode() -> int:
-	return int(current_weapon_mode)
+	var swap: RiverActiveWeaponSwap = (ability_system.active_ability as RiverActiveWeaponSwap) if ability_system else null
+	return swap.get_current_mode() if swap else RiverActiveWeaponSwap.WeaponMode.SNIPER
+
+func _in_heal_mode() -> bool:
+	return get_weapon_mode() == RiverActiveWeaponSwap.WeaponMode.HEAL_STAFF
+
+## The heal staff's reach: heal_range of this River's own basic-attack copy.
+## Ally selection and the heal itself use it unscaled; only the Fight gate
+## (_get_attack_range) scales it with the attack_range upgrades.
+func _heal_range() -> float:
+	var basic: RiverBasicAttack = (ability_system.basic_attack as RiverBasicAttack) if ability_system else null
+	return basic.heal_range if basic else 0.0
 
 func _get_attack_range() -> float:
 	# Mode ranges scale with the permanent attack_range upgrades (HeroStats).
 	var mult: float = 1.0
 	if stats and stats.base_stats and stats.base_stats.base_attack_range > 0.0:
 		mult = stats.get_attack_range() / stats.base_stats.base_attack_range
-	match current_weapon_mode:
-		WeaponMode.HEAL_STAFF:
-			return heal_max_range * mult
-		_:
-			return 300.0 * mult
+	if _in_heal_mode():
+		return _heal_range() * mult
+	return 300.0 * mult
 
 ## The weapon swap IS River's active: decide from the team's health instead
 ## of "fire when fighting".
 func _should_auto_use_active() -> bool:
-	return _want_heal_mode() != (current_weapon_mode == WeaponMode.HEAL_STAFF)
+	return _want_heal_mode() != _in_heal_mode()
 
 
 func _use_active_now() -> void:
@@ -79,7 +54,7 @@ func _want_heal_mode() -> bool:
 	var team := TeamRegistry.get_team(TeamRegistry.HEROES)
 	if team == null:
 		return false
-	var limit: float = sniper_return_pct if current_weapon_mode == WeaponMode.HEAL_STAFF else heal_switch_pct
+	var limit: float = sniper_return_pct if _in_heal_mode() else heal_switch_pct
 	var r_sq := heal_watch_range * heal_watch_range
 	for ally in team.members:
 		if ally == self or not is_instance_valid(ally) or not (ally is HeroBase):
@@ -106,17 +81,15 @@ func _on_fight_logic(_delta: float) -> void:
 	if not ability_system:
 		return
 	
-	match current_weapon_mode:
-		WeaponMode.SNIPER:
+	match get_weapon_mode():
+		RiverActiveWeaponSwap.WeaponMode.SNIPER:
 			if is_target_valid() and target_entity.is_in_group("Enemy"):
 				ability_system.use_basic_attack(target_entity)
 		
-		WeaponMode.HEAL_STAFF:
-			var ally = _find_nearest_wounded_ally()
+		RiverActiveWeaponSwap.WeaponMode.HEAL_STAFF:
+			var ally := _find_nearest_wounded_ally()
 			if ally:
 				ability_system.use_basic_attack(ally)
-			else:
-				pass
 
 func _find_nearest_wounded_ally() -> Node2D:
 	## Healer target selection via the team blackboard. Picks the lowest-HP
@@ -130,20 +103,20 @@ func _find_nearest_wounded_ally() -> Node2D:
 	if wounded == null or not (wounded is Node2D):
 		return null
 	var w2d := wounded as Node2D
-	if w2d.global_position.distance_to(global_position) > heal_max_range:
+	if w2d.global_position.distance_to(global_position) > _heal_range():
 		return null
 	return w2d
 
 func _on_approach_state_processing(delta: float) -> void:
-	match current_weapon_mode:
-		WeaponMode.SNIPER:
+	match get_weapon_mode():
+		RiverActiveWeaponSwap.WeaponMode.SNIPER:
 			super._on_approach_state_processing(delta)
 		
-		WeaponMode.HEAL_STAFF:
-			var ally = _find_nearest_wounded_ally()
+		RiverActiveWeaponSwap.WeaponMode.HEAL_STAFF:
+			var ally := _find_nearest_wounded_ally()
 			if ally:
-				var distance = global_position.distance_to(ally.global_position)
-				if distance <= 150.0:
+				var distance := global_position.distance_to(ally.global_position)
+				if distance <= _heal_range():
 					var dir: Vector2 = (ally.global_position - global_position).normalized()
 					sprite.rotation = dir.angle()
 				elif is_instance_valid(navigation_agent_2d):

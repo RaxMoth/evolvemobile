@@ -883,7 +883,6 @@ position = Vector2(130, 188)
 [node name="River" parent="Heros" instance=ExtResource("5_hveh7")]
 position = Vector2(119, 99)
 heal_threshold_pct = 0.95
-heal_max_range = 150.0
 
 [node name="Vlad" parent="Heros" instance=ExtResource("2_xf6vi")]
 position = Vector2(93, 199)
