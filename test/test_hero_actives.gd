@@ -5,6 +5,7 @@ extends TestCase
 const VLAD := "res://Scenes/NPCs/Hero/Heros/DMG/Vlad/Vlad.tscn"
 const RIVER := "res://Scenes/NPCs/Hero/Heros/Healer/River/River.tscn"
 const TED := "res://Scenes/NPCs/Hero/Heros/Support/Ted/Ted.tscn"
+const IRELIA := "res://Scenes/NPCs/Hero/Heros/Support/Irelia/Irelia.tscn"
 const HOG := "res://Scenes/NPCs/Mob/Mobs/Hog/Hog.tscn"
 
 
@@ -75,7 +76,7 @@ func test_heroes_use_their_active_in_a_fight() -> void:
 
 func test_irelia_taunting_strike_pulls_a_mob_onto_her() -> void:
 	var vlad := await spawn_entity(VLAD, Vector2(0, 0))
-	var irelia := await spawn_entity("res://Scenes/NPCs/Hero/Heros/Support/Irelia/Irelia.tscn", Vector2(100, 0))
+	var irelia := await spawn_entity(IRELIA, Vector2(100, 0))
 	var hog := await spawn_entity(HOG, Vector2(30, 0))
 	var basic: AbilityBase = (irelia.get_node("AbilitySystem") as AbilitySystem).basic_attack
 	basic.execute(irelia, hog)
@@ -83,6 +84,37 @@ func test_irelia_taunting_strike_pulls_a_mob_onto_her() -> void:
 	assert_true(enemies.get_threat_against(hog, irelia) >= 40.0, "flat taunt threat recorded")
 	assert_true(hog._get_threat_score(irelia) > hog._get_threat_score(vlad) + 50.0, "Irelia now out-threatens Vlad by more than the fight switch threshold")
 	for n in [vlad, irelia, hog]:
+		if is_instance_valid(n):
+			n.queue_free()
+
+
+## BasicStrike flashes the trail its .tres enables (GameUtils.flash_line, under
+## the caster's parent, from caster to target) and the trail frees itself after
+## the fade: none for Vlad, Ted's brown-orange swipe, Irelia's light-blue one.
+func test_basic_strike_trails_follow_the_tres() -> void:
+	var vlad := await spawn_frozen(VLAD, Vector2(-20, 0))
+	var ted := await spawn_frozen(TED, Vector2(20, 0))
+	var irelia := await spawn_frozen(IRELIA, Vector2(0, 20))
+	var hog := await spawn_frozen(HOG, Vector2(0, 0))
+	var expected: Dictionary = {vlad: [], ted: [Color(0.8, 0.5, 0.2), 2.5], irelia: [Color(0.7, 0.7, 1.0), 1.5]}
+	var all_trails: Array = []
+	for caster: Node2D in [vlad, ted, irelia]:
+		var before: Array[Node] = get_children()
+		(caster.get_node("AbilitySystem") as AbilitySystem).basic_attack.execute(caster, hog)
+		var trails: Array = get_children().filter(func(n: Node) -> bool: return n is Line2D and not before.has(n))
+		var want: Array = expected[caster]
+		assert_eq(trails.size(), 1 if want.size() > 0 else 0, "%s: trails drawn" % caster.name)
+		if trails.size() == 1 and want.size() > 0:
+			var line := trails[0] as Line2D
+			assert_true(line.default_color.is_equal_approx(want[0]), "%s: trail colour %s" % [caster.name, line.default_color])
+			assert_near(line.width, float(want[1]), 0.001, "%s: trail width" % caster.name)
+			assert_eq(line.z_index, 10)
+			assert_eq(line.points, PackedVector2Array([caster.global_position, hog.global_position]), "%s: caster to target" % caster.name)
+		all_trails.append_array(trails)
+	await wait_seconds(0.5)
+	for line in all_trails:
+		assert_false(is_instance_valid(line), "trail freed after its fade")
+	for n in [vlad, ted, irelia, hog]:
 		if is_instance_valid(n):
 			n.queue_free()
 

@@ -118,30 +118,10 @@ func _find_nearest_ally(caster: Node2D) -> Node2D:
 	return nearest
 
 func _create_sniper_effect(caster: Node2D, target: Node2D) -> void:
-	var line = Line2D.new()
-	caster.get_parent().add_child(line)
-	line.add_point(caster.global_position)
-	line.add_point(target.global_position)
-	line.default_color = Color.ORANGE
-	line.width = 2.0
-	line.z_index = 10
-	
-	var tween = line.create_tween()
-	tween.tween_property(line, "modulate:a", 0.0, 0.3)
-	tween.tween_callback(line.queue_free)
+	GameUtils.flash_line(caster.get_parent(), caster.global_position, target.global_position, Color.ORANGE, 2.0, 0.3)
 
 func _create_heal_effect(caster: Node2D, target: Node2D) -> void:
-	var line = Line2D.new()
-	caster.get_parent().add_child(line)
-	line.add_point(caster.global_position)
-	line.add_point(target.global_position)
-	line.default_color = Color.GREEN
-	line.width = 3.0
-	line.z_index = 10
-	
-	var tween = line.create_tween()
-	tween.tween_property(line, "modulate:a", 0.0, 0.4)
-	tween.tween_callback(line.queue_free)
+	GameUtils.flash_line(caster.get_parent(), caster.global_position, target.global_position, Color.GREEN, 3.0, 0.4)
 
 # Return current stats based on mode
 func get_current_range(caster: Node2D) -> float:

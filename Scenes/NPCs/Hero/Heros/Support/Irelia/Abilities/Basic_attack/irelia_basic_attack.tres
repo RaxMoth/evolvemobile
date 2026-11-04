@@ -6,6 +6,10 @@
 [resource]
 script = ExtResource("1_ixuuq")
 taunt_threat = 40.0
+trail_enabled = true
+trail_color = Color(0.7, 0.7, 1, 1)
+trail_width = 1.5
+trail_fade = 0.25
 ability_name = "Unnamed Ability"
 ability_type = 2
 icon = ExtResource("1_baakk")

@@ -917,7 +917,7 @@ lod_enabled = false     # A/B: tick everything every frame
 2. Look at `hero_base_class.gd` to see how it overrides virtual methods
 3. Check `river.gd` (simplest hero) for minimal overrides
 4. Read `ability_system.gd` to understand the 4-slot system
-5. Look at Vlad's `basic_melee_strike.gd` (`VladBasicAttack`) for the simplest ability example
+5. Look at Vlad's `basic_melee_strike.gd` (`BasicStrike`, shared by the heroes' basic attacks) for the simplest ability example
 
 **State Machine Flow**:
 ```

@@ -1,10 +1,14 @@
-[gd_resource type="Resource" script_class="TedBasicAttacks" load_steps=3 format=3 uid="uid://uucpn3d4556s"]
+[gd_resource type="Resource" script_class="BasicStrike" load_steps=3 format=3 uid="uid://uucpn3d4556s"]
 
-[ext_resource type="Script" uid="uid://sqy7m5iqomjt" path="res://Scenes/NPCs/Hero/Heros/Support/Ted/Abilities/Basic_attack/ted_basic_attack.gd" id="1_basic"]
+[ext_resource type="Script" uid="uid://d0mfbnaga61ia" path="res://Scenes/NPCs/Hero/Heros/DMG/Vlad/Abilities/basic_attack/basic_melee_strike.gd" id="1_basic"]
 [ext_resource type="Texture2D" uid="uid://b8hlhq44dx3qv" path="res://Assets/icon.svg" id="2_icon"]
 
 [resource]
 script = ExtResource("1_basic")
+trail_enabled = true
+trail_color = Color(0.8, 0.5, 0.2, 1)
+trail_width = 2.5
+trail_fade = 0.2
 ability_name = "Claw Swipe"
 ability_type = 2
 icon = ExtResource("2_icon")

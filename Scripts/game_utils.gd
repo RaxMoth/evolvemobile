@@ -211,6 +211,25 @@ func entities_in_circle(world: World2D, center: Vector2, radius: float, mask: in
 	return found
 
 # ============================================
+# VFX UTILITIES
+# ============================================
+
+## A straight trail from `from` to `to` (global positions) under `parent`,
+## drawn above the entities (z_index 10), that fades out over `fade` seconds
+## and then frees itself. Basic-attack swipes, sniper shots and heal beams.
+func flash_line(parent: Node, from: Vector2, to: Vector2, color: Color, width: float, fade: float) -> void:
+	var line := Line2D.new()
+	parent.add_child(line)
+	line.add_point(from)
+	line.add_point(to)
+	line.default_color = color
+	line.width = width
+	line.z_index = 10
+	var tween := line.create_tween()
+	tween.tween_property(line, "modulate:a", 0.0, fade)
+	tween.tween_callback(line.queue_free)
+
+# ============================================
 # FOG OF WAR UTILITIES
 # ============================================
 
