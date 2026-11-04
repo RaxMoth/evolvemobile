@@ -8,11 +8,6 @@ var is_boosted: bool = false
 var boost_timer: float = 0.0
 var last_health: float = 0.0
 
-func _init() -> void:
-	ability_name = "Adaptive Movement"
-	ability_type = AbilityType.PASSIVE
-	description = "After taking damage, gain 50% movement speed for 3 seconds"
-
 func on_passive_update(caster: Node2D, delta: float) -> void:
 	if not caster.has_method("get_health"):
 		return

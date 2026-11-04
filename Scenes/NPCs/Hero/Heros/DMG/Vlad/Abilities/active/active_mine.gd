@@ -3,14 +3,6 @@ class_name VladActiveMine
 
 @export var mine_scene: PackedScene # Assign the mine scene in the resource
 
-func _init() -> void:
-	ability_name = "Land Mine"
-	ability_type = AbilityType.ACTIVE
-	damage = 15.0
-	cooldown = 8.0
-	ability_range = 100.0 # Detection radius of mine
-	description = "Place a mine that explodes when enemies walk over it"
-
 func can_use(_caster: Node2D) -> bool:
 	return mine_scene != null
 

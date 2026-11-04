@@ -13,15 +13,6 @@ class_name RiverBasicAttack
 @export var extra_targets: int = 0
 @export var extra_target_radius: float = 160.0
 
-func _init() -> void:
-	ability_name = "Adaptive Weapon"
-	ability_type = AbilityType.BASIC_ATTACK
-	description = "Sniper or Heal based on current weapon mode"
-	damage = 12.0
-	ability_range = 300.0
-	heal_amount = 9.0
-	cooldown = sniper_cooldown
-
 func can_use(caster: Node2D) -> bool:
 	if not caster.has_method("is_alive") or not caster.is_alive():
 		return false

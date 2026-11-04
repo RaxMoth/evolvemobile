@@ -1,14 +1,6 @@
 extends AbilityBase
 class_name VladBasicAttack
 
-func _init() -> void:
-	ability_name = "Blood Strike"
-	ability_type = AbilityType.BASIC_ATTACK
-	damage = 10.0
-	ability_range = 50.0
-	cooldown = 1.0
-	description = "A simple melee attack that strikes nearby enemies"
-
 func can_use(caster: Node2D) -> bool:
 	return caster.has_method("is_alive") and caster.is_alive()
 

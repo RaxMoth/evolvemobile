@@ -8,11 +8,6 @@ class_name VladPassiveBloodlust
 var current_damage_mult: float = 1.0
 var current_attack_speed_mult: float = 1.0
 
-func _init() -> void:
-	ability_name = "Bloodlust"
-	ability_type = AbilityType.PASSIVE
-	description = "The lower Vlad's health, the more damage and attack speed he gains"
-
 func on_passive_update(caster: Node2D, _delta: float) -> void:
 	if not caster.has_method("get_health"):
 		return

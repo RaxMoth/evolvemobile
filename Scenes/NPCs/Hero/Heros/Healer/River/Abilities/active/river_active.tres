@@ -6,5 +6,7 @@
 [resource]
 script = ExtResource("1_active")
 ability_name = "Weapon Swap"
+ability_type = 1
 icon = ExtResource("2_icon")
 description = "Swap between Sniper Rifle (long range damage) and Heal Staff (heal allies)"
+cooldown = 1.0

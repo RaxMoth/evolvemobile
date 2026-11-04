@@ -2,14 +2,6 @@ extends AbilityBase
 class_name TedBasicAttacks
 ## Ted's basic melee attack - simple and straightforward
 
-func _init() -> void:
-	ability_name = "Claw Swipe"
-	ability_type = AbilityType.BASIC_ATTACK
-	damage = 8.0
-	ability_range = 55.0
-	cooldown = 1.2
-	description = "A quick melee attack"
-
 func can_use(caster: Node2D) -> bool:
 	return caster.has_method("is_alive") and caster.is_alive()
 

@@ -3,13 +3,6 @@ class_name RiverUltimateMediKit
 
 @export var medikit_scene: PackedScene
 
-func _init() -> void:
-	ability_name = "Emergency Supply Drop"
-	ability_type = AbilityType.ULTIMATE
-	heal_amount = 30.0
-	cooldown = 25.0
-	description = "Drop a MediKit that heals allies who walk over it"
-
 func can_use(_caster: Node2D) -> bool:
 	return medikit_scene != null
 
