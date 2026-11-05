@@ -7,7 +7,10 @@ extends Node2D
 ## juice (card hover lift, title intro) that are awkward to express purely
 ## in the scene.
 
-const WORLD_SCENE: PackedScene = preload("res://Scenes/World/World.tscn")
+# Not preloaded: a preload here would load the whole match (the boot chain
+# GameManager -> MatchResult -> MainMenu) before the menu could draw. _ready
+# starts a background load instead; _world_scene() collects it.
+const WORLD_PATH := "res://Scenes/World/World.tscn"
 const META_SKILL_SCREEN: PackedScene = preload("res://Scenes/UI/MetaSkills/MetaSkillScreen.tscn")
 const TUTORIAL_SCENE: PackedScene = preload("res://Scenes/UI/Tutorial/TutorialOverlay.tscn")
 const PRE_ROUND_SCENE: PackedScene = preload("res://Scenes/UI/PreRoundSetup/PreRoundSetup.tscn")
@@ -44,6 +47,11 @@ const _ROW_MUTED := Color(0.66, 0.7, 0.74, 0.85)
 func _ready() -> void:
 	# Clear any leftover pause from a previous match's result screen.
 	get_tree().paused = false
+
+	# Load the match while the player looks at the menu (first visit only:
+	# GameManager keeps the loaded scene for the session).
+	if GameManager.world_scene == null:
+		ResourceLoader.load_threaded_request(WORLD_PATH)
 
 	_wire_play_buttons()
 	_wire_skill_buttons()
@@ -206,12 +214,27 @@ func _on_play_as_hero() -> void:
 
 
 func _start_hero_match(_config: MatchConfig) -> void:
-	get_tree().change_scene_to_packed.call_deferred(WORLD_SCENE)
+	get_tree().change_scene_to_packed.call_deferred(_world_scene())
 
 
 func _on_play_as_monster() -> void:
 	GameManager.chosen_side = MatchRewards.Side.MONSTER
-	get_tree().change_scene_to_packed.call_deferred(WORLD_SCENE)
+	get_tree().change_scene_to_packed.call_deferred(_world_scene())
+
+
+## The World scene, from GameManager's session cache or else from the
+## background load _ready started (blocks until it finishes). Collects that
+## load at most once: a second load_threaded_get for the same request returns
+## null. Falls back to a plain load if no request is pending or it failed.
+func _world_scene() -> PackedScene:
+	if GameManager.world_scene == null:
+		var scene: PackedScene = null
+		if ResourceLoader.load_threaded_get_status(WORLD_PATH) != ResourceLoader.THREAD_LOAD_INVALID_RESOURCE:
+			scene = ResourceLoader.load_threaded_get(WORLD_PATH) as PackedScene
+		if scene == null:
+			scene = load(WORLD_PATH) as PackedScene
+		GameManager.world_scene = scene
+	return GameManager.world_scene
 
 
 # ============================================

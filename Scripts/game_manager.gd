@@ -23,6 +23,12 @@ const DEFAULT_MAX_DURATION_SEC: float = 600.0  # 10 minutes
 # reads as HEROES by default if the player launched directly into the World.
 var chosen_side: int = MatchRewards.Side.HEROES
 
+## World.tscn once MainMenu has loaded it (in the background, see
+## main_menu.gd). Held here for the whole session so later menu visits and
+## Play Again (reload_current_scene) reuse the cached scene instead of loading
+## it again.
+var world_scene: PackedScene = null
+
 var max_match_duration: float = DEFAULT_MAX_DURATION_SEC
 var match_ended_flag: bool = false  # idempotency guard for _end_match
 ## True only between World's start_new_match() and the end/abort of that match.
