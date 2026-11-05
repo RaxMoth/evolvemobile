@@ -111,14 +111,17 @@ func _process(delta: float) -> void:
 	var rebucket := _rebucket_timer <= 0.0
 	if rebucket:
 		_rebucket_timer += REBUCKET_INTERVAL
-		_counts = [0, 0, 0, 0]
+		_counts.fill(0)
 
-	# Iterate a snapshot: a handler inside step() may kill / unregister other
-	# entities (tombstoned) or spawn new ones (appended, ticked next frame).
-	# duplicate() is untyped for the analyzer; declare the element type so the
-	# loop variable (and e.entity) stay statically typed.
-	var snapshot: Array[Entry] = _entries.duplicate()
-	for e in snapshot:
+	# Iterate the live array in place, up to its size before the loop. A handler
+	# inside step() may kill / unregister other entities or spawn new ones, and
+	# neither moves an entry: register() only appends (a new entry sits at index
+	# >= n and first ticks next frame), unregister() only tombstones, and
+	# compaction runs after the loop. So indices 0..n-1 hold the same entries,
+	# in the same order, for the whole loop.
+	var n: int = _entries.size()
+	for i in n:
+		var e: Entry = _entries[i]
 		if e.dead:
 			continue
 		var ent := e.entity
