@@ -26,7 +26,7 @@ class_name MobBase
 
 var current_health: float
 var attacking: bool = false
-var spawn_area: Node = null
+var spawn_area: MobSpawnArea = null
 var spawn_position: Vector2 = Vector2.ZERO
 
 # Pooling (SpawnManager.acquire_mob / release_mob)
@@ -91,19 +91,19 @@ func _pre_tick(_delta: float) -> void:
 		return
 	# Only check boundaries if we're NOT in combat
 	if not is_in_combat:
-		if spawn_area and spawn_area.has_method("is_position_in_area"):
+		if spawn_area:
 			if not spawn_area.is_position_in_area(global_position):
 				_handle_out_of_bounds()
 
 func _handle_out_of_bounds() -> void:
 	# Clamp to spawn area during idle wandering
-	if spawn_area and spawn_area.has_method("clamp_position_to_area"):
+	if spawn_area:
 		# The camp circle ignores walls: land on the closest walkable point.
 		global_position = GameUtils.snap_to_nav(get_world_2d(), spawn_area.clamp_position_to_area(global_position))
 	
 	# Check if too far from spawn (even during combat)
 	if spawn_position != Vector2.ZERO:
-		var distance_from_spawn = global_position.distance_to(spawn_position)
+		var distance_from_spawn := global_position.distance_to(spawn_position)
 		
 		# If beyond chase distance, force reset
 		if distance_from_spawn > chase_distance:
@@ -190,13 +190,13 @@ func _receive_damage(packet: DamagePacket) -> void:
 
 ## Idle goal: a random roam point of the camp.
 func _get_smart_idle_destination() -> Vector2:
-	if spawn_area and spawn_area.has_method("get_random_roam_position"):
+	if spawn_area:
 		return spawn_area.get_random_roam_position()
 	var angle := randf() * TAU
 	var dir := Vector2.from_angle(angle)
 	var dist := randf_range(base_idle_wander_radius * 0.2, base_idle_wander_radius)
 	var goal: Vector2 = global_position + dir * dist
-	if spawn_area and spawn_area.has_method("clamp_position_to_area"):
+	if spawn_area:
 		goal = spawn_area.clamp_position_to_area(goal)
 	return goal
 
@@ -218,7 +218,7 @@ func _perform_basic_attack() -> void:
 		attacking = false
 		return
 
-	var distance = global_position.distance_to(target_entity.global_position)
+	var distance := global_position.distance_to(target_entity.global_position)
 	if distance <= base_attack_range:
 		EventBus.deal_damage(self, target_entity, base_attack_damage)
 
@@ -295,7 +295,7 @@ func prepare_for_pool() -> void:
 		sprite.modulate = Color.WHITE
 	scale = _spawn_scale
 
-func reset_for_spawn(area: Node, pos: Vector2, leash: float) -> void:
+func reset_for_spawn(area: MobSpawnArea, pos: Vector2, leash: float) -> void:
 	"""Per-life setup; valid before add_child for fresh and pooled instances."""
 	spawn_area = area
 	spawn_position = pos
