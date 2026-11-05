@@ -9,7 +9,8 @@ extends Node2D
 ##      while real audio is still being produced.
 ##
 ## Buses: SFX for effects (positional, AudioStreamPlayer2D pool, so distant
-## fights are quieter), Music for the looped track. Volumes come from the
+## fights are quieter and ones out of earshot are skipped), Music for the
+## looped track. Volumes come from the
 ## Settings screen via AudioSettings → PersistedData.
 ##
 ## Hooks (code-side: autoloads cannot be targets of scene [connection]s):
@@ -57,9 +58,9 @@ func has_sfx(key: StringName) -> bool:
 	return _sfx.has(key)
 
 
-## Positional effect. Returns false when rate-limited or unknown.
+## Positional effect. Returns false when unknown, out of earshot or rate-limited.
 func play_sfx(key: StringName, pos: Vector2) -> bool:
-	if not _sfx.has(key) or not _allow(key):
+	if not _sfx.has(key) or not _in_earshot(pos) or not _allow(key):
 		return false
 	var player := _free_player()
 	player.stream = _sfx[key]
@@ -151,6 +152,17 @@ func _on_match_ended(winner: String, _time: float) -> void:
 # ============================================
 # Internals
 # ============================================
+
+## A pool player further than SFX_MAX_DISTANCE from the screen centre plays
+## silently, yet it would still claim the key's retrigger slot and a voice. So
+## play_sfx culls before _allow() and _free_player(): an off-screen hit can no
+## longer mute the on-screen hit right after it. With no current camera
+## nothing is culled.
+func _in_earshot(pos: Vector2) -> bool:
+	var cam := get_viewport().get_camera_2d()
+	return cam == null \
+		or pos.distance_squared_to(cam.get_screen_center_position()) <= SFX_MAX_DISTANCE * SFX_MAX_DISTANCE
+
 
 func _allow(key: StringName) -> bool:
 	var now := Time.get_ticks_msec()

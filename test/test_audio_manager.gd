@@ -1,6 +1,17 @@
 extends TestCase
 
-## AudioManager: placeholder streams for every key, rate limiting, music switching.
+## AudioManager: placeholder streams for every key, rate limiting, earshot
+## culling, music switching.
+
+var _cam: Camera2D = null
+
+
+func after_each() -> void:
+	# The other tests play at the origin and rely on there being no camera.
+	if _cam != null:
+		_cam.free()
+		_cam = null
+
 
 func test_every_key_has_a_stream() -> void:
 	for key in AudioManager.SFX_KEYS:
@@ -20,6 +31,18 @@ func test_same_key_is_rate_limited() -> void:
 	assert_true(AudioManager.play_sfx(&"ult", Vector2.ZERO), "a different key is independent")
 	OS.delay_msec(60)
 	assert_true(AudioManager.play_sfx(&"cast", Vector2.ZERO), "allowed again after the window")
+
+
+func test_out_of_earshot_is_culled_before_the_rate_limit() -> void:
+	_cam = Camera2D.new()
+	add_child(_cam)
+	_cam.make_current()
+	assert_true(get_viewport().get_camera_2d() == _cam, "the test camera is current")
+	# Clear a "hit" an earlier test may have played (see the rate-limit test).
+	OS.delay_msec(60)
+	assert_false(AudioManager.play_sfx(&"hit", Vector2(5000, 0)), "beyond SFX_MAX_DISTANCE is culled")
+	assert_true(AudioManager.play_sfx(&"hit", Vector2.ZERO),
+		"a culled hit does not claim the slot of the audible hit right after it")
 
 
 func test_music_switches_and_stops() -> void:
