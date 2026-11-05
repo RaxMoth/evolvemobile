@@ -127,13 +127,41 @@ func _should_auto_use_ultimate() -> bool:
 	var nearby_enemies := EntityRegistry.count_within(
 		EntityRegistry.enemies, target_entity.global_position, auto_ult_radius, auto_ult_min_enemies)
 	return nearby_enemies >= auto_ult_min_enemies
-# Add to HeroBase class
+## This hero's goal from HeroExplorationController (formation slot or detour).
 var exploration_target: Vector2 = Vector2.ZERO
 var use_exploration_target: bool = false
 
 func set_exploration_target(new_target: Vector2) -> void:
 	exploration_target = new_target
 	use_exploration_target = true
+
+## Idle goal: the exploration goal while the controller runs, else the
+## random-sample default (which then prefers unexplored fog).
+func _get_smart_idle_destination() -> Vector2:
+	var goal := _get_exploration_goal()
+	if goal != Vector2.ZERO:
+		return goal
+	return super._get_smart_idle_destination()
+
+## My own exploration target, else the group's; ZERO without a controller.
+func _get_exploration_goal() -> Vector2:
+	var controller := EntityRegistry.singleton(&"HeroExplorationController") as HeroExplorationController
+	if controller == null:
+		return Vector2.ZERO
+	if exploration_target != Vector2.ZERO:
+		return exploration_target
+	return controller.get_current_group_target()
+
+## Heroes sample idle points 1.5x further out than their wander radius.
+func _idle_sample_radius() -> float:
+	return idle_wander_radius * 1.5
+
+## Unexplored fog scores high, explored ground slightly low.
+func _destination_bonus(point: Vector2) -> float:
+	var fog_system: Node = EntityRegistry.singleton(&"FogOfWar")
+	if GameUtils.is_position_explored(fog_system, point):
+		return -50.0
+	return 200.0
 
 func _setup_combat_role_from_stats() -> void:
 	if not stats or not stats.base_stats:

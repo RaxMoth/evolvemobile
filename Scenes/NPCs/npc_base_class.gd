@@ -795,35 +795,11 @@ func _strafe_around_target(delta: float, dir: Vector2) -> void:
 # ============================================
 
 ## The next idle goal, picked by _on_idle_state_processing on each re-pick.
-## MobBase (its camp), MonsterBase (its strategy) and Irelia (her allies)
-## override it.
+## Default: the best of a few random samples around me (avoids off-mesh
+## points). HeroBase (the exploration goal), MobBase (its camp), MonsterBase
+## (its strategy) and Irelia (her allies) override it.
 func _get_smart_idle_destination() -> Vector2:
-	"""Get a smart idle destination that:
-	- For heroes: Prefers unexplored areas
-	- For all: Avoids walls and obstacles
-	- Picks best of multiple samples"""
-	if faction == GameUtils.Faction.HERO:
-		var exploration_target = _get_exploration_target()
-		if exploration_target != Vector2.ZERO:
-			return exploration_target
-	
 	return _get_valid_random_destination()
-
-func _get_exploration_target() -> Vector2:
-	"""Get target from HeroExplorationController if available"""
-	var exploration_controller: Node = EntityRegistry.singleton(&"HeroExplorationController")
-	if not exploration_controller:
-		return Vector2.ZERO
-	
-	if "exploration_target" in self:
-		var hero_target = get("exploration_target")
-		if hero_target is Vector2 and hero_target != Vector2.ZERO:
-			return hero_target
-	
-	if exploration_controller.has_method("get_current_group_target"):
-		return exploration_controller.get_current_group_target()
-	
-	return Vector2.ZERO
 
 ## Sample multiple random points and pick the best one. Off-mesh samples
 ## (score -1000) never win; the fallback is staying put, which re-rolls on
@@ -848,10 +824,7 @@ func _generate_random_point() -> Vector2:
 	var angle := randf() * TAU
 	var dir := Vector2.from_angle(angle)
 	
-	var radius = idle_wander_radius
-	if faction == GameUtils.Faction.HERO:
-		radius *= 1.5
-	
+	var radius: float = _idle_sample_radius()
 	var dist := randf_range(radius * 0.3, radius)
 	return global_position + dir * dist
 
@@ -879,15 +852,17 @@ func _score_destination(point: Vector2) -> float:
 	var point_angle: float = to_point.angle()
 	var angle_diff: float = absf(GameUtils.wrapped_angle_delta(current_facing, point_angle))
 	score += (PI - angle_diff) * 50.0
-	
-	if faction == GameUtils.Faction.HERO:
-		var fog_system: Node = EntityRegistry.singleton(&"FogOfWar")
-		if GameUtils.is_position_explored(fog_system, point):
-			score -= 50.0
-		else:
-			score += 200.0
-	
+	score += _destination_bonus(point)
 	return score
+
+## Outer radius of the random idle samples. HeroBase widens it.
+func _idle_sample_radius() -> float:
+	return idle_wander_radius
+
+## Extra score for an idle sample point on top of the facing term. HeroBase
+## prefers unexplored fog.
+func _destination_bonus(_point: Vector2) -> float:
+	return 0.0
 
 # ============================================
 # SECTION 12: XP SYSTEM
