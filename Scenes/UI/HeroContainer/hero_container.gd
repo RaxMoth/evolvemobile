@@ -10,6 +10,11 @@ class_name HeroContainer
 ## This replaces the old approach of four hardcoded panel duplicates in the
 ## .tscn — heroes are discovered via the "Hero" group at runtime, so adding
 ## a fifth/sixth hero is a zero-edit change to this scene.
+##
+## Panels live as long as the roster. A dead hero's panel stays (its HP bar
+## shows the death) but can no longer be focused: when the followed hero
+## dies, the focus moves on to the next living hero so the camera does not
+## stay behind at the death spot.
 
 signal hero_selected(hero: Node)
 
@@ -33,14 +38,8 @@ func _ready() -> void:
 	# physics frames) before we try to read their stats.
 	await get_tree().process_frame
 	await get_tree().process_frame
-	_clear_existing_panels()
 	_build_panels_for_heroes()
-
-
-func _clear_existing_panels() -> void:
-	for child in hero_box.get_children():
-		child.queue_free()
-	panels.clear()
+	EventBus.entity_died.connect(_on_entity_died)
 
 
 func _build_panels_for_heroes() -> void:
@@ -61,19 +60,8 @@ func _add_panel_for_hero(hero: Node) -> void:
 	var panel: HeroPanel = HERO_PANEL_SCENE.instantiate()
 	hero_box.add_child(panel)
 	panel.bind_to_hero(hero)
-	panel.selected.connect(_on_panel_selected)
+	panel.selected.connect(select_hero)
 	panels.append(panel)
-	# Clean up our tracking if a hero dies and the panel is freed.
-	panel.tree_exiting.connect(_on_panel_exiting.bind(panel))
-
-
-func _on_panel_selected(hero: Node) -> void:
-	# Find the panel for this hero so we can highlight it.
-	for p in panels:
-		if p.hero == hero:
-			_set_active_panel(p)
-			break
-	hero_selected.emit(hero)
 
 
 func _set_active_panel(panel: HeroPanel) -> void:
@@ -85,34 +73,49 @@ func _set_active_panel(panel: HeroPanel) -> void:
 			p.set_active(false)
 
 
-func _on_panel_exiting(panel: HeroPanel) -> void:
-	panels.erase(panel)
-	if active_hero != null and not is_instance_valid(active_hero):
-		# Active hero died — fall back to first surviving panel.
-		active_hero = null
-		if panels.size() > 0:
-			_set_active_panel(panels[0])
+## A panel can take the focus while its hero lives. A hero that just died is
+## still a valid instance until the end of the frame (queue_free), so the
+## liveness check matters too.
+func _is_selectable(p: HeroPanel) -> bool:
+	return is_instance_valid(p.hero) and (p.hero as EntityBase).is_alive()
+
+
+## EventBus.entity_died. Only the followed hero's death matters here: the
+## active hero is always a roster hero, so mobs, the monster and Ted's pet
+## (no panel) return early.
+func _on_entity_died(entity: Node, _killer: Node) -> void:
+	if entity == null or entity != active_hero:
+		return
+	cycle_to_next_hero()
 
 
 # ============================================
 # Public API (used by MainCam to drive the panel from key bindings)
 # ============================================
 
+## Focus `hero` (panel click, 1-4 keys, tap, minimap). A dead hero is ignored.
 func select_hero(hero: Node) -> void:
 	for p in panels:
 		if p.hero == hero:
-			_set_active_panel(p)
-			hero_selected.emit(hero)
+			if _is_selectable(p):
+				_set_active_panel(p)
+				hero_selected.emit(hero)
 			return
 
 
+## Tab: focus the next living hero after the active one, in roster order.
+## Does nothing when no hero is alive.
 func cycle_to_next_hero() -> void:
-	if panels.is_empty():
-		return
-	var idx := 0
-	for i in panels.size():
+	var count := panels.size()
+	var current := -1
+	for i in count:
 		if panels[i].hero == active_hero:
-			idx = (i + 1) % panels.size()
+			current = i
 			break
-	_set_active_panel(panels[idx])
-	hero_selected.emit(panels[idx].hero)
+	# From current + 1 round to current itself (from panel 0 without a match).
+	for step in range(1, count + 1):
+		var p := panels[(current + step) % count]
+		if _is_selectable(p):
+			_set_active_panel(p)
+			hero_selected.emit(p.hero)
+			return
