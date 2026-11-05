@@ -188,30 +188,21 @@ func _receive_damage(packet: DamagePacket) -> void:
 # Idle Wandering (Restricted to Spawn Area)
 # ============================================
 
-func _on_idle_state_processing(delta: float) -> void:
-	if not is_instance_valid(navigation_agent_2d):
-		return
-		
-	_idle_timer -= delta
-	if _idle_timer <= 0.0 or global_position.distance_squared_to(_idle_goal) < 64.0:
-		_idle_timer = idle_retarget_time + minf(_idle_timer, 0.0)
-		
-		# Get random position within spawn area
-		if spawn_area and spawn_area.has_method("get_random_roam_position"):
-			_idle_goal = spawn_area.get_random_roam_position()
-		else:
-			var angle := randf() * TAU
-			var dir := Vector2.from_angle(angle)
-			var dist := randf_range(base_idle_wander_radius * 0.2, base_idle_wander_radius)
-			_idle_goal = global_position + dir * dist
-			
-			# Clamp to spawn area
-			if spawn_area and spawn_area.has_method("clamp_position_to_area"):
-				_idle_goal = spawn_area.clamp_position_to_area(_idle_goal)
-		
-		_set_nav_target(_idle_goal)
+## Idle goal: a random roam point of the camp.
+func _get_smart_idle_destination() -> Vector2:
+	if spawn_area and spawn_area.has_method("get_random_roam_position"):
+		return spawn_area.get_random_roam_position()
+	var angle := randf() * TAU
+	var dir := Vector2.from_angle(angle)
+	var dist := randf_range(base_idle_wander_radius * 0.2, base_idle_wander_radius)
+	var goal: Vector2 = global_position + dir * dist
+	if spawn_area and spawn_area.has_method("clamp_position_to_area"):
+		goal = spawn_area.clamp_position_to_area(goal)
+	return goal
 
-	_steer_along_nav(move_speed, delta)
+## A mob waits out its retarget timer even when its path ended short.
+func _idle_repick_on_path_end() -> bool:
+	return false
 
 # ============================================
 # Combat

@@ -788,6 +788,9 @@ func _strafe_around_target(delta: float, dir: Vector2) -> void:
 # SECTION 11: IDLE EXPLORATION
 # ============================================
 
+## The next idle goal, picked by _on_idle_state_processing on each re-pick.
+## MobBase (its camp), MonsterBase (its strategy) and Irelia (her allies)
+## override it.
 func _get_smart_idle_destination() -> Vector2:
 	"""Get a smart idle destination that:
 	- For heroes: Prefers unexplored areas
@@ -905,16 +908,20 @@ func _on_idle_state_entered() -> void:
 	_idle_goal = global_position
 	_check_for_nearby_enemies()
 
+## The one idle-wander loop for every entity: subclasses change only where it
+## goes (_get_smart_idle_destination) and whether a path that ended short of
+## the goal re-picks early (_idle_repick_on_path_end).
 func _on_idle_state_processing(delta: float) -> void:
-	"""Process Idle state - wander around"""
 	if not is_instance_valid(navigation_agent_2d):
 		return
-	
+
 	_idle_timer -= delta
 	# Also re-pick when the path ended far short of the goal (unreachable goal,
 	# e.g. a pocket of the nav mesh) instead of waiting out the retarget timer.
+	# The hook goes first: is_navigation_finished() refreshes the agent, so an
+	# entity that opts out must not call it.
 	var reached: bool = global_position.distance_squared_to(_idle_goal) < 64.0
-	var gave_up: bool = navigation_agent_2d.is_navigation_finished() and not reached
+	var gave_up: bool = _idle_repick_on_path_end() and navigation_agent_2d.is_navigation_finished() and not reached
 	if _idle_timer <= 0.0 or reached or gave_up:
 		# Keep the overshoot so intervals don't round up to whole LOD ticks.
 		_idle_timer = idle_retarget_time + minf(_idle_timer, 0.0)
@@ -922,6 +929,11 @@ func _on_idle_state_processing(delta: float) -> void:
 		_set_nav_target(_idle_goal)
 	
 	_steer_along_nav(move_speed, delta)
+
+## Idle: re-pick as soon as the path to the goal ended short of it. MobBase
+## and Irelia (away from the exploring group) wait for the retarget timer.
+func _idle_repick_on_path_end() -> bool:
+	return true
 
 ## Approach State - Chasing target
 

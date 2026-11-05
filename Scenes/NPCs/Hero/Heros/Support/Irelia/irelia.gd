@@ -72,39 +72,32 @@ func _find_enemy_attacking(ally: Node2D) -> Node2D:
 		return null
 	return top_attacker as Node2D
 
-func _on_idle_state_processing(delta: float) -> void:
-	if not is_instance_valid(navigation_agent_2d):
-		return
-	# With group exploration running, the formation keeps Irelia with the team
-	# (she leads it as formation_rank 0): follow the controller's target like
-	# every hero. Wandering around the allies' centre here stalled the group.
-	if use_exploration_target and exploration_target != Vector2.ZERO:
-		super._on_idle_state_processing(delta)
-		return
+## With group exploration running, the formation keeps Irelia with the team
+## (she leads it as formation_rank 0): she idles like every hero. Wandering
+## around the allies' centre then stalled the group.
+func _follows_exploration() -> bool:
+	return use_exploration_target and exploration_target != Vector2.ZERO
 
-	# Wander near allies instead of random
-	_idle_timer -= delta
-	if _idle_timer <= 0.0 or global_position.distance_squared_to(_idle_goal) < 64.0:
-		_idle_timer = idle_retarget_time + minf(_idle_timer, 0.0)
-		
-		# Find center of allied heroes
-		var ally_center = _get_ally_center()
-		if ally_center != Vector2.ZERO:
-			# Wander near allies
-			var angle := randf() * TAU
-			var dir := Vector2.from_angle(angle)
-			var dist := randf_range(30.0, 80.0)
-			_idle_goal = ally_center + dir * dist
-		else:
-			# No allies, wander normally
-			var angle := randf() * TAU
-			var dir := Vector2.from_angle(angle)
-			var dist := randf_range(idle_wander_radius * 0.2, idle_wander_radius)
-			_idle_goal = global_position + dir * dist
-		
-		_set_nav_target(_idle_goal)
-	
-	_steer_along_nav(move_speed, delta)
+## Idle goal: the exploration target, else a point near the allies' centre
+## (or around herself when she is alone).
+func _get_smart_idle_destination() -> Vector2:
+	if _follows_exploration():
+		return super._get_smart_idle_destination()
+	var ally_center := _get_ally_center()
+	if ally_center != Vector2.ZERO:
+		var angle := randf() * TAU
+		var dir := Vector2.from_angle(angle)
+		var dist := randf_range(30.0, 80.0)
+		return ally_center + dir * dist
+	else:
+		var angle := randf() * TAU
+		var dir := Vector2.from_angle(angle)
+		var dist := randf_range(idle_wander_radius * 0.2, idle_wander_radius)
+		return global_position + dir * dist
+
+## Away from the exploring group she waits out the retarget timer.
+func _idle_repick_on_path_end() -> bool:
+	return _follows_exploration()
 
 func _get_ally_center() -> Vector2:
 	## Use the team blackboard membership instead of a group scan.
