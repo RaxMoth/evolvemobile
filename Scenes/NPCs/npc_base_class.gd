@@ -433,6 +433,21 @@ func distance_to_target() -> float:
 # SECTION 8: TARGETING SYSTEM
 # ============================================
 
+## Aim at `entity`: `target` is its "Body" Area2D, `target_entity` its root.
+## The only way other systems (taunts, peels, resets) should retarget.
+func set_target(entity: Node2D) -> void:
+	target = entity.get_node_or_null(^"Body") as Area2D
+	target_entity = entity
+
+## Aim at the entity that owns `area` (a detection hit).
+func set_target_area(area: Area2D) -> void:
+	target = area
+	target_entity = area.get_owner()
+
+func clear_target() -> void:
+	target = null
+	target_entity = null
+
 ## Find the best target area among all valid targets in detection area.
 ## Returns the Area2D node (not the entity).
 func _find_best_target() -> Area2D:
@@ -505,11 +520,9 @@ func _get_distance_score(distance: float) -> float:
 func _get_threat_score(target_node: Node2D) -> float:
 	var threat: float = 0.0
 
-	# Is target attacking me?
-	if "target_entity" in target_node:
-		var their_target: Variant = target_node.get("target_entity")
-		if their_target == self:
-			threat += 30.0
+	# Is target attacking me? (Only entities carry a target pair; the pet does not.)
+	if target_node is EntityBase and (target_node as EntityBase).target_entity == self:
+		threat += 30.0
 
 	# Is target low health? (was dead code: both numbers came from get_health())
 	if target_node is EntityBase:
@@ -561,65 +574,64 @@ func _reevaluate_current_target(threshold: float) -> void:
 				and global_position.distance_squared_to(target_entity.global_position) <= pursue_out_of_sight_radius * pursue_out_of_sight_radius:
 			return  # still pursuing what we were sent after
 		if is_target_valid():
-			target = null
-			target_entity = null
+			clear_target()
 			state_chart.send_event(CombatEvents.ENEMY_EXITED)
 		return
 	
-	var best_target_node: Node = best_target_area.get_owner()
-
-	if is_target_valid() and target_entity == best_target_node:
+	if is_target_valid() and target_entity == best_target_area.get_owner():
 		return
 	
 	if _should_switch_target(best_target_area, threshold):
-		target = best_target_area
-		target_entity = best_target_node
+		set_target_area(best_target_area)
 
+## Re-engage the best enemy still in the detection area (Idle / Approach entry).
 func _check_for_nearby_enemies() -> void:
-	"""Check detection area for any remaining enemies and re-engage"""
 	if not is_instance_valid(detection_area):
 		return
 
-	var best_target_area = _find_best_target()
+	var best_target_area := _find_best_target()
 	if best_target_area:
-		target = best_target_area
-		target_entity = best_target_area.get_owner()
-		state_chart.send_event(CombatEvents.ENEMY_ENTERED)
-		_broadcast_aggro(target_entity)
+		_engage(best_target_area)
 
+## Take the detected `area` as the target, start the approach and call allies in.
+func _engage(area: Area2D) -> void:
+	set_target_area(area)
+	state_chart.send_event(CombatEvents.ENEMY_ENTERED)
+	_broadcast_aggro(target_entity)
+
+## Tell allies within alert_allies_radius about this target. Mobs use this
+## to make a pack engage together when one of them spots a hero.
 func _broadcast_aggro(spotted: Node) -> void:
-	"""Tell allies within alert_allies_radius about this target. Mobs use this
-	to make a pack engage together when one of them spots a hero."""
 	if alert_allies_radius <= 0.0 or not is_instance_valid(spotted):
 		return
 	var team := TeamRegistry.team_of(self)
 	if team == null:
 		return
 	var r_sq := alert_allies_radius * alert_allies_radius
+	# The ally's pair matches set_target(spotted): Body area + root entity.
+	# Resolved once here instead of once per nudged ally.
+	var spotted_area := spotted.get_node_or_null(^"Body") as Area2D
 	for ally in team.members:
-		if ally == self or not is_instance_valid(ally) or not (ally is EntityBase):
+		if ally == self or not is_instance_valid(ally):
 			continue
-		# Only nudge allies that aren't already engaged.
-		var ally_entity := ally as EntityBase
-		if ally_entity.is_target_valid():
+		var a := ally as EntityBase
+		if a == null:
 			continue
-		if ally.global_position.distance_squared_to(global_position) > r_sq:
+		# Cheapest test first. Only nudge idle allies (already engaged ones
+		# keep their target) that CAN target this entity.
+		if a.global_position.distance_squared_to(global_position) > r_sq:
 			continue
-		# Set their target — but only if they CAN target this entity.
-		if not GameUtils.can_entity_target(ally_entity, spotted):
+		if a.is_target_valid():
 			continue
-		# Find the spotted entity's body Area2D so the existing target/target_entity
-		# pair is consistent (target = Area2D, target_entity = root entity).
-		var spotted_area: Area2D = null
-		if spotted.has_node("Body"):
-			spotted_area = spotted.get_node("Body") as Area2D
-		ally_entity.target = spotted_area
-		ally_entity.target_entity = spotted
-		if ally_entity.state_chart:
-			ally_entity.state_chart.send_event(CombatEvents.ENEMY_ENTERED)
+		if not GameUtils.can_entity_target(a, spotted):
+			continue
+		a.target = spotted_area
+		a.target_entity = spotted
+		if a.state_chart:
+			a.state_chart.send_event(CombatEvents.ENEMY_ENTERED)
 
+## Group rules: never myself, only areas owned by an entity I may attack.
 func _can_target_area(area: Area2D) -> bool:
-	"""Check if we can target this area based on group rules"""
 	if area.get_owner() == self or area.get_parent() == self:
 		return false
 	
@@ -635,25 +647,12 @@ func _can_target_area(area: Area2D) -> bool:
 
 ## Called when an area enters detection range
 func _on_detection_area_area_entered(area: Area2D) -> void:
-	if area.get_owner() == self or area.get_parent() == self:
+	if not _can_target_area(area):
 		return
 
-	var root := area.get_owner()
-	if not root:
-		return
-
-	var can_target := _can_target_area(area)
-	if not can_target:
-		return
-
-	var best_target_area: Area2D = _find_best_target()
+	var best_target_area := _find_best_target()
 	if best_target_area:
-		var best_target_node: Node = best_target_area.get_owner()
-		if is_instance_valid(best_target_node):
-			target = best_target_area
-			target_entity = best_target_node
-			state_chart.send_event(CombatEvents.ENEMY_ENTERED)
-			_broadcast_aggro(best_target_node)
+		_engage(best_target_area)
 
 ## Called when an area exits detection range
 func _on_detection_area_area_exited(area: Area2D) -> void:

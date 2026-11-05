@@ -37,11 +37,8 @@ func _apply_taunt(enemy: Node2D, caster: Node2D) -> void:
 		return
 	
 	# Force enemy to target Irelia
-	if "target_entity" in enemy:
-		enemy.target_entity = caster
-	
-	if "target" in enemy and caster.has_node("Body"):
-		enemy.target = caster.get_node("Body")
+	if enemy is EntityBase:
+		(enemy as EntityBase).set_target(caster)
 	
 	# Create taunt component to maintain the effect
 	if not enemy.has_node("TauntEffect"):

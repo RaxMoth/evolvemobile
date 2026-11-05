@@ -113,8 +113,7 @@ func _reset_to_spawn() -> void:
 	if not is_alive():
 		return
 	global_position = spawn_position
-	target = null
-	target_entity = null
+	clear_target()
 	attacking = false
 	attack_timer.stop()
 	is_in_combat = false
@@ -274,15 +273,14 @@ func _release_or_free() -> void:
 	else:
 		queue_free()
 
+## Scrub per-life state before SpawnManager parks us out of the tree.
+## A parked mob is never alive (HP 0) so nobody keeps targeting it;
+## on_spawned() restores full health on reuse.
 func prepare_for_pool() -> void:
-	"""Scrub per-life state before SpawnManager parks us out of the tree.
-	A parked mob is never alive (HP 0) so nobody keeps targeting it;
-	on_spawned() restores full health on reuse."""
 	is_parked = true
 	current_health = 0.0
 	life_id += 1
-	target = null
-	target_entity = null
+	clear_target()
 	last_attacker = null
 	attacking = false
 	if attack_timer:

@@ -354,8 +354,7 @@ func _reset_mob_to_spawn(mob: MobBase) -> void:
 		mob.global_position = area_center
 	else:
 		mob.global_position = mob.spawn_position
-	mob.target = null
-	mob.target_entity = null
+	mob.clear_target()
 	mob.is_in_combat = false
 	if mob.state_chart:
 		mob.state_chart.send_event(CombatEvents.ENEMY_EXITED)

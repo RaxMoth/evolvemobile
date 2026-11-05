@@ -33,13 +33,11 @@ func _on_fight_logic(_delta: float) -> void:
 	if not ability_system:
 		return
 
-	var threatened_ally = _find_threatened_ally()
+	var threatened_ally := _find_threatened_ally()
 	if threatened_ally:
-		var attacker = _find_enemy_attacking(threatened_ally)
+		var attacker := _find_enemy_attacking(threatened_ally)
 		if attacker:
-			target_entity = attacker
-			if attacker.has_node("Body"):
-				target = attacker.get_node("Body")
+			set_target(attacker)
 
 	if is_target_valid():
 		ability_system.use_basic_attack(target_entity)

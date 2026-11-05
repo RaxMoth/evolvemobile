@@ -138,9 +138,9 @@ func _collect_snapshots() -> void:
 		snap.hp_pct = _hp_pct_of(entity)
 		snap.is_active_hero = (entity == active_hero)
 
-		# Target line (only for entities with a "target_entity" property).
-		if "target_entity" in entity:
-			var t = entity.get("target_entity")
+		# Target line (EntityBase only; the pet has no target pair).
+		if entity is EntityBase:
+			var t: Variant = (entity as EntityBase).target_entity
 			if is_instance_valid(t) and t is Node2D:
 				snap.has_target = true
 				snap.target_pos = (t as Node2D).global_position
@@ -306,8 +306,8 @@ func _update_hud_label(active_hero: Node, heroes_team: TeamBlackboard, enemies_t
 			lines.append((mon as MonsterBase).debug_meta_line())
 	if active_hero and is_instance_valid(active_hero):
 		lines.append("Camera focus: %s" % active_hero.name)
-		if "target_entity" in active_hero:
-			var t = active_hero.get("target_entity")
+		if active_hero is EntityBase:
+			var t: Variant = (active_hero as EntityBase).target_entity
 			if is_instance_valid(t):
 				lines.append("  → targeting: %s" % t.name)
 	_hud_label.text = "\n".join(lines)
