@@ -5,8 +5,9 @@ class_name GameCamera
 ## and a hook for the debug overlay.
 ##
 ## Hero selection: click a HeroPanel in the bottom UI, or press 1-4 to focus
-## a hero by index, or Tab to cycle. The camera then tweens its follow_target
-## to that hero with a brief easing — no instant snap.
+## a hero by index, or Tab to cycle. The camera then eases onto that hero's
+## live position (it keeps moving during the switch) — no instant snap. At
+## match start the camera starts on its target instead of panning to it.
 ##
 ## Visual debug overlay: F3 toggles on/off (debug builds). The overlay
 ## (debug_overlay, wired in MainCam.tscn) is a top_level child Node2D, so it
@@ -20,10 +21,14 @@ class_name GameCamera
 
 @export_group("Target Following")
 @export var follow_target: Node2D
-@export var follow_smoothing: float = 5.0
+## Follow rate (1/s): each frame the camera closes 1 - exp(-follow_smoothing *
+## delta) of its gap to the target, so the lag is the same at any frame rate
+## and a long frame never overshoots. 5.22 matches the old linear 5 * delta
+## weight at 60 FPS. 0 = locked to the target.
+@export var follow_smoothing: float = 5.22
 @export var follow_offset: Vector2 = Vector2.ZERO
-## Duration of the easing tween when switching to a new hero. 0 = no tween
-## (camera continues to use follow_smoothing toward the new target).
+## Duration of the eased blend onto the new hero when switching. 0 = no blend
+## (the follow_smoothing lerp alone carries the camera to the new target).
 @export_range(0.0, 2.0) var switch_tween_duration: float = 0.4
 
 @export_group("Debug Mode")
@@ -81,6 +86,8 @@ const TAP_FOCUS_RADIUS: float = 72.0
 var _switch_tween: Tween = null
 # When true, _follow_target() is overridden by the active switch tween.
 var _switching: bool = false
+# Camera position when the active switch began (the blend's start point).
+var _switch_from: Vector2 = Vector2.ZERO
 
 
 # ============================================
@@ -99,6 +106,10 @@ func _ready() -> void:
 
 	if not follow_target:
 		_auto_find_target()
+	# Start on the target: from the scene position the follow lerp swept
+	# across the map (monster side) at match start and on every Play Again.
+	if follow_target:
+		center_on_position(follow_target.global_position + follow_offset)
 	# Hero-panel clicks reach _on_hero_selected through MainCam.tscn's
 	# HeroContainer.hero_selected connection.
 
@@ -123,8 +134,8 @@ func _follow_target(delta: float) -> void:
 	if not follow_target or not is_instance_valid(follow_target):
 		return
 	var target_pos: Vector2 = follow_target.global_position + follow_offset
-	if follow_smoothing > 0:
-		global_position = global_position.lerp(target_pos, follow_smoothing * delta)
+	if follow_smoothing > 0.0:
+		global_position = global_position.lerp(target_pos, 1.0 - exp(-follow_smoothing * delta))
 	else:
 		global_position = target_pos
 
@@ -147,14 +158,33 @@ func switch_to_hero(hero: Node2D) -> void:
 		_switching = false
 		return
 
-	# Tween global_position from current to the hero, easing out so the camera
-	# decelerates as it arrives. Once done, _follow_target resumes per-frame.
-	var target_pos: Vector2 = hero.global_position + follow_offset
+	# Blend from the current position onto the hero's LIVE position, easing out
+	# so the camera arrives centred on the moving hero (tweening to a snapshot
+	# of the hero's position left it behind, and the follow lerp then lurched).
+	# Once done, _follow_target resumes per-frame.
+	_switch_from = global_position
 	_switching = true
 	_switch_tween = create_tween()
 	_switch_tween.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-	_switch_tween.tween_property(self, "global_position", target_pos, switch_tween_duration)
-	_switch_tween.tween_callback(func(): _switching = false)
+	_switch_tween.tween_method(_blend_switch, 0.0, 1.0, switch_tween_duration)
+	_switch_tween.tween_callback(func() -> void: _switching = false)
+
+
+## Switch tween step: weight 0..1 from _switch_from to the live target.
+func _blend_switch(weight: float) -> void:
+	if not is_instance_valid(follow_target):
+		return
+	global_position = _switch_from.lerp(follow_target.global_position + follow_offset, weight)
+
+
+## World.monster_placed (World.tscn): the monster was just teleported to its
+## match spawn, so monster-side play jumps there instead of panning across the
+## map. A no-op while the camera follows a hero (the signal also fires in
+## hero-side play) or a hero switch is easing in.
+func snap_to_target() -> void:
+	if _switching or not is_instance_valid(follow_target) or not (follow_target is MonsterBase):
+		return
+	center_on_position(follow_target.global_position + follow_offset)
 
 
 func _on_hero_selected(hero: Node) -> void:

@@ -892,3 +892,5 @@ position = Vector2(70, 78)
 
 [node name="Grount" parent="." instance=ExtResource("3_ouhkt")]
 position = Vector2(4509, 1794)
+
+[connection signal="monster_placed" from="." to="MainCam" method="snap_to_target"]
