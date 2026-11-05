@@ -54,40 +54,29 @@ func refresh() -> void:
 	if node_def == null or _label == null:
 		return
 
-	var unlocked: bool = MetaSkillManager.is_unlocked(tree_id, node_def.id)
-	var available: bool = false
-	var tier_gated: bool = false
-	if not unlocked:
-		var t: MetaSkillTree = MetaSkillManager.get_tree_def(tree_id)
-		if t and not MetaSkillManager._tier_gate_satisfied(t, node_def.tier):
-			tier_gated = true
-		else:
-			available = MetaSkillManager.is_node_available(tree_id, node_def.id)
+	var state := MetaSkillManager.node_state(tree_id, node_def.id)
 
 	# Disable click for everything except "available". Unlocked nodes are
-	# already bought; tier-gated and unaffordable are not purchasable.
-	disabled = unlocked or tier_gated or not available
+	# already bought; tier-gated, unaffordable and invalid ones are not purchasable.
+	disabled = state != MetaSkillManager.NodeState.AVAILABLE
 
-	# Background color (modulate the whole button).
-	if unlocked:
-		modulate = COLOR_UNLOCKED
-	elif available:
-		modulate = COLOR_AVAILABLE
-	elif tier_gated:
-		modulate = COLOR_TIER_GATED
-	else:
-		modulate = COLOR_LOCKED
-
-	# Body text — name / description / cost-or-status.
+	# Background color (modulate the whole button) and the status line under
+	# name / description.
 	var status_line: String = ""
-	if unlocked:
-		status_line = "[color=#063]Unlocked[/color]"
-	elif tier_gated:
-		status_line = "[color=#777]Reach Tier %d first[/color]" % (node_def.tier - 1)
-	else:
-		var have: int = PersistedData.get_currency(node_def.currency)
-		var color_tag := "#063" if available else "#933"
-		status_line = "[color=%s]%d / %d %s[/color]" % [color_tag, have, node_def.cost, tr(String(node_def.currency).capitalize())]
+	match state:
+		MetaSkillManager.NodeState.UNLOCKED:
+			modulate = COLOR_UNLOCKED
+			status_line = "[color=#063]Unlocked[/color]"
+		MetaSkillManager.NodeState.TIER_GATED:
+			modulate = COLOR_TIER_GATED
+			status_line = "[color=#777]Reach Tier %d first[/color]" % (node_def.tier - 1)
+		_:
+			# AVAILABLE, UNAFFORDABLE or INVALID: show the price.
+			var available := state == MetaSkillManager.NodeState.AVAILABLE
+			modulate = COLOR_AVAILABLE if available else COLOR_LOCKED
+			var have: int = PersistedData.get_currency(node_def.currency)
+			var color_tag := "#063" if available else "#933"
+			status_line = "[color=%s]%d / %d %s[/color]" % [color_tag, have, node_def.cost, tr(String(node_def.currency).capitalize())]
 
 	_label.text = "[b]%s[/b]\n[font_size=11]%s[/font_size]\n%s" % [node_def.display_name, node_def.description, status_line]
 

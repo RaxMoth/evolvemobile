@@ -9,8 +9,9 @@ extends Node
 ## migrate the seeding to .tres resources — the API stays the same.
 ##
 ## Flow:
-##   • UI calls `unlock(tree_id, node_id)` → checks tier gate + affordability,
-##     spends currency via PersistedData, persists the unlock id.
+##   • UI renders each node from `node_state(tree_id, node_id)` and calls
+##     `unlock(tree_id, node_id)` → buys only an AVAILABLE node: spends
+##     currency via PersistedData, persists the unlock id.
 ##   • On entity spawn (HeroBase._ready), entity calls
 ##     `apply_unlocked_to_hero(self)` → iterates unlocked nodes in
 ##     hero-relevant trees and stacks each effect onto HeroStatsComponent.
@@ -25,6 +26,10 @@ const TREE_MONSTER_BASE: StringName = &"monster_base"
 ## (Leaves); the ids come from HeroStats.hero_id / MonsterStats.monster_id.
 const TREE_HERO_PREFIX := "hero_"
 const TREE_MONSTER_PREFIX := "monster_"
+
+## A node as the skill screen shows it; only AVAILABLE can be bought.
+## INVALID = no such tree, or no such node in it.
+enum NodeState { INVALID, UNLOCKED, TIER_GATED, AVAILABLE, UNAFFORDABLE }
 
 var trees: Dictionary = {}   ## id -> MetaSkillTree
 
@@ -259,36 +264,35 @@ func is_unlocked(tree_id: StringName, node_id: StringName) -> bool:
 	return unlocked.has(String(node_id))
 
 
-func is_node_available(tree_id: StringName, node_id: StringName) -> bool:
-	## A node is "available" if not yet unlocked, the tier gate is satisfied,
-	## and the player can afford its cost. UI uses this to color the button.
+## The unlock rules, in one place: owned, then the tier gate, then the price.
+## UNLOCKED is checked first, so an id the save file owns stays UNLOCKED even
+## if its tree or node is gone.
+func node_state(tree_id: StringName, node_id: StringName) -> NodeState:
 	if is_unlocked(tree_id, node_id):
-		return false
+		return NodeState.UNLOCKED
 	var t: MetaSkillTree = get_tree_def(tree_id)
 	if t == null:
-		return false
+		return NodeState.INVALID
 	var n: MetaSkillNode = t.find_node(node_id)
 	if n == null:
-		return false
+		return NodeState.INVALID
 	if not _tier_gate_satisfied(t, n.tier):
-		return false
-	return PersistedData.can_afford(n.currency, n.cost)
+		return NodeState.TIER_GATED
+	if not PersistedData.can_afford(n.currency, n.cost):
+		return NodeState.UNAFFORDABLE
+	return NodeState.AVAILABLE
+
+
+func is_node_available(tree_id: StringName, node_id: StringName) -> bool:
+	return node_state(tree_id, node_id) == NodeState.AVAILABLE
 
 
 func unlock(tree_id: StringName, node_id: StringName) -> bool:
 	## Attempt to unlock a node. Returns true on success, false if blocked
-	## (already unlocked / tier-locked / unaffordable). On success: spends
-	## currency, persists, fires signal.
-	var t: MetaSkillTree = get_tree_def(tree_id)
-	if t == null:
+	## (see node_state). On success: spends currency, persists, fires signal.
+	if node_state(tree_id, node_id) != NodeState.AVAILABLE:
 		return false
-	var n: MetaSkillNode = t.find_node(node_id)
-	if n == null:
-		return false
-	if is_unlocked(tree_id, node_id):
-		return false
-	if not _tier_gate_satisfied(t, n.tier):
-		return false
+	var n: MetaSkillNode = get_tree_def(tree_id).find_node(node_id)
 	if not PersistedData.spend_currency(n.currency, n.cost):
 		return false
 
