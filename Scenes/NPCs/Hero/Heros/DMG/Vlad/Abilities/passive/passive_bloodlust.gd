@@ -9,12 +9,12 @@ var current_damage_mult: float = 1.0
 var current_attack_speed_mult: float = 1.0
 
 func on_passive_update(caster: Node2D, _delta: float) -> void:
-	if not caster.has_method("get_health"):
+	# The caster is the hero that owns this passive (Vlad).
+	var hero := caster as HeroBase
+	if hero == null:
 		return
 	
-	var current_health = caster.get_health()
-	var max_health = caster.max_health if "max_health" in caster else 100.0
-	var health_percent = current_health / max_health
+	var health_percent: float = hero.get_health() / hero.max_health
 	
 	# Calculate bonus based on missing health
 	if health_percent <= health_threshold:

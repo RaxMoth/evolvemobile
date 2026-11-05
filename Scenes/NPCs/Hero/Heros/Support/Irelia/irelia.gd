@@ -62,15 +62,14 @@ func _find_enemy_attacking(ally: Node2D) -> Node2D:
 	var team := TeamRegistry.get_team(TeamRegistry.HEROES)
 	if team == null:
 		return null
-	var top_attacker: Node = team.highest_threat_target_for(ally)
-	if top_attacker == null or not (top_attacker is Node2D):
+	# Attackers on a hero's threat row are mobs or the monster (EntityBase).
+	var top_attacker := team.highest_threat_target_for(ally) as EntityBase
+	if top_attacker == null or not top_attacker.is_alive():
 		return null
-	if not top_attacker.has_method("is_alive") or not top_attacker.is_alive():
-		return null
-	var d2 := global_position.distance_squared_to((top_attacker as Node2D).global_position)
+	var d2 := global_position.distance_squared_to(top_attacker.global_position)
 	if d2 > 200.0 * 200.0:
 		return null
-	return top_attacker as Node2D
+	return top_attacker
 
 ## With group exploration running, the formation keeps Irelia with the team
 ## (she leads it as formation_rank 0): she idles like every hero. Wandering
@@ -107,12 +106,8 @@ func _get_ally_center() -> Vector2:
 	var total := Vector2.ZERO
 	var count := 0
 	for ally in team.members:
-		if ally == self or not is_instance_valid(ally):
+		if ally == self or not is_instance_valid(ally) or not ally.is_alive():
 			continue
-		if not ally.has_method("is_alive") or not ally.call("is_alive"):
-			continue
-		if not (ally is Node2D):
-			continue
-		total += (ally as Node2D).global_position
+		total += ally.global_position
 		count += 1
 	return total / count if count > 0 else Vector2.ZERO

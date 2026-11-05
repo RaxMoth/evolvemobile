@@ -6,7 +6,7 @@ func execute(caster: Node2D, _target: Node2D = null, _override_damage: float = -
 	var taunted_count = 0
 	
 	for monster in monsters:
-		if not is_instance_valid(monster) or not monster.has_method("is_alive") or not monster.is_alive():
+		if not is_instance_valid(monster) or not (monster is EntityBase) or not (monster as EntityBase).is_alive():
 			continue
 		
 		var distance = caster.global_position.distance_to(monster.global_position)
@@ -18,7 +18,7 @@ func execute(caster: Node2D, _target: Node2D = null, _override_damage: float = -
 	if taunted_count == 0:
 		var enemies = caster.get_tree().get_nodes_in_group("Enemy")
 		for enemy in enemies:
-			if not is_instance_valid(enemy) or not enemy.has_method("is_alive") or not enemy.is_alive():
+			if not is_instance_valid(enemy) or not (enemy is EntityBase) or not (enemy as EntityBase).is_alive():
 				continue
 			
 			if enemy.is_in_group("Hero"): # Don't taunt heroes

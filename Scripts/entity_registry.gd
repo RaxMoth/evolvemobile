@@ -82,6 +82,7 @@ func targets_for(attacker: Node) -> Array[Node2D]:
 func is_entity_alive(e: Node) -> bool:
 	if e is EntityBase:
 		return (e as EntityBase).is_alive()
+	# Ted's pet: in hero_side but not an EntityBase (teds_pet.gd has no class_name).
 	if e.has_method("is_alive"):
 		return bool(e.call("is_alive"))
 	return true

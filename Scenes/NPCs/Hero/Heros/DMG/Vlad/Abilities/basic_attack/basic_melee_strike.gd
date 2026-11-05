@@ -14,7 +14,7 @@ class_name BasicStrike
 @export var trail_fade: float = 0.2
 
 func can_use(caster: Node2D) -> bool:
-	return caster.has_method("is_alive") and caster.is_alive()
+	return caster is EntityBase and (caster as EntityBase).is_alive()
 
 func execute(caster: Node2D, target: Node2D = null, _override_damage: float = -1.0) -> void:
 	if not is_instance_valid(target) or not is_instance_valid(caster):

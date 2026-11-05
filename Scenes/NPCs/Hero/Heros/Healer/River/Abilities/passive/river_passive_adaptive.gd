@@ -9,10 +9,10 @@ var boost_timer: float = 0.0
 var last_health: float = 0.0
 
 func on_passive_update(caster: Node2D, delta: float) -> void:
-	if not caster.has_method("get_health"):
+	if not (caster is EntityBase):
 		return
 	
-	var current_health = caster.get_health()
+	var current_health: float = (caster as EntityBase).get_health()
 	
 	# Detect damage taken
 	if last_health > 0.0 and current_health < last_health:

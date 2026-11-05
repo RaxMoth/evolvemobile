@@ -171,24 +171,15 @@ func _state_name_of(entity: Node) -> String:
 	return ""
 
 
+## Snapshots come from the team blackboards, whose members are all EntityBase.
 func _hp_pct_of(entity: Node) -> float:
-	if entity is EntityBase:
-		var e := entity as EntityBase
-		var e_max: float = e.get_max_health()
-		if e_max <= 0.0:
-			return -1.0
-		return clampf(e.get_health() / e_max, 0.0, 1.0)
-	if not entity.has_method("get_health"):
+	if not (entity is EntityBase):
 		return -1.0
-	var current: float = entity.call("get_health")
-	var max_hp: float = 100.0
-	if "max_health" in entity:
-		var v = entity.get("max_health")
-		if v is float or v is int:
-			max_hp = float(v)
-	if max_hp <= 0.0:
+	var e := entity as EntityBase
+	var e_max: float = e.get_max_health()
+	if e_max <= 0.0:
 		return -1.0
-	return clamp(current / max_hp, 0.0, 1.0)
+	return clampf(e.get_health() / e_max, 0.0, 1.0)
 
 
 func _top_threats_for(team: TeamBlackboard, ally: Node, k: int) -> Array:

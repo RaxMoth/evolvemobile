@@ -14,9 +14,7 @@ class_name RiverBasicAttack
 @export var extra_target_radius: float = 160.0
 
 func can_use(caster: Node2D) -> bool:
-	if not caster.has_method("is_alive") or not caster.is_alive():
-		return false
-	return true
+	return caster is EntityBase and (caster as EntityBase).is_alive()
 
 func execute(caster: Node2D, target: Node2D = null, _override_damage: float = -1.0) -> void:
 	# River's weapon mode (River.get_weapon_mode) picks the shot.
@@ -38,12 +36,12 @@ func _execute_sniper(caster: Node2D, target: Node2D) -> void:
 	var distance = caster.global_position.distance_to(target.global_position)
 	if distance <= effective_range(caster):
 		# Apply damage with modifier
-		var damage_mult = 1.0
-		if caster.has_node("AbilitySystem"):
-			var ability_system = caster.get_node("AbilitySystem")
+		var damage_mult: float = 1.0
+		var ability_system := caster.get_node_or_null("AbilitySystem") as AbilitySystem
+		if ability_system:
 			damage_mult = ability_system.get_damage_multiplier()
 
-		var final_damage = damage * damage_mult
+		var final_damage: float = damage * damage_mult
 		EventBus.deal_damage(caster, target, final_damage, self)
 
 		# Visual feedback

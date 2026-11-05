@@ -66,9 +66,10 @@ func _process(_delta: float) -> void:
 
 func _scan_for_enemies() -> void:
 	# Runs once, from _ready: entities_in_circle returns each entity once.
-	for entity in GameUtils.entities_in_circle(get_world_2d(), global_position, cage_radius,
+	for node in GameUtils.entities_in_circle(get_world_2d(), global_position, cage_radius,
 			GameUtils.MASK_HERO_TARGETS, false):
-		if entity is EntityBase and _is_valid_target(entity):
+		var entity := node as EntityBase
+		if entity and _is_valid_target(entity):
 			trapped_enemies.append(entity)
 			_trapped_life_ids[entity] = entity.get("life_id")
 			_apply_trap_effect(entity)
@@ -117,8 +118,8 @@ func _kill_sprite_tween(enemy: Node2D) -> void:
 			tween.kill()
 		_sprite_tweens.erase(enemy)
 
-func _is_valid_target(entity: Node) -> bool:
-	if not entity.has_method("is_alive") or not entity.is_alive():
+func _is_valid_target(entity: EntityBase) -> bool:
+	if not entity.is_alive():
 		return false
 	
 	# Trap monsters and enemies, not heroes

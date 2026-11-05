@@ -67,14 +67,12 @@ func _want_heal_mode() -> bool:
 	return false
 
 
+## Adaptive passive: the speed boost after taking damage.
 func _get_move_speed() -> float:
-	var base_speed = super._get_move_speed()
-
-	if ability_system and ability_system.passive_ability:
-		if ability_system.passive_ability.has_method("get_speed_multiplier"):
-			var multiplier = ability_system.passive_ability.get_speed_multiplier()
-			return base_speed * multiplier
-	
+	var base_speed := super._get_move_speed()
+	var adaptive: RiverPassiveAdaptive = (ability_system.passive_ability as RiverPassiveAdaptive) if ability_system else null
+	if adaptive:
+		return base_speed * adaptive.get_speed_multiplier()
 	return base_speed
 
 func _on_fight_logic(_delta: float) -> void:
