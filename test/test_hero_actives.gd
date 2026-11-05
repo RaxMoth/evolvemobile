@@ -161,3 +161,31 @@ func test_teds_pet_is_targetable_and_stays_leashed_to_ted() -> void:
 	assert_false(pet.call("_target_ok"), "drops the target once Ted is far away")
 	for n in [ted, near_bat, far_bat]:
 		n.queue_free()
+
+
+## AbilitySystem._ready gives every hero its own ability copies (not only
+## heroes that MetaSkillManager reaches through a hero_id), so per-hero state
+## such as Ted's pet never lands on the shared .tres or on another Ted.
+func test_each_hero_owns_its_ability_copies() -> void:
+	var ted_a := await spawn_frozen(TED, Vector2(0, 0))
+	var ted_b := await spawn_frozen(TED, Vector2(3000, 0))
+	var a := ted_a.get_node("AbilitySystem") as AbilitySystem
+	var b := ted_b.get_node("AbilitySystem") as AbilitySystem
+	assert_true(a.passive_ability != null and b.passive_ability != null, "both Teds have the pet passive")
+	assert_true(a.passive_ability != b.passive_ability, "each Ted owns its own passive")
+	for abilities: AbilitySystem in [a, b]:
+		for ability in abilities.all_abilities():
+			assert_true(ability.resource_path.is_empty(), "%s is a per-hero copy" % ability.ability_name)
+	ted_a.queue_free()
+	ted_b.queue_free()
+	# A bare AbilitySystem (no hero, so no hero_id) copies on _ready as well.
+	var shared := load("res://Scenes/NPCs/Hero/Heros/DMG/Vlad/Abilities/active/active_mine.tres") as AbilityBase
+	var holder := Node2D.new()
+	var bare := AbilitySystem.new()
+	bare.active_ability = shared
+	holder.add_child(bare)
+	add_child(holder)
+	assert_true(bare.active_ability != shared, "fixture without a hero_id gets a copy")
+	assert_true(bare.active_ability.resource_path.is_empty())
+	assert_false(shared.resource_path.is_empty(), "the shared .tres keeps its path")
+	holder.queue_free()

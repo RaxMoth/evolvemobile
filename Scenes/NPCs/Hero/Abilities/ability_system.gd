@@ -2,7 +2,6 @@ extends Node
 class_name AbilitySystem
 
 signal ability_used(ability: AbilityBase)
-signal cooldown_updated(ability_type: AbilityBase.AbilityType, time_remaining: float)
 
 @export var passive_ability: AbilityBase
 @export var active_ability: AbilityBase
@@ -11,21 +10,25 @@ signal cooldown_updated(ability_type: AbilityBase.AbilityType, time_remaining: f
 
 var owner_entity: Node2D
 var _hero_stats: HeroStatsComponent = null  # cached; monsters have none
-var cooldowns: Dictionary = {} # AbilityType -> time_remaining
-var _last_emitted_cooldowns: Dictionary = {} # Track last emitted values to reduce signal spam
+## Time remaining per ability, indexed by AbilityBase.AbilityType.
+var cooldowns: Array[float] = [0.0, 0.0, 0.0, 0.0]
 ## The cooldown each ability started at on its last cast, so the HUD can draw
 ## remaining / total (the remaining time shrinks faster than wall time when
 ## attack speed is boosted, and freezes while the tree is paused).
-var _cooldown_totals: Dictionary = {} # AbilityType -> float
+## Indexed by AbilityBase.AbilityType.
+var _cooldown_totals: Array[float] = [0.0, 0.0, 0.0, 0.0]
 
 func _ready() -> void:
+	make_abilities_unique()
 	owner_entity = get_parent()
-	_initialize_cooldowns()
 
 
 ## Replace the shared .tres abilities with per-entity copies so permanent
-## modifiers (and per-use state) never leak between heroes or matches.
-## Idempotent: copies have no resource_path.
+## modifiers (and per-use state: Ted's pet, River's weapon mode and shot
+## cooldown, the passives' boosts) never leak between heroes or matches.
+## Runs first in _ready, so every hero owns its copies before anything reads
+## them. Idempotent: copies have no resource_path (MetaSkillManager calls it
+## again before applying ability nodes).
 func make_abilities_unique() -> void:
 	if passive_ability and not passive_ability.resource_path.is_empty():
 		passive_ability = passive_ability.duplicate()
@@ -44,42 +47,25 @@ func all_abilities() -> Array[AbilityBase]:
 			out.append(a)
 	return out
 
-func _initialize_cooldowns() -> void:
-	cooldowns[AbilityBase.AbilityType.PASSIVE] = 0.0
-	cooldowns[AbilityBase.AbilityType.ACTIVE] = 0.0
-	cooldowns[AbilityBase.AbilityType.BASIC_ATTACK] = 0.0
-	cooldowns[AbilityBase.AbilityType.ULTIMATE] = 0.0
-	
-	_last_emitted_cooldowns = cooldowns.duplicate()
-
 func _process(delta: float) -> void:
-	# Update cooldowns (apply attack speed modifier from passive)
-	var attack_speed_mult = get_attack_speed_multiplier()
-	
-	for ability_type in cooldowns.keys():
-		if cooldowns[ability_type] > 0.0:
-			var cooldown_reduction = delta
-			# Apply attack speed modifier to basic attack cooldown
-			if ability_type == AbilityBase.AbilityType.BASIC_ATTACK:
-				cooldown_reduction *= attack_speed_mult
-			
-			cooldowns[ability_type] -= cooldown_reduction
-			if cooldowns[ability_type] < 0.0:
-				cooldowns[ability_type] = 0.0
-			
-			# Only emit signal when cooldown completes or changes significantly
-			var last_value = _last_emitted_cooldowns.get(ability_type, 0.0)
-			if cooldowns[ability_type] <= 0.0 and last_value > 0.0:
-				# Ability just became ready
-				cooldown_updated.emit(ability_type, 0.0)
-				_last_emitted_cooldowns[ability_type] = 0.0
-	
-	# Update passive ability
+	for ability_type in cooldowns.size():
+		var remaining: float = cooldowns[ability_type]
+		if remaining <= 0.0:
+			continue
+		# Attack speed (passive × upgrades × temporary boosts) only speeds up
+		# the basic attack's recovery; read it only while that one is cooling.
+		var reduction: float = delta
+		if ability_type == AbilityBase.AbilityType.BASIC_ATTACK:
+			reduction *= get_attack_speed_multiplier()
+		remaining -= reduction
+		if remaining < 0.0:
+			remaining = 0.0
+		cooldowns[ability_type] = remaining
+
+	# After the cooldowns, so the attack speed read above is the passive's
+	# value from before this frame's update.
 	if passive_ability:
 		passive_ability.on_passive_update(owner_entity, delta)
-
-func use_passive() -> bool:
-	return _use_ability(passive_ability, AbilityBase.AbilityType.PASSIVE)
 
 func use_active(target: Node2D = null) -> bool:
 	return _use_ability(active_ability, AbilityBase.AbilityType.ACTIVE, target)
@@ -98,9 +84,6 @@ func _use_ability(ability: AbilityBase, ability_type: AbilityBase.AbilityType, t
 		ability.execute(owner_entity, target)
 		cooldowns[ability_type] = ability.cooldown
 		_cooldown_totals[ability_type] = ability.cooldown
-		# Arms the "ready again" emit in _process (it never fired before:
-		# this entry stayed 0 forever).
-		_last_emitted_cooldowns[ability_type] = ability.cooldown
 		ability_used.emit(ability)
 		EventBus.notify_ability_cast(owner_entity, ability, target)
 		return true
@@ -108,30 +91,15 @@ func _use_ability(ability: AbilityBase, ability_type: AbilityBase.AbilityType, t
 	return false
 
 func is_on_cooldown(ability_type: AbilityBase.AbilityType) -> bool:
-	return cooldowns.get(ability_type, 0.0) > 0.0
-
-func get_cooldown_remaining(ability_type: AbilityBase.AbilityType) -> float:
-	return cooldowns.get(ability_type, 0.0)
+	return cooldowns[ability_type] > 0.0
 
 ## 0.0 right after a cast, 1.0 when ready. Polled by the hero panel overlay.
 func get_cooldown_progress(ability_type: AbilityBase.AbilityType) -> float:
-	var remaining: float = cooldowns.get(ability_type, 0.0)
-	var total: float = _cooldown_totals.get(ability_type, 0.0)
+	var remaining: float = cooldowns[ability_type]
+	var total: float = _cooldown_totals[ability_type]
 	if remaining <= 0.0 or total <= 0.0:
 		return 1.0
 	return clampf(1.0 - remaining / total, 0.0, 1.0)
-
-func get_ability_by_type(ability_type: AbilityBase.AbilityType) -> AbilityBase:
-	match ability_type:
-		AbilityBase.AbilityType.PASSIVE:
-			return passive_ability
-		AbilityBase.AbilityType.ACTIVE:
-			return active_ability
-		AbilityBase.AbilityType.BASIC_ATTACK:
-			return basic_attack
-		AbilityBase.AbilityType.ULTIMATE:
-			return ultimate_ability
-	return null
 
 func _get_hero_stats() -> HeroStatsComponent:
 	if _hero_stats == null and is_instance_valid(owner_entity):

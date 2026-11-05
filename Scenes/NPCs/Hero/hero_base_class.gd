@@ -161,10 +161,7 @@ func _setup_combat_role_from_stats() -> void:
 func _is_attack_ready() -> bool:
 	if not ability_system:
 		return true
-	
-	# Check if basic attack is off cooldown
-	var basic_cooldown = ability_system.cooldowns.get(AbilityBase.AbilityType.BASIC_ATTACK, 0.0)
-	return basic_cooldown <= 0.0
+	return ability_system.cooldowns[AbilityBase.AbilityType.BASIC_ATTACK] <= 0.0
 
 func _get_entity_level() -> int:
 	if stats:
@@ -246,9 +243,3 @@ func is_active_ready() -> bool:
 
 func is_ultimate_ready() -> bool:
 	return ability_system and not ability_system.is_on_cooldown(AbilityBase.AbilityType.ULTIMATE)
-
-func get_active_cooldown() -> float:
-	return ability_system.get_cooldown_remaining(AbilityBase.AbilityType.ACTIVE) if ability_system else 0.0
-
-func get_ultimate_cooldown() -> float:
-	return ability_system.get_cooldown_remaining(AbilityBase.AbilityType.ULTIMATE) if ability_system else 0.0

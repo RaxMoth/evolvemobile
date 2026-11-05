@@ -118,9 +118,6 @@ func can_use(_caster: Node2D) -> bool:
 func on_passive_update(_caster: Node2D, _delta: float) -> void:
 	pass
 
-func get_cooldown_remaining(_caster: Node2D) -> float:
-	return 0.0
-
 func get_damage_multiplier(_caster: Node2D) -> float:
 	return damage_modifier
 
