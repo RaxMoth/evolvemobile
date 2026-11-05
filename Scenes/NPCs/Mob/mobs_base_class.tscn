@@ -13,6 +13,8 @@ attack_cooldown = 1.5
 base_idle_retarget_time = 1.2
 base_idle_wander_radius = 120.0
 base_keep_distance = 20.0
+strafe_speed = 40.0
+alert_allies_radius = 200.0
 
 [node name="HealthBar" parent="Hud" index="0"]
 hide_when_full = true

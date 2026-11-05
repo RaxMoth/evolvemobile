@@ -111,3 +111,34 @@ func test_deactivate_activate_inside_the_respawn_window_keeps_population() -> vo
 	assert_eq(area.spawned_mobs.size(), area.mob_count, "dead slot carried through deactivate/activate exactly once")
 	assert_eq(area._pending_respawns, 0)
 	assert_eq(area.total_mob_count(), area.mob_count)
+
+
+func test_mob_combat_defaults_come_from_the_base_scene() -> void:
+	# strafe_speed / alert_allies_radius live on the mobs_base_class.tscn root;
+	# _ready only derives the melee spacing from base_attack_range (40).
+	var x := 4000.0
+	for path in ["res://Scenes/NPCs/Mob/Mobs/Bat/Bat.tscn", "res://Scenes/NPCs/Mob/Mobs/Hog/Hog.tscn"]:
+		var m := await spawn_frozen(path, Vector2(x, 4000))
+		x += 3000.0
+		var file: String = path.get_file()
+		assert_near(m.strafe_speed, 40.0, 0.001, file + " strafe_speed")
+		assert_near(m.alert_allies_radius, 200.0, 0.001, file + " alert_allies_radius")
+		assert_near(m.strafe_change_interval, 3.0, 0.001, file + " strafe_change_interval")
+		assert_near(m.preferred_distance, 32.0, 0.001, file + " preferred_distance")
+		assert_near(m.min_distance, 20.0, 0.001, file + " min_distance")
+		assert_near(m.max_distance, 60.0, 0.001, file + " max_distance")
+		m.queue_free()
+
+
+func test_a_mob_scene_can_override_the_combat_defaults() -> void:
+	# Values set before _ready (what a mob scene's root does) survive it.
+	var m := (load("res://Scenes/NPCs/Mob/Mobs/Bat/Bat.tscn") as PackedScene).instantiate() as Node2D
+	m.strafe_speed = 55.0
+	m.alert_allies_radius = 120.0
+	m.position = Vector2(4000, 4000)
+	add_child(m)
+	await wait_physics_frames(4)
+	await wait_frames(1)
+	assert_near(m.strafe_speed, 55.0, 0.001, "scene strafe_speed kept")
+	assert_near(m.alert_allies_radius, 120.0, 0.001, "scene alert_allies_radius kept")
+	m.queue_free()

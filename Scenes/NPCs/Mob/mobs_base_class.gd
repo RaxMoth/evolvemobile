@@ -49,13 +49,6 @@ func _ready() -> void:
 	attack_timer.wait_time = attack_cooldown
 	_spawn_scale = scale
 	set_hp_display(current_health, max_health)
-
-	# Mobs alert nearby pack-mates when they spot a hero. EntityBase reads
-	# alert_allies_radius and broadcasts on aggro. Default 200 = pack feels
-	# coordinated without crossing the map.
-	if alert_allies_radius == 0.0:
-		alert_allies_radius = 200.0
-
 	super._ready()
 
 # ============================================
@@ -129,16 +122,17 @@ func _reset_to_spawn() -> void:
 # Combat Role
 # ============================================
 
+## Melee spacing derived from base_attack_range. The scene-tunable combat
+## defaults live on the mobs_base_class.tscn root, so a mob scene can override
+## them: strafe_speed 40, and alert_allies_radius 200 (a spotted hero pulls
+## pack-mates in without crossing the map).
 func _setup_mob_combat_role() -> void:
-	combat_role = Types.CombatRole.MELEE
 	preferred_distance = base_attack_range * 0.8
 	# Never let the melee floor exceed half the reach: a scene that sets a tiny
 	# attack range (old Hog = 10) would otherwise make the Fight gate
 	# `distance <= attack_range and distance >= min_distance` unsatisfiable.
 	min_distance = minf(20.0, base_attack_range * 0.5)
 	max_distance = base_attack_range * 1.5
-	strafe_enabled = true
-	strafe_speed = 40.0
 	strafe_change_interval = 3.0
 
 func _is_attack_ready() -> bool:
