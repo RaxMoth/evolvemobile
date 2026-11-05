@@ -88,9 +88,14 @@ func _perform_jump(caster: Node2D, target_pos: Vector2) -> void:
 		mid_tween.tween_property(vis, "scale", base, jump_duration * 0.5)
 		mid_tween.parallel().tween_property(vis, "self_modulate:a", 1.0, jump_duration * 0.5)
 	
-	# Wait for jump to complete
-	var tree := caster.get_tree()
-	await tree.create_timer(jump_duration).timeout
+	# Land when the jump completes: a pausable timer (the default, process_always,
+	# slammed under the match-result screen while the leap tween stood frozen),
+	# connected rather than awaited, so a timer still paused when the match is
+	# left dies with this ability copy instead of resuming on a freed instance.
+	caster.get_tree().create_timer(jump_duration, false).timeout.connect(_on_leap_landed.bind(caster))
+
+
+func _on_leap_landed(caster: Node2D) -> void:
 	if not is_instance_valid(caster) or not caster.is_inside_tree():
 		_airborne = false
 		return

@@ -14,6 +14,10 @@ func before_each() -> void:
 		PersistedData.wipe_progress(false)
 
 
+func after_each() -> void:
+	get_tree().paused = false
+
+
 func test_hero_ability_node_modifies_only_that_heros_copy() -> void:
 	if not require_isolated():
 		return
@@ -160,3 +164,48 @@ func test_a_pooled_mob_does_not_keep_its_stun() -> void:
 	(bat as MobBase).prepare_for_pool()
 	assert_false((bat as EntityBase).is_stunned(), "the next life starts unstunned")
 	bat.queue_free()
+
+
+## The match-result screen pauses the tree: a dash in progress stops where it
+## is instead of sliding on underneath, and finishes once unpaused.
+func test_ram_dash_holds_still_while_paused() -> void:
+	var g := await spawn_frozen(GROUNT, Vector2(0, 0))
+	var v := await spawn_frozen(VLAD, Vector2(220, 0))
+	var dash := g.ability_2 as BullRamDash
+	dash.execute(g, v, 1.0)
+	await wait_frames(3)
+	assert_true(dash.is_channeling(), "dashing")
+	var held: Vector2 = g.global_position
+	assert_true(held.x > 0.0, "the dash has started moving")
+	get_tree().paused = true
+	await wait_seconds(0.3)
+	assert_eq(g.global_position, held, "no movement while paused")
+	assert_true(dash.is_channeling(), "the dash waits for the unpause")
+	get_tree().paused = false
+	await wait_seconds(0.6)
+	assert_false(dash.is_channeling(), "the dash finished after the unpause")
+	assert_true(g.global_position.x > held.x, "and moved on")
+	g.queue_free()
+	v.queue_free()
+
+
+## Same for Ground Slam: a leap in the air when the tree pauses lands (and
+## deals its damage) only after the unpause.
+func test_ground_slam_lands_only_after_unpause() -> void:
+	var g := await spawn_frozen(GROUNT, Vector2(0, 0))
+	var v := await spawn_frozen(VLAD, Vector2(100, 0))
+	var slam := g.ability_3 as BullGroundSlam
+	slam.execute(g, v, 10.0)
+	await wait_seconds(0.2)
+	get_tree().paused = true
+	var held: Vector2 = g.global_position
+	await wait_seconds(slam.jump_duration + 0.2)
+	assert_eq(v.get_health(), v.get_max_health(), "no slam damage while paused")
+	assert_true(slam.is_channeling(), "still airborne")
+	assert_eq(g.global_position, held, "the leap holds still while paused")
+	get_tree().paused = false
+	await wait_seconds(slam.jump_duration)
+	assert_false(slam.is_channeling(), "landed after the unpause")
+	assert_true(v.get_health() < v.get_max_health(), "and slammed")
+	g.queue_free()
+	v.queue_free()

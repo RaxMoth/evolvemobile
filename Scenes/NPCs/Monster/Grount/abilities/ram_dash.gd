@@ -63,8 +63,9 @@ func execute(caster: Node2D, target: Node2D = null, override_damage: float = -1.
 	
 	is_dashing = true
 
-	# Start dash process
-	caster.get_tree().create_timer(0.0).timeout.connect(_dash_update.bind(caster))
+	# Start dash process. One step per frame on pausable timers (the default,
+	# process_always, kept a dash sliding under the match-result screen).
+	caster.get_tree().create_timer(0.0, false).timeout.connect(_dash_update.bind(caster))
 
 func _dash_update(caster: Node2D) -> void:
 	if not is_dashing or not is_instance_valid(caster):
@@ -92,7 +93,7 @@ func _dash_update(caster: Node2D) -> void:
 	
 	# Continue dashing
 	if is_dashing:
-		caster.get_tree().create_timer(0.0).timeout.connect(_dash_update.bind(caster))
+		caster.get_tree().create_timer(0.0, false).timeout.connect(_dash_update.bind(caster))
 
 ## Hit every target within DASH_HIT_RADIUS of the bull, once per dash.
 func _check_dash_collisions(caster: Node2D) -> void:
