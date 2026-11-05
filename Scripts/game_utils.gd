@@ -253,6 +253,26 @@ func flash_line(parent: Node, from: Vector2, to: Vector2, color: Color, width: f
 	tween.tween_property(line, "modulate:a", 0.0, fade)
 	tween.tween_callback(line.queue_free)
 
+## Meta key on a flashed CanvasItem: its running flash_modulate tween.
+const FLASH_TWEEN_META: StringName = &"flash_tween"
+
+## Tints `item.modulate` to `color` over `t_in` seconds, then back to WHITE
+## over `t_out` (Rally Cry, the MediKit heal, the monster's evolution flash).
+## It ends at the constant WHITE, never at a value captured when it started:
+## that could be another effect's tint (Divine Shield's blue, a flash still
+## running) and would then stick for good. A new flash on the same item kills
+## the one still running.
+func flash_modulate(item: CanvasItem, color: Color, t_in: float, t_out: float) -> void:
+	# has_meta first: get_meta with a null default still errors on a missing key.
+	if item.has_meta(FLASH_TWEEN_META):
+		var running: Variant = item.get_meta(FLASH_TWEEN_META)
+		if running is Tween:
+			(running as Tween).kill()
+	var tween := item.create_tween()
+	tween.tween_property(item, "modulate", color, t_in)
+	tween.tween_property(item, "modulate", Color.WHITE, t_out)
+	item.set_meta(FLASH_TWEEN_META, tween)
+
 # ============================================
 # FOG OF WAR UTILITIES
 # ============================================

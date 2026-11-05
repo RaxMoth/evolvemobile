@@ -75,10 +75,7 @@ func _heal_hero(hero: Node2D) -> void:
 
 func _create_heal_effect(hero: Node2D) -> void:
 	# Green flash on hero
-	var original_modulate = hero.modulate
-	var tween = hero.create_tween()
-	tween.tween_property(hero, "modulate", Color.GREEN, 0.1)
-	tween.tween_property(hero, "modulate", original_modulate, 0.2)
+	GameUtils.flash_modulate(hero, Color.GREEN, 0.1, 0.2)
 
 func _check_if_should_disappear() -> void:
 	# Every hero in range, once each.

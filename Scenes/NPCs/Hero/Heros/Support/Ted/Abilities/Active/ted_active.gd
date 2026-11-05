@@ -25,7 +25,4 @@ func execute(caster: Node2D, _target: Node2D = null, _override_damage: float = -
 
 func _create_rally_effect(caster: Node2D) -> void:
 	# Flash Ted orange
-	var original_modulate = caster.modulate
-	var flash_tween = caster.create_tween()
-	flash_tween.tween_property(caster, "modulate", Color.ORANGE, 0.2)
-	flash_tween.tween_property(caster, "modulate", original_modulate, 0.2)
+	GameUtils.flash_modulate(caster, Color.ORANGE, 0.2, 0.2)

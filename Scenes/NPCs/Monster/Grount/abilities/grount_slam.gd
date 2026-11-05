@@ -82,8 +82,8 @@ func _perform_jump(caster: Node2D, target_pos: Vector2) -> void:
 		var base: Vector2 = vis.scale
 		var mid_tween := caster.create_tween()
 		mid_tween.tween_property(vis, "scale", base * 1.2, jump_duration * 0.5)
-		# self_modulate: the evolution flash tweens `modulate` back to the value it
-		# captured, which could be mid-leap translucent and stick for good.
+		# self_modulate: the evolution flash (GameUtils.flash_modulate) owns
+		# `modulate` and ends it at WHITE, which would cut a mid-leap fade short.
 		mid_tween.parallel().tween_property(vis, "self_modulate:a", 0.7, jump_duration * 0.5)
 		mid_tween.tween_property(vis, "scale", base, jump_duration * 0.5)
 		mid_tween.parallel().tween_property(vis, "self_modulate:a", 1.0, jump_duration * 0.5)

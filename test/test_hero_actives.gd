@@ -7,6 +7,7 @@ const RIVER := "res://Scenes/NPCs/Hero/Heros/Healer/River/River.tscn"
 const TED := "res://Scenes/NPCs/Hero/Heros/Support/Ted/Ted.tscn"
 const IRELIA := "res://Scenes/NPCs/Hero/Heros/Support/Irelia/Irelia.tscn"
 const HOG := "res://Scenes/NPCs/Mob/Mobs/Hog/Hog.tscn"
+const GROUNT := "res://Scenes/NPCs/Monster/Grount/Grount.tscn"
 
 
 func test_divine_shield_protects_any_hero_not_only_irelia() -> void:
@@ -56,6 +57,73 @@ func test_rally_cry_speeds_up_attacks() -> void:
 	await wait_seconds(0.5)
 	assert_near(abilities.get_attack_speed_multiplier(), base, 0.001, "boost expires")
 	ted.queue_free()
+
+
+## Rally Cry's flash ends at WHITE, not at the tint it found when it started:
+## a Divine Shield that broke mid-flash used to leave Ted blue for good.
+func test_rally_flash_ends_white_when_a_shield_breaks_mid_flash() -> void:
+	var ted := (await spawn_frozen(TED, Vector2(0, 0))) as HeroBase
+	var hog := await spawn_frozen(HOG, Vector2(3000, 0))
+	ted.set_target(hog)
+	var shield := Shield.new()
+	shield.name = "Shield"
+	shield.shield_amount = 18.0
+	shield.duration = 7.0
+	shield.owner_hero = ted
+	ted.add_child(shield)
+	await wait_frames(1)
+	assert_true(ted.modulate.b > 1.0, "shielded: blue tint")
+	assert_true(ted.use_active_ability(), "Rally Cry cast")
+	await wait_seconds(0.1)
+	EventBus.deal_damage(null, ted, 20.0)
+	await wait_frames(1)
+	assert_false(is_instance_valid(shield), "the shield broke mid-flash")
+	await wait_seconds(0.6)
+	assert_eq(ted.modulate, Color.WHITE, "no tint left after the flash")
+	ted.queue_free()
+	hog.queue_free()
+
+
+## Monster Taunt's link is drawn in world space and follows both ends every
+## frame: under an evolved monster's 1.5x root scale it used to overshoot
+## Irelia by half, and it only moved at 20 Hz.
+func test_taunt_link_ends_on_irelia_under_a_scaled_monster() -> void:
+	var grount := (await spawn_frozen(GROUNT, Vector2(0, 0))) as MonsterBase
+	grount.gain_xp(1000.0)
+	grount.gain_xp(0.0)
+	await wait_seconds(0.7)  # stage scale tween
+	assert_eq(grount.current_stage, 3)
+	assert_true(grount.scale.x > 1.4, "stage 3 root scale")
+	var irelia := await spawn_frozen(IRELIA, Vector2(120, 0))
+	var before: Array[Node] = grount.get_children()
+	var ult: AbilityBase = (irelia.get_node("AbilitySystem") as AbilitySystem).ultimate_ability
+	ult.execute(irelia)
+	var links: Array = grount.get_children().filter(func(n: Node) -> bool: return n is Line2D and not before.has(n))
+	assert_eq(links.size(), 1, "one link on the taunted monster")
+	if links.size() != 1:
+		grount.queue_free()
+		irelia.queue_free()
+		return
+	var link := links[0] as Line2D
+	assert_true(link.is_in_group(&"TransientEffect"), "scrubbed when a pooled mob is parked")
+	await wait_frames(1)
+	assert_eq(link.get_point_count(), 2, "both ends drawn from the first frame")
+	if link.get_point_count() != 2:
+		grount.queue_free()
+		irelia.queue_free()
+		return
+	assert_true(link.to_global(link.get_point_position(1)).distance_to(irelia.global_position) <= 1.0,
+		"the link ends on Irelia")
+	assert_true(link.to_global(link.get_point_position(0)).distance_to(grount.global_position) <= 1.0,
+		"the link starts on the monster")
+	irelia.global_position = Vector2(60, 80)
+	await wait_frames(1)
+	assert_true(link.to_global(link.get_point_position(1)).distance_to(irelia.global_position) <= 1.0,
+		"the link follows Irelia the next frame")
+	await wait_seconds(ult.duration + 0.4)  # the taunt, then the 0.3 s fade
+	assert_false(is_instance_valid(link), "the link fades and frees itself after the taunt")
+	grount.queue_free()
+	irelia.queue_free()
 
 
 func test_heroes_use_their_active_in_a_fight() -> void:

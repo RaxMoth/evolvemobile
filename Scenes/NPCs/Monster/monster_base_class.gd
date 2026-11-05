@@ -431,10 +431,7 @@ func _play_stage_effect(stage: int) -> void:
 			2: flash_color = Color(1.5, 1.2, 0.8) # Orange
 			3: flash_color = Color(1.8, 0.8, 0.8) # Red
 		
-		var original = animated_sprite.modulate
-		var flash_tween: Tween = create_tween()
-		flash_tween.tween_property(animated_sprite, "modulate", flash_color, 0.2)
-		flash_tween.tween_property(animated_sprite, "modulate", original, 0.3)
+		GameUtils.flash_modulate(animated_sprite, flash_color, 0.2, 0.3)
 	
 	# Expanding ring effect
 	var ring_color: Color = Color.YELLOW

@@ -45,3 +45,17 @@ func test_evolution_is_announced_on_the_event_bus() -> void:
 	assert_eq(seen.size(), 1)
 	assert_true(seen[0][0] == grount and seen[0][1] == 2)
 	grount.queue_free()
+
+
+## Back-to-back evolutions: the second flash replaces the first and both end at
+## WHITE. The old flash restored the tint it captured, which was mid-flash
+## here, and the Grount stayed tinted.
+func test_evolution_flashes_end_white() -> void:
+	var grount := (await spawn_frozen(GROUNT, Vector2(3000, 0))) as MonsterBase
+	grount.gain_xp(1000.0)
+	await wait_seconds(0.25)  # first flash on its way back
+	grount.gain_xp(0.0)
+	assert_eq(grount.current_stage, 3)
+	await wait_seconds(0.7)
+	assert_eq(grount.animated_sprite.modulate, Color.WHITE, "no flash tint left")
+	grount.queue_free()

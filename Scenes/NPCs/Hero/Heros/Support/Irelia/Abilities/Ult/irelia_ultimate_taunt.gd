@@ -69,45 +69,8 @@ func _create_taunt_link(enemy: Node2D, caster: Node2D) -> void:
 	if not is_instance_valid(enemy) or not is_instance_valid(caster):
 		return
 	
-	# Red line connecting enemy to Irelia
-	var line = Line2D.new()
-	line.add_to_group(&"TransientEffect")  # scrubbed by MobBase.prepare_for_pool
-	enemy.add_child(line)
-	line.z_index = 11
-	
-	# Update line position every frame with validation
-	var update_timer = Timer.new()
-	line.add_child(update_timer)
-	update_timer.wait_time = 0.05
-	update_timer.timeout.connect(func():
-		# CRITICAL: Validate all objects before accessing
-		if is_instance_valid(line) and is_instance_valid(enemy) and is_instance_valid(caster):
-			line.clear_points()
-			line.add_point(Vector2.ZERO)
-			line.add_point(caster.global_position - enemy.global_position)
-			line.default_color = Color(1.0, 0.3, 0.3, 0.6)
-			line.width = 2.0
-		else:
-			# If any object is freed, stop timer and cleanup
-			if is_instance_valid(update_timer):
-				update_timer.stop()
-			if is_instance_valid(line):
-				line.queue_free()
-	)
-	update_timer.start()
-	
-	# Remove after duration with validation
-	_schedule_line_cleanup(enemy, line, duration)
-
-# FIXED: Separate timer function for line cleanup
-func _schedule_line_cleanup(enemy: Node2D, line: Line2D, duration_time: float) -> void:
-	await enemy.get_tree().create_timer(duration_time).timeout
-	
-	# CRITICAL: Validate before cleanup
-	if is_instance_valid(line):
-		var tween = line.create_tween()
-		tween.tween_property(line, "modulate:a", 0.0, 0.3)
-		tween.tween_callback(line.queue_free)
+	# Red line connecting enemy to Irelia, in world space, every frame
+	TauntLink.spawn(enemy, caster, duration)
 
 func _create_taunt_effect(caster: Node2D) -> void:
 	# CRITICAL: Validate caster
