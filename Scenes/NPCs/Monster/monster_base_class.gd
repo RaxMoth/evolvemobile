@@ -92,14 +92,7 @@ func _ready() -> void:
 	# Load permanent upgrades BEFORE stage config so stage-1 health/damage
 	# already reflect any purchased Monster Base skills.
 	_load_meta_modifiers()
-	_apply_stage_configuration(1)
-	_setup_monster_combat_role()
-
-	# The monster generates more threat per damage point than a mob — a hero
-	# Tank has to work harder to peel a Stage-3 boss off the squishies.
-	if taunt_strength == 1.0:  # only override the EntityBase default
-		taunt_strength = 1.5
-
+	_enter_stage()
 	super._ready()
 
 func _process(delta: float) -> void:
@@ -112,10 +105,14 @@ func _process(delta: float) -> void:
 		passive_ability.on_passive_update(self, delta)
 	
 
-func _apply_stage_configuration(stage: int) -> void:
-	if not monster_stats:
-		return
-
+## Applies everything that depends on current_stage: HP, damage, XP value,
+## ability stats, size, aggro radius, strafing and the Fight leave distance.
+## Idempotent, so re-entering a stage never stacks anything. The values that
+## never change per stage live on the monster_base_class.tscn root: spacing
+## (preferred 45 / min 20) and taunt_strength 1.5 (more threat per damage
+## point than a mob, so a hero Tank has to work harder to peel the monster).
+func _enter_stage() -> void:
+	var stage: int = current_stage
 	var new_health: float = _max_health_for_stage(stage)
 
 	if stage == 1 or heal_to_full_on_evolution:
@@ -136,6 +133,13 @@ func _apply_stage_configuration(stage: int) -> void:
 	# _get_detection_shape_radius; the scale tween keeps it in step).
 	_update_detection_radius()
 
+	strafe_speed = monster_stats.get_strafe_speed_for_stage(stage)
+	strafe_change_interval = monster_stats.get_strafe_interval_for_stage(stage)
+	# Approach enters Fight at attack_range and Fight leaves past max_distance:
+	# Titan Form's flat reach moves both by the same amount, so the hysteresis
+	# stays what it was (no Approach/Fight ping-pong at the longer range).
+	max_distance = FIGHT_LEAVE_DISTANCE + get_range_bonus()
+
 func _get_entity_level() -> int:
 	return current_stage
 
@@ -152,9 +156,6 @@ func _configure_abilities_for_stage(stage: int) -> void:
 		ability_3.apply_stage_stats(stage)
 
 func _update_stage_scale(stage: int) -> void:
-	if not monster_stats:
-		return
-	
 	# Absolute per stage (Titan Form included), so re-applying never compounds.
 	var target_scale: Vector2 = _scale_for_stage(stage)
 
@@ -175,45 +176,10 @@ func _update_stage_scale(stage: int) -> void:
 func _on_stage_scale_step(_progress: float) -> void:
 	_update_detection_radius()
 
-# ============================================
-# Combat Setup (Resource-Driven)
-# ============================================
-
-func _setup_monster_combat_role() -> void:
-	if not monster_stats:
-		return
-	
-	combat_role = Types.CombatRole.MELEE
-	preferred_distance = 45.0
-	min_distance = 20.0
-	max_distance = FIGHT_LEAVE_DISTANCE
-	strafe_enabled = true
-	
-	_update_combat_for_stage()
-
-func _update_combat_for_stage() -> void:
-	if not monster_stats:
-		return
-	
-	strafe_speed = monster_stats.get_strafe_speed_for_stage(current_stage)
-	strafe_change_interval = monster_stats.get_strafe_interval_for_stage(current_stage)
-	# Approach enters Fight at attack_range and Fight leaves past max_distance:
-	# Titan Form's flat reach moves both by the same amount, so the hysteresis
-	# stays what it was (no Approach/Fight ping-pong at the longer range).
-	max_distance = FIGHT_LEAVE_DISTANCE + get_range_bonus()
-
 func _is_attack_ready() -> bool:
 	if not _strategy_enabled():
 		return ability_cooldowns.get("ability_1", 0.0) <= 0.0
 	return not _is_busy() and (is_ability_ready("ability_1") or _slam_ready())
-
-# ============================================
-# Stage Change Hook
-# ============================================
-
-func _on_stage_entered(new_stage: int, _old_stage: int) -> void:
-	_apply_stage_configuration(new_stage)
-	_update_combat_for_stage()
 
 
 # ============================================
@@ -221,8 +187,6 @@ func _on_stage_entered(new_stage: int, _old_stage: int) -> void:
 # ============================================
 
 func _get_move_speed() -> float:
-	if not monster_stats:
-		return 60.0
 	return monster_stats.get_speed_for_stage(current_stage) * _meta_speed_mult * _enrage_factor(enrage_speed_mult)
 
 func _get_attack_range() -> float:
@@ -234,7 +198,7 @@ func _get_attack_range() -> float:
 ## HP and reach, not wider senses), and mid-evolution, while the body is still
 ## growing, it never drops below the radius it had before.
 func _get_detection_shape_radius() -> float:
-	if not is_titan() or not monster_stats or scale.x <= 0.0:
+	if not is_titan() or scale.x <= 0.0:
 		return detection_radius
 	return detection_radius * minf(1.0, monster_stats.get_scale_for_stage(current_stage).x / scale.x)
 
@@ -292,7 +256,6 @@ func _check_evolution() -> void:
 			_evolve_to_stage(new_stage)
 
 func _evolve_to_stage(new_stage: int) -> void:
-	var old_stage = current_stage
 	current_stage = new_stage
 
 	# Reset cooldowns on evolution
@@ -304,8 +267,8 @@ func _evolve_to_stage(new_stage: int) -> void:
 	# Visual update
 	_update_stage_visuals(current_stage)
 	
-	# Call hook (applies stats from resource)
-	_on_stage_entered(current_stage, old_stage)
+	# Stage stats from the resource (HP, damage, size, spacing).
+	_enter_stage()
 	# Grount "Second Wind" tops the evolution heal up.
 	_apply_evolution_bonus_heal(current_stage)
 

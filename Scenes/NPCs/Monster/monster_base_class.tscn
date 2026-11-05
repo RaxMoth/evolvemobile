@@ -8,6 +8,9 @@ font_size = 18
 
 [node name="Monster" groups=["Enemy", "Monster"] instance=ExtResource("1_cqly6")]
 script = ExtResource("2_yeqw1")
+preferred_distance = 45.0
+min_distance = 20.0
+taunt_strength = 1.5
 
 [node name="DetectionArea" parent="." index="3"]
 collision_mask = 6

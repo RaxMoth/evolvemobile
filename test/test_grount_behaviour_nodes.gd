@@ -426,8 +426,7 @@ func test_titan_form_on_stage_3() -> void:
 	assert_near(g.max_distance, 120.0, 0.001, "the Fight leave distance moves with it")
 	assert_near(shape.radius * g.scale.x, g.detection_radius * stats.stage_3_scale.x, 0.01, "aggro stays at the stage-3 value")
 	# Idempotent: re-applying stage 3 or more XP never stacks it.
-	g._apply_stage_configuration(3)
-	g._update_combat_for_stage()
+	g._enter_stage()
 	await wait_seconds(0.7)
 	assert_true(g.scale.is_equal_approx(titan_scale), "still %s, got %s" % [str(titan_scale), str(g.scale)])
 	assert_near(g.get_max_health(), stats.stage_3_health + 500.0, 0.001)
