@@ -34,6 +34,13 @@ class_name SpawnManager
 ## instantiating a ~25-node scene per respawn (spawn hitches at camp edges).
 @export var pool_enabled: bool = true
 @export var pool_cap_per_scene: int = 48
+## Fresh mobs per scene instantiated during load (after randomize_spawns in
+## _ready), so a camp's first activation takes them from the pool instead of
+## instantiating its scenes inside the 4 Hz activation tick. Never more than
+## the eligible camps of that scene hold; 0 = off. Headless matches (seeds
+## 1-3, both sides) peak at 6 live Bats and 3 live Hogs and never need more
+## instances, so 9 covers that plus one more 3-mob camp for ~2-3 ms of load.
+@export var pool_prewarm_per_scene: int = 9
 
 @export_group("Stress Test")
 ## Multiplies every eligible area's population (1 = designed). Combine with
@@ -45,10 +52,15 @@ var all_spawn_areas: Array[MobSpawnArea] = []
 var active_spawn_areas: Array[MobSpawnArea] = []  # World-eligible (random subset).
 var _check_timer: float = 0.0
 var _pool: Dictionary = {}  # scene resource_path -> Array of parked MobBase (out of tree)
+## scene resource_path -> Array of never-spawned MobBase from prewarm_pool().
+## Kept apart from _pool so they never count toward pool_cap_per_scene:
+## release_mob parks or frees exactly as it would without the prewarm.
+var _prewarmed: Dictionary = {}
 
 func _ready() -> void:
 	if auto_activate_on_ready:
 		randomize_spawns()
+		prewarm_pool()
 
 func _process(delta: float) -> void:
 	if not enable_lazy_activation:
@@ -140,20 +152,59 @@ func _make_spawn_world_eligible(spawn: MobSpawnArea) -> void:
 # ============================================
 
 func acquire_mob(scene: PackedScene) -> MobBase:
-	"""A parked instance of `scene` if one exists, else a fresh instantiate.
+	"""A parked instance of `scene` if one exists (the last released first,
+	then a prewarmed one), else a fresh instantiate.
 	The caller must reset_for_spawn() + add_child() + on_spawned()."""
 	var key := scene.resource_path
-	if pool_enabled and key != "" and _pool.has(key):
-		var bucket: Array = _pool[key]
-		while not bucket.is_empty():
-			var parked: MobBase = bucket.pop_back()
-			if is_instance_valid(parked):
-				return parked
+	if pool_enabled and key != "":
+		var mob := _take(_pool, key)
+		if mob == null:
+			mob = _take(_prewarmed, key)
+		if mob:
+			return mob
+	return _instantiate_mob(scene, key)
+
+func prewarm_pool() -> void:
+	"""Instantiate up to pool_prewarm_per_scene mobs per scene of the eligible
+	camps (capped at their slots still waiting to spawn) and keep them out of
+	the tree. instantiate() runs no game code (the mob scripts have no _init;
+	_enter_tree, _ready and the auto-name come with add_child), so this moves
+	the cost into load without touching the RNG."""
+	if not pool_enabled or pool_prewarm_per_scene <= 0:
+		return
+	var slots: Dictionary = {}  # PackedScene -> mob slots still to spawn
+	for spawn in active_spawn_areas:
+		if spawn.mob_scene and spawn.virtual_count > 0:
+			slots[spawn.mob_scene] = int(slots.get(spawn.mob_scene, 0)) + spawn.virtual_count
+	for scene: PackedScene in slots:
+		var key := scene.resource_path
+		if key == "":
+			continue
+		var stash: Array = _prewarmed.get_or_add(key, [])
+		var wanted := mini(pool_prewarm_per_scene, int(slots[scene]))
+		while stash.size() < wanted:
+			var mob := _instantiate_mob(scene, key)
+			if mob == null:
+				break
+			stash.append(mob)
+
+func _instantiate_mob(scene: PackedScene, key: String) -> MobBase:
 	var mob := scene.instantiate() as MobBase
 	if mob:
 		mob.pool_key = key if (pool_enabled and key != "") else ""
 		mob.spawn_manager = self
 	return mob
+
+func _take(buckets: Dictionary, key: String) -> MobBase:
+	"""Pop the newest live instance of `key` from `buckets` (LIFO), or null."""
+	if not buckets.has(key):
+		return null
+	var bucket: Array = buckets[key]
+	while not bucket.is_empty():
+		var parked: MobBase = bucket.pop_back()
+		if is_instance_valid(parked):
+			return parked
+	return null
 
 func release_mob(mob: MobBase) -> void:
 	"""Park a dead or deactivated mob: scrub its per-life state, remove it from
@@ -175,19 +226,22 @@ func release_mob(mob: MobBase) -> void:
 		bucket.append(mob)
 
 func get_pooled_count() -> int:
+	"""Mobs waiting out of the tree: parked and prewarmed."""
 	var n := 0
-	for bucket in _pool.values():
-		n += (bucket as Array).size()
+	for buckets: Dictionary in [_pool, _prewarmed]:
+		for bucket in buckets.values():
+			n += (bucket as Array).size()
 	return n
 
 func _exit_tree() -> void:
-	# Parked mobs have no parent; free them together with the manager
-	# (match end / scene change) or they would leak.
-	for bucket in _pool.values():
-		for m in bucket:
-			if is_instance_valid(m):
-				m.queue_free()
-	_pool.clear()
+	# Parked and prewarmed mobs have no parent; free them together with the
+	# manager (match end / scene change) or they would leak.
+	for buckets: Dictionary in [_pool, _prewarmed]:
+		for bucket in buckets.values():
+			for m in bucket:
+				if is_instance_valid(m):
+					m.queue_free()
+		buckets.clear()
 
 # ============================================
 # Public API

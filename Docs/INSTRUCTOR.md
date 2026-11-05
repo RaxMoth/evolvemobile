@@ -564,7 +564,10 @@ Dead and despawned mobs are parked **out of the tree** (so `_exit_tree` unregist
 TeamRegistry / EntityRegistry / TickScheduler) and reused. `MobBase.prepare_for_pool` scrubs
 per-life state, `reset_for_spawn` + `on_spawned` restore it, `CombatEvents.RESET` drives the chart
 Dead → Idle. `life_id` increments per life — anything that holds a mob reference across frames
-(trap cage, taunt) must compare it before acting. Projectile / particle pooling: still TODO.
+(trap cage, taunt) must compare it before acting. `SpawnManager.prewarm_pool` instantiates up to
+`pool_prewarm_per_scene` fresh mobs per scene during load (never added to the tree, so no RNG or
+names are used) and keeps them apart from `pool_cap_per_scene`; `acquire_mob` takes released mobs
+first, then prewarmed ones. Projectile / particle pooling: still TODO.
 
 ### 4. Faction Collision Layers (`project.godot` `[layer_names]`, `GameUtils.LAYER_* / MASK_*`)
 

@@ -26,6 +26,77 @@ func _ids(list: Array) -> Array:
 	return out
 
 
+## A second Bat camp under the same manager, set up like make_spawn_manager's.
+func _add_area(pos: Vector2) -> MobSpawnArea:
+	var extra := (load("res://Scenes/World/MobSpawnArea/MobSpawnArea.tscn") as PackedScene).instantiate() as MobSpawnArea
+	extra.mob_scene = area.mob_scene
+	extra.mob_count = area.mob_count
+	extra.auto_spawn_on_ready = false
+	extra.respawn_time = area.respawn_time
+	extra.position = pos
+	mgr.add_child(extra)
+	extra.virtual_count = extra.mob_count
+	return extra
+
+
+func _prewarmed_ids() -> Array:
+	var all: Array = []
+	for bucket in mgr._prewarmed.values():
+		all.append_array(bucket)
+	return _ids(all)
+
+
+func test_prewarm_fills_the_pool_and_feeds_the_first_activation() -> void:
+	assert_eq(mgr.get_pooled_count(), 0, "no prewarm without auto_activate_on_ready")
+	mgr.active_spawn_areas.append(area)  # what randomize_spawns picks
+	mgr.pool_prewarm_per_scene = 2
+	mgr.prewarm_pool()
+	assert_eq(mgr.get_pooled_count(), 2, "pool_prewarm_per_scene instances before any activation")
+	mgr.pool_prewarm_per_scene = 10
+	mgr.prewarm_pool()
+	assert_eq(mgr.get_pooled_count(), 3, "topped up, but never past the camp's 3 slots")
+	for m in mgr._prewarmed[area.mob_scene.resource_path]:
+		assert_false(m.is_inside_tree(), "prewarmed mobs wait out of the tree")
+		assert_false(m.is_parked)
+		assert_eq(m.pool_key, area.mob_scene.resource_path)
+		assert_eq(m.spawn_manager, mgr)
+	var warm_ids := _prewarmed_ids()
+	area.activate()
+	await wait_physics_frames(4)
+	assert_eq(_ids(area.spawned_mobs), warm_ids, "the first activation took the prewarmed instances")
+	assert_eq(mgr.get_pooled_count(), 0)
+	for m in area.spawned_mobs:
+		assert_true(m.is_inside_tree() and m.is_alive())
+		assert_eq(active_state_of(m), "Idle")
+
+
+func test_prewarmed_mobs_do_not_count_toward_the_pool_cap() -> void:
+	var other := _add_area(Vector2(3000, 0))
+	mgr.active_spawn_areas.append_array([area, other])
+	mgr.pool_cap_per_scene = 2
+	mgr.pool_prewarm_per_scene = 6
+	mgr.prewarm_pool()
+	assert_eq(mgr.get_pooled_count(), 6)
+	area.activate()
+	await wait_physics_frames(4)
+	assert_eq(mgr.get_pooled_count(), 3, "three prewarmed left for the other camp")
+	var released_ids := _ids(area.spawned_mobs)
+	area.deactivate()
+	await wait_frames(1)
+	var parked: Array = mgr._pool[area.mob_scene.resource_path]
+	assert_eq(parked.size(), 2, "released mobs park up to the cap, as without a prewarm")
+	assert_eq(mgr.get_pooled_count(), 5, "2 parked + 3 prewarmed")
+	var parked_ids := _ids(parked)
+	for id in parked_ids:
+		assert_true(released_ids.has(id))
+	other.activate()
+	await wait_physics_frames(4)
+	var used := _ids(other.spawned_mobs)
+	for id in parked_ids:
+		assert_true(used.has(id), "released mobs are reused before prewarmed ones")
+	assert_eq(mgr.get_pooled_count(), 2, "one prewarmed instance taken")
+
+
 func test_toggling_activation_keeps_population_and_reuses_instances() -> void:
 	area.activate()
 	await wait_physics_frames(4)
