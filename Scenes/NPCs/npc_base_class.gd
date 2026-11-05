@@ -91,6 +91,9 @@ signal died
 # ============================================
 
 # Combat state
+## Which side I fight on, from my scene groups: set in _enter_tree, before
+## the registries read it; every targeting rule reads it from here.
+var faction: GameUtils.Faction = GameUtils.Faction.NONE
 var target: Node2D = null
 var target_entity: Node = null
 var last_attacker: Node2D = null
@@ -183,15 +186,16 @@ func _ready() -> void:
 func _enter_tree() -> void:
 	# Registration lives here (not _ready) so a pooled mob re-registers on
 	# every add_child and drops out on remove_child. Groups are assigned at
-	# instantiation, so is_in_group() is already valid.
+	# instantiation, so the faction can already be read from them.
+	faction = GameUtils.faction_of(self)
 	TeamRegistry.register(self, TeamRegistry.team_name_of(self))
-	EntityRegistry.register(self)
+	EntityRegistry.register(self, faction)
 	TickScheduler.register(self, _is_always_full_rate())
 
 func _exit_tree() -> void:
 	# Clean up team membership so dead entities don't linger in threat tables.
 	TeamRegistry.unregister(self, TeamRegistry.team_name_of(self))
-	EntityRegistry.unregister(self)
+	EntityRegistry.unregister(self, faction)
 	TickScheduler.unregister(self)
 
 
@@ -497,10 +501,11 @@ func _score_target(target_node: Node2D) -> float:
 
 func _get_target_priority(target_node: Node2D) -> float:
 	"""Get base priority score based on target type"""
-	if target_node.is_in_group("Hero") or target_node.is_in_group("Monster"):
-		return priority_hero_monster
-	elif target_node.is_in_group("Enemy"):
-		return priority_mob
+	match GameUtils.cached_faction_of(target_node):
+		GameUtils.Faction.HERO, GameUtils.Faction.MONSTER:
+			return priority_hero_monster
+		GameUtils.Faction.MOB:
+			return priority_mob
 	return 0.0
 
 func _get_distance_score(distance: float) -> float:
@@ -797,7 +802,7 @@ func _get_smart_idle_destination() -> Vector2:
 	- For heroes: Prefers unexplored areas
 	- For all: Avoids walls and obstacles
 	- Picks best of multiple samples"""
-	if is_in_group("Hero"):
+	if faction == GameUtils.Faction.HERO:
 		var exploration_target = _get_exploration_target()
 		if exploration_target != Vector2.ZERO:
 			return exploration_target
@@ -844,7 +849,7 @@ func _generate_random_point() -> Vector2:
 	var dir := Vector2.from_angle(angle)
 	
 	var radius = idle_wander_radius
-	if is_in_group("Hero"):
+	if faction == GameUtils.Faction.HERO:
 		radius *= 1.5
 	
 	var dist := randf_range(radius * 0.3, radius)
@@ -875,7 +880,7 @@ func _score_destination(point: Vector2) -> float:
 	var angle_diff: float = absf(GameUtils.wrapped_angle_delta(current_facing, point_angle))
 	score += (PI - angle_diff) * 50.0
 	
-	if is_in_group("Hero"):
+	if faction == GameUtils.Faction.HERO:
 		var fog_system: Node = EntityRegistry.singleton(&"FogOfWar")
 		if GameUtils.is_position_explored(fog_system, point):
 			score -= 50.0

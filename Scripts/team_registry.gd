@@ -65,15 +65,16 @@ func unregister(entity: EntityBase, team_name: StringName) -> void:
 	for other in teams.values():
 		(other as TeamBlackboard).forget_attacker(entity)
 
-## Resolve which team an entity belongs to from its scene groups.
-## Returns &"" if not on any known team.
+## Resolve which team an entity belongs to from its faction (heroes and Ted's
+## pet: HEROES; mobs and the monster: ENEMIES). Returns &"" for no faction.
 func team_name_of(entity: Node) -> StringName:
 	if entity == null:
 		return &""
-	if entity.is_in_group("Hero"):
-		return HEROES
-	if entity.is_in_group("Enemy") or entity.is_in_group("Monster"):
-		return ENEMIES
+	match GameUtils.cached_faction_of(entity):
+		GameUtils.Faction.HERO:
+			return HEROES
+		GameUtils.Faction.MOB, GameUtils.Faction.MONSTER:
+			return ENEMIES
 	return &""
 
 func team_of(entity: Node) -> TeamBlackboard:

@@ -31,10 +31,10 @@ var _retarget_timer: float = 0.0
 
 func _enter_tree() -> void:
 	# In group "Hero" (TedsPet.tscn) → EntityRegistry.hero_side, not .heroes.
-	EntityRegistry.register(self)
+	EntityRegistry.register(self, GameUtils.faction_of(self))
 
 func _exit_tree() -> void:
-	EntityRegistry.unregister(self)
+	EntityRegistry.unregister(self, GameUtils.faction_of(self))
 
 func _ready() -> void:
 	current_health = max_health

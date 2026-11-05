@@ -5,14 +5,15 @@ extends Node
 ##
 ## Entities register from _enter_tree and unregister from _exit_tree
 ## (EntityBase and TedsPet), so anything removed from the tree — including a
-## pooled mob — drops out of every list automatically. Classification mirrors
-## TeamRegistry.team_name_of / GameUtils.can_entity_target:
+## pooled mob — drops out of every list automatically. Classification is the
+## GameUtils.Faction the caller passes (EntityBase.faction, cached in its
+## _enter_tree; the pet passes GameUtils.faction_of(self)):
 ##   heroes    — HeroBase only (HUD, match census, LOD anchors)
-##   hero_side — everything in group "Hero" (heroes + pets). This is the set
-##               the old group scans returned: spawn activation, boids, fog.
-##   mobs      — "Enemy" but not "Monster" (MobBase)
-##   monsters  — "Monster"
-##   enemies   — mobs + monsters ("Enemy")
+##   hero_side — every HERO (heroes + pets). This is the set the old group
+##               scans returned: spawn activation, boids, fog.
+##   mobs      — MOB (MobBase)
+##   monsters  — MONSTER
+##   enemies   — mobs + monsters, in registration order
 ## Lists are plain arrays; callers iterate them directly and must still
 ## is_instance_valid() each element (a node can be freed mid-frame before its
 ## _exit_tree ran for the iterating caller).
@@ -32,27 +33,35 @@ var _singletons: Dictionary = {}
 # Registration
 # ============================================
 
-func register(e: Node2D) -> void:
+func register(e: Node2D, faction: GameUtils.Faction) -> void:
 	if e == null:
 		return
-	if e.is_in_group("Hero"):
-		_add(hero_side, e)
-		if e is HeroBase:
-			_add(heroes, e)
-	elif e.is_in_group("Monster"):
-		_add(monsters, e)
-		_add(enemies, e)
-	elif e.is_in_group("Enemy"):
-		_add(mobs, e)
-		_add(enemies, e)
+	match faction:
+		GameUtils.Faction.HERO:
+			_add(hero_side, e)
+			if e is HeroBase:
+				_add(heroes, e)
+		GameUtils.Faction.MONSTER:
+			_add(monsters, e)
+			_add(enemies, e)
+		GameUtils.Faction.MOB:
+			_add(mobs, e)
+			_add(enemies, e)
 
 
-func unregister(e: Node2D) -> void:
-	heroes.erase(e)
-	hero_side.erase(e)
-	mobs.erase(e)
-	monsters.erase(e)
-	enemies.erase(e)
+## `faction` must be the value register() got, so only its lists are scanned.
+func unregister(e: Node2D, faction: GameUtils.Faction) -> void:
+	match faction:
+		GameUtils.Faction.HERO:
+			hero_side.erase(e)
+			if e is HeroBase:
+				heroes.erase(e)
+		GameUtils.Faction.MONSTER:
+			monsters.erase(e)
+			enemies.erase(e)
+		GameUtils.Faction.MOB:
+			mobs.erase(e)
+			enemies.erase(e)
 
 
 static func _add(list: Array[Node2D], e: Node2D) -> void:
@@ -64,18 +73,19 @@ static func _add(list: Array[Node2D], e: Node2D) -> void:
 # Queries (all distance math is squared — no sqrt)
 # ============================================
 
-## Lists this attacker may target. Mirrors GameUtils.can_entity_target.
+## Lists this attacker may target. Mirrors GameUtils.CAN_HIT.
 ## Returns a NEW array; prefer the raw lists in per-frame code.
 func targets_for(attacker: Node) -> Array[Node2D]:
 	var out: Array[Node2D] = []
-	if attacker.is_in_group("Monster"):
-		out.append_array(hero_side)
-		out.append_array(mobs)
-	elif attacker.is_in_group("Enemy"):
-		out.append_array(hero_side)
-		out.append_array(monsters)
-	elif attacker.is_in_group("Hero"):
-		out.append_array(enemies)
+	match GameUtils.cached_faction_of(attacker):
+		GameUtils.Faction.MONSTER:
+			out.append_array(hero_side)
+			out.append_array(mobs)
+		GameUtils.Faction.MOB:
+			out.append_array(hero_side)
+			out.append_array(monsters)
+		GameUtils.Faction.HERO:
+			out.append_array(enemies)
 	return out
 
 

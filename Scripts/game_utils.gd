@@ -24,7 +24,8 @@ func configure_nav_agent(agent: NavigationAgent2D) -> void:
 	if agent and "path_search_max_polygons" in agent:
 		agent.set("path_search_max_polygons", NAV_MAX_SEARCH_POLYGONS)
 
-## What each faction may hit (mirrors can_entity_target below).
+## What each faction may hit: the physics-layer mirror of CAN_HIT below (the
+## one source of the targeting rules). Keep the two in sync.
 const MASK_HERO_TARGETS: int = LAYER_BODY_MOB | LAYER_BODY_MONSTER
 const MASK_MOB_TARGETS: int = LAYER_BODY_HERO | LAYER_BODY_MONSTER
 const MASK_MONSTER_TARGETS: int = LAYER_BODY_HERO | LAYER_BODY_MOB
@@ -149,27 +150,50 @@ func wrapped_angle_delta(from: float, to: float) -> float:
 # TARGETING UTILITIES
 # ============================================
 
+## Which side an entity fights on. Read from its scene groups by faction_of()
+## (Hero: HeroBaseClass.tscn and TedsPet.tscn; Enemy: Bat, Hog; Enemy +
+## Monster: monster_base_class.tscn).
+enum Faction { NONE, HERO, MOB, MONSTER }
+
+## Who may hit whom: CAN_HIT[attacker] is the set of factions that attacker
+## may target, one bit per Faction (1 << target). The one source of the
+## targeting rules; EntityRegistry.targets_for and MASK_* mirror it.
+const CAN_HIT: Array[int] = [
+	0,                                            # NONE: nothing
+	(1 << Faction.MOB) | (1 << Faction.MONSTER),  # HERO: every enemy
+	(1 << Faction.HERO) | (1 << Faction.MONSTER), # MOB: heroes and the monster, never other mobs
+	(1 << Faction.HERO) | (1 << Faction.MOB),     # MONSTER: heroes and mobs
+]
+
+
+## The faction from `n`'s scene groups (static: assigned at instantiation),
+## with precedence Hero > Monster > Enemy. EntityBase caches it as `faction`
+## in _enter_tree; per-candidate code goes through cached_faction_of().
+func faction_of(n: Node) -> Faction:
+	if n.is_in_group("Hero"):
+		return Faction.HERO
+	if n.is_in_group("Monster"):
+		return Faction.MONSTER
+	if n.is_in_group("Enemy"):
+		return Faction.MOB
+	return Faction.NONE
+
+
+## faction_of() through EntityBase's cached `faction` (no group lookups);
+## other nodes (Ted's pet) read their groups.
+func cached_faction_of(n: Node) -> Faction:
+	var entity := n as EntityBase
+	if entity:
+		return entity.faction
+	return faction_of(n)
+
+
+func can_hit(attacker: Faction, target: Faction) -> bool:
+	return (CAN_HIT[attacker] & (1 << target)) != 0
+
+
 func can_entity_target(attacker: Node, target: Node) -> bool:
-	if attacker.is_in_group("Monster"):
-		# Monsters attack Heroes and Mobs (but not other Monsters)
-		if target.is_in_group("Hero"):
-			return true
-		elif target.is_in_group("Enemy") and not target.is_in_group("Monster"):
-			return true  # It's a Mob
-	
-	elif attacker.is_in_group("Enemy"):
-		# Mobs attack Heroes and Monsters (but not other Mobs)
-		if target.is_in_group("Hero"):
-			return true
-		elif target.is_in_group("Monster"):
-			return true
-	
-	elif attacker.is_in_group("Hero"):
-		# Heroes attack all enemies (Mobs and Monsters)
-		if target.is_in_group("Enemy"):
-			return true
-	
-	return false
+	return can_hit(cached_faction_of(attacker), cached_faction_of(target))
 
 # ============================================
 # OVERLAP QUERIES
