@@ -8,7 +8,7 @@ const SAVE := "user://save.cfg"
 
 func before_each() -> void:
 	if is_isolated():
-		for f in [SAVE, SAVE + ".v0.bak", SAVE + ".v1.bak", SAVE + ".v2.bak", SAVE + ".corrupt.bak"]:
+		for f in [SAVE, SAVE + ".tmp", SAVE + ".v0.bak", SAVE + ".v1.bak", SAVE + ".v2.bak", SAVE + ".corrupt.bak"]:
 			if FileAccess.file_exists(f):
 				DirAccess.remove_absolute(ProjectSettings.globalize_path(f))
 
@@ -116,3 +116,97 @@ func test_corrupt_save_is_kept_aside_and_defaults_seeded() -> void:
 	assert_eq(PersistedData.get_save_version(), 2)
 	assert_eq(PersistedData.get_currency(PersistedData.STEEL), 0)
 	assert_true(FileAccess.file_exists(SAVE + ".corrupt.bak"), "unreadable file preserved")
+
+
+func test_save_replaces_the_file_atomically() -> void:
+	if not require_isolated():
+		return
+	PersistedData.wipe_progress(false)
+	PersistedData.add_currency(PersistedData.GOLD, 42)
+	PersistedData.add_hero_xp(&"vlad", 120)
+	PersistedData.set_setting(&"music_volume", 0.4)
+	var saves := [0]
+	var cb := func() -> void: saves[0] += 1
+	PersistedData.data_saved.connect(cb)
+	PersistedData.save_data()
+	PersistedData.data_saved.disconnect(cb)
+	assert_eq(saves[0], 1, "data_saved once per save")
+	assert_false(FileAccess.file_exists(SAVE + ".tmp"), "tmp file renamed over the save")
+	PersistedData.load_data()
+	assert_eq(PersistedData.get_currency(PersistedData.GOLD), 42)
+	assert_eq(PersistedData.get_hero_xp(&"vlad"), 120)
+	assert_near(float(PersistedData.get_setting(&"music_volume", 1.0)), 0.4, 0.0001)
+
+
+func test_unreadable_save_recovers_the_tmp_file() -> void:
+	if not require_isolated():
+		return
+	# A finished tmp write whose rename never happened, next to an unreadable save.
+	var tmp := ConfigFile.new()
+	tmp.set_value("meta", "save_version", PersistedData.CURRENT_SAVE_VERSION)
+	tmp.set_value("currency", "gold", 55)
+	tmp.set_value("hero_xp", "vlad", 300)
+	tmp.save(SAVE + ".tmp")
+	var f := FileAccess.open(SAVE, FileAccess.WRITE)
+	f.store_string("this is = not [ a config\n[[[")
+	f.close()
+	PersistedData.load_data()
+	assert_eq(PersistedData.get_currency(PersistedData.GOLD), 55, "tmp data recovered")
+	assert_eq(PersistedData.get_hero_xp(&"vlad"), 300)
+	assert_false(FileAccess.file_exists(SAVE + ".tmp"), "tmp moved into place")
+	assert_true(FileAccess.file_exists(SAVE + ".corrupt.bak"), "unreadable file preserved")
+	var on_disk := ConfigFile.new()
+	assert_eq(on_disk.load(SAVE), OK)
+	assert_eq(int(on_disk.get_value("currency", "gold", 0)), 55)
+
+
+func test_missing_save_recovers_the_tmp_file() -> void:
+	if not require_isolated():
+		return
+	var tmp := ConfigFile.new()
+	tmp.set_value("meta", "save_version", PersistedData.CURRENT_SAVE_VERSION)
+	tmp.set_value("currency", "steel", 9)
+	tmp.save(SAVE + ".tmp")
+	PersistedData.load_data()
+	assert_eq(PersistedData.get_currency(PersistedData.STEEL), 9)
+	assert_true(FileAccess.file_exists(SAVE))
+	assert_false(FileAccess.file_exists(SAVE + ".tmp"))
+
+
+func test_pause_saves_only_unsaved_changes() -> void:
+	if not require_isolated():
+		return
+	PersistedData.wipe_progress(false)
+	var saves := [0]
+	var cb := func() -> void: saves[0] += 1
+	PersistedData.data_saved.connect(cb)
+	PersistedData.notification(Node.NOTIFICATION_APPLICATION_PAUSED)
+	assert_eq(saves[0], 0, "nothing unsaved, no write")
+	PersistedData.set_setting(&"sfx_volume", 0.25)  # what the volume sliders do
+	PersistedData.notification(Node.NOTIFICATION_APPLICATION_PAUSED)
+	assert_eq(saves[0], 1, "backgrounding flushes the change")
+	PersistedData.notification(Node.NOTIFICATION_APPLICATION_PAUSED)
+	assert_eq(saves[0], 1, "flushed once")
+	PersistedData.data_saved.disconnect(cb)
+	var on_disk := ConfigFile.new()
+	on_disk.load(SAVE)
+	assert_near(float(on_disk.get_value("settings", "sfx_volume", 1.0)), 0.25, 0.0001)
+
+
+func test_reset_progress_signals_xp_back_to_zero() -> void:
+	if not require_isolated():
+		return
+	PersistedData.wipe_progress(false)
+	PersistedData.add_hero_xp(&"vlad", 500)
+	PersistedData.add_monster_xp(&"grount", 300)
+	var heroes: Array = []
+	var monsters: Array = []
+	var on_hero := func(id: StringName, xp: int) -> void: heroes.append([id, xp])
+	var on_monster := func(id: StringName, xp: int) -> void: monsters.append([id, xp])
+	PersistedData.hero_xp_changed.connect(on_hero)
+	PersistedData.monster_xp_changed.connect(on_monster)
+	PersistedData.wipe_progress()
+	PersistedData.hero_xp_changed.disconnect(on_hero)
+	PersistedData.monster_xp_changed.disconnect(on_monster)
+	assert_eq(heroes, [[&"vlad", 0]], "menu level row refreshed")
+	assert_eq(monsters, [[&"grount", 0]], "monster bar refreshed")

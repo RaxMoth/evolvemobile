@@ -10,9 +10,15 @@ extends Node
 ##   [settings]  music_volume, sfx_volume, etc.
 ##
 ## Loaded once at startup. Mutations go through helper methods so signals
-## fire and so we never have stale reads. Save is explicit (call save()
+## fire and so we never have stale reads. Save is explicit (call save_data()
 ## after meaningful changes) — we don't write on every set to avoid
-## per-frame I/O when many things change in sequence.
+## per-frame I/O when many things change in sequence. Unsaved changes are
+## still flushed when the app is paused (backgrounded) or asked to close.
+##
+## Atomic save: save_data() writes `save.cfg.tmp` and renames it over
+## `save.cfg`, so a kill mid-write leaves the previous save intact. If
+## `save.cfg` is missing or unreadable on load but the tmp file parses, the
+## tmp file (a finished write whose rename never happened) is moved into place.
 ##
 ## Versioning: [meta] save_version. On load, an older file is first copied to
 ## `save.cfg.v<N>.bak`, then walked up the `_migrate()` ladder one version at
@@ -27,6 +33,7 @@ signal data_loaded
 signal data_saved
 
 const SAVE_PATH := "user://save.cfg"
+const TMP_SAVE_PATH := "user://save.cfg.tmp"
 ## v1: first shipped layout. v2: normalized types (ints for currency/XP,
 ## strings only in skill lists, volumes clamped) + [meta] created_unix.
 const CURRENT_SAVE_VERSION := 2
@@ -53,10 +60,19 @@ const SECTION_SETTINGS := "settings"
 
 var _config: ConfigFile = ConfigFile.new()
 var _loaded: bool = false
+## Memory holds changes the file does not have yet: set by every mutator,
+## cleared by a successful save_data().
+var _dirty: bool = false
 
 
 func _ready() -> void:
 	load_data()
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_APPLICATION_PAUSED or what == NOTIFICATION_WM_CLOSE_REQUEST:
+		if _dirty:
+			save_data()
 
 
 # ============================================
@@ -65,7 +81,10 @@ func _ready() -> void:
 
 func load_data() -> void:
 	_config = ConfigFile.new()
+	_dirty = false
 	var err := _config.load(SAVE_PATH)
+	if err != OK and _recover_tmp_save(err):
+		err = OK
 	if err == ERR_FILE_NOT_FOUND:
 		# First run — write defaults.
 		_seed_defaults()
@@ -96,14 +115,46 @@ func load_data() -> void:
 func save_data() -> void:
 	_config.set_value(SECTION_META, "save_version", CURRENT_SAVE_VERSION)
 	_config.set_value(SECTION_META, "last_saved_unix", int(Time.get_unix_time_from_system()))
-	var err := _config.save(SAVE_PATH)
+	# ConfigFile.save() truncates the file before writing it, so never point
+	# it at the live save: write the sibling, then swap it in with one rename.
+	var err := _config.save(TMP_SAVE_PATH)
 	if err != OK:
 		push_error("PersistedData: save failed (err %d)" % err)
 		return
+	err = DirAccess.rename_absolute(ProjectSettings.globalize_path(TMP_SAVE_PATH), ProjectSettings.globalize_path(SAVE_PATH))
+	if err != OK:
+		# The finished write stays in the tmp file; load_data() falls back to
+		# it if save.cfg is gone or unreadable.
+		push_error("PersistedData: could not move %s over %s (err %d)" % [TMP_SAVE_PATH, SAVE_PATH, err])
+		return
+	_dirty = false
 	data_saved.emit()
 
 
+## After save.cfg failed to load with `load_err`: if the tmp file of a save
+## whose rename never happened parses, move it into place and use it as
+## _config. The unreadable save.cfg (if any) is backed up first. Returns false,
+## leaving _config alone, when there is nothing to recover.
+func _recover_tmp_save(load_err: Error) -> bool:
+	if not FileAccess.file_exists(TMP_SAVE_PATH):
+		return false
+	var recovered := ConfigFile.new()
+	if recovered.load(TMP_SAVE_PATH) != OK:
+		return false
+	push_warning("PersistedData: save.cfg unreadable (err %d) — recovering %s." % [load_err, TMP_SAVE_PATH])
+	if load_err != ERR_FILE_NOT_FOUND:
+		_backup_save("corrupt")
+	var err := DirAccess.rename_absolute(ProjectSettings.globalize_path(TMP_SAVE_PATH), ProjectSettings.globalize_path(SAVE_PATH))
+	if err != OK:
+		# Still play on the recovered data; the next save_data() retries the move.
+		push_error("PersistedData: could not move %s over %s (err %d)" % [TMP_SAVE_PATH, SAVE_PATH, err])
+		_dirty = true
+	_config = recovered
+	return true
+
+
 func _seed_defaults() -> void:
+	_dirty = true
 	for c in ALL_CURRENCIES:
 		_config.set_value(SECTION_CURRENCY, c, 0)
 	_config.set_value(SECTION_META, "total_matches", 0)
@@ -146,6 +197,7 @@ func _migrate(from_version: int) -> void:
 	# 	_migrate_v2_to_v3()
 	# 	v = 3
 	_config.set_value(SECTION_META, "save_version", CURRENT_SAVE_VERSION)
+	_dirty = true
 
 
 ## v1 → v2: normalize types the first builds wrote loosely (floats / strings
@@ -197,6 +249,10 @@ func wipe_progress(keep_settings: bool = true) -> void:
 	if keep_settings and _config.has_section(SECTION_SETTINGS):
 		for key in _config.get_section_keys(SECTION_SETTINGS):
 			kept[key] = _config.get_value(SECTION_SETTINGS, key)
+	# Every id that had XP drops back to 0: tell the listeners (main menu
+	# level rows and monster bar) after the save, as for currency.
+	var hero_ids := _section_keys(SECTION_HERO_XP)
+	var monster_ids := _section_keys(SECTION_MONSTER_XP)
 	_config = ConfigFile.new()
 	_seed_defaults()
 	for key in kept:
@@ -204,6 +260,14 @@ func wipe_progress(keep_settings: bool = true) -> void:
 	save_data()
 	for c in ALL_CURRENCIES:
 		currency_changed.emit(c, 0)
+	for id in hero_ids:
+		hero_xp_changed.emit(StringName(id), 0)
+	for id in monster_ids:
+		monster_xp_changed.emit(StringName(id), 0)
+
+
+func _section_keys(section: String) -> PackedStringArray:
+	return _config.get_section_keys(section) if _config.has_section(section) else PackedStringArray()
 
 
 # ============================================
@@ -219,6 +283,7 @@ func add_currency(currency: StringName, amount: int) -> void:
 		return
 	var new_total := get_currency(currency) + amount
 	_config.set_value(SECTION_CURRENCY, currency, new_total)
+	_dirty = true
 	currency_changed.emit(currency, new_total)
 
 
@@ -230,6 +295,7 @@ func spend_currency(currency: StringName, amount: int) -> bool:
 		return false
 	var new_total := current - amount
 	_config.set_value(SECTION_CURRENCY, currency, new_total)
+	_dirty = true
 	currency_changed.emit(currency, new_total)
 	return true
 
@@ -251,6 +317,7 @@ func add_hero_xp(hero_id: StringName, amount: int) -> void:
 		return
 	var new_total := get_hero_xp(hero_id) + amount
 	_config.set_value(SECTION_HERO_XP, hero_id, new_total)
+	_dirty = true
 	hero_xp_changed.emit(hero_id, new_total)
 
 
@@ -263,6 +330,7 @@ func add_monster_xp(monster_id: StringName, amount: int) -> void:
 		return
 	var new_total := get_monster_xp(monster_id) + amount
 	_config.set_value(SECTION_MONSTER_XP, monster_id, new_total)
+	_dirty = true
 	monster_xp_changed.emit(monster_id, new_total)
 
 
@@ -300,6 +368,7 @@ func get_unlocked_skills(tree_id: StringName) -> Array:
 
 func set_unlocked_skills(tree_id: StringName, ids: Array) -> void:
 	_config.set_value(SECTION_SKILLS, tree_id, ids)
+	_dirty = true
 
 
 # ============================================
@@ -312,6 +381,7 @@ func get_setting(key: StringName, default_value: Variant = null) -> Variant:
 
 func set_setting(key: StringName, value: Variant) -> void:
 	_config.set_value(SECTION_SETTINGS, key, value)
+	_dirty = true
 
 
 # ============================================
@@ -328,3 +398,4 @@ func get_total_matches() -> int:
 
 func record_match_played() -> void:
 	_config.set_value(SECTION_META, "total_matches", get_total_matches() + 1)
+	_dirty = true
