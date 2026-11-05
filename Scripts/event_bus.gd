@@ -53,15 +53,19 @@ func _route_packet(packet: DamagePacket) -> float:
 		return 0.0
 
 	var t := packet.target
-	if t.has_method("_receive_damage"):
+	# Typed call for every entity. Ted's pet is a valid AoE target but not an
+	# EntityBase, so it keeps the reflective path.
+	var entity := t as EntityBase
+	if entity != null:
+		entity._receive_damage(packet)
+	elif t.has_method("_receive_damage"):
 		t._receive_damage(packet)
 	else:
 		push_warning("EventBus: target ", t, " has no _receive_damage(packet) method. Damage dropped.")
 		return 0.0
 
-	# Targeted reaction hook. Guarded: Ted's pet is a valid AoE target but not
-	# an EntityBase, and a killing blow skips the flinch on purpose.
-	var entity := t as EntityBase
+	# Targeted reaction hook. Guarded: the pet has no hook, and a killing blow
+	# skips the flinch on purpose.
 	if entity != null and entity.is_alive():
 		entity._on_damage_taken(packet)
 

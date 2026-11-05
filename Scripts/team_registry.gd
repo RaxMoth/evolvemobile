@@ -50,16 +50,18 @@ func _process(delta: float) -> void:
 func get_team(team_name: StringName) -> TeamBlackboard:
 	return teams.get(team_name, null)
 
-func register(entity: Node, team_name: StringName) -> void:
+## Only EntityBase._enter_tree registers, so members are always entities.
+func register(entity: EntityBase, team_name: StringName) -> void:
 	var t: TeamBlackboard = get_team(team_name)
 	if t:
 		t.add_member(entity)
 
-func unregister(entity: Node, team_name: StringName) -> void:
+func unregister(entity: EntityBase, team_name: StringName) -> void:
 	var t: TeamBlackboard = get_team(team_name)
 	if t:
 		t.remove_member(entity)
-	# Also scrub it from the OTHER teams' rows (threat it generated against them).
+	# Scrub it as an attacker from every team's rows, its own team included
+	# (remove_member only drops its own row).
 	for other in teams.values():
 		(other as TeamBlackboard).forget_attacker(entity)
 
@@ -95,10 +97,7 @@ func _on_damage_applied(packet: DamagePacket) -> void:
 
 	# Tank multiplier: source's taunt_strength scales how much threat each
 	# damage point generates. Default 1.0; tanks set 2.0–3.0.
-	var taunt: float = 1.0
-	if "taunt_strength" in packet.source:
-		var v = packet.source.get("taunt_strength")
-		if v is float or v is int:
-			taunt = float(v)
+	# Non-entity sources (Ted's pet) count 1.0.
+	var taunt: float = (packet.source as EntityBase).taunt_strength if packet.source is EntityBase else 1.0
 
 	target_team.bump_threat(packet.target, packet.source, packet.amount * taunt)
