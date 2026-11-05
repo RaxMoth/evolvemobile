@@ -5,6 +5,7 @@ extends TestCase
 const FOG := "res://Scenes/World/FogOfWar/FogOfWarSystem.tscn"
 const VLAD := "res://Scenes/NPCs/Hero/Heros/DMG/Vlad/Vlad.tscn"
 const WORLD := "res://Scenes/World/World.tscn"
+const VISION := "res://Scenes/World/FogOfWar/VisionArea.tscn"
 ## README hero vision ranges (HeroStats.vision_radius), by World.tscn node name.
 const HERO_VISION := {"River": 300.0, "Vlad": 250.0, "Ted": 220.0, "Irelia": 200.0}
 
@@ -115,4 +116,44 @@ func test_monster_player_vision_does_not_feed_the_hero_ai_memory() -> void:
 	fog.reveal_area(Vector2(800, 800), 64.0, true, false)
 	assert_true(fog.exploration_image.get_pixel(25, 25).r > 0.5, "the monster player sees it")
 	assert_false(fog.is_tile_explored(Vector2(800, 800)), "the hero AI did not explore it")
+	fog.queue_free()
+
+
+func test_vision_skips_reveals_while_it_stays_in_its_tile() -> void:
+	# A source that has not left its 32 px fog tile (a hero in a fight, a
+	# resting monster) would reveal the same tiles again, which writes nothing.
+	await wait_frames(1)  # the fogs earlier tests freed have left the tree
+	var fog := (load(FOG) as PackedScene).instantiate() as FogOfWarSystem
+	fog.world_size = Vector2(3200, 3200)
+	add_child(fog)
+	assert_true(EntityRegistry.singleton(&"FogOfWar") == fog, "the vision finds this fog")
+	var vision := (load(VISION) as PackedScene).instantiate() as VisionArea
+	vision.vision_radius = 64.0
+	add_child(vision)
+	vision.set_process(false)  # the test drives every reveal
+	var img := fog.exploration_image
+	vision.global_position = Vector2(484, 484)  # tile (15, 15)
+	vision._update_vision()
+	assert_true(img.get_pixel(15, 15).r > 0.5, "the first reveal runs")
+	# Canary: any reveal_area() call from tile (15, 15) on would clear it again.
+	img.set_pixel(16, 15, Color.BLACK)
+	var before := img.get_data()
+	vision.global_position = Vector2(511, 510)  # still tile (15, 15)
+	vision._update_vision()
+	assert_true(img.get_pixel(16, 15).r < 0.5, "same tile: reveal_area not re-entered")
+	assert_true(img.get_data() == before, "same tile: no pixel changed")
+	vision.global_position = Vector2(516, 500)  # tile (16, 15)
+	vision._update_vision()
+	assert_true(img.get_pixel(16, 15).r > 0.5, "the next tile reveals")
+	img.set_pixel(17, 15, Color.BLACK)
+	vision.set_vision_radius(65.0)
+	vision._update_vision()
+	assert_true(img.get_pixel(17, 15).r > 0.5, "a new radius reveals again in the same tile")
+	vision.reveals_display = false
+	vision._update_vision()
+	img.set_pixel(17, 15, Color.BLACK)
+	vision.reveals_display = true
+	vision._update_vision()
+	assert_true(img.get_pixel(17, 15).r > 0.5, "a changed flag reveals again in the same tile")
+	vision.queue_free()
 	fog.queue_free()

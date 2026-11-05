@@ -80,11 +80,22 @@ func _setup_fog_sprite() -> void:
 	fog_material.set_shader_parameter("grid_size", Vector2(grid_width, grid_height))
 	fog_sprite.material = fog_material
 
-func reveal_area(world_position: Vector2, radius: float, display: bool = true, memory: bool = true) -> void:
+## The fog tile under world_position, the centre of a reveal_area() there.
+## VisionArea keys its skip on it, so it must stay the same math.
+func grid_cell(world_position: Vector2) -> Vector2i:
 	# floori, not int(): int() truncates toward zero, so a point just left of
 	# or above the map revealed column/row 0.
-	var grid_x: int = floori((world_position.x - world_offset.x) / tile_size)
-	var grid_y: int = floori((world_position.y - world_offset.y) / tile_size)
+	return Vector2i(
+		floori((world_position.x - world_offset.x) / tile_size),
+		floori((world_position.y - world_offset.y) / tile_size))
+
+## Reveals every tile whose centre offset from the source's tile lies within
+## radius. Which tiles that is depends only on grid_cell(world_position), the
+## radius and the two flags, and pixels only ever turn from fog to revealed.
+func reveal_area(world_position: Vector2, radius: float, display: bool = true, memory: bool = true) -> void:
+	var cell: Vector2i = grid_cell(world_position)
+	var grid_x: int = cell.x
+	var grid_y: int = cell.y
 
 	if grid_x < 0 or grid_x >= grid_width or grid_y < 0 or grid_y >= grid_height:
 		return
