@@ -62,6 +62,10 @@ var _detours: Dictionary = {}
 ## RECENT_TARGET_MEMORY are kept (and read by _is_recently_explored).
 var explored_targets: Array[Vector2] = []
 const RECENT_TARGET_MEMORY: int = 5
+## _disc_grid's cache: the in-disc grid offsets for _disc_radius/_disc_step.
+var _disc_offsets: PackedVector2Array = PackedVector2Array()
+var _disc_radius: float = -1.0
+var _disc_step: int = 0
 ## Waypoints the group stopped making progress toward (walled-off fog,
 ## unreachable pockets): skipped from then on so exploration moves on.
 var _unreachable_targets: Array[Vector2] = []
@@ -143,16 +147,16 @@ func _update_exploration_targets() -> void:
 	# The slots turn to the new target at once; make the leader re-pick its
 	# idle goal now instead of walking to the old one for idle_retarget_time.
 	if is_instance_valid(_formation_leader):
-		if _formation_leader.has_method("set_exploration_target"):
-			_formation_leader.set_exploration_target(current_group_target)
-		if _formation_leader.has_method("request_idle_retarget"):
-			_formation_leader.request_idle_retarget()
+		var lead := _formation_leader as HeroBase  # _setup_formation ranks HeroBase only
+		lead.set_exploration_target(current_group_target)
+		lead.request_idle_retarget()
 
 func _find_next_exploration_zone(from_position: Vector2) -> Vector2:
 	if not fog_system:
 		return Vector2.ZERO
 	
 	var candidates: Array = []  # [score, sample position], best first after sorting
+	var fog_rect: Rect2 = _fog_rect()
 
 	# Determine forward direction from group movement
 	var group_velocity = _calculate_group_velocity()
@@ -177,11 +181,11 @@ func _find_next_exploration_zone(from_position: Vector2) -> Vector2:
 			var check_pos = from_position + direction * distance
 			
 			# Skip recently explored, abandoned and off-map points
-			if _is_recently_explored(check_pos) or _is_abandoned(check_pos) or not _in_fog_bounds(check_pos):
+			if _is_recently_explored(check_pos) or _is_abandoned(check_pos) or not fog_rect.has_point(check_pos):
 				continue
 			
 			# Count unexplored tiles
-			var unexplored_count = _count_unexplored_in_area(check_pos, 150.0)
+			var unexplored_count = _count_unexplored_in_area(check_pos, 150.0, fog_rect)
 			
 			if unexplored_count > 0:
 				# Calculate score
@@ -238,7 +242,10 @@ func _mark_unreachable(pos: Vector2) -> void:
 func _track_stall(group_center: Vector2) -> void:
 	var fighting: bool = false
 	for hero in heroes:
-		if is_instance_valid(hero) and hero.has_method("is_target_valid") and hero.call("is_target_valid"):
+		if not is_instance_valid(hero):
+			continue
+		var h := hero as HeroBase
+		if h and h.is_target_valid():
 			fighting = true
 			break
 	if fighting or not _last_group_center.is_finite() or group_center.distance_to(_last_group_center) > 60.0:
@@ -259,10 +266,10 @@ func _is_abandoned(pos: Vector2) -> bool:
 	return false
 
 
-func _in_fog_bounds(pos: Vector2) -> bool:
-	if not fog_system:
-		return true
-	return Rect2(fog_system.world_offset, fog_system.world_size).has_point(pos)
+## The fog's world rectangle: samples and tiles outside it are off the map.
+## Callers check fog_system first.
+func _fog_rect() -> Rect2:
+	return Rect2(fog_system.world_offset, fog_system.world_size)
 
 
 ## Closest walkable point (exploration samples land in walls and water).
@@ -279,13 +286,14 @@ func _get_random_unexplored_position(near_position: Vector2) -> Vector2:
 		return _get_random_map_position()
 	
 	# Try 10 random points; the first unexplored one the group can reach wins
+	var fog_rect: Rect2 = _fog_rect()
 	var candidates: Array = []
 	for i in range(10):
 		var angle = randf() * TAU
 		var distance = randf_range(300, 600)
 		var candidate = near_position + Vector2.from_angle(angle) * distance
 
-		if _in_fog_bounds(candidate) and not _is_abandoned(candidate) and not fog_system.is_tile_explored(candidate):
+		if fog_rect.has_point(candidate) and not _is_abandoned(candidate) and not fog_system.is_tile_explored(candidate):
 			candidates.append(candidate)
 	var reachable: Vector2 = _first_reachable(candidates)
 	if reachable != Vector2.ZERO:
@@ -293,8 +301,7 @@ func _get_random_unexplored_position(near_position: Vector2) -> Vector2:
 
 	# Fallback: anywhere on the map the group can walk to
 	var world: World2D = get_viewport().world_2d if get_viewport() else null
-	return GameUtils.random_reachable_point(world, Rect2(fog_system.world_offset, fog_system.world_size),
-		near_position, _get_random_map_position())
+	return GameUtils.random_reachable_point(world, fog_rect, near_position, _get_random_map_position())
 
 func _calculate_group_velocity() -> Vector2:
 	"""Calculate average movement direction of group"""
@@ -415,28 +422,47 @@ func _update_formation_offsets() -> void:
 		hero_formation_offset[hero] = offset
 
 
-func _count_unexplored_in_area(center: Vector2, radius: float) -> int:
+## Unexplored fog tiles on a grid (two tiles apart) inside the disc around
+## center. Only points inside fog_rect count: off-map tiles read as
+## "unexplored" and dragged the group into the map's edge for minutes.
+func _count_unexplored_in_area(center: Vector2, radius: float, fog_rect: Rect2) -> int:
 	if not fog_system:
 		return 0
 	
-	var count = 0
-	var step = exploration_tile_size * 2
-	
-	for x in range(-radius, radius, step):
-		for y in range(-radius, radius, step):
-			var check_pos = center + Vector2(x, y)
-			
-			if check_pos.distance_to(center) <= radius and _in_fog_bounds(check_pos):
-				# Off-map tiles read as "unexplored" and dragged the group into
-				# the map's edge for minutes.
-				if not fog_system.is_tile_explored(check_pos):
-					count += 1
+	var count: int = 0
+	var offsets: PackedVector2Array = _disc_grid(radius, exploration_tile_size * 2)
+	# The whole disc on the map (the usual case): no per-point bounds test.
+	if fog_rect.encloses(Rect2(center - Vector2(radius, radius), Vector2(radius, radius) * 2.0)):
+		for off: Vector2 in offsets:
+			if not fog_system.is_tile_explored(center + off):
+				count += 1
+	else:
+		for off: Vector2 in offsets:
+			var check_pos: Vector2 = center + off
+			if fog_rect.has_point(check_pos) and not fog_system.is_tile_explored(check_pos):
+				count += 1
 	
 	return count
 
+
+## Grid offsets (step apart) within radius of the origin, built once per
+## radius and step: every exploration update counts 36 discs of 16 points.
+func _disc_grid(radius: float, step: int) -> PackedVector2Array:
+	if radius == _disc_radius and step == _disc_step:
+		return _disc_offsets
+	_disc_radius = radius
+	_disc_step = step
+	_disc_offsets = PackedVector2Array()
+	for x in range(-radius, radius, step):
+		for y in range(-radius, radius, step):
+			var off := Vector2(x, y)
+			if off.length() <= radius:
+				_disc_offsets.append(off)
+	return _disc_offsets
+
 func _is_recently_explored(pos: Vector2) -> bool:
 	for t in explored_targets:
-		if t.distance_to(pos) < 200.0:
+		if t.distance_squared_to(pos) < 200.0 * 200.0:
 			return true
 	return false
 
@@ -455,12 +481,14 @@ func _recalculate_boids() -> void:
 	if not is_instance_valid(_formation_leader) and not heroes.is_empty():
 		_setup_formation()
 	_update_formation_offsets()
+	# Nobody moves during the pass: one group centre serves every hero.
+	var center: Vector2 = _calculate_group_center()
 	for hero in heroes:
 		if not is_instance_valid(hero):
 			continue
 		
 		var separation = _calculate_separation(hero)
-		var cohesion = _calculate_cohesion(hero)
+		var cohesion = _calculate_cohesion(hero, center)
 		var alignment = _calculate_alignment(hero)
 		
 		cached_boids_data[hero] = {
@@ -470,20 +498,21 @@ func _recalculate_boids() -> void:
 		}
 
 func _apply_cached_boids(hero: Node2D) -> void:
-	if not cached_boids_data.has(hero):
+	# Ted's pet follows its owner: it has no exploration target to set.
+	var h := hero as HeroBase
+	if h == null or not cached_boids_data.has(hero):
 		return
 	
 	var data = cached_boids_data[hero]
 	if _detours.has(hero):
-		if hero.has_method("set_exploration_target"):
-			hero.set_exploration_target(_detours[hero][0])
+		var detour: Vector2 = _detours[hero][0]
+		h.set_exploration_target(detour)
 		return
 	if use_formation and formation_follow_leader and hero == _formation_leader:
 		# The leader heads for the bare group target. Boids terms (separation
 		# from a flank or the pet) pushed its goal past the target, the heading
 		# reversed, and the whole formation shuttled around every waypoint.
-		if hero.has_method("set_exploration_target"):
-			hero.set_exploration_target(current_group_target)
+		h.set_exploration_target(current_group_target)
 		return
 	var formation_offset: Vector2 = hero_formation_offset.get(hero, Vector2.ZERO)
 	var base_target: Vector2 = current_group_target + formation_offset
@@ -491,10 +520,8 @@ func _apply_cached_boids(hero: Node2D) -> void:
 			and hero != _formation_leader and _formation_slots.has(hero):
 		base_target = _formation_leader.global_position + formation_offset
 	
-	var final_target = base_target + data.separation * 1.5 + data.cohesion * 0.5 + data.alignment * 0.3
-	
-	if hero.has_method("set_exploration_target"):
-		hero.set_exploration_target(final_target)
+	var final_target: Vector2 = base_target + data.separation * 1.5 + data.cohesion * 0.5 + data.alignment * 0.3
+	h.set_exploration_target(final_target)
 
 func _calculate_separation(hero: Node2D) -> Vector2:
 	var separation = Vector2.ZERO
@@ -515,8 +542,8 @@ func _calculate_separation(hero: Node2D) -> Vector2:
 	
 	return separation.normalized() * 50.0 if count > 0 else Vector2.ZERO
 
-func _calculate_cohesion(hero: Node2D) -> Vector2:
-	var center = _calculate_group_center()
+## center: the group centre (_recalculate_boids computes it once per pass).
+func _calculate_cohesion(hero: Node2D, center: Vector2) -> Vector2:
 	var to_center = center - hero.global_position
 	var distance = to_center.length()
 	
@@ -562,9 +589,10 @@ func _check_stuck_heroes(delta: float) -> void:
 		if not hero_stuck_anchor.has(hero):
 			hero_stuck_anchor[hero] = current_pos
 		var anchor: Vector2 = hero_stuck_anchor[hero]
-		var busy: bool = hero.has_method("is_target_valid") and hero.call("is_target_valid")
-		var goal: Variant = hero.get("exploration_target")
-		var parked: bool = goal is Vector2 and current_pos.distance_to(goal) <= waypoint_reached_distance
+		# Ted's pet (no HeroBase) is never busy or parked.
+		var h := hero as HeroBase
+		var busy: bool = h != null and h.is_target_valid()
+		var parked: bool = h != null and current_pos.distance_to(h.exploration_target) <= waypoint_reached_distance
 		if busy or parked or current_pos.distance_to(anchor) > stuck_radius:
 			hero_stuck_anchor[hero] = current_pos
 			hero_stuck_timers[hero] = 0.0
@@ -594,10 +622,10 @@ func _unstuck_hero(hero: Node2D) -> void:
 		# No navigation to ask (yet): any point clearly away from here.
 		detour = pos + Vector2.from_angle(randf() * TAU) * randf_range(120.0, 200.0)
 	_detours[hero] = [detour, detour_time]
-	if hero.has_method("set_exploration_target"):
-		hero.set_exploration_target(detour)
-	if hero.has_method("request_idle_retarget"):
-		hero.request_idle_retarget()
+	var h := hero as HeroBase
+	if h:
+		h.set_exploration_target(detour)
+		h.request_idle_retarget()
 
 
 func _tick_detour(hero: Node2D, pos: Vector2, delta: float) -> void:

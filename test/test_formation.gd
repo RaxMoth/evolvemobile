@@ -90,8 +90,8 @@ func test_exploration_ignores_off_map_fog_and_abandons_stalled_waypoints() -> vo
 	await wait_frames(2)
 	ctrl.set_process(false)
 	ctrl.fog_system = fog
-	assert_eq(ctrl._count_unexplored_in_area(Vector2(-400, -400), 150.0), 0, "off-map tiles are not 'unexplored'")
-	assert_true(ctrl._count_unexplored_in_area(Vector2(400, 400), 150.0) > 0, "in-map fog still counts")
+	assert_eq(ctrl._count_unexplored_in_area(Vector2(-400, -400), 150.0, ctrl._fog_rect()), 0, "off-map tiles are not 'unexplored'")
+	assert_true(ctrl._count_unexplored_in_area(Vector2(400, 400), 150.0, ctrl._fog_rect()) > 0, "in-map fog still counts")
 	ctrl.current_group_target = Vector2(2000, 2000)
 	for i in range(10):
 		ctrl._track_stall(vlad.global_position)
@@ -99,3 +99,48 @@ func test_exploration_ignores_off_map_fog_and_abandons_stalled_waypoints() -> vo
 	assert_false(ctrl._is_abandoned(Vector2(600, 600)))
 	for n in [vlad, ctrl, fog]:
 		n.queue_free()
+
+
+## The precomputed disc offsets and the whole-disc-on-map shortcut count the
+## same tiles as the old per-point distance and bounds test.
+func test_unexplored_count_matches_the_per_point_version() -> void:
+	var fog := (load("res://Scenes/World/FogOfWar/FogOfWarSystem.tscn") as PackedScene).instantiate() as FogOfWarSystem
+	fog.world_size = Vector2(3200, 2400)
+	fog.world_offset = Vector2(-500, 300)
+	add_child(fog)
+	var ctrl := (load(CTRL) as PackedScene).instantiate() as HeroExplorationController
+	add_child(ctrl)
+	await wait_frames(2)
+	ctrl.set_process(false)
+	ctrl.fog_system = fog
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 39
+	var area := Rect2(fog.world_offset - Vector2(400, 400), fog.world_size + Vector2(800, 800))
+	for i in range(40):  # patchy explored fog
+		fog.reveal_area(area.position + Vector2(rng.randf(), rng.randf()) * area.size, rng.randf_range(64.0, 320.0), false)
+	var fog_rect: Rect2 = ctrl._fog_rect()
+	var step: int = ctrl.exploration_tile_size * 2
+	var partial: int = 0
+	for i in range(200):
+		var center := area.position + Vector2(rng.randf(), rng.randf()) * area.size
+		var radius: float = 150.0 if i % 4 != 3 else 200.0  # the cache follows the radius
+		var expected: int = _old_count_unexplored(fog, center, radius, step)
+		assert_eq(ctrl._count_unexplored_in_area(center, radius, fog_rect), expected, "centre %s radius %s" % [center, radius])
+		if expected > 0 and expected < ctrl._disc_grid(radius, step).size():
+			partial += 1
+	assert_true(partial > 20, "the samples cover partly explored and partly off-map discs")
+	for n in [ctrl, fog]:
+		n.queue_free()
+
+
+## _count_unexplored_in_area before the disc offsets were precomputed.
+func _old_count_unexplored(fog: FogOfWarSystem, center: Vector2, radius: float, step: int) -> int:
+	var count := 0
+	for x in range(-radius, radius, step):
+		for y in range(-radius, radius, step):
+			var check_pos := center + Vector2(x, y)
+			if check_pos.distance_to(center) <= radius \
+					and Rect2(fog.world_offset, fog.world_size).has_point(check_pos):
+				if not fog.is_tile_explored(check_pos):
+					count += 1
+	return count
