@@ -898,15 +898,16 @@ func _try_gap_close() -> bool:
 		return false
 	if not target_entity.is_in_group("Hero") and not p.dash_on_mobs:
 		return false
-	# The target may have become off-limits since the last re-evaluation (a
-	# second hero joined an ambushed one); the dash would land inside the
-	# cornered radius and force the fight the strategy refused.
-	if _score_target(target_entity) <= 0.0:
-		return false
+	# Cheap gates before the full score (this runs every Approach tick).
 	var d: float = distance_to_target()
 	if d < p.dash_min_range or d > ability_2.get_reach():
 		return false
 	if get_ability_cooldown("ability_1") > p.dash_cleave_window:
+		return false
+	# The target may have become off-limits since the last re-evaluation (a
+	# second hero joined an ambushed one); the dash would land inside the
+	# cornered radius and force the fight the strategy refused.
+	if _score_target(target_entity) <= 0.0:
 		return false
 	_aim_at_target()
 	return _cast("ability_2", ability_2, target_entity)

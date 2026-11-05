@@ -483,7 +483,7 @@ func _score_target(target_node: Node2D) -> float:
 	
 	score += _get_target_priority(target_node)
 	score += _get_distance_score(distance)
-	score += _get_threat_score(target_node)
+	score += _get_threat_score(target_node, distance)
 	
 	# Penalty for switching targets (prevents flip-flopping)
 	if target_entity != target_node:
@@ -517,16 +517,18 @@ func _get_distance_score(distance: float) -> float:
 		return -50.0
 
 ## Calculate threat score based on target behavior + team blackboard threat.
-func _get_threat_score(target_node: Node2D) -> float:
+## `distance` is the distance to `target_node` when the caller already has it
+## (_score_target); a negative value means "measure it here".
+func _get_threat_score(target_node: Node2D, distance: float = -1.0) -> float:
 	var threat: float = 0.0
 
-	# Is target attacking me? (Only entities carry a target pair; the pet does not.)
-	if target_node is EntityBase and (target_node as EntityBase).target_entity == self:
-		threat += 30.0
-
-	# Is target low health? (was dead code: both numbers came from get_health())
+	# Only entities carry a target pair and health; the pet does not.
 	if target_node is EntityBase:
 		var other := target_node as EntityBase
+		# Is target attacking me?
+		if other.target_entity == self:
+			threat += 30.0
+		# Is target low health? (was dead code: both numbers came from get_health())
 		if other.is_alive():
 			var max_hp: float = other.get_max_health()
 			if max_hp > 0.0:
@@ -535,9 +537,10 @@ func _get_threat_score(target_node: Node2D) -> float:
 					threat += 15.0
 				threat += low_hp_focus_weight * (1.0 - hp_frac)
 
-	# Is target far away (likely fleeing)?
-	var distance: float = global_position.distance_to(target_node.global_position)
-	if distance > 400.0 and is_target_valid() and target_entity == target_node:
+	# Is my current target far away (likely fleeing)? Cheapest test first.
+	if distance < 0.0:
+		distance = global_position.distance_to(target_node.global_position)
+	if target_entity == target_node and distance > 400.0 and is_target_valid():
 		threat -= 20.0
 
 	# Team blackboard threat — pulls aggro toward whoever has been hitting me
@@ -632,13 +635,11 @@ func _broadcast_aggro(spotted: Node) -> void:
 
 ## Group rules: never myself, only areas owned by an entity I may attack.
 func _can_target_area(area: Area2D) -> bool:
-	if area.get_owner() == self or area.get_parent() == self:
+	var root: Node = area.get_owner()
+	if root == self or area.get_parent() == self:
 		return false
-	
-	var root := area.get_owner()
 	if not root:
 		return false
-	
 	return GameUtils.can_entity_target(self, root)
 
 # ============================================
