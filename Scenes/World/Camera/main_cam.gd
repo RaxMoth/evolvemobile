@@ -99,11 +99,8 @@ func _ready() -> void:
 
 	if not follow_target:
 		_auto_find_target()
-
-	# Hook hero-panel clicks → camera switch.
-	if hero_ui:
-		if not hero_ui.hero_selected.is_connected(_on_hero_selected):
-			hero_ui.hero_selected.connect(_on_hero_selected)
+	# Hero-panel clicks reach _on_hero_selected through MainCam.tscn's
+	# HeroContainer.hero_selected connection.
 
 
 func _process(delta: float) -> void:

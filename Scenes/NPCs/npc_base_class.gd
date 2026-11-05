@@ -346,19 +346,14 @@ func _get_detection_shape_radius() -> float:
 	return detection_radius
 
 func _setup_navigation() -> void:
-	"""Configure the navigation agent on the world's default navigation map.
-	The old lookup required a 'Ground' SIBLING, which mobs under Spawns and
-	heroes under Heros never had — so the tuned distances below only ever
-	applied to the monster."""
+	"""Put the navigation agent on the world's default navigation map and
+	raise its polygon search budget. The tuned path distances, simplify_path
+	and the disabled avoidance live on the NPCBaseClass.tscn agent node."""
 	if not is_instance_valid(navigation_agent_2d) or not is_inside_tree():
 		return
 	var nav_map: RID = get_world_2d().navigation_map
 	if nav_map.is_valid():
 		navigation_agent_2d.set_navigation_map(nav_map)
-	navigation_agent_2d.path_desired_distance = 6.0
-	navigation_agent_2d.simplify_path = true
-	navigation_agent_2d.target_desired_distance = 4.0
-	navigation_agent_2d.avoidance_enabled = false
 	GameUtils.configure_nav_agent(navigation_agent_2d)
 
 # ============================================

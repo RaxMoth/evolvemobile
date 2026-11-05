@@ -59,7 +59,10 @@ shape = SubResource("CircleShape2D_o028b")
 
 [node name="NavigationAgent2D" type="NavigationAgent2D" parent="."]
 unique_name_in_owner = true
+path_desired_distance = 6.0
+target_desired_distance = 4.0
 path_max_distance = 50.0
+simplify_path = true
 
 [node name="StateChart" type="Node" parent="."]
 unique_name_in_owner = true

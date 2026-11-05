@@ -20,9 +20,7 @@ func _ready() -> void:
 	# Visual
 	queue_redraw()
 	
-	# Connect signals
-	body_exited.connect(_on_body_exited)
-	area_exited.connect(_on_area_exited)
+	# body_exited / area_exited are wired in TrapCage.tscn.
 	
 	# Initial scan for enemies
 	_scan_for_enemies()

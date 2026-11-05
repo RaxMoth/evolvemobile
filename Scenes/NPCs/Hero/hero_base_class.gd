@@ -39,8 +39,7 @@ func _ready() -> void:
 		push_error(name + " requires HeroStatsComponent with base_stats!")
 		return
 
-	stats.health_changed.connect(_on_health_changed)
-	stats.leveled_up.connect(_on_level_changed)
+	# HeroStats.health_changed / leveled_up are wired in HeroBaseClass.tscn.
 	_setup_combat_role_from_stats()
 	_apply_match_config(MatchConfig.for_current_match())
 	# The scene VisionArea (HeroBaseClass.tscn) takes its radius from

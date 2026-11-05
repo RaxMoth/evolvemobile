@@ -27,3 +27,5 @@ grow_vertical = 1
 [node name="Minimap" parent="CanvasLayer" instance=ExtResource("5_minimap")]
 
 [node name="DebugOverlay" parent="." instance=ExtResource("3_debug")]
+
+[connection signal="hero_selected" from="CanvasLayer/HeroContainer" to="." method="_on_hero_selected"]

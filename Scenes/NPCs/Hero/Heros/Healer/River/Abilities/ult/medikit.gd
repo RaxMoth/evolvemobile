@@ -17,9 +17,7 @@ func _ready() -> void:
 	# Visual representation
 	queue_redraw()
 	
-	# Connect signals
-	area_entered.connect(_on_area_entered)
-	body_entered.connect(_on_body_entered)
+	# area_entered / body_entered are wired in MediKit.tscn.
 	
 	# Auto-destroy after lifetime
 	await get_tree().create_timer(lifetime).timeout

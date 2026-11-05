@@ -22,8 +22,9 @@ const SEARCH_RADIUS: float = 400.0
 ## monster across the map and killed it alone, far from every hero.
 @export var leash_radius: float = 350.0
 
-# ADDED: Navigation system
-var navigation_agent: NavigationAgent2D = null
+## Path distances live on the TedsPet.tscn node; _ready raises its polygon
+## search budget (GameUtils.configure_nav_agent).
+@onready var navigation_agent: NavigationAgent2D = $NavigationAgent2D
 
 # Retarget at 4 Hz: the old per-physics-frame group scan walked the whole tree.
 const RETARGET_INTERVAL: float = 0.25
@@ -42,25 +43,8 @@ func _ready() -> void:
 	# NOTE: "Hero" group is declared in TedsPet.tscn (`groups=["Hero"]`).
 	# No add_to_group() call is needed here.
 	
-	# CRITICAL: Set up navigation agent
-	_setup_navigation_agent()
-	_setup_navigation_map()
-
-func _setup_navigation_agent() -> void:
-	# Create NavigationAgent2D if it doesn't exist
-	if not has_node("NavigationAgent2D"):
-		navigation_agent = NavigationAgent2D.new()
-		navigation_agent.name = "NavigationAgent2D"
-		add_child(navigation_agent)
-	else:
-		navigation_agent = $NavigationAgent2D
-	
-	# Configure navigation
-	navigation_agent.path_desired_distance = 6.0
-	navigation_agent.target_desired_distance = 4.0
-	navigation_agent.avoidance_enabled = false
-	navigation_agent.radius = 10.0
 	GameUtils.configure_nav_agent(navigation_agent)
+	_setup_navigation_map()
 
 func _setup_navigation_map() -> void:
 	# Wait for scene to be ready
