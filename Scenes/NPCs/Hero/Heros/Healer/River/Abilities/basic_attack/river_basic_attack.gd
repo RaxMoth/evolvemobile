@@ -79,10 +79,10 @@ func _execute_heal(caster: Node2D, target: Node2D) -> void:
 	
 	var distance := caster.global_position.distance_to(target.global_position)
 	if distance <= heal_range:
-		var stats := target.get_node_or_null("HeroStats") as HeroStatsComponent
-		if stats:
-			stats.heal(heal_amount)
-		
+		# Ted's pet (group Hero, not a HeroBase) gets the swing but no HP.
+		if target is HeroBase:
+			(target as HeroBase).heal(heal_amount)
+
 		# Visual feedback
 		_create_heal_effect(caster, target)
 		

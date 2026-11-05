@@ -45,6 +45,26 @@ func test_level_up_raises_hp_and_ability_damage() -> void:
 	vlad.queue_free()
 
 
+func test_small_heals_signal_only_when_the_shown_hp_changes() -> void:
+	# Irelia's regen heals a fraction of a point every frame: the HP bars only
+	# hear about whole-point changes and reaching max, but every heal applies.
+	var vlad := await spawn_entity(VLAD, Vector2(0, 0))
+	var stats := vlad.get_node("HeroStats") as HeroStatsComponent
+	stats.take_damage(10.5)
+	var emits := [0]
+	stats.health_changed.connect(func(_c: float, _m: float) -> void: emits[0] += 1)
+	var hp: float = vlad.get_health()
+	for _i in range(10):
+		vlad.heal(0.01)
+	assert_true(emits[0] <= 1, "got %d health_changed for 0.1 HP" % emits[0])
+	assert_near(vlad.get_health(), hp + 0.1, 0.0001, "every small heal still applies")
+	var before: int = emits[0]
+	vlad.heal(1000.0)
+	assert_near(vlad.get_health(), vlad.get_max_health(), 0.0001, "clamped at max")
+	assert_eq(emits[0], before + 1, "reaching max HP always updates the bars")
+	vlad.queue_free()
+
+
 func test_monster_kill_xp_never_goes_to_heroes() -> void:
 	var vlad := await spawn_entity(VLAD, Vector2(0, 0))
 	var bat := await spawn_entity(BAT, Vector2(30, 0))

@@ -110,9 +110,16 @@ func take_damage(amount: float) -> void:
 	current_stats.current_health = max(0.0, current_stats.current_health - amount)
 	health_changed.emit(current_stats.current_health, current_stats.max_health)
 
+## health_changed only feeds the HP bars, so a heal announces itself only when
+## the whole-HP value changes or HP reaches max: Irelia's per-frame regen would
+## otherwise redraw both bars every frame for a fraction of a point.
 func heal(amount: float) -> void:
-	current_stats.current_health = min(current_stats.max_health, current_stats.current_health + amount)
-	health_changed.emit(current_stats.current_health, current_stats.max_health)
+	var old_hp: float = current_stats.current_health
+	var max_hp: float = current_stats.max_health
+	var new_hp: float = minf(max_hp, old_hp + amount)
+	current_stats.current_health = new_hp
+	if floori(old_hp) != floori(new_hp) or new_hp >= max_hp:
+		health_changed.emit(new_hp, max_hp)
 
 func is_alive() -> bool:
 	return current_stats.current_health > 0.0

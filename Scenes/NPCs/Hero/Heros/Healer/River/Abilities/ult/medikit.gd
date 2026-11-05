@@ -55,25 +55,25 @@ func _check_healing(node: Node) -> void:
 		_heal_hero(entity)
 
 func _heal_hero(hero: Node2D) -> void:
-	# Don't heal same hero twice
-	if healed_heroes.has(hero):
+	# Only HeroBase heroes have HP to heal: Ted's pet (group Hero) is neither
+	# healed nor recorded. Don't heal the same hero twice.
+	if not hero is HeroBase or healed_heroes.has(hero):
 		return
-	
+
 	# Don't heal dead heroes
-	if hero.has_method("is_alive") and not hero.is_alive():
+	var hero_base := hero as HeroBase
+	if not hero_base.is_alive():
 		return
-	
+
 	# Apply healing
-	if hero.has_node("HeroStats"):
-		var stats = hero.get_node("HeroStats")
-		stats.heal(heal_amount)
-		healed_heroes.append(hero)
-		
-		# Visual feedback
-		_create_heal_effect(hero)
-		
-		# Check if we should disappear (all nearby heroes healed)
-		_check_if_should_disappear()
+	hero_base.heal(heal_amount)
+	healed_heroes.append(hero)
+
+	# Visual feedback
+	_create_heal_effect(hero)
+
+	# Check if we should disappear (all nearby heroes healed)
+	_check_if_should_disappear()
 
 func _create_heal_effect(hero: Node2D) -> void:
 	# Green flash on hero

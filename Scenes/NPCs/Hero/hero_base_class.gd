@@ -204,6 +204,11 @@ func get_health() -> float:
 func get_max_health() -> float:
 	return stats.get_max_health() if stats else 0.0
 
+## Every hero heal (River's staff, MediKit, Irelia's regen) goes through here.
+func heal(amount: float) -> void:
+	if stats:
+		stats.heal(amount)
+
 func _receive_damage(packet: DamagePacket) -> void:
 	if not is_alive() or not stats:
 		return
