@@ -185,6 +185,29 @@ func test_low_hp_monster_rests_ignores_mobs_and_regenerates() -> void:
 	bat.queue_free()
 
 
+func test_resting_monster_that_stays_put_does_not_repath_every_tick() -> void:
+	# Clear of every camp, a resting monster's idle goal is its own position,
+	# re-picked every tick; re-writing that target re-queried the path each
+	# tick (~3,600 queries per rest) without ever moving it.
+	var region := await bake_nav_rect(Rect2(-500, -500, 1000, 1000))
+	var g := await spawn_frozen(GROUNT, Vector2(0, 0))
+	g.current_health = 0.3 * g.get_max_health()
+	g._pre_tick(0.1)
+	assert_true(g.is_resting(), "below rest_hp_pct")
+	assert_eq(active_state_of(g), "Idle")
+	var start: Vector2 = g.global_position
+	var repaths: Array[int] = [0]
+	g.navigation_agent_2d.path_changed.connect(func() -> void: repaths[0] += 1)
+	for i in 30:
+		g._tick(1.0 / 60.0)
+	assert_true(repaths[0] <= 1, "at most one path while staying put (got %d)" % repaths[0])
+	assert_eq(g.global_position, start, "stayed put")
+	assert_eq(active_state_of(g), "Idle")
+	for n in [g, region]:
+		n.queue_free()
+	await wait_physics_frames(6)
+
+
 func test_stage_1_monster_flees_hogs_attacking_it_instead_of_farming_beside_them() -> void:
 	# Sim: Hogs pounded a stage-1 Grount to death while it kept farming the Bats
 	# next to them (~1 match in 8); fighting the Hogs back lost even more HP.

@@ -930,8 +930,12 @@ func _on_idle_state_processing(delta: float) -> void:
 		# Keep the overshoot so intervals don't round up to whole LOD ticks.
 		_idle_timer = idle_retarget_time + minf(_idle_timer, 0.0)
 		_idle_goal = _get_smart_idle_destination()
-		_set_nav_target(_idle_goal)
-	
+		# Standing exactly on a goal the agent already targets (MonsterBase rest,
+		# the random-destination fallback): a new path cannot move us, and
+		# set_target_position always re-queries the path.
+		if _idle_goal != global_position or _idle_goal != _last_nav_target_pos:
+			_set_nav_target(_idle_goal)
+
 	_steer_along_nav(move_speed, delta)
 
 ## Idle: re-pick as soon as the path to the goal ended short of it. MobBase
