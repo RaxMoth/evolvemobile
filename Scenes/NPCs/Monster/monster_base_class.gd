@@ -56,6 +56,8 @@ var _resting: bool = false
 ## Seconds since the last damage packet (rest regeneration waits regen_delay).
 var _since_damage: float = 0.0
 var _camp_goal: MobSpawnArea = null
+## The running stage scale tween (_update_stage_scale), killed by the next one.
+var _stage_tween: Tween
 
 
 var current_stage: int = 1
@@ -158,22 +160,24 @@ func _configure_abilities_for_stage(stage: int) -> void:
 func _update_stage_scale(stage: int) -> void:
 	# Absolute per stage (Titan Form included), so re-applying never compounds.
 	var target_scale: Vector2 = _scale_for_stage(stage)
-
-	var tween = create_tween()
-	tween.tween_property(self, "scale", target_scale, 0.5) \
+	# A newer evolution takes over from a running one (one scale writer).
+	if _stage_tween and _stage_tween.is_valid():
+		_stage_tween.kill()
+	_stage_tween = create_tween()
+	_stage_tween.tween_method(_set_stage_scale, scale, target_scale, 0.5) \
 		.set_trans(Tween.TRANS_BACK) \
 		.set_ease(Tween.EASE_OUT)
-	if _titan_at(stage):
-		# The aggro radius follows the growing root scale step by step (see
-		# _get_detection_shape_radius): writing the Titan-sized radius before
-		# the body has grown shrank the circle and dropped the chase target.
-		tween.parallel().tween_method(_on_stage_scale_step, 0.0, 1.0, 0.5)
-	# Re-pin the HUD Control after each stage scale change so the floating
-	# HP bar stays at a constant pixel size even as the monster grows.
-	tween.tween_callback(_apply_ui_counter_scale)
 
 
-func _on_stage_scale_step(_progress: float) -> void:
+## One step of the stage scale tween. The Hud is re-pinned on every step, so
+## the HP bar and level label keep their pixel size through the growth and its
+## overshoot. The aggro radius follows the growing root scale step by step (see
+## _get_detection_shape_radius): writing the Titan-sized radius before the body
+## had grown shrank the circle and dropped the chase target. Without Titan Form
+## the radius is constant and _update_detection_radius skips the write.
+func _set_stage_scale(s: Vector2) -> void:
+	scale = s
+	_apply_ui_counter_scale()
 	_update_detection_radius()
 
 func _is_attack_ready() -> bool:

@@ -300,7 +300,7 @@ func _apply_ui_counter_scale() -> void:
 	## the ONE group node by 1 / entity.scale keeps bar and label at a fixed pixel
 	## size and keeps them together (scaling them separately drifted the label).
 	## Heroes (scale=1) get an effective no-op. MonsterBase calls this again
-	## after each stage scale tween completes.
+	## on every step of its stage scale tween.
 	if hud == null:
 		return
 	var sx: float = scale.x if scale.x != 0.0 else 1.0

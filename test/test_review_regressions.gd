@@ -102,6 +102,24 @@ func test_hud_group_is_counter_scaled_as_one() -> void:
 	grount.queue_free()
 
 
+## The Hud used to be re-pinned only after the 0.5 s stage scale tween, so the
+## HP bar and level label swelled with the body (and its overshoot) and then
+## snapped back. Mid-tween they now keep their pixel size.
+func test_hud_keeps_its_size_during_the_evolution_tween() -> void:
+	var grount := await spawn_entity(GROUNT, Vector2(4000, 4000))
+	var hud: Node2D = grount.get_node("%Hud")
+	var start_scale: Vector2 = grount.scale
+	grount.gain_xp(1000.0)
+	assert_eq(grount.current_stage, 2)
+	await wait_seconds(0.25)
+	assert_false(grount.scale.is_equal_approx(start_scale), "mid-tween the body has grown (%s)" % str(grount.scale))
+	assert_true(hud.global_scale.is_equal_approx(Vector2.ONE), "Hud at its pixel size, got %s" % str(hud.global_scale))
+	await wait_seconds(0.4)
+	assert_true(grount.scale.is_equal_approx(grount.monster_stats.stage_2_scale), "settled at %s" % str(grount.scale))
+	assert_true(hud.global_scale.is_equal_approx(Vector2.ONE), "and the Hud with it, got %s" % str(hud.global_scale))
+	grount.queue_free()
+
+
 func test_monster_slam_can_hit_the_pet() -> void:
 	var vlad := await spawn_entity(VLAD, Vector2(6000, 6000))
 	var grount := await spawn_entity(GROUNT, Vector2(0, 0))
