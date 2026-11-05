@@ -761,7 +761,7 @@ func _get_rest_destination() -> Vector2:
 	if push.length_squared() < 0.0001:
 		return global_position
 	var dest: Vector2 = global_position + push.normalized() * idle_wander_radius
-	if _score_destination(dest) <= -1000.0:
+	if not _is_on_nav_mesh(dest):
 		return super._get_smart_idle_destination()
 	return dest
 
@@ -783,6 +783,11 @@ func _camp_mob_health(camp: MobSpawnArea) -> float:
 			probe.free()
 	return float(_scene_mob_health[key])
 
+
+## Flee candidates: headings off the straight-away direction, straight first,
+## then alternating sides, tried at each fraction of idle_wander_radius in turn.
+const FLEE_ANGLES_DEG: Array[float] = [0.0, -30.0, 30.0, -60.0, 60.0, -90.0, 90.0, -120.0, 120.0, -150.0, 150.0]
+const FLEE_RADIUS_FACTORS: Array[float] = [1.0, 0.5]
 
 ## A reachable point away from the heroes close by (heroes outrun a stage-1
 ## monster, so hiding relies on breaking awareness early + the escape dash).
@@ -808,11 +813,13 @@ func _get_flee_destination() -> Vector2:
 	# position froze the monster there while ranged heroes shot it.
 	var best: Vector2 = global_position
 	var best_d: float = -1.0
-	for radius: float in [idle_wander_radius, idle_wander_radius * 0.5]:
-		for deg: float in [0.0, -30.0, 30.0, -60.0, 60.0, -90.0, 90.0, -120.0, 120.0, -150.0, 150.0]:
+	var wander: float = idle_wander_radius
+	for factor: float in FLEE_RADIUS_FACTORS:
+		var radius: float = wander * factor
+		for deg: float in FLEE_ANGLES_DEG:
 			var p2: Vector2 = global_position + away.rotated(deg_to_rad(deg)) * radius
-			if _score_destination(p2) <= -1000.0:
-				continue  # off the navigation mesh
+			if not _is_on_nav_mesh(p2):
+				continue
 			var d: float = p2.distance_squared_to(centroid)
 			if d > best_d:
 				best_d = d
@@ -916,7 +923,7 @@ func _try_escape_dash() -> void:
 		return
 	var away: Vector2 = global_position - h.global_position
 	away = away.normalized() if away.length_squared() > 0.0001 else Vector2.RIGHT
-	if _score_destination(global_position + away * ability_2.get_reach()) <= -1000.0:
+	if not _is_on_nav_mesh(global_position + away * ability_2.get_reach()):
 		return
 	_facing_angle = away.angle()
 	if sprite:

@@ -849,22 +849,25 @@ func _generate_random_point() -> Vector2:
 	var dist := randf_range(radius * 0.3, radius)
 	return global_position + dir * dist
 
-## Score a destination point (higher = better)
-func _score_destination(point: Vector2) -> float:
-	var score: float = 0.0
-	
-	# Nav-mesh validity instead of raycasts: the TileSet has no physics layer,
-	# so the old wall rays (5 samples x 20 rays per retarget) could only ever
-	# hit Ted's pet. A point further than 16 px from the nav mesh is unreachable.
-	# Only when the map can answer (synced and has regions): before the first
-	# sync the query logs an engine error, and a region-less map would reject
-	# every point.
+## Nav-mesh validity instead of raycasts: the TileSet has no physics layer,
+## so the old wall rays (5 samples x 20 rays per retarget) could only ever
+## hit Ted's pet. A point further than 16 px from the nav mesh is unreachable.
+## Only asked when the map can answer (synced and has regions): before the
+## first sync the query logs an engine error, and a region-less map would
+## reject every point, so without a usable map every point counts as on it.
+func _is_on_nav_mesh(point: Vector2) -> bool:
 	var nav_map: RID = GameUtils.usable_nav_map(get_world_2d())
-	if nav_map.is_valid():
-		var on_mesh: Vector2 = NavigationServer2D.map_get_closest_point(nav_map, point)
-		if on_mesh.distance_squared_to(point) > 16.0 * 16.0:
-			return -1000.0
-	
+	if not nav_map.is_valid():
+		return true
+	var on_mesh: Vector2 = NavigationServer2D.map_get_closest_point(nav_map, point)
+	return on_mesh.distance_squared_to(point) <= 16.0 * 16.0
+
+## Score a destination point (higher = better); -1000 when it is off the nav mesh.
+func _score_destination(point: Vector2) -> float:
+	if not _is_on_nav_mesh(point):
+		return -1000.0
+
+	var score: float = 0.0
 	var current_facing: float = sprite.rotation if sprite else 0.0
 	var to_point: Vector2 = (point - global_position).normalized()
 	var point_angle: float = to_point.angle()
