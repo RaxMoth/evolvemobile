@@ -1,0 +1,291 @@
+[gd_scene format=3 uid="uid://bl7sryeazqqcp"]
+
+[ext_resource type="Script" uid="uid://jmojeo32iz1e" path="res://Scenes/UI/Hud/match_hud.gd" id="1_script"]
+[ext_resource type="PackedScene" uid="uid://bqzvr27m75fvw" path="res://Scenes/UI/Hud/MonsterHudPanel.tscn" id="2_monster_panel"]
+[ext_resource type="PackedScene" path="res://Scenes/UI/Minimap/Minimap.tscn" id="3_minimap"]
+[ext_resource type="Texture2D" uid="uid://eg25qhnau5ch" path="res://Assets/UI/Icons/UI/ui_pause.svg" id="4_pause"]
+[ext_resource type="Texture2D" uid="uid://ylcevyvuqtlq" path="res://Assets/UI/Icons/UI/ui_play.svg" id="5_play"]
+[ext_resource type="Texture2D" uid="uid://bkwmrdgv6sbsq" path="res://Assets/UI/Icons/UI/ui_follow.svg" id="6_follow"]
+[ext_resource type="Texture2D" uid="uid://y0kkgvtujfww" path="res://Assets/UI/Icons/Stats/stat_duration.svg" id="7_clock"]
+[ext_resource type="Texture2D" uid="uid://dys3gnhljaaxn" path="res://Assets/UI/Icons/UI/ui_skull.svg" id="8_skull"]
+
+[node name="MatchHud" type="CanvasLayer"]
+layer = 5
+script = ExtResource("1_script")
+pause_icon = ExtResource("4_pause")
+play_icon = ExtResource("5_play")
+
+[node name="Root" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Top" type="Control" parent="Root"]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 80.0
+grow_horizontal = 2
+mouse_filter = 2
+
+[node name="Pause" type="Button" parent="Root/Top"]
+unique_name_in_owner = true
+process_mode = 3
+layout_mode = 0
+offset_left = 10.0
+offset_top = 10.0
+offset_right = 70.0
+offset_bottom = 70.0
+focus_mode = 0
+theme_type_variation = &"ButtonRound"
+icon = ExtResource("4_pause")
+icon_alignment = 1
+
+[node name="ClockChip" type="PanelContainer" parent="Root/Top"]
+layout_mode = 0
+offset_left = 78.0
+offset_top = 16.0
+offset_right = 206.0
+offset_bottom = 64.0
+mouse_filter = 2
+theme_type_variation = &"ChipPanel"
+
+[node name="Row" type="HBoxContainer" parent="Root/Top/ClockChip"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 6
+
+[node name="Icon" type="TextureRect" parent="Root/Top/ClockChip/Row"]
+custom_minimum_size = Vector2(32, 32)
+layout_mode = 2
+size_flags_vertical = 4
+mouse_filter = 2
+texture = ExtResource("7_clock")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Clock" type="Label" parent="Root/Top/ClockChip/Row"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"Counter"
+theme_override_font_sizes/font_size = 24
+text = "00:00"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="EnemyMonster" type="PanelContainer" parent="Root/Top"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 214.0
+offset_top = 8.0
+offset_right = 452.0
+offset_bottom = 72.0
+mouse_filter = 2
+theme_type_variation = &"HudPanel"
+
+[node name="Row" type="HBoxContainer" parent="Root/Top/EnemyMonster"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 8
+
+[node name="EnemyHead" type="TextureRect" parent="Root/Top/EnemyMonster/Row"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(48, 48)
+layout_mode = 2
+size_flags_vertical = 4
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Col" type="VBoxContainer" parent="Root/Top/EnemyMonster/Row"]
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+theme_override_constants/separation = 2
+alignment = 1
+
+[node name="EnemyStage" type="Label" parent="Root/Top/EnemyMonster/Row/Col"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"DangerLabel"
+theme_override_font_sizes/font_size = 18
+text = "STAGE I"
+
+[node name="EnemyHp" type="ProgressBar" parent="Root/Top/EnemyMonster/Row/Col"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 14)
+layout_mode = 2
+mouse_filter = 2
+theme_type_variation = &"HpBarMonster"
+value = 100.0
+show_percentage = false
+
+[node name="EnemyHeroes" type="PanelContainer" parent="Root/Top"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 0
+offset_left = 214.0
+offset_top = 6.0
+offset_right = 452.0
+offset_bottom = 76.0
+mouse_filter = 2
+theme_type_variation = &"HudPanel"
+
+[node name="HeroRow" type="HBoxContainer" parent="Root/Top/EnemyHeroes"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 8
+alignment = 1
+
+[node name="HeroChip" type="VBoxContainer" parent="Root/Top/EnemyHeroes/HeroRow"]
+visible = false
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 2
+
+[node name="Head" type="TextureRect" parent="Root/Top/EnemyHeroes/HeroRow/HeroChip"]
+custom_minimum_size = Vector2(40, 40)
+layout_mode = 2
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Hp" type="ProgressBar" parent="Root/Top/EnemyHeroes/HeroRow/HeroChip"]
+custom_minimum_size = Vector2(44, 8)
+layout_mode = 2
+mouse_filter = 2
+theme_type_variation = &"HpBarHero"
+value = 100.0
+show_percentage = false
+
+[node name="KillsChip" type="PanelContainer" parent="Root/Top"]
+layout_mode = 0
+offset_left = 460.0
+offset_top = 16.0
+offset_right = 566.0
+offset_bottom = 64.0
+mouse_filter = 2
+theme_type_variation = &"ChipPanel"
+
+[node name="Row" type="HBoxContainer" parent="Root/Top/KillsChip"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 6
+
+[node name="Icon" type="TextureRect" parent="Root/Top/KillsChip/Row"]
+custom_minimum_size = Vector2(32, 32)
+layout_mode = 2
+size_flags_vertical = 4
+mouse_filter = 2
+texture = ExtResource("8_skull")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Kills" type="Label" parent="Root/Top/KillsChip/Row"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"Counter"
+theme_override_font_sizes/font_size = 24
+text = "0"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Follow" type="Button" parent="Root/Top"]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -78.0
+offset_top = 10.0
+offset_right = -18.0
+offset_bottom = 70.0
+grow_horizontal = 0
+focus_mode = 0
+theme_type_variation = &"ButtonRound"
+icon = ExtResource("6_follow")
+icon_alignment = 1
+
+[node name="MinimapFrame" type="Panel" parent="Root"]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -178.0
+offset_top = 80.0
+offset_right = -8.0
+offset_bottom = 218.0
+grow_horizontal = 0
+mouse_filter = 2
+theme_type_variation = &"HudPanel"
+
+[node name="MinimapSlot" type="Control" parent="Root/MinimapFrame"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 7.0
+offset_top = 7.0
+offset_right = -7.0
+offset_bottom = -7.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Minimap" parent="Root/MinimapFrame/MinimapSlot" instance=ExtResource("3_minimap")]
+custom_minimum_size = Vector2(0, 0)
+layout_mode = 1
+anchors_preset = 15
+anchor_left = 0.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 0.0
+offset_top = 0.0
+offset_right = 0.0
+offset_bottom = 0.0
+grow_horizontal = 2
+grow_vertical = 2
+show_frame = false
+
+[node name="HeroCards" type="HBoxContainer" parent="Root"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 7.0
+offset_top = -154.0
+offset_right = -7.0
+offset_bottom = -6.0
+grow_horizontal = 2
+grow_vertical = 0
+mouse_filter = 2
+theme_override_constants/separation = 6
+alignment = 1
+
+[node name="MonsterPanel" parent="Root" instance=ExtResource("2_monster_panel")]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -350.0
+offset_top = -186.0
+offset_right = 350.0
+offset_bottom = -8.0
+grow_horizontal = 2
+grow_vertical = 0
+
+[connection signal="pressed" from="Root/Top/Pause" to="." method="_on_pause_pressed"]
+[connection signal="pressed" from="Root/Top/Follow" to="." method="_on_follow_pressed"]
+[connection signal="hero_picked" from="Root/MinimapFrame/MinimapSlot/Minimap" to="." method="select_hero"]

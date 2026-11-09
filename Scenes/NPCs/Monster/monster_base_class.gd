@@ -931,6 +931,11 @@ func _on_fight_state_processing(delta: float) -> void:
 func get_stage() -> int:
 	return current_stage
 
+## Total XP (current_xp) at which the monster evolves next, meta upgrades
+## included (999999 past the last stage). Read by the monster HUD.
+func get_evolution_threshold() -> int:
+	return _get_next_evolution_threshold()
+
 func get_ability_cooldown(ability_name: String) -> float:
 	return ability_cooldowns.get(ability_name, 0.0)
 

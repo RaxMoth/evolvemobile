@@ -13,10 +13,13 @@ class_name GameCamera
 ## gate it. The offset's randomness comes from a private RNG: the global one
 ## drives gameplay (tools/sim_trace.sh).
 ##
-## Hero selection: click a HeroPanel in the bottom UI, or press 1-4 to focus
-## a hero by index, or Tab to cycle. The camera then eases onto that hero's
-## live position (it keeps moving during the switch) — no instant snap. At
-## match start the camera starts on its target instead of panning to it.
+## Hero selection goes through the MatchHud (`hud`, its hero cards): press a
+## card, press 1-4 to focus a hero by index, Tab to cycle, or tap a hero in the
+## world or on the minimap. The HUD's hero_selected reaches switch_to_hero
+## (wired in MainCam.tscn); the camera then eases onto that hero's live
+## position (it keeps moving during the switch) — no instant snap. At match
+## start the camera starts on its target instead of panning to it. The HUD's
+## Follow button calls recenter().
 ##
 ## Visual debug overlay: F3 toggles on/off (debug builds). The overlay
 ## (debug_overlay, wired in MainCam.tscn) is a top_level child Node2D, so it
@@ -67,16 +70,15 @@ class_name GameCamera
 ## Trauma lost per second.
 @export var shake_decay: float = 1.8
 
+@export_group("HUD")
+## The match HUD (MainCam.tscn's MatchHud): hero cards and focus, top bar,
+## minimap.
+@export var hud: MatchHud
+
 @export_group("Debug Overlay")
 ## The F3 overlay. Keep it a direct child of the camera (not under the
 ## CanvasLayer): it draws world coordinates.
 @export var debug_overlay: DebugOverlay
-
-# ============================================
-# OnReady
-# ============================================
-
-@onready var hero_ui: HeroContainer = $CanvasLayer/HeroContainer as HeroContainer
 
 # ============================================
 # State
@@ -128,8 +130,8 @@ func _ready() -> void:
 	# across the map (monster side) at match start and on every Play Again.
 	if follow_target:
 		center_on_position(follow_target.global_position + follow_offset)
-	# Hero-panel clicks reach _on_hero_selected through MainCam.tscn's
-	# HeroContainer.hero_selected connection.
+	# Hero-card presses reach switch_to_hero through MainCam.tscn's
+	# MatchHud.hero_selected connection.
 
 
 func _process(delta: float) -> void:
@@ -205,11 +207,6 @@ func snap_to_target() -> void:
 	center_on_position(follow_target.global_position + follow_offset)
 
 
-func _on_hero_selected(hero: Node) -> void:
-	if hero is Node2D:
-		switch_to_hero(hero)
-
-
 func _auto_find_target() -> void:
 	# Follow whoever the player is controlling (set by MainMenu).
 	if GameManager.chosen_side == MatchRewards.Side.MONSTER:
@@ -248,29 +245,27 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("center_camera") and follow_target:
 		center_on_position(follow_target.global_position)
 
-	# Numeric hero focus + Tab to cycle. Routes through HeroContainer so the
-	# panel highlight stays in sync.
+	# Numeric hero focus + Tab to cycle. Routes through the MatchHud so the
+	# lifted card stays in sync.
 	if event is InputEventKey and event.pressed and not event.echo:
 		var key := (event as InputEventKey).keycode
 		match key:
 			KEY_1, KEY_2, KEY_3, KEY_4:
 				_focus_hero_by_index(key - KEY_1)
 			KEY_TAB:
-				if hero_ui:
-					hero_ui.cycle_to_next_hero()
+				if hud:
+					hud.cycle_to_next_hero()
 			KEY_F3:
 				if OS.is_debug_build():
 					_toggle_debug_overlay()
 
 
 func _focus_hero_by_index(idx: int) -> void:
-	if not hero_ui:
+	if not hud:
 		return
-	if idx < 0 or idx >= hero_ui.panels.size():
-		return
-	var p := hero_ui.panels[idx]
-	if is_instance_valid(p) and is_instance_valid(p.hero):
-		hero_ui.select_hero(p.hero)
+	var hero := hud.hero_at(idx)
+	if is_instance_valid(hero):
+		hud.select_hero(hero)
 
 
 # ============================================
@@ -308,15 +303,15 @@ func _touch_distance() -> float:
 	return (pts[0] as Vector2).distance_to(pts[1] as Vector2)
 
 
-## Tap near a hero to follow it (keeps the bottom panel highlight in sync).
+## Tap near a hero to follow it (keeps the lifted hero card in sync).
 func _tap_to_focus(screen_pos: Vector2) -> void:
 	var world_pos: Vector2 = get_canvas_transform().affine_inverse() * screen_pos
 	var reach: float = TAP_FOCUS_RADIUS / maxf(zoom.x, 0.01)
 	var best: Node2D = EntityRegistry.nearest(EntityRegistry.heroes, world_pos, reach)
 	if best == null:
 		return
-	if hero_ui:
-		hero_ui.select_hero(best)
+	if hud:
+		hud.select_hero(best)
 	else:
 		switch_to_hero(best)
 
@@ -416,6 +411,14 @@ func _update_shake(delta: float) -> void:
 
 func center_on_position(pos: Vector2) -> void:
 	global_position = pos
+
+
+## The HUD's Follow button (MatchHud.follow_requested, wired in MainCam.tscn):
+## leave the debug fly-cam and centre on the followed entity again.
+func recenter() -> void:
+	debug_mode = false
+	if is_instance_valid(follow_target):
+		center_on_position(follow_target.global_position + follow_offset)
 
 
 func get_viewport_rect_in_world() -> Rect2:

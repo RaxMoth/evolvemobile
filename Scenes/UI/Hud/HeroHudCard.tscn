@@ -1,0 +1,146 @@
+[gd_scene format=3 uid="uid://b1r653dozzwva"]
+
+[ext_resource type="Script" uid="uid://vu2s3rzjbnyc" path="res://Scenes/UI/Hud/hero_hud_card.gd" id="1_script"]
+[ext_resource type="PackedScene" uid="uid://bsryhh66u5n3q" path="res://Scenes/UI/Hud/AbilitySlot.tscn" id="2_slot"]
+[ext_resource type="Texture2D" uid="uid://dys3gnhljaaxn" path="res://Assets/UI/Icons/UI/ui_skull.svg" id="3_skull"]
+
+[node name="HeroHudCard" type="Button"]
+custom_minimum_size = Vector2(172, 146)
+offset_right = 172.0
+offset_bottom = 146.0
+focus_mode = 0
+theme_type_variation = &"FlatButton"
+script = ExtResource("1_script")
+
+[node name="Card" type="Panel" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_right = 172.0
+offset_bottom = 146.0
+mouse_filter = 2
+theme_type_variation = &"HudPanel"
+
+[node name="Portrait" type="Panel" parent="Card"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 7.0
+offset_top = 7.0
+offset_right = 67.0
+offset_bottom = 67.0
+mouse_filter = 2
+theme_type_variation = &"HudPanel"
+
+[node name="Head" type="TextureRect" parent="Card/Portrait"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 3.0
+offset_top = 3.0
+offset_right = -3.0
+offset_bottom = -3.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="LevelBadge" type="Panel" parent="Card"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 1.0
+offset_top = 47.0
+offset_right = 27.0
+offset_bottom = 73.0
+mouse_filter = 2
+theme_type_variation = &"Pill"
+
+[node name="LevelText" type="Label" parent="Card/LevelBadge"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_type_variation = &"PillText"
+text = "1"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Name" type="Label" parent="Card"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 74.0
+offset_top = 4.0
+offset_right = 166.0
+offset_bottom = 30.0
+theme_type_variation = &"Counter"
+theme_override_font_sizes/font_size = 17
+vertical_alignment = 1
+clip_text = true
+
+[node name="Hp" type="ProgressBar" parent="Card"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 72.0
+offset_top = 32.0
+offset_right = 165.0
+offset_bottom = 48.0
+mouse_filter = 2
+theme_type_variation = &"HpBarHero"
+value = 100.0
+show_percentage = false
+
+[node name="Xp" type="ProgressBar" parent="Card"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 72.0
+offset_top = 52.0
+offset_right = 165.0
+offset_bottom = 62.0
+mouse_filter = 2
+theme_type_variation = &"XpBar"
+show_percentage = false
+
+[node name="Passive" parent="Card" instance=ExtResource("2_slot")]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(40, 40)
+offset_left = 9.0
+offset_top = 88.0
+offset_right = 49.0
+offset_bottom = 128.0
+slot_type = 0
+
+[node name="Active" parent="Card" instance=ExtResource("2_slot")]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(50, 50)
+offset_left = 56.0
+offset_top = 80.0
+offset_right = 106.0
+offset_bottom = 130.0
+
+[node name="Ult" parent="Card" instance=ExtResource("2_slot")]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(54, 54)
+offset_left = 112.0
+offset_top = 77.0
+offset_right = 166.0
+offset_bottom = 131.0
+slot_type = 3
+
+[node name="Down" type="TextureRect" parent="Card"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 0
+offset_left = 56.0
+offset_top = 26.0
+offset_right = 116.0
+offset_bottom = 86.0
+mouse_filter = 2
+texture = ExtResource("3_skull")
+expand_mode = 1
+stretch_mode = 5
+
+[connection signal="pressed" from="." to="." method="_on_pressed"]

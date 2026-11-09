@@ -86,3 +86,12 @@ ICONS["ui_chevron_left"] = d.svg()
 d = doc()
 d.cel("M32 4 L58 30 H46 V58 H18 V30 H6Z", W, S, off=(-3, -3))
 ICONS["ui_level_up"] = d.svg()
+
+d = doc()
+d.cel("M32 5 C47 5 57 15 57 29 C57 37 53 42 48 45 V52 C48 56 45 59 41 59 H23 C19 59 16 56 16 52 V45 "
+      "C11 42 7 37 7 29 C7 15 17 5 32 5Z", W, S, off=(-3, -3))
+d.flat(circle(21.5, 30, 7.5), INK, 0)
+d.flat(circle(42.5, 30, 7.5), INK, 0)
+d.flat("M32 37 L36.2 44 C36.8 45 36.2 46 35 46 H29 C27.8 46 27.2 45 27.8 44Z", INK, 0)
+d.ink("M26 51 V58 M32 51 V58 M38 51 V58", 3)
+ICONS["ui_skull"] = d.svg()

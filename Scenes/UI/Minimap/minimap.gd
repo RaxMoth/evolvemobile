@@ -7,9 +7,15 @@ extends Control
 ##
 ## Fairness: the hero side only sees the monster while it is inside a hero's
 ## vision radius; the monster side only sees heroes inside its own vision.
-## Tapping the map focuses the camera on the hero closest to that point.
+## Tapping the map picks the hero closest to that point (hero_picked; the
+## MatchHud, which holds the map in its frame, focuses it).
+
+## A tap on the map: the hero nearest to the tapped point.
+signal hero_picked(hero: Node2D)
 
 @export var refresh_hz: float = 4.0
+## The map's own translucent frame. Off inside a frame of its own (MatchHud).
+@export var show_frame: bool = true
 @export var hero_color: Color = Color(0.35, 0.85, 1.0)
 @export var pet_color: Color = Color(0.7, 0.9, 1.0, 0.8)
 @export var monster_color: Color = Color(1.0, 0.35, 0.3)
@@ -29,6 +35,7 @@ var _timer: float = 0.0
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
+	(%Frame as CanvasItem).visible = show_frame
 	_bind_fog()
 
 
@@ -134,12 +141,6 @@ func _gui_input(event: InputEvent) -> void:
 	if not tapped:
 		return
 	accept_event()
-	var world_pos := map_to_world(at)
-	var best: Node2D = EntityRegistry.nearest(EntityRegistry.heroes, world_pos)
-	if best == null:
-		return
-	var cam := get_viewport().get_camera_2d()
-	if cam and "hero_ui" in cam and cam.get("hero_ui") != null:
-		cam.get("hero_ui").select_hero(best)
-	elif cam and cam.has_method("switch_to_hero"):
-		cam.switch_to_hero(best)
+	var best: Node2D = EntityRegistry.nearest(EntityRegistry.heroes, map_to_world(at))
+	if best != null:
+		hero_picked.emit(best)

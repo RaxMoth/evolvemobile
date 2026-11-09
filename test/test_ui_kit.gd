@@ -27,7 +27,7 @@ const GROUP_COUNTS: Dictionary[String, int] = {
 	"Icons/Stats": 16,
 	"Icons/Roles": 9,
 	"Icons/Nav": 6,
-	"Icons/UI": 16,
+	"Icons/UI": 17,
 	"Lobby": 3,
 }
 ## Every character's ability icons, <owner>_<slot>_<ability>.

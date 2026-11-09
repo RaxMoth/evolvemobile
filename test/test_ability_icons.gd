@@ -4,14 +4,14 @@ extends TestCase
 ## (art spec section 4: <owner>_<slot>_<name>.svg, imported as a DPITexture),
 ## never the old Icon.jpg placeholder. River's basic attack has two: the rifle
 ## (`icon`) and the staff (`heal_icon`); get_display_icon follows her weapon
-## mode, read-only, and the hero panel swaps the slot when she changes weapon.
+## mode, read-only (an AbilitySlot bound to her basic attack swaps with it:
+## test_ability_slot.gd).
 
 const NPC_DIR := "res://Scenes/NPCs"
 const ICON_DIR := "res://Assets/UI/Icons/Abilities"
 const PLACEHOLDER := "res://Assets/Icon.jpg"
 const RIVER := "res://Scenes/NPCs/Hero/Heros/Healer/River/River.tscn"
 const RIVER_BASIC := "res://Scenes/NPCs/Hero/Heros/Healer/River/Abilities/basic_attack/river_basic_attack.tres"
-const HERO_PANEL := preload("res://Scenes/UI/HeroContainer/HeroPanel.tscn")
 
 ## Ability resource (relative to NPC_DIR) -> its icon's file name.
 const EXPECTED: Dictionary[String, String] = {
@@ -102,24 +102,17 @@ func test_river_icon_follows_her_weapon_mode() -> void:
 	var river := await spawn_entity(RIVER)
 	var system := river.get_node("AbilitySystem") as AbilitySystem
 	var basic := system.basic_attack as RiverBasicAttack
-	var panel := HERO_PANEL.instantiate() as HeroPanel
-	add_child(panel)
-	panel.bind_to_hero(river)
-
 	assert_eq(river.get_weapon_mode(), RiverActiveWeaponSwap.WeaponMode.SNIPER)
 	assert_true(basic.get_display_icon(river) == shared.icon, "rifle: the sniper icon")
-	assert_true(panel.basic_icon.texture == shared.icon, "the panel shows the rifle")
 
 	river._use_active_now()
 	assert_eq(river.get_weapon_mode(), RiverActiveWeaponSwap.WeaponMode.HEAL_STAFF)
 	assert_true(basic.get_display_icon(river) == shared.heal_icon, "staff: the heal icon")
-	assert_true(panel.basic_icon.texture == shared.heal_icon, "the panel swapped to the staff")
 	assert_true(basic.icon == shared.icon and shared.icon.resource_path == _icon_path("river_basic_sniper"),
 		"reading the display icon changes neither River's copy nor the shared .tres")
 	assert_eq(river.get_weapon_mode(), RiverActiveWeaponSwap.WeaponMode.HEAL_STAFF, "and not the weapon mode")
 	assert_true(system.passive_ability.get_display_icon(river) == system.passive_ability.icon,
 		"her other abilities keep their own icon")
 
-	panel.queue_free()
 	river.queue_free()
 	await wait_frames(1)

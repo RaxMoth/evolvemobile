@@ -119,3 +119,14 @@ Maxed,Maxed,Maximal
 Needs %s,Needs %s,Benötigt %s
 or,or,oder
 Nobody in this role yet,Nobody in this role yet,Noch niemand in dieser Rolle
+STAGE %s,STAGE %s,STUFE %s
+VULNERABLE,VULNERABLE,VERWUNDBAR
+DANGEROUS,DANGEROUS,GEFÄHRLICH
+APEX,APEX,SPITZENJÄGER
+FARMING,FARMING,FARMT
+AMBUSH,AMBUSH,HINTERHALT
+HUNTING,HUNTING,JAGT
+RETREAT,RETREAT,RÜCKZUG
+EVOLVE  %d / %d XP,EVOLVE  %d / %d XP,ENTWICKLUNG  %d / %d EP
+Heroes slain  %d / %d,Heroes slain  %d / %d,Helden erlegt  %d / %d
+Mobs devoured  %d,Mobs devoured  %d,Mobs verschlungen  %d

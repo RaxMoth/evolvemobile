@@ -403,12 +403,13 @@ dangerous (`monster` #C2334A, `monster_purple` #7B3F95).
       capstone frame, and their white `_tint` versions that the theme tints
       per state), toggles, padlock, notification dot, leaf and vine
       ornaments, the background tile. 9-slice margins live in `kit.MARGINS`.
-    - `Icons/` (78, 64x64): `Abilities/` (27, `<owner>_<slot>_<ability>`:
+    - `Icons/` (79, 64x64): `Abilities/` (27, `<owner>_<slot>_<ability>`:
       a full-bleed tile in the owner's tone that the slot frame sits on;
       every hero and Grount ability, River's two basic modes, and Nyxa's and
       Gorrak's abilities on the `monster2` / `monster3` tiles), `Currency/`
       (gold, steel, leaves, upgrade point), `Stats/` (16), `Roles/` (9 filter
-      silhouettes), `Nav/` (6) and `UI/` (16 glyphs).
+      silhouettes), `Nav/` (6) and `UI/` (17 glyphs; `ui_skull` marks a
+      fallen hero and the HUD's kill count).
     - Every ability `.tres` (the 16 hero abilities and Grount's three) sets
       its `icon` to its tile; no ability shows the old `Icon.jpg`
       placeholder. River's basic attack also has `heal_icon`
@@ -462,8 +463,8 @@ dangerous (`monster` #C2334A, `monster_purple` #7B3F95).
       the full table is in `make_theme.py`).
     - The old screens (main menu, pre-round, skill screen, match result,
       settings, tutorial) restyle through it until Phases 3-8 replace them;
-      their own overrides still win. The HUD hero panels use HudPanel and
-      HpBarHero.
+      their own overrides still win. The MatchHud's cards and panels use
+      HudPanel / HudPanelSelected and HpBarHero / HpBarMonster.
     - `test/test_theme_contract.gd`: the project setting points at the theme,
       every `theme_type_variation` a scene or script under `Scenes/` and
       `Scripts/` names exists, every StyleBoxTexture and icon resolves to a
@@ -684,22 +685,66 @@ grade (they are not redrawn).
 - **Rendering**: World-space Node2D (not screen-space)
 - **Purpose**: Strategic scouting value, monster can hide
 
-### Hero UI Container
+### Match HUD (MatchHud)
 
-- **Position**: Bottom of screen, fixed to camera
-- **Layout**: 4 hero panels (River, Vlad, Ted, Irelia), each a `HudPanel`
-  (dark, copper border) with an `HpBarHero` health bar (10 px)
-- **Per Panel**:
-    - Hero name label
-    - Portrait (60x60)
-    - Health bar (color-coded: >50% green, >25% yellow, <25% red)
-    - 4 ability icons (30x30, dimmed during cooldown). Each slot shows
-      `get_display_icon(hero)` and refreshes on the AbilitySystem's
-      `ability_used`, so River's basic-attack slot swaps between the rifle
-      and the heal staff with her weapon mode.
-- **Real-time Updates**: Health changes, cooldown tracking
-- Phase 4 replaces this container with the Jungle Guild `MatchHud`, whose hero
-  cards and monster panel are built from the AbilitySlot below.
+`Scenes/UI/Hud/MatchHud.tscn` (`MatchHud`, CanvasLayer 5) is the in-match HUD
+of both sides, a `MainCam` child (`MainCam.hud`, wired in `MainCam.tscn`). It
+replaced HeroContainer / HeroPanel and the FPS label (F3 keeps the frame
+timings). Presentation only: it reads the entities and GameManager and never
+writes gameplay state, so `tools/sim_trace.sh` stays byte-identical.
+
+- **Top bar** (80 px), refreshed at 4 Hz, each label written only when it
+  changes:
+    - Pause (`ButtonRound`, `process_mode` ALWAYS): toggles the tree's pause
+      while a match runs; the icon swaps to play.
+    - Clock chip: `GameManager.get_match_elapsed()` as "03:42".
+    - Enemy tracker: heroes side, the monster's head, "STAGE II" and its HP;
+      monster side, a head and mini HP bar per hero (the scene's `HeroChip`
+      template, duplicated per hero), greyed when the hero falls.
+    - Kills chip (`ui_skull`, `GameManager.mob_kills`).
+    - Follow (`ui_follow`): `follow_requested` → `MainCam.recenter()` (leaves
+      the debug fly-cam, centres on the followed entity).
+- **Minimap**: the match's `Minimap` lives in the HUD's copper frame
+  (`Root/MinimapFrame/MinimapSlot`, 156x124, its own frame off via
+  `show_frame`). A tap emits `Minimap.hero_picked`, wired to
+  `MatchHud.select_hero` in the scene.
+- **Heroes side: `HeroHudCard`** (172x146, one per HeroBase in the "Hero"
+  group, tree order):
+    - the head portrait: `CharacterDef.head_texture()` (the def's
+      `head_region` of its portrait SVG as an AtlasTexture) in a ring of the
+      hero's signature colour, the in-round level on a pill;
+    - name, HP bar and in-round XP bar. The HP fill is the theme's
+      `HpBarHero` above 50 %, amber down to 25 % and danger below; the two
+      extra fills are built once per card;
+    - the passive, active (50 px) and ultimate (54 px) AbilitySlots; active
+      and ultimate are bound to a `CooldownSource.Hero`;
+    - the selected card lifts 8 px and wears `HudPanelSelected`; a fallen
+      hero's card greys out (`UiPalette.FALLEN_MODULATE`) under the skull.
+- **Hero focus**: a card press, the 1-4 keys, Tab, a tap on a hero in the
+  world or on the minimap all go through `select_hero` / `cycle_to_next_hero`,
+  which keep the lifted card in sync and emit `hero_selected` →
+  `MainCam.switch_to_hero` (wired in `MainCam.tscn`). A dead hero cannot take
+  the focus; when the followed hero dies the focus moves to the next living
+  hero (`EventBus.entity_died`), so the camera does not stay at the death spot.
+- **Monster side: `MonsterHudPanel`** (700x178), polled at 10 Hz:
+    - the head portrait in the monster's signature ring and the stage pips
+      I / II / III (`PillReady` once reached);
+    - the name, "STAGE II · DANGEROUS" (the README stage names) and the AI
+      intent pill: FARMING (moss), AMBUSH (amber), HUNTING (danger), RETREAT
+      (xp blue). `MonsterHudPanel.intent_of()` reads the strategy, the rest
+      state and the state chart: resting or RETREAT retreats, a monster in
+      Approach / Fight against a hero hunts, otherwise the strategy names it;
+    - the HP bar ("1008 / 1400") and the EVOLVE bar (XP towards
+      `MonsterBase.get_evolution_threshold()`, hidden at Stage III);
+    - the passive (the monster's Evolution icon when it has no passive
+      resource) and ability_1..3 bound to a `CooldownSource.Monster`: Ground
+      Slam shows its padlock and "II" until Stage II;
+    - a tally from `EventBus.entity_died`: heroes slain of the starting count,
+      and the mobs this monster killed.
+- Strings go through `Assets/Locale/strings.csv` (EN/DE).
+- `test/test_match_hud.gd` (cards, focus across deaths, HP bands, pause and
+  follow wiring, the monster panel and tracker, the intent mapping) and
+  `test/test_hud_fog.gd` (the minimap in its frame, both sides).
 
 ### HUD Cooldown Slots (CooldownSource, AbilitySlot)
 
@@ -1284,8 +1329,9 @@ res://
 │     ├─ Screens/ (MenuRoot.tscn: the main scene, LobbyScreen.tscn,
 │     │            RosterScreen.tscn, CharacterDetail.tscn, ux_tree_model.gd)
 │     ├─ MainMenu/ (the old menu, reachable from the match result until Phase 8)
-│     ├─ HeroContainer/
-│     ├─ Hud/ (AbilitySlot: in-match ability icon with the cooldown sweep)
+│     ├─ Hud/ (MatchHud: the in-match HUD under MainCam, HeroHudCard,
+│     │        MonsterHudPanel, AbilitySlot: ability icon with the cooldown sweep)
+│     ├─ Minimap/ (Minimap: fog map + side-fair dots, inside the MatchHud frame)
 │     ├─ Components/ (menu kit: CharacterCard, StageCharacter, TopBar,
 │     │               CurrencyChip, NavBar, NavTab, NavArch, PressFeedback,
 │     │               StatTile, AbilityTile, SkillNodeButton, SkillTreeView)
@@ -1568,7 +1614,7 @@ Max out hero trees → Unlock new heroes → Compete on leaderboards
 **Visuals**:
 
 - [x] Fog of war (world-space)
-- [x] Hero UI container with real-time stats
+- [x] Match HUD: hero cards / monster panel with real-time stats, top bar, framed minimap
 - [x] Health bars
 - [x] Ability cooldown indicators
 

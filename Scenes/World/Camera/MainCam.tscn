@@ -1,31 +1,17 @@
-[gd_scene load_steps=6 format=3 uid="uid://weodkoy2l3pv"]
+[gd_scene format=3 uid="uid://weodkoy2l3pv"]
 
 [ext_resource type="Script" uid="uid://brotennmld4rf" path="res://Scenes/World/Camera/main_cam.gd" id="1_yiek2"]
-[ext_resource type="PackedScene" uid="uid://bst8af4sj80cn" path="res://Scenes/UI/HeroContainer/HeroContainer.tscn" id="2_hero_ui"]
+[ext_resource type="PackedScene" uid="uid://bl7sryeazqqcp" path="res://Scenes/UI/Hud/MatchHud.tscn" id="2_hud"]
 [ext_resource type="PackedScene" uid="uid://cpxp7p1b1p05y" path="res://Scenes/World/Camera/DebugOverlay.tscn" id="3_debug"]
-[ext_resource type="PackedScene" uid="uid://l0ly3ihc4b8r" path="res://Scenes/World/Camera/fps_counter.tscn" id="4_fps"]
-[ext_resource type="PackedScene" path="res://Scenes/UI/Minimap/Minimap.tscn" id="5_minimap"]
 
-[node name="MainCam" type="Camera2D" node_paths=PackedStringArray("debug_overlay")]
+[node name="MainCam" type="Camera2D" node_paths=PackedStringArray("hud", "debug_overlay")]
 script = ExtResource("1_yiek2")
+hud = NodePath("MatchHud")
 debug_overlay = NodePath("DebugOverlay")
 
-[node name="CanvasLayer" type="CanvasLayer" parent="."]
-
-[node name="HeroContainer" parent="CanvasLayer" instance=ExtResource("2_hero_ui")]
-unique_name_in_owner = true
-
-[node name="FpsCounter" parent="CanvasLayer" instance=ExtResource("4_fps")]
-anchors_preset = 0
-anchor_right = 0.0
-anchor_bottom = 0.0
-offset_right = 1.0
-offset_bottom = 23.0
-grow_horizontal = 1
-grow_vertical = 1
-
-[node name="Minimap" parent="CanvasLayer" instance=ExtResource("5_minimap")]
+[node name="MatchHud" parent="." instance=ExtResource("2_hud")]
 
 [node name="DebugOverlay" parent="." instance=ExtResource("3_debug")]
 
-[connection signal="hero_selected" from="CanvasLayer/HeroContainer" to="." method="_on_hero_selected"]
+[connection signal="hero_selected" from="MatchHud" to="." method="switch_to_hero"]
+[connection signal="follow_requested" from="MatchHud" to="." method="recenter"]

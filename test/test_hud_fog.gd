@@ -1,11 +1,14 @@
 extends TestCase
 
-## Fog grid alignment and the hero panel's cooldown source of truth.
+## Fog grid alignment, the hero cooldown source of truth, and the match's
+## minimap inside the MatchHud's frame (both play modes).
 
 const FOG := "res://Scenes/World/FogOfWar/FogOfWarSystem.tscn"
 const VLAD := "res://Scenes/NPCs/Hero/Heros/DMG/Vlad/Vlad.tscn"
 const WORLD := "res://Scenes/World/World.tscn"
 const VISION := "res://Scenes/World/FogOfWar/VisionArea.tscn"
+## The minimap's place under MainCam: the MatchHud's copper frame.
+const MINIMAP_PATH := ^"MainCam/MatchHud/Root/MinimapFrame/MinimapSlot/Minimap"
 ## README hero vision ranges (HeroStats.vision_radius), by World.tscn node name.
 const HERO_VISION := {"River": 300.0, "Vlad": 250.0, "Ted": 220.0, "Irelia": 200.0}
 
@@ -84,6 +87,7 @@ func test_world_hero_vision_radii_in_both_play_modes() -> void:
 		for hero_name: String in HERO_VISION:
 			var vision := world.get_node("Heros/%s/VisionArea" % hero_name) as VisionArea
 			assert_near(vision.vision_radius, float(HERO_VISION[hero_name]), 0.01, "%s, %s" % [hero_name, mode])
+		_check_minimap(world, mode)
 		var grount := (world.get_node("MonsterSlot") as MonsterSlot).monster
 		if monster_side:
 			# The monster gets its vision once it stands at its match spawn.
@@ -107,6 +111,24 @@ func test_world_hero_vision_radii_in_both_play_modes() -> void:
 	GameManager.chosen_side = side_before
 	GameManager.match_ended_flag = true  # the runner's guard; World's start_new_match cleared it
 	AudioManager.stop_music()  # World started the match music
+
+
+## The Minimap lives in the MatchHud's frame (no MainCam CanvasLayer, no FPS
+## label: F3 has the frame timings), fills its slot with its own frame hidden,
+## shows the fog, and a tap on it reaches MatchHud.select_hero.
+func _check_minimap(world: Node, mode: String) -> void:
+	var cam := world.get_node("MainCam") as GameCamera
+	assert_true(cam.get_node_or_null(^"CanvasLayer") == null, "MainCam has no old HUD layer, %s" % mode)
+	var mm := world.get_node_or_null(MINIMAP_PATH) as Minimap
+	assert_true(mm != null, "the minimap sits in the HUD frame, %s" % mode)
+	if mm == null:
+		return
+	assert_false((mm.get_node(^"%Frame") as CanvasItem).visible, "its own frame is hidden, %s" % mode)
+	var slot := mm.get_parent() as Control
+	assert_eq(slot.size, Vector2(156, 124), "the frame's slot, %s" % mode)
+	assert_eq(mm.size, slot.size, "the map fills the slot, %s" % mode)
+	assert_true(mm.fog_view.texture != null, "the fog is bound, %s" % mode)
+	assert_true(mm.hero_picked.is_connected(cam.hud.select_hero), "a tap focuses through the HUD, %s" % mode)
 
 
 func test_monster_player_vision_does_not_feed_the_hero_ai_memory() -> void:

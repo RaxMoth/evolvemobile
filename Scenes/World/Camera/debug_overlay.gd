@@ -72,7 +72,7 @@ func _ready() -> void:
 	add_child(hud_layer)
 	_hud_label = Label.new()
 	_hud_label.text = ""
-	_hud_label.position = Vector2(8, 36)  # below MainCam's FpsCounter
+	_hud_label.position = Vector2(8, 88)  # under the MatchHud's top bar
 	_hud_label.add_theme_color_override("font_color", Color.WHITE)
 	_hud_label.add_theme_color_override("font_outline_color", Color.BLACK)
 	_hud_label.add_theme_constant_override("outline_size", 4)
@@ -208,14 +208,14 @@ func _top_threats_for(team: TeamBlackboard, ally: Node, k: int) -> Array:
 
 
 func _get_active_hero_from_camera() -> Node:
-	# The camera owns the hero UI; ask it which hero is selected.
+	# The camera owns the match HUD; ask it which hero is selected.
 	var cam: Node = get_parent()
 	while cam and not (cam is GameCamera):
 		cam = cam.get_parent()
 	if cam == null:
 		return null
-	var ui: HeroContainer = (cam as GameCamera).hero_ui
-	return ui.active_hero if ui else null
+	var hud: MatchHud = (cam as GameCamera).hud
+	return hud.active_hero if hud else null
 
 
 # ============================================
