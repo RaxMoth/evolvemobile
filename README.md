@@ -860,7 +860,9 @@ entity registers it and draws from the global RNG).
   - abilities are never copied: `abilities()` reads the scene's own ability
     `.tres` from its SceneState, in menu order (passive, basic, active,
     ultimate; monsters passive, ability_1..3). Icons, names and descriptions
-    come from there.
+    come from there. `ability_slots()` keeps the four slots with null for an
+    empty one (Grount has no passive resource), so screens caption each by
+    its slot.
 - **`Scenes/World/monster_slot.gd`** (`MonsterSlot`) stands where World.tscn
   used to instance Grount, as World's last child after `Heros`. It spawns
   `resolve_monster(GameManager.selected_monster_id)` in `_enter_tree`, so the
@@ -914,14 +916,18 @@ code connections are to autoloads (`PersistedData.currency_changed`).
       jungle", no character).
   `refresh()` re-reads the save (screens call it on currency or skill
   changes); `apply_progress()` shows given numbers (previews, tests).
-  `card_pressed(character)` (null for the rumour card).
+  `card_pressed(character)` (null for the rumour card). `play_intro(delay)`:
+  the collection's staggered drop-in (the card fades in while its frame grows
+  from 0.86; the frame scales, not the card, because a container resets its
+  children's scale when it sorts them).
 - **`RigView`** (`Scenes/UI/Widgets/rig_view.gd`): a character's `CharacterRig`
   in puppet mode inside a Control (always awake, facing right): the body's
   bounds, raised by a flyer's hover or a walker's bounce, fitted and centred
   with `padding`, feet on the bottom edge, plus the match's contact shadow.
   `stage`, `flip`, `walk_speed`, `play_move()`, `play_hurt()`, `silhouette`
   (multiplied down to `locked_fill`) and `animated = false` (posed once, never
-  processed). Its taps go to the parent.
+  processed). A hidden view (a menu screen under another one, a filtered-out
+  card) sleeps too and wakes when it shows again. Its taps go to the parent.
 - **`StageCharacter.tscn`**: a tappable RigView standing on a menu stage with a
   squash-and-bob idle on top of the rig's breathing and `cheer(delay)` (a hop
   with a bounce landing). Period (`bob_period` x 0.85-1.2) and phase come from
@@ -942,8 +948,27 @@ code connections are to autoloads (`PersistedData.currency_changed`).
   dots) and `monster_side`: the arch's additive glow is `amber` on the hero
   side and `monster` crimson on the monster side, pulsing through the scene's
   AnimationPlayer.
-- **Press feedback** (`PressFeedback`): cards, stage characters and nav tabs
-  shrink to 0.95 while held and spring back with a 0.09 s TRANS_BACK tween.
+- **Press feedback** (`PressFeedback`): cards, stage characters, ability tiles
+  and nav tabs shrink to 0.95 while held and spring back with a 0.09 s
+  TRANS_BACK tween.
+- **`StatTile.tscn`**: a stat icon, a value in display type and a caption
+  (`PanelInset`; `show_stat(icon, value, caption)`).
+- **`AbilityTile.tscn`**: one ability (kind caption, the `.tres` icon, its
+  name), a toggle button; the toggled tile wears `CharacterCardSelected` and
+  reports `tile_pressed(index)`.
+- **`SkillNodeButton.tscn`**: one skill-tree node: an 84 px `Node*` ring
+  (`Cap*` square frame for a capstone) around its icon, rank pips (`PipOn` /
+  `PipOff` / `PipMax`), a padlock while LOCKED, a star once MAXED, the red
+  notify dot (pulsing) while its next rank can be bought, the white
+  `SelectRing` and `pop()` (purchase juice, 1.25 → 1 with TRANS_BACK).
+  Locked icons are dimmed to `UiPalette.LOCKED_ICON_MODULATE`.
+- **`SkillTreeView.tscn`**: a `UxTreeModel` as a node graph: one column per
+  branch (a `BranchPlaque` when it is named), one row per tier, a dashed rule
+  with a `GateChip` ("Tier 2", padlocked while closed) between the rows, and
+  requirement links (ink casing, amber core once the parent is owned, stone
+  before). Without named branches every row is centred; rows share the height
+  (110-156 px) and the graph is centred vertically, re-laid out on resize.
+  `build(model)` keeps the selection; `select(id)` reports `node_selected`.
 - `test/test_character_card.gd` covers the progress numbers, the card states
   (normal, upgrade-ready, locked-purchasable, rumour, monster, selected) with
   their pill text and variations, the size presets, the RigView fit, flip and
@@ -974,13 +999,23 @@ button until the Phase 8 screens retire it.
       including ones a screen or overlay adds later, plays the UI click.
     - The lobby's choice goes to `GameManager.choose_side()`, which persists it
       (setting `chosen_side`); the next launch opens on the same side.
-    - Until their new screens land, requests open the old overlays on top:
-      HUNT → `PreRoundSetup` on the hero side (the monster side starts the match
-      at once), Heroes / Monsters / the plaques → `MetaSkillScreen` on the first
-      hero's or the selected monster's tree (`initial_tree_id`), Growth → the
-      Hero Base or Monster Base tree of the chosen side, Codex → the tutorial,
-      the gear → Settings. Tapping a character only chooses its side until the
-      character detail screen opens it.
+    - Navigation: the plaques and the nav bar's Heroes / Monsters open that
+      side's `RosterScreen`, Growth the chosen side's account-wide tree in a
+      second `CharacterDetail`, a roster card or a lobby character the
+      `CharacterDetail` of that character. Nav-bar destinations go through
+      `switch_to(screen)`: the screen slides in and then sits right above the
+      lobby (back returns home; tabs do not stack up), or, when it is already
+      on the stack, the screens above it slide away (`pop_to`). A character's
+      detail is pushed over the screen that asked. Locked characters (the
+      lair's teasers) open nothing yet.
+    - Purchases: a detail's `upgrade_requested(tree_id, node_id)` →
+      `MetaSkillManager.unlock` (the shop decides: tier gate, price). On
+      `MetaSkillManager.skills_changed` and `PersistedData.currency_changed`
+      (connected in code: autoloads) every roster and detail on the stack
+      re-reads the save, once per frame at most.
+    - Until their new screens land, HUNT opens the old `PreRoundSetup` overlay on
+      the hero side (the monster side starts the match at once), Codex the
+      tutorial and the gear Settings.
 - **`LobbyScreen`** (`lobby_screen.gd`, the nav bar's HUNT tab): a split jungle
   stage under the top bar (gear, Gold, Steel, Leaves) and above the nav bar.
     - Hero stage (y 84-624): the campfire clearing (`Assets/UI/Lobby/lobby_heroes.svg`),
@@ -1011,8 +1046,80 @@ button until the Phase 8 screens retire it.
   to MenuRoot (no code connections); push / pop and `ui_cancel`; the click on
   every button; the side choice (frames, HUNT pop, cheer stagger, tints, nav
   glow) and `side_tap_opens_roster`; each request; the cast is the roster plus
-  the locked teasers; the chosen side persists; the first-run tutorial; the old
-  overlays each request opens; the main scene is MenuRoot.
+  the locked teasers; the chosen side persists; the first-run tutorial; the
+  screens each request opens (nav tabs switch, cards push, back); a purchase
+  through the detail and the refresh of the screens under it; the main scene
+  is MenuRoot.
+
+### Roster and Character Detail (collections, overview, skill trees)
+
+- **`RosterScreen`** (`Scenes/UI/Screens/RosterScreen.tscn`, `roster_screen.gd`;
+  two instances in MenuRoot, `side` heroes and monster): the side's
+  characters from `GameManager.ROSTER` as a 4-column grid of M `CharacterCard`s
+  (live rigs, 16 px gaps), then the side's one "???" rumour card. Above it a
+  row of `FilterTab` role filters (`filters` export, icons
+  `Assets/UI/Icons/Roles/role_<key>.svg`; heroes all / tank / melee / ranged /
+  support, monsters all / brute / stalker / swarm, set in MenuRoot.tscn) and
+  the owned / total count; a role without characters says so. The top bar
+  shows Gold plus the side's Steel or Leaves. `open()` builds the grid on the
+  first visit, re-reads the save and plays the intro (the shown cards drop in
+  0.04 s apart). An owned character's card asks for its detail
+  (`character_requested`); a locked card or the rumour shakes. `refresh()`
+  re-reads levels, XP and ready upgrades.
+- **`CharacterDetail`** (`CharacterDetail.tscn`, `character_detail.gd`):
+    - OVERVIEW: the character on its stage (`CharacterCard` /
+      `CharacterCardMonster` frame, its live rig as a `StageCharacter` with the
+      stage idle; a tap cheers), the role pill, "Lv.N" and the XP bar toward
+      the next level, six `StatTile`s and the ability tiles. `stat_rows(def)`
+      reads the stats resource, never preview numbers: heroes Health, Damage,
+      Attack speed (1 / the basic attack's cooldown), Range, Move speed and
+      Vision from `HeroStats`; monsters stage I Health, Damage (multiplier),
+      Move speed, the Stage II and III XP thresholds and the Stage III health
+      from `MonsterStats`. The four `AbilityTile`s follow
+      `CharacterDef.ability_slots()` (PASSIVE, BASIC, ACTIVE, ULTIMATE; an
+      empty slot hides its tile) with each `.tres`'s icon and name; the
+      ultimate is described first, a tap describes another.
+    - SKILL TREE (the tabs, `TabButton`; the tree tab carries an up-arrow
+      badge with `CharacterProgress.upgrades_ready`): the stage folds into a
+      compact header (head portrait, name, level, XP), the character's tree in
+      a `SkillTreeView` and the bottom sheet (`SheetPanel`) of the selected
+      node: name, "Rank r/max · Tier t", "Now: …" or "Not learned yet",
+      "Next: …", the price (in `danger` when the wallet is short) and UPGRADE
+      (`ButtonPrimary`), disabled and showing why when the node cannot be
+      bought ("Learn a Tier 1 skill first", "Maxed", "Need 340 more").
+    - `show_base_tree(side)`: the Growth tab's account-wide tree (Hero Base or
+      Monster Base, Gold) in TREE mode without tabs, under the side's crest
+      (`crest_heroes` / `crest_monster` exports, `Assets/UI/Crests`) with the
+      tree's name and blurb.
+    - UPGRADE only reports `upgrade_requested(tree_id, node_id)`; MenuRoot buys
+      and calls `refresh()`, and the bought node pops. Every connection inside
+      the screen is in its scene; `back_requested` and `tab_selected` go to
+      MenuRoot, and the nav bar keeps the screen's own tab lit.
+- **`UxTreeModel`** (`Scenes/UI/Screens/ux_tree_model.gd`): the one thing the
+  tree view and the sheet read. Branches (columns, "" = unnamed), tiers with
+  `tier_open`, gate chip texts and block reasons, nodes with `rank`,
+  `rank_costs`, `rank_texts`, `requires` (any one owned opens a node),
+  `capstone` and an icon, plus the currency and the wallet. `state_of()`
+  (LOCKED, AVAILABLE, OWNED, MAXED), `block_reason()`, `affordable()`,
+  `can_buy()`, `buyable_count()`. `from_meta_skills(tree_id)` maps today's
+  trees: one rank per node, column = index inside its tier, the lone node of
+  the top tier is the capstone, tier gates read from
+  `MetaSkillManager.node_state` (so the screen and the shop never disagree),
+  icons from the node, else the stat icon of its stat or ability property
+  (`STAT_ICONS`), else the ability's icon. The ranked trees add their own
+  adapter with the same fields. A snapshot: rebuilt after every change.
+- Strings (OVERVIEW, SKILL TREE, ABILITIES, the slot kinds, stat captions, the
+  sheet's texts and block reasons) are in `Assets/Locale/strings.csv` with
+  German.
+- Tests: `test_ux_tree_model` (states, block reasons, prices on a hand-built
+  ranked tree; the live Grount tree; icons; the live states agree with
+  `node_state` on every node of every tree, fresh and seeded),
+  `test_roster_screen` (grid, rumour, filters, count, intro, taps, refresh,
+  wiring), `test_character_detail` (stat rows, overview, level / XP / badge,
+  tree mode and sheet, every tree fits 720x1280, Growth, wiring), and
+  `test_grount_behaviour_nodes` checks the Grount tree on this screen (every
+  node shown, tier 4 gated until a tier-3 node is owned, bought through
+  `upgrade_requested`).
 
 ### File Structure
 
@@ -1051,11 +1158,13 @@ res://
 │  │  ├─ FogOfWar/
 │  │  └─ MobSpawnArea/
 │  └─ UI/
-│     ├─ Screens/ (MenuRoot.tscn: the main scene, LobbyScreen.tscn)
+│     ├─ Screens/ (MenuRoot.tscn: the main scene, LobbyScreen.tscn,
+│     │            RosterScreen.tscn, CharacterDetail.tscn, ux_tree_model.gd)
 │     ├─ MainMenu/ (the old menu, reachable from the match result until Phase 8)
 │     ├─ HeroContainer/
 │     ├─ Components/ (menu kit: CharacterCard, StageCharacter, TopBar,
-│     │               CurrencyChip, NavBar, NavTab, NavArch, PressFeedback)
+│     │               CurrencyChip, NavBar, NavTab, NavArch, PressFeedback,
+│     │               StatTile, AbilityTile, SkillNodeButton, SkillTreeView)
 │     ├─ Widgets/ (rig_view.gd: RigView, a puppet rig inside a Control)
 │     └─ Theme/
 │        ├─ ui_theme.tres (generated project Theme, gui/theme/custom)
@@ -1346,6 +1455,7 @@ Max out hero trees → Unlock new heroes → Compete on leaderboards
 **Meta & Flow** (since v0.1):
 
 - [x] Lobby (the main scene, MenuRoot): the heroes' campfire and the monster lair as live rigs, tap a side to choose it (persisted)
+- [x] Roster screens (4-column collections with role filters) and the character detail (overview with stats and abilities, skill tree with upgrades); Growth shows the side's base tree
 - [x] Main Menu with side selection, Settings (volumes) and the Meta Skill screen (old; reachable from the match result)
 - [x] Match result screen (stats, currency + permanent XP rewards, Play Again / Main Menu)
 - [x] Hero Base + Monster Base skill trees (MetaSkillManager, applied on spawn), ConfigFile save

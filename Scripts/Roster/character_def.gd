@@ -150,15 +150,25 @@ func head_texture() -> AtlasTexture:
 ## nothing is instanced; they are the shared .tres: read them, never modify.
 func abilities() -> Array[AbilityBase]:
 	var out: Array[AbilityBase] = []
+	for ability in ability_slots():
+		if ability != null:
+			out.append(ability)
+	return out
+
+
+## The ability in each menu slot (passive, basic, active, ult): always four
+## entries, null where the scene leaves a slot empty (Grount has no passive
+## resource), so a screen can caption each one by its slot. Empty when the def
+## has no scene.
+func ability_slots() -> Array[AbilityBase]:
+	var out: Array[AbilityBase] = []
 	var packed := scene()
 	if packed == null:
 		return out
 	var node_path := "./AbilitySystem" if side == HEROES else "."
 	var slots: Array[StringName] = HERO_ABILITY_SLOTS if side == HEROES else MONSTER_ABILITY_SLOTS
 	for slot: StringName in slots:
-		var ability := scene_property(packed, node_path, slot) as AbilityBase
-		if ability != null:
-			out.append(ability)
+		out.append(scene_property(packed, node_path, slot) as AbilityBase)
 	return out
 
 

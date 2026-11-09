@@ -4,9 +4,11 @@ extends TestCase
 ## signal connected scene-side, push / pop with the slide and ui_cancel as
 ## back, the lobby's side choice (dim, frame, HUNT pop, cheer, nav glow) and
 ## its requests, the locked teasers in the lair, the chosen side persisted
-## through GameManager, the first-run tutorial and the old overlays that stand
-## in for the screens still to come. Tests that write the save run only in the
-## isolated test user dir.
+## through GameManager, the first-run tutorial, the rosters, Growth and the
+## character detail each request opens (nav tabs switch, cards push), the
+## purchases MenuRoot makes for the detail screen and the refresh after them,
+## and the old overlays that still stand in for the pre-round and settings
+## screens. Tests that write the save run only in the isolated test user dir.
 
 const MENU_ROOT_PATH := "res://Scenes/UI/Screens/MenuRoot.tscn"
 const MENU_ROOT := preload("res://Scenes/UI/Screens/MenuRoot.tscn")
@@ -315,7 +317,11 @@ func test_first_run_opens_the_tutorial() -> void:
 	again.queue_free()
 
 
-func test_requests_open_the_old_overlays_until_their_screens_land() -> void:
+func _settle() -> void:
+	await wait_seconds(MenuRoot.SLIDE_TIME + 0.1)
+
+
+func test_requests_open_their_screens() -> void:
 	if not require_isolated():
 		return
 	GameManager.choose_side(HEROES, false)
@@ -327,27 +333,77 @@ func test_requests_open_the_old_overlays_until_their_screens_land() -> void:
 	assert_eq(_overlays(root, &"PreRoundSetup").size(), 1, "once")
 	_overlays(root, &"PreRoundSetup")[0].queue_free()
 	await wait_frames(1)
-	var expected: Array[Array] = [
-		[&"growth", MetaSkillManager.TREE_HERO_BASE],
-		[&"heroes", GameManager.ROSTER.heroes[0].skill_tree_id()],
-		[&"monsters", GameManager.selected_monster_def().skill_tree_id()],
-	]
-	for pick: Array in expected:
-		lobby.tab_selected.emit(pick[0])
-		var trees := _overlays(root, &"MetaSkillScreen")
-		assert_eq(trees.size(), 1, "%s opens the skill trees" % pick[0])
-		if trees.size() == 1:
-			assert_eq((trees[0] as MetaSkillScreen).active_tree_id, pick[1], "%s shows its tree" % pick[0])
-			trees[0].queue_free()
-		await wait_frames(1)
+	(lobby.get_node("HeroRow/HeroRoster") as BaseButton).pressed.emit()
+	assert_eq(root.top(), root.hero_roster, "the HEROES plaque opens the hero roster")
+	assert_eq(root.hero_roster.cards().size(), GameManager.ROSTER.heroes.size(), "built when it opens")
+	await _settle()
+	root.hero_roster.tab_selected.emit(&"monsters")
+	assert_eq(root.top(), root.monster_roster, "a nav tab switches to its screen")
+	assert_eq(root._stack.size(), 2, "right above home: nav tabs do not stack up")
+	await _settle()
+	assert_false(root.hero_roster.visible, "the screen it replaced hides")
+	root.monster_roster.tab_selected.emit(&"growth")
+	assert_eq(root.top(), root.growth)
+	assert_eq(root.growth.tree_id, MetaSkillManager.TREE_HERO_BASE, "Growth is the chosen side's account tree")
+	assert_eq(root.growth.mode, CharacterDetail.Mode.TREE)
+	await _settle()
+	_press_back(root)
+	assert_eq(root.top(), lobby, "back from a tab screen returns home")
+	await _settle()
 	lobby.choose(MONSTER)
 	lobby.tab_selected.emit(&"growth")
-	var monster_trees := _overlays(root, &"MetaSkillScreen")
-	assert_eq(monster_trees.size(), 1)
-	if monster_trees.size() == 1:
-		assert_eq((monster_trees[0] as MetaSkillScreen).active_tree_id, MetaSkillManager.TREE_MONSTER_BASE, "Growth follows the side")
-		monster_trees[0].queue_free()
-	await wait_frames(1)
-	lobby.tab_selected.emit(&"codex")
+	assert_eq(root.growth.tree_id, MetaSkillManager.TREE_MONSTER_BASE, "Growth follows the side")
+	await _settle()
+	root.growth.tab_selected.emit(&"codex")
 	assert_eq(_overlays(root, &"TutorialOverlay").size(), 1, "Codex opens the guide")
+	assert_eq(root.top(), root.growth, "over the shown screen")
+	root.queue_free()
+
+
+func test_the_detail_opens_buys_and_goes_back() -> void:
+	if not require_isolated():
+		return
+	GameManager.choose_side(HEROES, false)
+	var root := await _menu_root()
+	var tree_id := MetaSkillManager.monster_tree_id(&"grount")
+	root.lobby.roster_requested.emit(MONSTER)
+	await _settle()
+	var card := root.monster_roster.cards()[0]
+	card.pressed.emit()
+	assert_eq(root.top(), root.detail, "a card opens its character")
+	assert_eq(root.detail.character, card.character)
+	assert_eq(root._stack.size(), 3, "over the roster")
+	await _settle()
+	PersistedData.add_currency(PersistedData.LEAVES, 100)
+	await wait_frames(1)
+	assert_true(card.upgrades > 0, "the roster under the detail refreshed on the currency change")
+	root.detail.set_mode(CharacterDetail.Mode.TREE)
+	root.detail.tree_view().select(&"g1_dmg")
+	(root.detail.get_node("%Upgrade") as BaseButton).pressed.emit()
+	assert_true(MetaSkillManager.is_unlocked(tree_id, &"g1_dmg"), "MenuRoot buys the node")
+	assert_eq(PersistedData.get_currency(PersistedData.LEAVES), 0)
+	await wait_frames(1)
+	assert_eq(root.detail.tree_view().button(&"g1_dmg").state, UxTreeModel.NodeState.MAXED, "the detail refreshed")
+	assert_eq(card.upgrades, 0, "and the card")
+	root.detail.back_requested.emit()
+	assert_eq(root.top(), root.monster_roster, "back to the roster")
+	await _settle()
+	card.pressed.emit()
+	await _settle()
+	root.detail.tab_selected.emit(&"monsters")
+	assert_eq(root.top(), root.monster_roster, "the detail's own tab returns to the roster below it")
+	assert_eq(root._stack.size(), 2)
+	await _settle()
+	root.monster_roster.back_requested.emit()
+	await _settle()
+	(root.lobby.get_node("HeroStage/Irelia") as BaseButton).pressed.emit()
+	assert_eq(root.top(), root.detail, "tapping a character in the lobby opens it")
+	assert_eq(root.detail.character, GameManager.ROSTER.find(&"irelia"))
+	assert_eq(root.detail.mode, CharacterDetail.Mode.OVERVIEW)
+	assert_eq(root._stack.size(), 2, "right over the lobby")
+	await _settle()
+	root.detail.back_requested.emit()
+	await _settle()
+	(root.lobby.get_node("MonsterStage/Nyxa") as BaseButton).pressed.emit()
+	assert_eq(root.top(), root.lobby, "a locked teaser has no detail yet")
 	root.queue_free()

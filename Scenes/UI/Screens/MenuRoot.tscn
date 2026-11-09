@@ -3,8 +3,10 @@
 [ext_resource type="Script" uid="uid://b153jamihxj8m" path="res://Scenes/UI/Screens/menu_root.gd" id="1_script"]
 [ext_resource type="Theme" uid="uid://eroe1xxhr5fc" path="res://Scenes/UI/Theme/ui_theme.tres" id="2_theme"]
 [ext_resource type="PackedScene" uid="uid://cle50s1lcs20c" path="res://Scenes/UI/Screens/LobbyScreen.tscn" id="3_lobby"]
+[ext_resource type="PackedScene" uid="uid://bt7r3nkv0yq2d" path="res://Scenes/UI/Screens/RosterScreen.tscn" id="4_roster"]
+[ext_resource type="PackedScene" uid="uid://cj2h7sdqk5w0m" path="res://Scenes/UI/Screens/CharacterDetail.tscn" id="5_detail"]
 
-[node name="MenuRoot" type="Control" node_paths=PackedStringArray("lobby")]
+[node name="MenuRoot" type="Control" node_paths=PackedStringArray("lobby", "hero_roster", "monster_roster", "detail", "growth")]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -14,6 +16,10 @@ grow_vertical = 2
 theme = ExtResource("2_theme")
 script = ExtResource("1_script")
 lobby = NodePath("Screens/LobbyScreen")
+hero_roster = NodePath("Screens/HeroRoster")
+monster_roster = NodePath("Screens/MonsterRoster")
+detail = NodePath("Screens/CharacterDetail")
+growth = NodePath("Screens/Growth")
 
 [node name="Screens" type="Control" parent="."]
 unique_name_in_owner = true
@@ -28,9 +34,40 @@ mouse_filter = 2
 [node name="LobbyScreen" parent="Screens" instance=ExtResource("3_lobby")]
 layout_mode = 1
 
+[node name="HeroRoster" parent="Screens" instance=ExtResource("4_roster")]
+visible = false
+layout_mode = 1
+
+[node name="MonsterRoster" parent="Screens" instance=ExtResource("4_roster")]
+visible = false
+layout_mode = 1
+side = 1
+filters = Array[StringName]([&"all", &"brute", &"stalker", &"swarm"])
+
+[node name="CharacterDetail" parent="Screens" instance=ExtResource("5_detail")]
+visible = false
+layout_mode = 1
+
+[node name="Growth" parent="Screens" instance=ExtResource("5_detail")]
+visible = false
+layout_mode = 1
+mode = 1
+
 [connection signal="side_chosen" from="Screens/LobbyScreen" to="." method="_on_side_chosen"]
 [connection signal="hunt_requested" from="Screens/LobbyScreen" to="." method="_on_hunt_requested"]
 [connection signal="roster_requested" from="Screens/LobbyScreen" to="." method="_on_roster_requested"]
 [connection signal="character_requested" from="Screens/LobbyScreen" to="." method="_on_character_requested"]
 [connection signal="tab_selected" from="Screens/LobbyScreen" to="." method="_on_tab_selected"]
 [connection signal="settings_requested" from="Screens/LobbyScreen" to="." method="_on_settings_requested"]
+[connection signal="character_requested" from="Screens/HeroRoster" to="." method="_on_character_requested"]
+[connection signal="back_requested" from="Screens/HeroRoster" to="." method="_on_back_requested"]
+[connection signal="tab_selected" from="Screens/HeroRoster" to="." method="_on_tab_selected"]
+[connection signal="character_requested" from="Screens/MonsterRoster" to="." method="_on_character_requested"]
+[connection signal="back_requested" from="Screens/MonsterRoster" to="." method="_on_back_requested"]
+[connection signal="tab_selected" from="Screens/MonsterRoster" to="." method="_on_tab_selected"]
+[connection signal="back_requested" from="Screens/CharacterDetail" to="." method="_on_back_requested"]
+[connection signal="tab_selected" from="Screens/CharacterDetail" to="." method="_on_tab_selected"]
+[connection signal="upgrade_requested" from="Screens/CharacterDetail" to="." method="_on_upgrade_requested"]
+[connection signal="back_requested" from="Screens/Growth" to="." method="_on_back_requested"]
+[connection signal="tab_selected" from="Screens/Growth" to="." method="_on_tab_selected"]
+[connection signal="upgrade_requested" from="Screens/Growth" to="." method="_on_upgrade_requested"]

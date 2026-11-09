@@ -12,7 +12,9 @@ extends Control
 ## `silhouette` = a locked character: the whole body is multiplied down to the
 ## palette's locked_fill (one modulate on the holder, so the parts' own ink
 ## outlines read as one solid shape). For grids of many cards set
-## `animated = false`: the rig is posed once and never processes.
+## `animated = false`: the rig is posed once and never processes. A hidden
+## view (a menu screen under another one, a filtered-out card) sleeps too and
+## wakes when it shows again.
 ##
 ## Presentation only: the rig never touches the global RNG (its idle phase
 ## comes from a private one), so menus cannot disturb a match's determinism.
@@ -40,8 +42,7 @@ const SHADOW_BLOB := preload("res://Assets/Characters/shadow_blob.svg")
 @export var animated: bool = true:
 	set(v):
 		animated = v
-		if rig:
-			rig.set_on_screen(animated)
+		_apply_awake()
 @export var silhouette: bool = false:
 	set(v):
 		silhouette = v
@@ -81,6 +82,11 @@ func _ready() -> void:
 	_rebuild()
 
 
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_VISIBILITY_CHANGED:
+		_apply_awake()
+
+
 func _rebuild() -> void:
 	if _holder:
 		_holder.queue_free()
@@ -112,8 +118,7 @@ func _rebuild() -> void:
 	rig.body = body
 	_holder.add_child(rig)
 	body.set_stage(stage)
-	if not animated:
-		rig.set_on_screen(false)
+	_apply_awake()
 	_apply_silhouette()
 	_fit()
 
@@ -154,6 +159,12 @@ func _fit() -> void:
 	var centre_x := (left + right) * 0.5 * profile.world_scale * s
 	_holder.scale = Vector2(-s if flip else s, s)
 	_holder.position = Vector2(size.x * 0.5 - centre_x, size.y * (1.0 - padding) - bottom * profile.world_scale * s)
+
+
+## The rig animates while the view is animated and shown.
+func _apply_awake() -> void:
+	if rig:
+		rig.set_on_screen(animated and is_visible_in_tree())
 
 
 func _apply_silhouette() -> void:

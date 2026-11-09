@@ -1,0 +1,14 @@
+[gd_scene format=3 uid="uid://b8kd3sxw1qv5n"]
+
+[ext_resource type="Script" uid="uid://ci1p46n7yelhu" path="res://Scenes/UI/Components/skill_tree_view.gd" id="1_script"]
+
+[node name="SkillTreeView" type="Control"]
+custom_minimum_size = Vector2(0, 340)
+layout_mode = 3
+anchors_preset = 0
+offset_right = 696.0
+offset_bottom = 590.0
+mouse_filter = 1
+script = ExtResource("1_script")
+
+[connection signal="resized" from="." to="." method="_on_resized"]

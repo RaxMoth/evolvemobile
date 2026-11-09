@@ -10,7 +10,7 @@ const VLAD := "res://Scenes/NPCs/Hero/Heros/DMG/Vlad/Vlad.tscn"
 const BAT := "res://Scenes/NPCs/Mob/Mobs/Bat/Bat.tscn"
 const PET := "res://Scenes/NPCs/Hero/Heros/Support/Ted/Abilities/Passive/TedsPet.tscn"
 const AREA := "res://Scenes/World/MobSpawnArea/MobSpawnArea.tscn"
-const SCREEN := "res://Scenes/UI/MetaSkills/MetaSkillScreen.tscn"
+const SCREEN := "res://Scenes/UI/Screens/CharacterDetail.tscn"
 
 ## Second Wind is not seeded yet (MetaSkillManager.GROUNT_SECOND_WIND_SPEC):
 ## the test that needs it adds it to the Grount tree and after_each removes it.
@@ -718,6 +718,10 @@ func test_entities_in_circle_matches_a_direct_overlap_query() -> void:
 
 # ---------- skill-tree screen ----------
 
+## The character detail's SKILL TREE lists every shipped Grount node, keeps
+## the 2000-Leaf Titan Form gated behind tier 3, fits the portrait screen and
+## lets it be bought (through upgrade_requested, as MenuRoot does) once a
+## tier-3 node is owned.
 func test_skill_screen_renders_and_gates_tier_4() -> void:
 	if not require_isolated():
 		return
@@ -725,45 +729,54 @@ func test_skill_screen_renders_and_gates_tier_4() -> void:
 	var portrait := SubViewport.new()
 	portrait.size = Vector2i(720, 1280)
 	add_child(portrait)
-	var screen := (load(SCREEN) as PackedScene).instantiate() as MetaSkillScreen
+	var screen := (load(SCREEN) as PackedScene).instantiate() as CharacterDetail
 	portrait.add_child(screen)
 	await wait_frames(2)
-	screen._show_tree(_tree())
+	screen.show_character(GameManager.ROSTER.find(&"grount"), CharacterDetail.Mode.TREE)
 	await wait_frames(2)
-	var rows: Array[Node] = screen.tiers_box.get_children()
-	assert_eq(rows.size(), 4, "rows T4..T1")
+	var t: MetaSkillTree = MetaSkillManager.get_tree_def(_tree())
+	var view := screen.tree_view()
+	assert_eq(screen.tree_id, _tree())
+	assert_eq(view.buttons().size(), t.nodes.size(), "every shipped node is on the screen")
+	var rows: Dictionary[int, Array] = {}
+	for n in t.nodes:
+		var b := view.button(n.id)
+		assert_true(b != null, "%s is shown" % n.id)
+		if b == null:
+			continue
+		if not rows.has(n.tier):
+			rows[n.tier] = []
+		rows[n.tier].append(b)
+		assert_true(b.get_global_rect().position.x >= 0.0 and b.get_global_rect().end.x <= 720.5,
+				"%s inside the 720 px screen (%s)" % [n.id, str(b.get_global_rect())])
+	assert_eq(rows.size(), 4, "rows T1..T4")
 	if rows.size() != 4:
 		portrait.queue_free()
 		return
-	var t4 := _buttons_under(rows[0])
-	assert_eq(t4.size(), 1)
-	if t4.size() == 1:
-		assert_eq(t4[0].node_def.id, &"g4_titan")
-		assert_true(t4[0].disabled, "tier-gated")
-		assert_true(t4[0]._label.text.contains("Reach Tier 3 first"), t4[0]._label.text)
-	var margin := screen.get_node("Margin") as Control
-	assert_true(margin.get_combined_minimum_size().x <= 720.0, "fits the portrait width (%.0f px)" % margin.get_combined_minimum_size().x)
-	var t3 := _buttons_under(rows[1])
+	var t3: Array = rows[3]
 	assert_true(t3.size() >= 6, "Grount T3 carries the new nodes")
-	if t3.size() >= 6:
-		assert_eq(t3[3].position.y, t3[0].position.y, "4 cards on the first line")
-		assert_true(t3[4].position.y > t3[0].position.y, "the 5th card wraps onto a second line")
-	for btn in t3:
-		assert_true(btn.get_global_rect().end.x <= 720.5, "card inside the 720 px screen (%s)" % str(btn.get_global_rect()))
+	for b: SkillNodeButton in t3:
+		assert_near(b.position.y, (t3[0] as SkillNodeButton).position.y, 0.5, "all of tier 3 on one row")
+	assert_true((rows[4][0] as SkillNodeButton).position.y > (t3[0] as SkillNodeButton).position.y, "tier 4 below tier 3")
+	var titan := view.button(&"g4_titan")
+	assert_eq(titan.state, UxTreeModel.NodeState.LOCKED, "tier-gated")
+	assert_true(screen.model.find(&"g4_titan").capstone, "the capstone frame")
+	view.select(&"g4_titan")
+	var upgrade := screen.get_node("%Upgrade") as Button
+	assert_true(upgrade.disabled)
+	assert_true(upgrade.text.contains("Learn a Tier 3 skill first"), upgrade.text)
 	_grant(["g1_dmg", "g2_hp", "g3_dmg"])
 	PersistedData.add_currency(PersistedData.LEAVES, 2000)
-	screen._refresh_currency_and_nodes()
-	if t4.size() == 1:
-		assert_false(t4[0].disabled, "buyable once a tier-3 node is owned")
+	screen.refresh()
+	titan = view.button(&"g4_titan")
+	assert_eq(titan.state, UxTreeModel.NodeState.AVAILABLE, "open once a tier-3 node is owned")
+	assert_true(titan.buyable)
+	assert_false(upgrade.disabled, "buyable")
+	screen.upgrade_requested.connect(MetaSkillManager.unlock)
+	upgrade.pressed.emit()
+	assert_true(MetaSkillManager.is_unlocked(_tree(), &"g4_titan"), "bought through upgrade_requested")
+	assert_eq(PersistedData.get_currency(PersistedData.LEAVES), 0, "2000 Leaves for tier 4")
+	screen.refresh()
+	assert_eq(view.button(&"g4_titan").state, UxTreeModel.NodeState.MAXED)
 	portrait.queue_free()
 	await wait_frames(1)
-
-
-func _buttons_under(node: Node) -> Array[MetaSkillNodeButton]:
-	var out: Array[MetaSkillNodeButton] = []
-	for c in node.get_children():
-		if c is MetaSkillNodeButton:
-			out.append(c as MetaSkillNodeButton)
-		else:
-			out.append_array(_buttons_under(c))
-	return out

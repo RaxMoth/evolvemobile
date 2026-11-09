@@ -27,6 +27,9 @@ const LOCKED_MODULATE := Color(0.16, 0.145, 0.14, 1.0)
 const UNCHOSEN_SIDE_MODULATE := Color(0.5, 0.47, 0.47, 1.0)
 ## modulate of a menu screen while the next one slides over it (MenuRoot).
 const COVERED_SCREEN_MODULATE := Color(0.6, 0.6, 0.6, 1.0)
+## modulate of a locked skill-tree node's icon (dimmed and faded under its
+## padlock).
+const LOCKED_ICON_MODULATE := Color(0.45, 0.43, 0.42, 0.55)
 ## Character id -> its signature token (signature()). nyxa and gorrak use the
 ## provisional monster2 / monster3 colours until the monster roster is final.
 const SIGNATURE_TOKENS: Dictionary[String, StringName] = {

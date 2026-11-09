@@ -1,0 +1,81 @@
+[gd_scene format=3 uid="uid://cq6tgm1b0x3ae"]
+
+[ext_resource type="Script" uid="uid://bgvvevw4mf3eh" path="res://Scenes/UI/Components/skill_node_button.gd" id="1_script"]
+[ext_resource type="Texture2D" uid="uid://b250ke07i0yes" path="res://Assets/UI/Kit/padlock.svg" id="2_lock"]
+[ext_resource type="Texture2D" uid="uid://dsq10cywejcyi" path="res://Assets/UI/Kit/dot_notify.svg" id="3_dot"]
+
+[node name="SkillNodeButton" type="Button"]
+custom_minimum_size = Vector2(84, 104)
+offset_right = 84.0
+offset_bottom = 104.0
+theme_type_variation = &"FlatButton"
+script = ExtResource("1_script")
+
+[node name="Select" type="PanelContainer" parent="."]
+unique_name_in_owner = true
+visible = false
+layout_mode = 0
+offset_left = -6.0
+offset_top = -6.0
+offset_right = 90.0
+offset_bottom = 90.0
+mouse_filter = 2
+theme_type_variation = &"SelectRing"
+
+[node name="Ring" type="PanelContainer" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_right = 84.0
+offset_bottom = 84.0
+mouse_filter = 2
+theme_type_variation = &"NodeAvailable"
+
+[node name="Icon" type="TextureRect" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 16.0
+offset_top = 16.0
+offset_right = 68.0
+offset_bottom = 68.0
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Pips" type="HBoxContainer" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = -10.0
+offset_top = 90.0
+offset_right = 94.0
+offset_bottom = 100.0
+mouse_filter = 2
+theme_override_constants/separation = 3
+alignment = 1
+
+[node name="Badge" type="TextureRect" parent="."]
+unique_name_in_owner = true
+visible = false
+layout_mode = 0
+offset_left = 58.0
+offset_top = -6.0
+offset_right = 86.0
+offset_bottom = 26.0
+mouse_filter = 2
+texture = ExtResource("2_lock")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Dot" type="TextureRect" parent="."]
+unique_name_in_owner = true
+visible = false
+layout_mode = 0
+offset_left = 62.0
+offset_top = -4.0
+offset_right = 86.0
+offset_bottom = 20.0
+mouse_filter = 2
+texture = ExtResource("3_dot")
+expand_mode = 1
+stretch_mode = 5
+
+[connection signal="pressed" from="." to="." method="_on_pressed"]

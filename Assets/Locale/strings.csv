@@ -86,3 +86,34 @@ Monsters,Monsters,Monster
 Rumours in the deep jungle,Rumours in the deep jungle,Gerüchte aus dem tiefen Dschungel
 HEROES,HEROES,HELDEN
 MONSTERS,MONSTERS,MONSTER
+OVERVIEW,OVERVIEW,ÜBERSICHT
+SKILL TREE,SKILL TREE,TALENTBAUM
+ABILITIES,ABILITIES,FÄHIGKEITEN
+PASSIVE,PASSIVE,PASSIV
+BASIC,BASIC,BASIS
+ACTIVE,ACTIVE,AKTIV
+ULTIMATE,ULTIMATE,ULTIMATIV
+Health,Health,Leben
+Damage,Damage,Schaden
+Attack speed,Attack speed,Angriffstempo
+Range,Range,Reichweite
+Move speed,Move speed,Lauftempo
+Vision,Vision,Sicht
+Stage II,Stage II,Stufe II
+Stage III,Stage III,Stufe III
+Health at Stage III,Health at Stage III,Leben auf Stufe III
+%d XP,%d XP,%d EP
+%d / %d XP,%d / %d XP,%d / %d EP
+UPGRADE,UPGRADE,VERBESSERN
+Tap a node,Tap a node,Tippe auf einen Knoten
+Not learned yet,Not learned yet,Noch nicht gelernt
+Now: %s,Now: %s,Jetzt: %s
+Next: %s,Next: %s,Als Nächstes: %s
+Rank %d/%d · Tier %d,Rank %d/%d · Tier %d,Rang %d/%d · Ebene %d
+Tier %d,Tier %d,Ebene %d
+Learn a Tier %d skill first,Learn a Tier %d skill first,Lerne zuerst eine Fähigkeit der Ebene %d
+Need %s more,Need %s more,Noch %s nötig
+Maxed,Maxed,Maximal
+Needs %s,Needs %s,Benötigt %s
+or,or,oder
+Nobody in this role yet,Nobody in this role yet,Noch niemand in dieser Rolle

@@ -1,0 +1,45 @@
+[gd_scene format=3 uid="uid://dwq2gk7hm4ylc"]
+
+[ext_resource type="Script" uid="uid://3e08ibm4152m" path="res://Scenes/UI/Components/stat_tile.gd" id="1_script"]
+
+[node name="StatTile" type="PanelContainer"]
+custom_minimum_size = Vector2(220, 68)
+offset_right = 220.0
+offset_bottom = 68.0
+mouse_filter = 2
+theme_type_variation = &"PanelInset"
+script = ExtResource("1_script")
+
+[node name="Row" type="HBoxContainer" parent="."]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 10
+
+[node name="Icon" type="TextureRect" parent="Row"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(40, 40)
+layout_mode = 2
+size_flags_vertical = 4
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Column" type="VBoxContainer" parent="Row"]
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+theme_override_constants/separation = -4
+alignment = 1
+
+[node name="Value" type="Label" parent="Row/Column"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"Counter"
+theme_override_font_sizes/font_size = 24
+text_overrun_behavior = 3
+
+[node name="Caption" type="Label" parent="Row/Column"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"Caption"
+text_overrun_behavior = 3

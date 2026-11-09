@@ -1,0 +1,104 @@
+[gd_scene format=3 uid="uid://bt7r3nkv0yq2d"]
+
+[ext_resource type="Script" uid="uid://c0xp0h4i54ebd" path="res://Scenes/UI/Screens/roster_screen.gd" id="1_script"]
+[ext_resource type="Theme" uid="uid://eroe1xxhr5fc" path="res://Scenes/UI/Theme/ui_theme.tres" id="2_theme"]
+[ext_resource type="Texture2D" uid="uid://d0us42nwu36it" path="res://Assets/UI/Kit/bg_texture.svg" id="3_bg"]
+[ext_resource type="PackedScene" uid="uid://da4ubvm6y0cvg" path="res://Scenes/UI/Components/TopBar.tscn" id="4_top_bar"]
+[ext_resource type="PackedScene" uid="uid://ca1qscc0pbili" path="res://Scenes/UI/Components/NavBar.tscn" id="5_nav_bar"]
+
+[node name="RosterScreen" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme = ExtResource("2_theme")
+script = ExtResource("1_script")
+
+[node name="Background" type="TextureRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+texture = ExtResource("3_bg")
+stretch_mode = 1
+
+[node name="FilterRow" type="HBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 24.0
+offset_top = 98.0
+offset_right = -24.0
+offset_bottom = 154.0
+grow_horizontal = 2
+theme_override_constants/separation = 10
+
+[node name="Filters" type="HBoxContainer" parent="FilterRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 10
+
+[node name="Count" type="Label" parent="FilterRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 1
+theme_type_variation = &"Counter"
+theme_override_font_sizes/font_size = 26
+text = "0/0"
+vertical_alignment = 1
+
+[node name="Scroll" type="ScrollContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = 166.0
+offset_bottom = -150.0
+grow_horizontal = 2
+grow_vertical = 2
+horizontal_scroll_mode = 0
+
+[node name="Margin" type="MarginContainer" parent="Scroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 14
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 24
+
+[node name="Grid" type="GridContainer" parent="Scroll/Margin"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/h_separation = 16
+theme_override_constants/v_separation = 16
+columns = 4
+
+[node name="Empty" type="Label" parent="."]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_top = 200.0
+offset_bottom = 240.0
+grow_horizontal = 2
+theme_type_variation = &"BodyDim"
+text = "Nobody in this role yet"
+horizontal_alignment = 1
+
+[node name="TopBar" parent="." instance=ExtResource("4_top_bar")]
+unique_name_in_owner = true
+layout_mode = 1
+
+[node name="NavBar" parent="." instance=ExtResource("5_nav_bar")]
+unique_name_in_owner = true
+layout_mode = 1
+
+[connection signal="left_pressed" from="TopBar" to="." method="_on_top_bar_left_pressed"]
+[connection signal="tab_selected" from="NavBar" to="." method="_on_nav_bar_tab_selected"]

@@ -1,0 +1,492 @@
+[gd_scene format=3 uid="uid://cj2h7sdqk5w0m"]
+
+[ext_resource type="Script" uid="uid://b8bsr38l40dky" path="res://Scenes/UI/Screens/character_detail.gd" id="1_script"]
+[ext_resource type="Theme" uid="uid://eroe1xxhr5fc" path="res://Scenes/UI/Theme/ui_theme.tres" id="2_theme"]
+[ext_resource type="Texture2D" uid="uid://d0us42nwu36it" path="res://Assets/UI/Kit/bg_texture.svg" id="3_bg"]
+[ext_resource type="PackedScene" uid="uid://da4ubvm6y0cvg" path="res://Scenes/UI/Components/TopBar.tscn" id="4_top_bar"]
+[ext_resource type="PackedScene" uid="uid://ca1qscc0pbili" path="res://Scenes/UI/Components/NavBar.tscn" id="5_nav_bar"]
+[ext_resource type="PackedScene" uid="uid://b4wggremdqavp" path="res://Scenes/UI/Components/StageCharacter.tscn" id="6_stage_character"]
+[ext_resource type="PackedScene" uid="uid://dwq2gk7hm4ylc" path="res://Scenes/UI/Components/StatTile.tscn" id="7_stat_tile"]
+[ext_resource type="PackedScene" uid="uid://c4nwq8vx2lb7e" path="res://Scenes/UI/Components/AbilityTile.tscn" id="8_ability_tile"]
+[ext_resource type="PackedScene" uid="uid://b8kd3sxw1qv5n" path="res://Scenes/UI/Components/SkillTreeView.tscn" id="9_tree_view"]
+[ext_resource type="Texture2D" uid="uid://dn5jgb3btskwb" path="res://Assets/UI/Crests/crest_heroes.svg" id="10_crest_heroes"]
+[ext_resource type="Texture2D" uid="uid://bdseg8f8gscu8" path="res://Assets/UI/Crests/crest_monster.svg" id="11_crest_monster"]
+[ext_resource type="Texture2D" uid="uid://684mufur33bv" path="res://Assets/UI/Icons/UI/ui_level_up.svg" id="12_up"]
+
+[node name="CharacterDetail" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme = ExtResource("2_theme")
+script = ExtResource("1_script")
+crest_heroes = ExtResource("10_crest_heroes")
+crest_monster = ExtResource("11_crest_monster")
+
+[node name="Background" type="TextureRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+texture = ExtResource("3_bg")
+stretch_mode = 1
+
+[node name="Column" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 16.0
+offset_top = 96.0
+offset_right = -16.0
+offset_bottom = -148.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_constants/separation = 10
+
+[node name="Stage" type="PanelContainer" parent="Column"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 400)
+layout_mode = 2
+size_flags_vertical = 3
+mouse_filter = 2
+theme_type_variation = &"CharacterCard"
+
+[node name="StageInner" type="PanelContainer" parent="Column/Stage"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+theme_type_variation = &"CardInnerHero"
+
+[node name="Area" type="Control" parent="Column/Stage/StageInner"]
+layout_mode = 2
+mouse_filter = 2
+
+[node name="Showcase" parent="Column/Stage/StageInner/Area" instance=ExtResource("6_stage_character")]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.5
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -170.0
+offset_top = 54.0
+offset_right = 170.0
+offset_bottom = -52.0
+grow_horizontal = 2
+grow_vertical = 2
+bob_px = 6.0
+
+[node name="RolePill" type="PanelContainer" parent="Column/Stage/StageInner/Area"]
+layout_mode = 0
+offset_left = 12.0
+offset_top = 12.0
+offset_right = 52.0
+offset_bottom = 52.0
+mouse_filter = 2
+theme_type_variation = &"Pill"
+
+[node name="Row" type="HBoxContainer" parent="Column/Stage/StageInner/Area/RolePill"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 8
+
+[node name="RoleIcon" type="TextureRect" parent="Column/Stage/StageInner/Area/RolePill/Row"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(26, 26)
+layout_mode = 2
+size_flags_vertical = 4
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Role" type="Label" parent="Column/Stage/StageInner/Area/RolePill/Row"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"PillText"
+theme_override_font_sizes/font_size = 18
+vertical_alignment = 1
+
+[node name="Level" type="Label" parent="Column/Stage/StageInner/Area"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -220.0
+offset_top = 2.0
+offset_right = -14.0
+offset_bottom = 58.0
+grow_horizontal = 0
+theme_type_variation = &"BigNumberLabel"
+text = "Lv.1"
+horizontal_alignment = 2
+
+[node name="Xp" type="ProgressBar" parent="Column/Stage/StageInner/Area"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 36.0
+offset_top = -44.0
+offset_right = -36.0
+offset_bottom = -14.0
+grow_horizontal = 2
+grow_vertical = 0
+mouse_filter = 2
+theme_type_variation = &"XpBar"
+show_percentage = false
+
+[node name="XpText" type="Label" parent="Column/Stage/StageInner/Area/Xp"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_type_variation = &"PillText"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Header" type="PanelContainer" parent="Column"]
+unique_name_in_owner = true
+visible = false
+custom_minimum_size = Vector2(0, 104)
+layout_mode = 2
+mouse_filter = 2
+theme_type_variation = &"CharacterCard"
+
+[node name="Row" type="HBoxContainer" parent="Column/Header"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 14
+
+[node name="HeadSlot" type="PanelContainer" parent="Column/Header/Row"]
+custom_minimum_size = Vector2(80, 80)
+layout_mode = 2
+size_flags_vertical = 4
+mouse_filter = 2
+theme_type_variation = &"PanelInset"
+
+[node name="HeadIcon" type="TextureRect" parent="Column/Header/Row/HeadSlot"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Info" type="VBoxContainer" parent="Column/Header/Row"]
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+theme_override_constants/separation = 6
+alignment = 1
+
+[node name="TitleRow" type="HBoxContainer" parent="Column/Header/Row/Info"]
+layout_mode = 2
+mouse_filter = 2
+
+[node name="HeadName" type="Label" parent="Column/Header/Row/Info/TitleRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"HeaderSmall"
+theme_override_font_sizes/font_size = 28
+text_overrun_behavior = 3
+
+[node name="HeadLevel" type="Label" parent="Column/Header/Row/Info/TitleRow"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"CardLevel"
+horizontal_alignment = 2
+
+[node name="HeadXp" type="ProgressBar" parent="Column/Header/Row/Info"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 18)
+layout_mode = 2
+mouse_filter = 2
+theme_type_variation = &"XpBar"
+show_percentage = false
+
+[node name="HeadBlurb" type="Label" parent="Column/Header/Row/Info"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_type_variation = &"BodyDim"
+autowrap_mode = 3
+
+[node name="Tabs" type="HBoxContainer" parent="Column"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 58)
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="OverviewTab" type="Button" parent="Column/Tabs"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"TabButton"
+toggle_mode = true
+text = "OVERVIEW"
+
+[node name="TreeTab" type="Button" parent="Column/Tabs"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"TabButton"
+toggle_mode = true
+text = "SKILL TREE"
+
+[node name="TreeBadge" type="PanelContainer" parent="Column/Tabs/TreeTab"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 6
+anchor_left = 1.0
+anchor_top = 0.5
+anchor_right = 1.0
+anchor_bottom = 0.5
+offset_left = -66.0
+offset_top = -15.0
+offset_right = -12.0
+offset_bottom = 15.0
+grow_horizontal = 0
+grow_vertical = 2
+mouse_filter = 2
+theme_type_variation = &"PillReady"
+
+[node name="Row" type="HBoxContainer" parent="Column/Tabs/TreeTab/TreeBadge"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 2
+alignment = 1
+
+[node name="UpIcon" type="TextureRect" parent="Column/Tabs/TreeTab/TreeBadge/Row"]
+custom_minimum_size = Vector2(16, 16)
+layout_mode = 2
+size_flags_vertical = 4
+mouse_filter = 2
+texture = ExtResource("12_up")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="TreeBadgeCount" type="Label" parent="Column/Tabs/TreeTab/TreeBadge/Row"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"PillText"
+text = "0"
+vertical_alignment = 1
+
+[node name="Overview" type="VBoxContainer" parent="Column"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 8
+
+[node name="Stats" type="GridContainer" parent="Column/Overview"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/h_separation = 14
+theme_override_constants/v_separation = 8
+columns = 3
+
+[node name="Stat0" parent="Column/Overview/Stats" instance=ExtResource("7_stat_tile")]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Stat1" parent="Column/Overview/Stats" instance=ExtResource("7_stat_tile")]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Stat2" parent="Column/Overview/Stats" instance=ExtResource("7_stat_tile")]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Stat3" parent="Column/Overview/Stats" instance=ExtResource("7_stat_tile")]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Stat4" parent="Column/Overview/Stats" instance=ExtResource("7_stat_tile")]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Stat5" parent="Column/Overview/Stats" instance=ExtResource("7_stat_tile")]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="AbilitiesHeader" type="Label" parent="Column/Overview"]
+layout_mode = 2
+theme_type_variation = &"Caption"
+text = "ABILITIES"
+
+[node name="Abilities" type="HBoxContainer" parent="Column/Overview"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="Ability0" parent="Column/Overview/Abilities" instance=ExtResource("8_ability_tile")]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Ability1" parent="Column/Overview/Abilities" instance=ExtResource("8_ability_tile")]
+layout_mode = 2
+size_flags_horizontal = 3
+index = 1
+
+[node name="Ability2" parent="Column/Overview/Abilities" instance=ExtResource("8_ability_tile")]
+layout_mode = 2
+size_flags_horizontal = 3
+index = 2
+
+[node name="Ability3" parent="Column/Overview/Abilities" instance=ExtResource("8_ability_tile")]
+layout_mode = 2
+size_flags_horizontal = 3
+index = 3
+
+[node name="Desc" type="PanelContainer" parent="Column/Overview"]
+custom_minimum_size = Vector2(0, 92)
+layout_mode = 2
+mouse_filter = 2
+theme_type_variation = &"PanelInset"
+
+[node name="Column" type="VBoxContainer" parent="Column/Overview/Desc"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 2
+
+[node name="AbilityName" type="Label" parent="Column/Overview/Desc/Column"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"AmberLabel"
+theme_override_font_sizes/font_size = 20
+
+[node name="AbilityDesc" type="Label" parent="Column/Overview/Desc/Column"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"BodyDim"
+autowrap_mode = 3
+
+[node name="TreeView" parent="Column" instance=ExtResource("9_tree_view")]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="Sheet" type="PanelContainer" parent="Column"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_type_variation = &"SheetPanel"
+
+[node name="Row" type="HBoxContainer" parent="Column/Sheet"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="NodeSlot" type="PanelContainer" parent="Column/Sheet/Row"]
+custom_minimum_size = Vector2(96, 96)
+layout_mode = 2
+size_flags_vertical = 0
+mouse_filter = 2
+theme_type_variation = &"PanelInset"
+
+[node name="NodeIcon" type="TextureRect" parent="Column/Sheet/Row/NodeSlot"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Info" type="VBoxContainer" parent="Column/Sheet/Row"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 2
+
+[node name="NodeName" type="Label" parent="Column/Sheet/Row/Info"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"HeaderSmall"
+theme_override_font_sizes/font_size = 26
+text = "Tap a node"
+text_overrun_behavior = 3
+
+[node name="NodeMeta" type="Label" parent="Column/Sheet/Row/Info"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"HintLabel"
+
+[node name="EffectNow" type="Label" parent="Column/Sheet/Row/Info"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"BodyDim"
+text_overrun_behavior = 3
+
+[node name="EffectNext" type="Label" parent="Column/Sheet/Row/Info"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"AmberLabel"
+theme_override_font_sizes/font_size = 20
+text_overrun_behavior = 3
+
+[node name="BuyRow" type="HBoxContainer" parent="Column/Sheet/Row/Info"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Cost" type="HBoxContainer" parent="Column/Sheet/Row/Info/BuyRow"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="CostIcon" type="TextureRect" parent="Column/Sheet/Row/Info/BuyRow/Cost"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(36, 36)
+layout_mode = 2
+size_flags_vertical = 4
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="CostValue" type="Label" parent="Column/Sheet/Row/Info/BuyRow/Cost"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"Counter"
+theme_override_font_sizes/font_size = 28
+vertical_alignment = 1
+
+[node name="Upgrade" type="Button" parent="Column/Sheet/Row/Info/BuyRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 62)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"ButtonPrimary"
+disabled = true
+text = "UPGRADE"
+text_overrun_behavior = 3
+
+[node name="TopBar" parent="." instance=ExtResource("4_top_bar")]
+unique_name_in_owner = true
+layout_mode = 1
+
+[node name="NavBar" parent="." instance=ExtResource("5_nav_bar")]
+unique_name_in_owner = true
+layout_mode = 1
+
+[connection signal="character_pressed" from="Column/Stage/StageInner/Area/Showcase" to="." method="_on_showcase_pressed"]
+[connection signal="pressed" from="Column/Tabs/OverviewTab" to="." method="_on_overview_tab_pressed"]
+[connection signal="pressed" from="Column/Tabs/TreeTab" to="." method="_on_tree_tab_pressed"]
+[connection signal="tile_pressed" from="Column/Overview/Abilities/Ability0" to="." method="_on_ability_tile_pressed"]
+[connection signal="tile_pressed" from="Column/Overview/Abilities/Ability1" to="." method="_on_ability_tile_pressed"]
+[connection signal="tile_pressed" from="Column/Overview/Abilities/Ability2" to="." method="_on_ability_tile_pressed"]
+[connection signal="tile_pressed" from="Column/Overview/Abilities/Ability3" to="." method="_on_ability_tile_pressed"]
+[connection signal="node_selected" from="Column/TreeView" to="." method="_on_tree_view_node_selected"]
+[connection signal="pressed" from="Column/Sheet/Row/Info/BuyRow/Upgrade" to="." method="_on_upgrade_pressed"]
+[connection signal="left_pressed" from="TopBar" to="." method="_on_top_bar_left_pressed"]
+[connection signal="tab_selected" from="NavBar" to="." method="_on_nav_bar_tab_selected"]

@@ -1,0 +1,71 @@
+[gd_scene format=3 uid="uid://c4nwq8vx2lb7e"]
+
+[ext_resource type="Script" uid="uid://dlikg3vvob7jb" path="res://Scenes/UI/Components/ability_tile.gd" id="1_script"]
+
+[node name="AbilityTile" type="Button"]
+custom_minimum_size = Vector2(160, 150)
+offset_right = 160.0
+offset_bottom = 150.0
+theme_type_variation = &"FlatButton"
+toggle_mode = true
+script = ExtResource("1_script")
+
+[node name="Frame" type="PanelContainer" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_type_variation = &"PanelInset"
+
+[node name="Kind" type="Label" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_top = 8.0
+offset_bottom = 28.0
+grow_horizontal = 2
+theme_type_variation = &"Caption"
+horizontal_alignment = 1
+
+[node name="Icon" type="TextureRect" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -36.0
+offset_top = 30.0
+offset_right = 36.0
+offset_bottom = 102.0
+grow_horizontal = 2
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Name" type="Label" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 6.0
+offset_top = -46.0
+offset_right = -6.0
+offset_bottom = -6.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_type_variation = &"CardName"
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 3
+text_overrun_behavior = 3
+
+[connection signal="toggled" from="." to="." method="_on_toggled"]
+[connection signal="button_down" from="." to="." method="_on_button_down"]
+[connection signal="button_up" from="." to="." method="_on_button_up"]

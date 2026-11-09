@@ -28,6 +28,9 @@ enum CardSize { S, M, L }
 ## pre-round squad, M for the 4-column collection grid, L for the quarry card.
 const SIZES: Array[Vector2] = [Vector2(150, 238), Vector2(160, 262), Vector2(280, 446)]
 const LOCKED_SHADER := preload("res://Assets/UI/Shaders/card_locked.gdshader")
+## play_intro(): the card fades in while its frame grows from INTRO_FROM.
+const INTRO_TIME := 0.22
+const INTRO_FROM := Vector2(0.86, 0.86)
 
 static var _locked_material: ShaderMaterial = null
 
@@ -79,6 +82,7 @@ var _base_outline: Dictionary[Control, int] = {}
 var _base_min: Dictionary[Control, Vector2] = {}
 ## apply_progress() ran before _ready: show its numbers, not the save's.
 var _given := false
+var _intro: Tween = null
 
 @onready var _frame: PanelContainer = %Frame
 @onready var _inner: PanelContainer = %Inner
@@ -226,6 +230,22 @@ func _apply_size() -> void:
 		c.custom_minimum_size = (_base_min[c] * k).round()
 	_dot.size = _dot.custom_minimum_size
 	_dot.position = Vector2(card_size.x - _dot.size.x * 0.7, -_dot.size.y * 0.3)
+
+
+## A collection screen's staggered intro: after `delay` seconds the card
+## fades in and its frame grows to full size (TRANS_BACK). The frame scales,
+## not the card: a container resets its children's scale whenever it sorts
+## them.
+func play_intro(delay: float) -> void:
+	if _intro != null:
+		_intro.kill()
+	modulate.a = 0.0
+	_frame.pivot_offset = size * 0.5
+	_frame.scale = INTRO_FROM
+	_intro = create_tween().set_parallel()
+	_intro.tween_property(self, ^"modulate:a", 1.0, INTRO_TIME).set_delay(delay)
+	_intro.tween_property(_frame, ^"scale", Vector2.ONE, INTRO_TIME).set_delay(delay) \
+			.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 
 ## The one locked-silhouette material every card shares (no per-card params).
