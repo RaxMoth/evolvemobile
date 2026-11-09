@@ -86,3 +86,7 @@ func notify_monster_evolved(monster: Node, stage: int) -> void:
 ## Called by AbilitySystem / monster ability dispatcher after a successful cast.
 func notify_ability_cast(caster: Node, ability: AbilityBase, target: Node) -> void:
 	ability_cast.emit(caster, ability, target)
+	# The caster's own presentation signal (its CharacterRig plays the move).
+	var entity := caster as EntityBase
+	if entity:
+		entity.announce_cast(ability, target)

@@ -1,0 +1,93 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://Scripts/Rig/rig_body.gd" id="1_body"]
+[ext_resource type="Texture2D" path="res://test/fixtures/rig_fixture/rig_fixture_sheet.svg" id="2_sheet"]
+
+[node name="RigFixtureBody" type="Node2D"]
+texture_filter = 4
+script = ExtResource("1_body")
+character_id = &"rig_fixture"
+sheet_scale = 3.0
+origin = Vector2(64.0, 150.0)
+bounds = Rect2(-30.0, -120.0, 60.0, 124.0)
+part_order = PackedStringArray("cape", "arm_b", "leg_b", "leg_f", "body", "head", "crown", "arm_f")
+stage_parts = {"crown": PackedInt32Array(2, 3)}
+proxies = {"body__back": "body"}
+
+[node name="body__back" type="Node2D" parent="."]
+position = Vector2(0.0, -54.0)
+
+[node name="cape" type="Sprite2D" parent="body__back"]
+unique_name_in_owner = true
+show_behind_parent = true
+position = Vector2(0.0, -102.0)
+texture = ExtResource("2_sheet")
+centered = false
+offset = Vector2(-90.0, -12.0)
+region_enabled = true
+region_rect = Rect2(180.0, 0.0, 180.0, 159.0)
+
+[node name="arm_b" type="Sprite2D" parent="body__back"]
+unique_name_in_owner = true
+show_behind_parent = true
+position = Vector2(-48.0, -90.0)
+texture = ExtResource("2_sheet")
+centered = false
+offset = Vector2(-36.0, -21.0)
+region_enabled = true
+region_rect = Rect2(492.0, 0.0, 60.0, 108.0)
+
+[node name="leg_b" type="Sprite2D" parent="."]
+unique_name_in_owner = true
+position = Vector2(-21.0, -54.0)
+texture = ExtResource("2_sheet")
+centered = false
+offset = Vector2(-30.0, -30.0)
+region_enabled = true
+region_rect = Rect2(612.0, 0.0, 60.0, 96.0)
+
+[node name="leg_f" type="Sprite2D" parent="."]
+unique_name_in_owner = true
+position = Vector2(21.0, -54.0)
+texture = ExtResource("2_sheet")
+centered = false
+offset = Vector2(-30.0, -30.0)
+region_enabled = true
+region_rect = Rect2(672.0, 0.0, 60.0, 96.0)
+
+[node name="body" type="Sprite2D" parent="."]
+unique_name_in_owner = true
+position = Vector2(0.0, -54.0)
+texture = ExtResource("2_sheet")
+centered = false
+offset = Vector2(-66.0, -120.0)
+region_enabled = true
+region_rect = Rect2(360.0, 0.0, 132.0, 144.0)
+
+[node name="head" type="Sprite2D" parent="body"]
+unique_name_in_owner = true
+position = Vector2(0.0, -108.0)
+texture = ExtResource("2_sheet")
+centered = false
+offset = Vector2(-90.0, -162.0)
+region_enabled = true
+region_rect = Rect2(0.0, 0.0, 180.0, 180.0)
+
+[node name="crown" type="Sprite2D" parent="body/head"]
+unique_name_in_owner = true
+visible = false
+position = Vector2(0.0, -138.0)
+texture = ExtResource("2_sheet")
+centered = false
+offset = Vector2(-60.0, -60.0)
+region_enabled = true
+region_rect = Rect2(0.0, 180.0, 120.0, 84.0)
+
+[node name="arm_f" type="Sprite2D" parent="body"]
+unique_name_in_owner = true
+position = Vector2(48.0, -90.0)
+texture = ExtResource("2_sheet")
+centered = false
+offset = Vector2(-24.0, -21.0)
+region_enabled = true
+region_rect = Rect2(552.0, 0.0, 60.0, 108.0)

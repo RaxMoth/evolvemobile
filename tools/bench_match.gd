@@ -7,7 +7,12 @@ extends SceneTree
 ## line. Use through tools/bench.sh (temp copy, isolated user://).
 ##
 ##   godot --headless --fixed-fps 60 --max-fps 0 --path <copy> \
-##         -s res://tools/bench_match.gd -- <seed> [warmup_frames] [frames] [multiplier] [onscreen]
+##         -s res://tools/bench_match.gd -- <seed> [warmup_frames] [frames] [multiplier] [onscreen] [rigs_awake]
+##
+## CharacterRigs follow the same on-screen marking (onscreen=1); rigs_awake=1
+## wakes EVERY rig (the zoomed-out worst case). `rigs_awake_mean` is the mean
+## number of animating rigs (CharacterRig.awake_count()); a rig without a body
+## (a character not migrated to SVG art yet) never wakes.
 ##
 ## `lod_counts` is the mean number of TickScheduler entries per LOD bucket.
 ## Headless, nothing is drawn, so the VisibleOnScreenNotifier2D signals never
@@ -30,6 +35,7 @@ var _warmup: int = 600
 var _frames: int = 1800
 var _multiplier: int = 2
 var _onscreen: bool = false
+var _rigs_awake: bool = false
 var _frame: int = 0
 var _last_us: int = 0
 var _frame_ms: Array[float] = []
@@ -45,6 +51,9 @@ var _peak_mobs: int = 0
 var _peak_pairs: int = 0
 # Per-bucket sums of TickScheduler.bucket_counts(), one sample per frame.
 var _lod_sums: Array[int] = [0, 0, 0, 0]
+var _rig_sum: int = 0
+# CharacterRig's script (by path: a -s script must not name project classes).
+var _rig_script: Script
 # Autoloads and the camera, resolved once the world is in the tree.
 var _scheduler: Node
 var _registry: Node
@@ -63,6 +72,10 @@ func _initialize() -> void:
 		_multiplier = int(args[3])
 	if args.size() > 4:
 		_onscreen = int(args[4]) != 0
+	if args.size() > 5:
+		_rigs_awake = int(args[5]) != 0
+	_rig_script = load("res://Scripts/Rig/character_rig.gd")
+	_rig_script.set("force_awake", _rigs_awake)
 	# Autoloads are only reachable through the root once the tree runs.
 	process_frame.connect(_start, CONNECT_ONE_SHOT)
 
@@ -95,6 +108,7 @@ func _tick() -> void:
 		_peak_nodes = maxi(_peak_nodes, int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT)))
 		_peak_pairs = maxi(_peak_pairs, int(Performance.get_monitor(Performance.PHYSICS_2D_COLLISION_PAIRS)))
 		_peak_mobs = maxi(_peak_mobs, (_registry.get("mobs") as Array).size())
+		_rig_sum += int(_rig_script.call("awake_count"))
 		var counts: Array = _scheduler.call("bucket_counts")
 		for i in _lod_sums.size():
 			_lod_sums[i] += int(counts[i])
@@ -113,7 +127,11 @@ func _mark_on_screen() -> void:
 	rect = rect.grow(ONSCREEN_MARGIN)
 	for m in _registry.get("mobs") as Array:
 		if is_instance_valid(m):
-			_scheduler.call("set_on_screen", m, rect.has_point((m as Node2D).global_position))
+			var on := rect.has_point((m as Node2D).global_position)
+			_scheduler.call("set_on_screen", m, on)
+			var rig := (m as Node).get_node_or_null(^"Rig")
+			if rig and not _rigs_awake:
+				rig.call("set_on_screen", on)
 
 
 func _finish() -> void:
@@ -132,6 +150,7 @@ func _finish() -> void:
 		"frames": n,
 		"multiplier": _multiplier,
 		"onscreen": 1 if _onscreen else 0,
+		"rigs_awake": 1 if _rigs_awake else 0,
 		"frame_ms_mean": snappedf(total / maxf(1.0, n), 0.001),
 		"frame_ms_p50": snappedf(sorted[int(n * 0.5)], 0.001),
 		"frame_ms_p95": snappedf(sorted[int(n * 0.95)], 0.001),
@@ -143,6 +162,7 @@ func _finish() -> void:
 		"peak_mobs": _peak_mobs,
 		"peak_collision_pairs": _peak_pairs,
 		"lod_counts": lod_counts,
+		"rigs_awake_mean": snappedf(_rig_sum / maxf(1.0, n), 0.1),
 	}
 	print("BENCH_RESULT " + JSON.stringify(out))
 	quit()

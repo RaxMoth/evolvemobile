@@ -27,3 +27,5 @@ offset_bottom = 14.0
 text = "1"
 label_settings = SubResource("LabelSettings_lv")
 horizontal_alignment = 1
+
+[connection signal="evolved" from="." to="Rig" method="set_stage"]

@@ -9,6 +9,10 @@ class_name EntityBase
 # SECTION 1: EXPORTS & CONFIGURATION
 # ============================================
 signal died
+## Presentation-only notifications (CharacterRig, VFX, audio): wired scene-side,
+## never read by gameplay. `ability` is null for a mob's basic swing.
+signal ability_cast(ability: AbilityBase, target: Node)
+signal damaged(packet: DamagePacket)
 
 @export_group("Detection")
 @export var detection_radius: float = 172.0
@@ -275,7 +279,7 @@ func _on_fight_state_stepped() -> void:
 
 func _on_screen_entered() -> void:
 	TickScheduler.set_on_screen(self, true)
-	if animated_sprite and not animated_sprite.is_playing():
+	if animated_sprite and animated_sprite.sprite_frames and not animated_sprite.is_playing():
 		animated_sprite.play()
 
 func _on_screen_exited() -> void:
@@ -287,6 +291,22 @@ func _on_screen_exited() -> void:
 # ============================================
 # SECTION 5b: HUD-PIN HELPERS (in-world HP bar consistency)
 # ============================================
+
+## Presentation hook: EventBus.notify_ability_cast (every ability cast) and a
+## mob's basic swing (`ability` null) announce the move; the scene-wired
+## CharacterRig plays it. Gameplay never listens.
+func announce_cast(ability: AbilityBase, cast_target: Node) -> void:
+	ability_cast.emit(ability, cast_target)
+
+
+## What a visual effect should move or tint: the CharacterRig when the scene
+## has one with a body (migrated to SVG art), else the legacy AnimatedSprite2D.
+func visual_root() -> Node2D:
+	var rig := get_node_or_null(^"Rig") as CharacterRig
+	if rig and rig.body:
+		return rig
+	return animated_sprite
+
 
 func set_hp_display(current: float, maximum: float) -> void:
 	"""Single writer for the in-world HP bar (HpBar2D). Every HP change in
@@ -307,7 +327,7 @@ func _apply_ui_counter_scale() -> void:
 	var sy: float = scale.y if scale.y != 0.0 else 1.0
 	hud.scale = Vector2(1.0 / sx, 1.0 / sy)
 
-func _on_damage_taken(_packet: DamagePacket) -> void:
+func _on_damage_taken(packet: DamagePacket) -> void:
 	"""Per-target reaction hook, called directly by EventBus._route_packet after
 	_receive_damage applied the HP change (only while still alive). Replaces
 	the old per-entity damage_applied subscription that every entity used to
@@ -315,6 +335,7 @@ func _on_damage_taken(_packet: DamagePacket) -> void:
 	"help!" broadcast) and call super._on_damage_taken(packet)."""
 	if flinch_duration > 0.0:
 		_flinch_timer = flinch_duration
+	damaged.emit(packet)
 
 func _update_detection_radius() -> void:
 	"""Update DetectionArea collision shape radius from export variable"""

@@ -7,7 +7,11 @@ extends SceneTree
 ## project directory with a newer editor binary.
 ##
 ##   godot --headless --fixed-fps 60 --max-fps 0 --path <copy> \
-##         -s res://tools/sim_match.gd -- <seed> [heroes|monster] [cap_seconds] [trace]
+##         -s res://tools/sim_match.gd -- <seed> [heroes|monster] [cap_seconds] [trace] [rigs_awake]
+##
+## "rigs_awake" makes every CharacterRig animate as if on screen (headless, no
+## notifier ever fires): presentation must never feed gameplay, so the trace
+## stays byte-identical (tools/sim_trace.sh RIGS_AWAKE=1).
 ##
 ## With "trace" it also prints a determinism fingerprint of the match state
 ## every TRACE_EVERY frames (`SIM_TRACE <frame> <hash>`) and once at the end
@@ -51,6 +55,9 @@ func _initialize() -> void:
 		_cap_s = float(args[2])
 	if args.size() > 3:
 		_trace = String(args[3]) == "trace"
+	if args.has("rigs_awake"):
+		# By path: a -s script must not name project classes.
+		load("res://Scripts/Rig/character_rig.gd").set("force_awake", true)
 	# Autoload globals are not compile-time identifiers inside a -s script;
 	# go through the root and start on the first frame (root is in the tree).
 	process_frame.connect(_start, CONNECT_ONE_SHOT)

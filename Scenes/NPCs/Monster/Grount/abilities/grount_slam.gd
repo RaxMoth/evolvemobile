@@ -77,16 +77,19 @@ func _perform_jump(caster: Node2D, target_pos: Vector2) -> void:
 	
 	# Simulate height on the SPRITE only: tweening the root scale reset an
 	# evolved (1.25×/1.5×) monster back to 1.0.
-	var vis: Node2D = caster.get_node_or_null(^"AnimatedSprite2D") as Node2D
+	var vis: Node2D = (caster as EntityBase).visual_root() if caster is EntityBase else null
 	if vis:
 		var base: Vector2 = vis.scale
 		var mid_tween := caster.create_tween()
 		mid_tween.tween_property(vis, "scale", base * 1.2, jump_duration * 0.5)
-		# self_modulate: the evolution flash (GameUtils.flash_modulate) owns
-		# `modulate` and ends it at WHITE, which would cut a mid-leap fade short.
-		mid_tween.parallel().tween_property(vis, "self_modulate:a", 0.7, jump_duration * 0.5)
+		# self_modulate on a sprite: the evolution flash (GameUtils.flash_modulate)
+		# owns `modulate` and ends it at WHITE, which would cut a mid-leap fade
+		# short. A CharacterRig's own modulate has no other writer (its hurt
+		# flash tints the body) and reaches the parts; its self_modulate would not.
+		var alpha: NodePath = ^"modulate:a" if vis is CharacterRig else ^"self_modulate:a"
+		mid_tween.parallel().tween_property(vis, alpha, 0.7, jump_duration * 0.5)
 		mid_tween.tween_property(vis, "scale", base, jump_duration * 0.5)
-		mid_tween.parallel().tween_property(vis, "self_modulate:a", 1.0, jump_duration * 0.5)
+		mid_tween.parallel().tween_property(vis, alpha, 1.0, jump_duration * 0.5)
 	
 	# Land when the jump completes: a pausable timer (the default, process_always,
 	# slammed under the match-result screen while the leap tween stood frozen),

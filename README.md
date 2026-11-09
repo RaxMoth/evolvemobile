@@ -423,6 +423,63 @@ dangerous (`monster` #C2334A, `monster_purple` #7B3F95).
   on a copy of the project:
   `godot --path <copy> --audio-driver Dummy --fixed-fps 30 --write-movie <dir>/f.png --quit-after 8 res://tools/preview/ThemeMockup.tscn`.
 
+### Character Rigs (SVG cut-out runtime)
+
+Characters are moving from the pixel `AnimatedSprite2D` frames to chunky chibi
+SVG cut-out rigs. The runtime and the builder are in place; no character scene
+uses a body yet (the art and the scene migrations follow), so every match still
+draws the sprites.
+
+- **Source** (`Assets/Characters/<id>/src/`, ignored by Godot through
+  `.gdignore`): `rig_src.json` (canvas 128x160, baseline 150, optional
+  `sheet_scale`, and the parts: name, z, pivot, parent, stages) and
+  `parts/<part>.svg`, each part alone on the full canvas.
+- **Builder**: `tools/build_rigs.sh [id ...]` runs `tools/rig_builder.gd`
+  (`RigBuilder`) on a temp copy and copies back, per character:
+    - `<id>_sheet.svg`: every part cropped to its alpha box and shelf-packed
+      into ONE atlas (one texture, one draw per character), imported as a
+      CompressedTexture2D at `svg/scale` px per art unit (3 by default) with
+      mipmaps;
+    - `<id>_body.tscn`: a `RigBody` with one Sprite2D region per part in the
+      art's joint hierarchy, drawn in the art's z order **without z_index**
+      (z_index is global and would draw parts over other entities):
+      `show_behind_parent`, plus `<part>__back` proxy nodes when a branch
+      must interleave with a sibling (a cape behind the legs).
+  The output is deterministic text and generated only: art that no node tree
+  can draw in z order, or parts that share an SVG id, are reported and nothing
+  is written. Never edit the generated files; edit `src/` and rebuild.
+- **`RigProfile`** (`<id>_motion.tres`, shared): body plan (HUMANOID,
+  QUADRUPED, FLYER), `world_scale`, idle breathing, locomotion (`full_speed`,
+  `stride` so feet never slide, bounce, swings, lean), flyer flaps and hover,
+  hurt and attack reactions.
+- **`CharacterRig`** (`Scripts/Rig/character_rig.gd`) is the `Rig` node every
+  entity has in `NPCBaseClass.tscn`; a migrated scene adds its body under it
+  and sets `body`, `profile` and `tier`. It is presentation only and not a
+  state machine: the pose is a function of the distance travelled, time and
+  decaying event timers. It reads the entity's position and the hidden facing
+  `Sprite2D` (which gameplay keeps rotating) and never writes either; per-
+  instance phase, breathing rate and a ±4 % size come from a private RNG.
+  Without a body it is inert (never wakes, draws nothing).
+    - Events are wired in the scenes: `EntityBase.ability_cast(ability,
+      target)` (sent by `announce_cast()`, which `EventBus.notify_ability_cast`
+      and a mob's basic swing call; `ability` is null for the swing) plays the
+      attack / cast / ultimate move, `EntityBase.damaged(packet)` the hurt
+      flash and squash, `MonsterBase.evolved(stage)` → `Rig.set_stage` the
+      stage's parts.
+    - `EntityBase.visual_root()` is what effects move or tint (Ground Slam's
+      hop): the rig once the scene has a body, else the AnimatedSprite2D.
+    - LOD: a rig animates only while its entity's ScreenNotifier is on screen.
+      While more than 48 rigs are awake, mob rigs (tier BUDGETED) animate
+      every other frame, staggered; heroes and the monster use tier FULL.
+- **Checks**: `test/test_rig_pipeline.gd` runs on the fixture character
+  `test/fixtures/rig_fixture/` (generated files fresh, z order, stages,
+  broken art refused, no global RNG, no entity writes, asleep off screen,
+  inert without a body, the budget rule). `RIGS_AWAKE=1 tools/sim_trace.sh`
+  animates every rig and must match the parent trace byte for byte;
+  `tools/bench.sh <runs> <mult> <frames> <warmup> <onscreen> 1` wakes every
+  rig and reports `rigs_awake_mean`. `tools/preview/RigGallery.tscn` shows
+  every built character in idle / walk / run / attack / hurt / stage poses.
+
 ### Fog of War System
 
 - **Grid**: 2000x2000 overlay on 32px tilemap
@@ -627,12 +684,15 @@ res://
 │        ├─ ui_palette.gd (UiPalette)
 │        └─ palette.tres (generated palette values)
 ├─ Scripts/
+│  ├─ Rig/ (CharacterRig, RigBody, RigProfile: SVG cut-out rigs)
 │  └─ Systems/
 │     ├─ ability_system.gd
 │     └─ hero_exploration_controller.gd
+├─ test/ (headless suite, test_*.gd; fixtures/rig_fixture/ for the rig tests)
 └─ tools/
    ├─ art/ (Python art pipeline: palette.py, build.py, make_theme.py, ...)
-   └─ preview/ (ThemeMockup.tscn, PaletteSheet.tscn proof scenes, not shipped)
+   ├─ rig_builder.gd · build_rigs.gd · build_rigs.sh (SVG parts → rig sheet + body)
+   └─ preview/ (ThemeMockup, PaletteSheet, RigGallery proof scenes, not shipped)
 ```
 
 ---

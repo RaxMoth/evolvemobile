@@ -1,6 +1,9 @@
 extends EntityBase
 class_name MonsterBase
 
+## Presentation: the rig shows the new stage's parts (scene-wired to Rig.set_stage).
+signal evolved(stage: int)
+
 @export_group("Monster Configuration")
 @export var monster_stats: MonsterStats
 @export var visual_config: MonsterVisualConfig
@@ -276,6 +279,7 @@ func _evolve_to_stage(new_stage: int) -> void:
 	# Grount "Second Wind" tops the evolution heal up.
 	_apply_evolution_bonus_heal(current_stage)
 
+	evolved.emit(current_stage)
 	EventBus.notify_monster_evolved(self, current_stage)
 
 func _get_next_evolution_threshold() -> int:
@@ -404,6 +408,11 @@ func debug_meta_line() -> String:
 
 
 func _update_stage_visuals(stage: int) -> void:
+	if visual_root() != animated_sprite:
+		# A CharacterRig shows the stage's parts and flashes on `evolved`.
+		if visual_config and visual_config.enable_stage_effects:
+			_play_stage_effect(stage)
+		return
 	if not animated_sprite or not visual_config:
 		return
 
@@ -428,8 +437,8 @@ func _update_stage_visuals(stage: int) -> void:
 		_play_stage_effect(stage)
 
 func _play_stage_effect(stage: int) -> void:
-	# Flash sprite
-	if animated_sprite:
+	# Flash sprite (a CharacterRig flashes itself on set_stage)
+	if animated_sprite and visual_root() == animated_sprite:
 		var flash_color = Color.WHITE
 		match stage:
 			2: flash_color = Color(1.5, 1.2, 0.8) # Orange

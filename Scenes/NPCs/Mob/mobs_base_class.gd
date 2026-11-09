@@ -214,6 +214,7 @@ func _perform_basic_attack() -> void:
 
 	var distance := global_position.distance_to(target_entity.global_position)
 	if distance <= base_attack_range:
+		announce_cast(null, target_entity)
 		EventBus.deal_damage(self, target_entity, base_attack_damage)
 
 	attacking = false
