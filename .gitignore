@@ -4,3 +4,7 @@
 
 # macOS Finder metadata
 .DS_Store
+
+# Art pipeline (tools/art): Python bytecode and the review sheets build.py renders
+__pycache__/
+/tools/art/preview/

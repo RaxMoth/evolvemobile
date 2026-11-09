@@ -1,0 +1,522 @@
+{
+ "Surfaces (warm charcoal)": [
+  {
+   "token": "bg_void",
+   "hex": "#1E1C1A",
+   "use": "letterbox, under the nav bar, modal scrim base"
+  },
+  {
+   "token": "bg_base",
+   "hex": "#2A2826",
+   "use": "screen background (flat)"
+  },
+  {
+   "token": "bg_fleck",
+   "hex": "#33302D",
+   "use": "background texture flecks / stripes, raised strips"
+  },
+  {
+   "token": "card_fill",
+   "hex": "#3A3633",
+   "use": "character card body"
+  },
+  {
+   "token": "card_inner",
+   "hex": "#2E2B29",
+   "use": "card inner panel (neutral)"
+  },
+  {
+   "token": "card_inner_hero",
+   "hex": "#2C302A",
+   "use": "card inner panel, hero side (moss tint)"
+  },
+  {
+   "token": "card_inner_monster",
+   "hex": "#322A2D",
+   "use": "card inner panel, monster side (plum tint)"
+  },
+  {
+   "token": "panel_fill",
+   "hex": "#34312E",
+   "use": "panels, dialogs"
+  },
+  {
+   "token": "panel_inset",
+   "hex": "#242220",
+   "use": "wells, bar troughs, pills, slots"
+  },
+  {
+   "token": "divider",
+   "hex": "#4A4541",
+   "use": "hairlines inside panels"
+  }
+ ],
+ "Ink and text": [
+  {
+   "token": "ink",
+   "hex": "#1A1311",
+   "use": "every outline (dark brown-black)"
+  },
+  {
+   "token": "ink_soft",
+   "hex": "#2B201C",
+   "use": "secondary outlines, inner lines"
+  },
+  {
+   "token": "text",
+   "hex": "#F6F1E7",
+   "use": "primary text, Lv.N, counters (always with ink outline)"
+  },
+  {
+   "token": "text_dim",
+   "hex": "#CFC6B8",
+   "use": "secondary text"
+  },
+  {
+   "token": "text_muted",
+   "hex": "#8F877C",
+   "use": "hints, disabled text"
+  },
+  {
+   "token": "text_on_light",
+   "hex": "#2A1A10",
+   "use": "text on amber / parchment buttons"
+  }
+ ],
+ "Copper and amber (primary accent)": [
+  {
+   "token": "copper",
+   "hex": "#C86A32",
+   "use": "card / panel / slot outline"
+  },
+  {
+   "token": "copper_dark",
+   "hex": "#8A4421",
+   "use": "copper shade, pressed"
+  },
+  {
+   "token": "copper_light",
+   "hex": "#E38C4E",
+   "use": "copper highlight, hover"
+  },
+  {
+   "token": "amber",
+   "hex": "#F2A93B",
+   "use": "selected, active tab, focus, cooldown ring"
+  },
+  {
+   "token": "amber_light",
+   "hex": "#FFD27A",
+   "use": "amber highlight"
+  },
+  {
+   "token": "amber_dark",
+   "hex": "#B06E1A",
+   "use": "amber shade"
+  }
+ ],
+ "Jungle secondaries": [
+  {
+   "token": "moss_dark",
+   "hex": "#2E4A2C",
+   "use": "moss shade"
+  },
+  {
+   "token": "moss",
+   "hex": "#4F7A3A",
+   "use": "moss patches, hero buttons"
+  },
+  {
+   "token": "moss_light",
+   "hex": "#86AE4E",
+   "use": "moss highlight"
+  },
+  {
+   "token": "leaf",
+   "hex": "#A8C95E",
+   "use": "leaf ornaments, vines"
+  },
+  {
+   "token": "teal_dark",
+   "hex": "#1E4744",
+   "use": "teal shade"
+  },
+  {
+   "token": "teal",
+   "hex": "#2F7570",
+   "use": "secondary accent (water, info)"
+  },
+  {
+   "token": "teal_light",
+   "hex": "#62B0A3",
+   "use": "teal highlight"
+  },
+  {
+   "token": "wood_dark",
+   "hex": "#43291F",
+   "use": "carved wood shade"
+  },
+  {
+   "token": "wood",
+   "hex": "#6B4330",
+   "use": "carved wood plaques"
+  },
+  {
+   "token": "wood_light",
+   "hex": "#8E6143",
+   "use": "wood highlight / selected plaque"
+  },
+  {
+   "token": "wood_hi",
+   "hex": "#B4875D",
+   "use": "wood grain flecks"
+  },
+  {
+   "token": "stone_dark",
+   "hex": "#3B3D39",
+   "use": "mossy stone shade"
+  },
+  {
+   "token": "stone",
+   "hex": "#5D6058",
+   "use": "mossy stone (central arch)"
+  },
+  {
+   "token": "stone_light",
+   "hex": "#878A7D",
+   "use": "stone highlight"
+  },
+  {
+   "token": "stone_hi",
+   "hex": "#ADAE9E",
+   "use": "stone chips"
+  },
+  {
+   "token": "parchment",
+   "hex": "#D8C6A0",
+   "use": "light labels, tooltips body (rare)"
+  },
+  {
+   "token": "parchment_dark",
+   "hex": "#AE9670",
+   "use": "parchment shade"
+  }
+ ],
+ "Factions": [
+  {
+   "token": "hero",
+   "hex": "#E39A3B",
+   "use": "hero side accent (warm amber-copper)"
+  },
+  {
+   "token": "hero_dark",
+   "hex": "#7A4A1E",
+   "use": "hero shade"
+  },
+  {
+   "token": "hero_light",
+   "hex": "#F6C878",
+   "use": "hero highlight"
+  },
+  {
+   "token": "hero_moss",
+   "hex": "#6E9A44",
+   "use": "hero secondary (jungle green)"
+  },
+  {
+   "token": "monster",
+   "hex": "#C2334A",
+   "use": "monster side accent (crimson)"
+  },
+  {
+   "token": "monster_dark",
+   "hex": "#5A1626",
+   "use": "monster shade"
+  },
+  {
+   "token": "monster_light",
+   "hex": "#EE6F7A",
+   "use": "monster highlight"
+  },
+  {
+   "token": "monster_purple",
+   "hex": "#7B3F95",
+   "use": "monster secondary (purple)"
+  },
+  {
+   "token": "monster_purple_dark",
+   "hex": "#3F1E50",
+   "use": "monster purple shade"
+  }
+ ],
+ "Hero signatures (UI fills; in-world rings keep their saturated colours)": [
+  {
+   "token": "irelia",
+   "hex": "#5DB6C2",
+   "use": "Irelia - teal headband, steel"
+  },
+  {
+   "token": "irelia_dark",
+   "hex": "#2C5E66",
+   "use": ""
+  },
+  {
+   "token": "irelia_light",
+   "hex": "#A9DDE2",
+   "use": ""
+  },
+  {
+   "token": "vlad",
+   "hex": "#C9473C",
+   "use": "Vlad - blood red"
+  },
+  {
+   "token": "vlad_dark",
+   "hex": "#6C1F1C",
+   "use": ""
+  },
+  {
+   "token": "vlad_light",
+   "hex": "#EA8A7C",
+   "use": ""
+  },
+  {
+   "token": "ted",
+   "hex": "#E1B43E",
+   "use": "Ted - honey blond"
+  },
+  {
+   "token": "ted_dark",
+   "hex": "#7E5B1B",
+   "use": ""
+  },
+  {
+   "token": "ted_light",
+   "hex": "#F4D883",
+   "use": ""
+  },
+  {
+   "token": "river",
+   "hex": "#69A653",
+   "use": "River - fern green"
+  },
+  {
+   "token": "river_dark",
+   "hex": "#2F5A2C",
+   "use": ""
+  },
+  {
+   "token": "river_light",
+   "hex": "#A9D388",
+   "use": ""
+  }
+ ],
+ "Monster signatures": [
+  {
+   "token": "grount",
+   "hex": "#B8423A",
+   "use": "Grount - rust crimson bull"
+  },
+  {
+   "token": "grount_dark",
+   "hex": "#5E1D1A",
+   "use": ""
+  },
+  {
+   "token": "grount_light",
+   "hex": "#E07C6A",
+   "use": ""
+  },
+  {
+   "token": "grount_hide",
+   "hex": "#6A4A4C",
+   "use": "Grount hide (muted plum-brown)"
+  },
+  {
+   "token": "grount_hide_dark",
+   "hex": "#46302F",
+   "use": ""
+  },
+  {
+   "token": "monster2",
+   "hex": "#8D55C2",
+   "use": "monster slot 2 (provisional: Nyxa, violet)"
+  },
+  {
+   "token": "monster2_dark",
+   "hex": "#42245E",
+   "use": ""
+  },
+  {
+   "token": "monster2_light",
+   "hex": "#C69BEA",
+   "use": ""
+  },
+  {
+   "token": "monster3",
+   "hex": "#9AA23A",
+   "use": "monster slot 3 (provisional: Gorrak, bog)"
+  },
+  {
+   "token": "monster3_dark",
+   "hex": "#4A5020",
+   "use": ""
+  },
+  {
+   "token": "monster3_light",
+   "hex": "#CFD47A",
+   "use": ""
+  }
+ ],
+ "Currencies": [
+  {
+   "token": "gold",
+   "hex": "#F0B93A",
+   "use": "Gold (both sides)"
+  },
+  {
+   "token": "gold_dark",
+   "hex": "#A86E1C",
+   "use": ""
+  },
+  {
+   "token": "gold_light",
+   "hex": "#FFE08A",
+   "use": ""
+  },
+  {
+   "token": "steel",
+   "hex": "#A9B6BE",
+   "use": "Steel (heroes)"
+  },
+  {
+   "token": "steel_dark",
+   "hex": "#5D6A72",
+   "use": ""
+  },
+  {
+   "token": "steel_light",
+   "hex": "#E3EBEF",
+   "use": ""
+  },
+  {
+   "token": "leaves",
+   "hex": "#7DB84A",
+   "use": "Leaves (monster)"
+  },
+  {
+   "token": "leaves_dark",
+   "hex": "#3D6E28",
+   "use": ""
+  },
+  {
+   "token": "leaves_light",
+   "hex": "#C4E48A",
+   "use": ""
+  }
+ ],
+ "Rank / rarity (skill-tree tiers 1..5, maxed)": [
+  {
+   "token": "rank_1",
+   "hex": "#A39E94",
+   "use": "common / tier 1 (stone)"
+  },
+  {
+   "token": "rank_2",
+   "hex": "#6FAE4A",
+   "use": "uncommon / tier 2 (moss)"
+  },
+  {
+   "token": "rank_3",
+   "hex": "#4EA0C8",
+   "use": "rare / tier 3 (river blue)"
+  },
+  {
+   "token": "rank_4",
+   "hex": "#9C5ECB",
+   "use": "epic / tier 4 (orchid)"
+  },
+  {
+   "token": "rank_5",
+   "hex": "#E8963A",
+   "use": "legendary / tier 5 (amber)"
+  },
+  {
+   "token": "rank_max",
+   "hex": "#F2C94C",
+   "use": "maxed node / star"
+  }
+ ],
+ "States": [
+  {
+   "token": "danger",
+   "hex": "#E0453A",
+   "use": "damage, enemy HP, warnings"
+  },
+  {
+   "token": "danger_dark",
+   "hex": "#7E1E18",
+   "use": ""
+  },
+  {
+   "token": "heal",
+   "hex": "#7CCB4E",
+   "use": "healing, hero HP"
+  },
+  {
+   "token": "heal_dark",
+   "hex": "#3C7426",
+   "use": ""
+  },
+  {
+   "token": "xp",
+   "hex": "#63B7E6",
+   "use": "XP bars, level-up"
+  },
+  {
+   "token": "xp_dark",
+   "hex": "#2B5F80",
+   "use": ""
+  },
+  {
+   "token": "shield",
+   "hex": "#CFE8EF",
+   "use": "shield HP overlay"
+  },
+  {
+   "token": "upgrade_ready",
+   "hex": "#D9362B",
+   "use": "progress pill when an upgrade is ready"
+  },
+  {
+   "token": "upgrade_ready_dark",
+   "hex": "#6E1610",
+   "use": ""
+  },
+  {
+   "token": "notify",
+   "hex": "#E5402F",
+   "use": "notification dot"
+  },
+  {
+   "token": "locked_fill",
+   "hex": "#141110",
+   "use": "locked silhouette fill (near-black, darker than card_inner)"
+  },
+  {
+   "token": "locked_line",
+   "hex": "#4A4541",
+   "use": "locked silhouette highlights (faint)"
+  },
+  {
+   "token": "cooldown_veil",
+   "hex": "#141110",
+   "use": "ability cooldown veil (alpha 0.70)"
+  },
+  {
+   "token": "white",
+   "hex": "#FFFFFF",
+   "use": ""
+  }
+ ]
+}

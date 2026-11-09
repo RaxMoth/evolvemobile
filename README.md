@@ -350,6 +350,46 @@ Early Ambush        ⚠️ 40% Win            ✅ 60% Win
 - Tower Defense-style readability
 - Mobile-friendly UI elements
 
+### Palette and Art Pipeline ("Jungle Guild")
+
+The UI look follows UnderGuild's collection screen moved into a jungle: a flat
+warm-charcoal screen (`bg_base` #2A2826), a heavy dark-brown ink outline on
+everything (`ink` #1A1311), copper card outlines (`copper` #C86A32), amber
+highlights (`amber` #F2A93B), moss / teal / carved wood / mossy stone as the
+jungle secondaries. The hero side reads warm (`hero` #E39A3B), the monster side
+dangerous (`monster` #C2334A, `monster_purple` #7B3F95).
+
+- **One palette**: `tools/art/palette.py` is the single source of every colour
+  (100 tokens in 10 groups: surfaces, ink and text, copper and amber, jungle
+  secondaries, factions, hero and monster signatures, currencies, rank tiers,
+  states). The SVG generators, the theme generator and the runtime palette all
+  read it. `text_dim` means secondary text.
+- **Runtime palette**: `UiPalette` (`Scenes/UI/Theme/ui_palette.gd`) is a
+  Resource with one exported Color per token; `Scenes/UI/Theme/palette.tres`
+  holds the values. Both are generated: change a colour in `palette.py`, then
+  run `python3 tools/art/make_theme.py palette` (also refreshes
+  `tools/art/palette.json`). A token without a value stays magenta.
+    - `UiPalette.get_default()`: the project palette; read tokens as
+      `UiPalette.get_default().copper`.
+    - `color(token)`: lookup by StringName for data that names a colour; an
+      unknown token returns magenta.
+    - `UiPalette.signature(id, is_monster)`: a character's signature colour
+      (irelia, vlad, ted, river, grount; nyxa → `monster2`, gorrak →
+      `monster3`, provisional); any other id falls back to `hero` / `monster`.
+    - `COOLDOWN_VEIL_ALPHA` (0.70) and `LOCKED_MODULATE` (locked silhouette).
+    - `test/test_ui_palette.gd` checks palette.tres against palette.json, the
+      magenta fallback and the signatures.
+- **Art pipeline** (`tools/art/`, ignored by Godot through `.gdignore`):
+    - `build.py [module ...]` writes the SVG kit and icons into
+      `Assets/UI/<group>/` and renders review sheets into `tools/art/preview/`
+      (git-ignored) with `render_sheets.gd`, on a throwaway Godot project.
+    - `make_theme.py [palette] [theme] [shaders]` writes the palette (above),
+      the Theme over the SVG kit and the cooldown / locked-card shaders.
+    - `write_import_stubs.sh <dir>` makes every SVG import as a DPITexture
+      (re-rasterised at the canvas scale, sharp on 2x / 3x phones).
+    - Style rules live in `svgkit.py`: flat fills with one shade crescent, a
+      3.5 px ink outline at 64 px, no gradients, filters, masks or text.
+
 ### Fog of War System
 
 - **Grid**: 2000x2000 overlay on 32px tilemap
@@ -544,11 +584,16 @@ res://
 │  │  └─ MobSpawnArea/
 │  └─ UI/
 │     ├─ MainMenu.tscn
-│     └─ HeroContainer/
-└─ Scripts/
-   └─ Systems/
-      ├─ ability_system.gd
-      └─ hero_exploration_controller.gd
+│     ├─ HeroContainer/
+│     └─ Theme/
+│        ├─ ui_palette.gd (UiPalette)
+│        └─ palette.tres (generated palette values)
+├─ Scripts/
+│  └─ Systems/
+│     ├─ ability_system.gd
+│     └─ hero_exploration_controller.gd
+└─ tools/
+   └─ art/ (Python art pipeline: palette.py, build.py, make_theme.py, ...)
 ```
 
 ---
