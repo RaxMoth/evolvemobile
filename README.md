@@ -1481,24 +1481,43 @@ res://
 | **Gold**         | Both sides         | Universal upgrades               | Yes (Base trees)        |
 | **Permanent XP** | Each character     | Individual character progression | No (Per hero/monster)   |
 
-### Earning Rates (Per Round)
+### Earning Rates v2 (Per Round)
 
-**Base Rewards**:
+`MatchRewards.compute` (Scripts/match_rewards.gd, pure: no side effects).
+"Currency" is Steel on the hero side and Leaves on the monster side; Gold is
+paid on both sides. Economy only: nothing here feeds back into the match.
 
-- Win: 100 currency + 50 Gold
-- Loss: 50 currency + 25 Gold
+**Currency (Steel / Leaves)**:
 
-**Performance Bonuses**:
-
-- Kills: +10 per enemy killed
-- Survival Time: +5 per minute
+- Win: 150, Loss: 75 (a timeout is a loss for the heroes and a win for the monster)
+- Kills: +15 per mob killed
+- Survival Time: +5 per full minute
+- Heroes Alive (Heroes): +20 per survivor
 - Stage Reached (Monster): +25 per stage
-- Heroes Alive (Heroes): +15 per survivor
+
+**Gold**: Win 100, Loss 50, +2 per mob killed.
+
+**Permanent XP** (unchanged by v2; every character on the played side gets it):
+Win 25, Loss 10, +2 per kill, +3 per minute, +5 per survivor (Heroes) or
++10 per stage (Monster).
 
 **Example**:
 
-- Heroes win at 8 minutes with 3 survivors after killing 40 mobs + Stage 2 monster
-- Earn: 100 (win) + 50 (gold) + 400 (kills) + 40 (time) + 45 (survivors) = **635 Steel + 50 Gold**
+- Heroes win at 8 minutes with 3 survivors after killing 40 mobs
+- Steel: 150 (win) + 600 (kills) + 40 (time) + 60 (survivors) = **850 Steel**
+- Gold: 100 (win) + 80 (kills) = **180 Gold**; XP: 25 + 80 + 24 + 15 = **144 XP**
+
+**Target income** (what the tree prices are balanced against, measured with
+the design tool `income.py` over sim matches, medians): about **800 Steel**
+per hero match, **1,000 Leaves** per monster match and **160 Gold** per match
+on either side, about 150 XP. That fills every hero tree in about 53 hero
+matches, every monster tree in about 34 monster matches (plus the monster
+unlock prices) and both base trees in about 85 matches.
+
+"Mob killed" means a kill by the played side (the model above). Open item:
+`GameManager` still passes `mob_kills`, which counts every mob death on both
+sides, so a match pays more than the target until the result screen rework
+passes the played side's kills.
 
 ### Skill Tree Structure
 
@@ -1776,7 +1795,7 @@ Lv 3, 5 and 8 take about 2, 7 and 19 matches with that character.
 2. "Your heroes will now hunt the monster. Watch and learn!"
 3. Heroes rush aggressively, find Stage 1 monster at 2 minutes
 4. Easy victory (70% win rate scenario)
-5. **Rewards**: 100 Steel, 50 Gold
+5. **Rewards**: 150 Steel + 100 Gold for the win, plus the kill, time and survivor bonuses
 6. "You can now spend Steel on hero upgrades!"
 
 **Round 2** - First Strategy Decision:

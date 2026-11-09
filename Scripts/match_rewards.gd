@@ -6,18 +6,30 @@ extends RefCounted
 ## No side effects: takes inputs, returns a Result. The caller (GameManager)
 ## applies the result to PersistedData via add_currency / add_hero_xp.
 ##
-## Formula (from README "Earning Rates"):
-##   Win:  100 currency + 50 Gold
-##   Loss:  50 currency + 25 Gold
-##   + 10 per mob killed
-##   +  5 per minute survived
-##   + 25 per monster stage reached  (monster side only)
-##   + 15 per surviving hero          (hero side only)
+## Formula (README "Earning Rates v2"):
+##   Currency:  win 150 / loss 75
+##     + 15 per mob killed
+##     +  5 per full minute survived
+##     + 20 per surviving hero          (hero side only)
+##     + 25 per monster stage reached   (monster side only)
+##   Gold:      win 100 / loss 50, + 2 per mob killed
+##   Permanent XP: see compute() (unchanged by v2).
 ##
-## "Currency" means Steel for hero side, Leaves for monster side.
+## "Currency" means Steel for hero side, Leaves for monster side. Economy
+## only: nothing here feeds back into the match simulation.
 
 enum Side { HEROES, MONSTER }
 enum Outcome { WIN, LOSS, TIMEOUT }
+
+const CURRENCY_WIN := 150
+const CURRENCY_LOSS := 75
+const CURRENCY_PER_KILL := 15
+const CURRENCY_PER_MINUTE := 5
+const CURRENCY_PER_SURVIVOR := 20
+const CURRENCY_PER_STAGE := 25
+const GOLD_WIN := 100
+const GOLD_LOSS := 50
+const GOLD_PER_KILL := 2
 
 
 class Result:
@@ -68,24 +80,20 @@ static func compute(
 	# Currently: timeout → monster wins (heroes failed to find them in time).
 	var won := outcome == Outcome.WIN
 
-	var base_currency := 100 if won else 50
-	var base_gold := 50 if won else 25
-	var kills_bonus := r.mob_kills * 10
-	var time_bonus := int(duration_sec / 60.0) * 5
+	var minutes := maxi(0, int(duration_sec / 60.0))
 
+	var currency := CURRENCY_WIN if won else CURRENCY_LOSS
+	currency += r.mob_kills * CURRENCY_PER_KILL + minutes * CURRENCY_PER_MINUTE
 	if side == Side.HEROES:
-		var survivors_bonus := r.heroes_alive * 15
-		r.steel = base_currency + kills_bonus + time_bonus + survivors_bonus
-		r.gold = base_gold
+		r.steel = currency + r.heroes_alive * CURRENCY_PER_SURVIVOR
 	else:
-		var stage_bonus := r.monster_stage * 25
-		r.leaves = base_currency + kills_bonus + time_bonus + stage_bonus
-		r.gold = base_gold
+		r.leaves = currency + r.monster_stage * CURRENCY_PER_STAGE
+	r.gold = (GOLD_WIN if won else GOLD_LOSS) + r.mob_kills * GOLD_PER_KILL
 
 	# Permanent XP — a flat per-match chunk scaled by performance. Each
 	# participating character on the played side receives this amount.
 	var xp_base := 25 if won else 10
-	r.xp = xp_base + r.mob_kills * 2 + int(duration_sec / 60.0) * 3
+	r.xp = xp_base + r.mob_kills * 2 + minutes * 3
 	if side == Side.HEROES:
 		r.xp += r.heroes_alive * 5
 	else:
