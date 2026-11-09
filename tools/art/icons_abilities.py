@@ -1,6 +1,8 @@
 """Ability icons, one per ability resource (+ River's two basic modes and
 Grount's stage passive). 64x64 full-bleed owner tile + one bold symbol.
-Naming: <owner>_<slot>_<ability>.svg  (slot = basic|active|passive|ult)."""
+Naming: <owner>_<slot>_<ability>.svg  (slot = basic|active|passive|ult).
+Nyxa and Gorrak (monster slots 2 and 3, provisional) use the monster2 /
+monster3 tiles; their abilities follow the skill-tree area's roster."""
 import math
 from palette import PAL as P, mix
 from svgkit import (icon, circle, ellipse, rrect, poly, smooth, star, burst, heart, drop, leaf,
@@ -31,6 +33,23 @@ def speed_lines(d, segs, col=None, w=3.0):
     col = col or IVORY
     for s in segs:
         d.line(s, col, w, 2.0)
+
+
+def dashed(d, path, col, w=3.2, dash="5 5.5", ow=2.0):
+    """Dashed swing trail: every dash keeps its ink casing."""
+    for colour, width in ((INK, w + ow * 2 - 1), (col, w)):
+        d.add(f'<path d="{path}" fill="none" stroke="{colour}" stroke-width="{width:.2f}" '
+              f'stroke-dasharray="{dash}" stroke-linecap="round" stroke-linejoin="round"/>')
+
+
+def bat(cx, cy, s):
+    """Small bat, wings spread, centred on (cx, cy), half wingspan s."""
+    pts = [(-1, -0.4), (-0.7, -0.55), (-0.4, -0.45), (-0.2, -0.25), (-0.17, -0.58), (-0.05, -0.36),
+           (0.05, -0.36), (0.17, -0.58), (0.2, -0.25), (0.4, -0.45), (0.7, -0.55), (1, -0.4),
+           (0.86, -0.1), (0.8, 0.15), (0.7, 0.36), (0.6, 0.2), (0.45, 0.16), (0.34, 0.3),
+           (0.26, 0.16), (0.14, 0.18), (0, 0.46), (-0.14, 0.18), (-0.26, 0.16), (-0.34, 0.3),
+           (-0.45, 0.16), (-0.6, 0.2), (-0.7, 0.36), (-0.8, 0.15), (-0.86, -0.1)]
+    return poly([(cx + x * s, cy + y * s) for x, y in pts])
 
 
 # ============================================================ IRELIA
@@ -282,3 +301,88 @@ for i, y in enumerate((44, 30, 16)):
 d.cel("M8 14 C4 8 6 2 12 0 C12 6 15 10 20 12Z", IVORY, IVORY_S, ow=2.8)
 d.cel("M56 14 C60 8 58 2 52 0 C52 6 49 10 44 12Z", IVORY, IVORY_S, ow=2.8)
 ICONS["grount_passive_evolution"] = d.svg()
+
+# ============================================================ NYXA (monster slot 2)
+# The bat matriarch: violet body, amber eyes, monster2 tile.
+NYX, NYX_S, NYX_L = P["monster2"], P["monster2_dark"], P["monster2_light"]
+
+d = icon("monster2")
+for r in (17, 23, 29):
+    d.line(arc(31, 34, r, -36, 36), NYX_L, 3.2, 2.2)
+d.cel("M9 23 L10 4 L20 15 C23 14 27 14 30 15 L39 4 L40 23 C43 28 43 35 41 41 C38 50 31 55 24.5 55 "
+      "C18 55 11 50 8 41 C6 35 6 28 9 23Z", NYX, NYX_S, off=(-3, -3))
+d.flat("M12.4 9 L12.8 18.5 L18.4 15.2Z", P["monster_light"], 0, op=0.85)
+d.flat("M36.6 9 L36.2 18.5 L30.6 15.2Z", P["monster_light"], 0, op=0.85)
+d.cel(ellipse(17.5, 30, 4, 3.2, 18), P["amber"], P["amber_dark"], ow=2.4)
+d.cel(ellipse(31.5, 30, 4, 3.2, -18), P["amber"], P["amber_dark"], ow=2.4)
+d.cel(ellipse(24.5, 43.5, 7.5, 6), P["monster_dark"], INK, ow=2.8)
+d.flat(poly([(19.2, 39), (21, 43.4), (22.8, 38)]), IVORY, 1.6)
+d.flat(poly([(26.2, 38), (28, 43.4), (29.8, 39)]), IVORY, 1.6)
+ICONS["nyxa_basic_sonic_screech"] = d.svg()
+
+d = icon("monster2")
+speed_lines(d, ["M3 48 L10 41", "M5 60 L13 52", "M17 62 L24 55"], NYX_L, 3.0)
+tf = "rotate(45 32 32)"
+d.cel("M32 17 C39 21 47 29 55 43 C50 40 46 41 44 44 C42 40 38 40 36 43 L32 47 L28 43 C26 40 22 40 20 44 "
+      "C18 41 14 40 9 43 C17 29 25 21 32 17Z", NYX, NYX_S, tf=tf)
+d.cel("M27 11 L26 2 L31.5 7Z", NYX, NYX_S, ow=2.8, tf=tf)
+d.cel("M37 11 L38 2 L32.5 7Z", NYX, NYX_S, ow=2.8, tf=tf)
+d.cel("M32 5 C37 5 39 12 39 22 C39 34 36 44 32 52 C28 44 25 34 25 22 C25 12 27 5 32 5Z", NYX, NYX_S, tf=tf)
+d.cel(circle(34.5, 13, 2.6), P["amber"], P["amber_dark"], ow=2.2, tf=tf)
+ICONS["nyxa_active_shadow_swoop"] = d.svg()
+
+d = icon("monster2")
+dashed(d, circle(32, 34, 19), NYX_L, 2.4, "3.5 4.5", 1.6)
+d.cel(circle(32, 34, 13), P["monster_purple_dark"], INK)
+d.ink(arc(32, 34, 9, 150, 330), 2.6, color=NYX)
+d.ink(arc(32, 34, 9, 330, 450), 2.6, color=NYX_L)
+d.cel(circle(32, 34, 4.4), P["danger"], P["danger_dark"], ow=2.4)
+d.fleck(circle(30.8, 32.8, 1.3), W, 0.8)
+for _a in (-90, -30, 30, 90, 150, 210):
+    _x, _y = 32 + 25 * math.cos(math.radians(_a)), 34 + 25 * math.sin(math.radians(_a))
+    d.cel(bat(_x, min(_y, 57), 7.5), NYX, NYX_S, ow=2.2)
+ICONS["nyxa_ult_night_swarm"] = d.svg()
+
+# ============================================================ GORRAK (monster slot 3)
+# The boar warlord: cleaver and tusk axe, bog-green swing trails, monster3 tile.
+BOG, BOG_S, BOG_L = P["monster3"], P["monster3_dark"], P["monster3_light"]
+HOG, HOG_S = P["wood_light"], P["wood"]
+
+d = icon("monster3")
+dashed(d, "M9 56 C3 38 9 19 27 9", BOG_L)
+tf = "rotate(28 34 32)"
+d.cel(rrect(30.5, 30, 7, 30, 3), HOG, HOG_S, tf=tf)
+d.cel(rrect(28.5, 29, 11, 6, 2), P["stone"], P["stone_dark"], ow=3, tf=tf)
+d.cel(rrect(22, 4, 24, 27, 3), P["steel"], P["steel_dark"], tf=tf)
+d.flat("M23.7 6 H28 V29 H23.7Z", STEEL, 0, tf=tf)
+d.ink(rrect(22, 4, 24, 27, 3), tf=tf)
+d.cel(circle(40, 10.5, 2.6), P["steel_dark"], INK, ow=2.4, tf=tf)
+ICONS["gorrak_basic_cleaver_chop"] = d.svg()
+
+d = icon("monster3")
+d.line(arc(30, 34, 24, 35, 205), BOG_L, 3.4, 2.2)
+_tx, _ty = 30 + 24 * math.cos(math.radians(35)), 34 + 24 * math.sin(math.radians(35))
+d.cel(poly([(_tx + 6.5, _ty - 7.5), (_tx - 4.5, _ty - 2.5), (_tx + 4, _ty + 5)]), BOG_L, BOG, ow=2.6)
+tf = "translate(-3 3) rotate(45 32 32)"
+d.cel(rrect(29.5, 12, 5, 44, 2.5), HOG, HOG_S, tf=tf)
+d.cel("M30 12 C24 7 17 9 14 15 C19 14 25 15.5 30 18.5Z", IVORY, IVORY_S, ow=3, tf=tf)
+d.cel("M34 9 C41 4 50 6 53 13 C55 20 52 28 44 34 C46 28 45 23 42 20 C39 19 36 19 34 19.5Z",
+      IVORY, IVORY_S, off=(-2.5, -2.5), tf=tf)
+d.cel(rrect(28.5, 8, 7, 14, 2.5), BOG, BOG_S, ow=3, tf=tf)
+d.ink("M28.5 12.5 H35.5 M28.5 17 H35.5", 1.8, tf=tf)
+ICONS["gorrak_active_tusk_axe"] = d.svg()
+
+# Warcry Stomp: a boar foreleg drives its cloven hoof into the ground; the
+# shockwave ring and the stun stars carry the read at 40 px.
+d = icon("monster3")
+d.flat(ellipse(32, 52, 27, 8), INK, 0, op=0.55)
+d.line(ellipse(32, 52, 27, 8), BOG_L, 3.2, 2.2)
+d.ink("M9 50 L4 47 M55 50 L60 47 M14 57 L10 61 M50 57 L54 61", 2.4, color=BOG_L)
+d.cel(star(11, 20, 7, 3.2, 5), P["gold"], P["gold_dark"], ow=2.6)
+d.cel(star(53, 16, 7, 3.2, 5), P["gold"], P["gold_dark"], ow=2.6)
+d.cel("M21 -2 H43 C43 12 41 25 39.5 37 H24.5 C23 25 21 12 21 -2Z", HOG, HOG_S, off=(-3, -2))
+d.cel("M22 33 L25.5 37.5 L29 33 L32 37.5 L35 33 L38.5 37.5 L42 33 L42.5 40 H21.5Z", P["wood_hi"], HOG, ow=2.6)
+d.cel("M21 38 H43 C46 38 47 41 47 45 V48 C47 50 45.5 51 43.5 51 H34.5 L32 45.5 L29.5 51 H20.5 "
+      "C18.5 51 17 50 17 48 V45 C17 41 18 38 21 38Z", P["stone"], P["stone_dark"])
+d.cel(rrect(20.5, 6, 23, 6, 2.5), BOG, BOG_S, ow=3)
+ICONS["gorrak_ult_warcry_stomp"] = d.svg()

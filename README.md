@@ -389,6 +389,39 @@ dangerous (`monster` #C2334A, `monster_purple` #7B3F95).
       (re-rasterised at the canvas scale, sharp on 2x / 3x phones).
     - Style rules live in `svgkit.py`: flat fills with one shade crescent, a
       3.5 px ink outline at 64 px, no gradients, filters, masks or text.
+- **UI kit** (`Assets/UI/`, all generated: edit the generators, never the
+  files). Every SVG imports as a DPITexture (`importer="svg"`), so it stays
+  crisp at any Control size and canvas scale.
+    - `Kit/` (64): card frames and inner panels (hero / monster / selected /
+      locked), carved-wood nav plaques and the mossy-stone HUNT arch, buttons
+      (primary, secondary, copper, hero, monster, round) with hover / pressed
+      art, panels and banners, ability slot frames (basic, active, passive,
+      ult, locked), skill-tree nodes, toggles, padlock, notification dot,
+      leaf and vine ornaments, the background tile. 9-slice margins live in
+      `kit.MARGINS`.
+    - `Icons/` (78, 64x64): `Abilities/` (27, `<owner>_<slot>_<ability>`:
+      a full-bleed tile in the owner's tone that the slot frame sits on;
+      every hero and Grount ability, River's two basic modes, and Nyxa's and
+      Gorrak's abilities on the `monster2` / `monster3` tiles), `Currency/`
+      (gold, steel, leaves, upgrade point), `Stats/` (16), `Roles/` (9 filter
+      silhouettes), `Nav/` (6) and `UI/` (16 glyphs).
+    - `Crests/`: the hero and monster side crests.
+    - `Theme/jungle_theme.tres`: the Jungle Guild Theme (labels, buttons,
+      nav plaques, panels, cards, pills, bars, HUD panels) over the kit. The
+      game's screens do not use it yet.
+    - `Shaders/ability_cooldown.gdshader` (clockwise cooldown sweep with an
+      amber edge, `ready_flash`, `locked`) and `card_locked.gdshader` (locked
+      character silhouette). Their default colours come from the palette.
+    - `test/test_ui_kit.gd` checks the DPITexture imports, every character's
+      ability icons, the theme's textures, the shaders' palette colours and
+      the proof scenes.
+- **Proof scenes** (`tools/preview/`, not shipped; any export preset must
+  exclude `tools/*`): `ThemeMockup.tscn` composes every theme type and kit
+  piece the way the collection and HUD screens will (role glyphs in the
+  signature colours stand in for the character portraits until the rigs
+  land); `PaletteSheet.tscn` shows every UiPalette token. Render them muted
+  on a copy of the project:
+  `godot --path <copy> --audio-driver Dummy --fixed-fps 30 --write-movie <dir>/f.png --quit-after 8 res://tools/preview/ThemeMockup.tscn`.
 
 ### Fog of War System
 
@@ -561,6 +594,11 @@ The chart owns all state. Its active state is **stepped** by the `TickScheduler`
 
 ```
 res://
+├─ Assets/
+│  └─ UI/ (generated Jungle Guild kit, DPITexture SVGs)
+│     ├─ Kit/ · Crests/ · Icons/{Abilities,Currency,Stats,Roles,Nav,UI}/
+│     ├─ Theme/jungle_theme.tres
+│     └─ Shaders/ (ability_cooldown, card_locked)
 ├─ Scenes/
 │  ├─ NPCs/
 │  │  ├─ Hero/
@@ -593,7 +631,8 @@ res://
 │     ├─ ability_system.gd
 │     └─ hero_exploration_controller.gd
 └─ tools/
-   └─ art/ (Python art pipeline: palette.py, build.py, make_theme.py, ...)
+   ├─ art/ (Python art pipeline: palette.py, build.py, make_theme.py, ...)
+   └─ preview/ (ThemeMockup.tscn, PaletteSheet.tscn proof scenes, not shipped)
 ```
 
 ---

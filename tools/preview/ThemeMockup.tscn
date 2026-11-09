@@ -1,0 +1,53 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" uid="uid://dbyrpcthslwmb" path="res://tools/preview/theme_mockup.gd" id="1_script"]
+[ext_resource type="Theme" path="res://Assets/UI/Theme/jungle_theme.tres" id="2_theme"]
+[ext_resource type="Texture2D" uid="uid://d0us42nwu36it" path="res://Assets/UI/Kit/bg_texture.svg" id="3_bg"]
+[ext_resource type="Texture2D" uid="uid://duqw43eo2gsss" path="res://Assets/UI/Kit/orn_canopy_top.svg" id="4_canopy"]
+
+[node name="ThemeMockup" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme = ExtResource("2_theme")
+script = ExtResource("1_script")
+
+[node name="Background" type="TextureRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = ExtResource("3_bg")
+stretch_mode = 1
+
+[node name="Canopy" type="TextureRect" parent="."]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 150.0
+grow_horizontal = 2
+texture = ExtResource("4_canopy")
+expand_mode = 1
+stretch_mode = 0
+
+[node name="Margin" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_bottom = -132.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 14
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 8
+
+[node name="Root" type="VBoxContainer" parent="Margin"]
+layout_mode = 2
+theme_override_constants/separation = 8
