@@ -17,7 +17,10 @@ func test_every_character_has_a_tree_with_the_right_currency() -> void:
 		assert_true(t != null, "tree for %s" % hero_id)
 		if t == null:
 			continue
-		assert_eq(t.max_tier(), 3, "%s: tier 4 holds only capstones, all hidden until their code lands" % hero_id)
+		# Tier 4 holds the capstones, shown once their hero's code landed (5.4).
+		assert_eq(t.max_tier(), 4 if not t.capstones().is_empty() else 3, "%s: tier 4 is the capstones' row" % hero_id)
+		for n in t.nodes_in_tier(4):
+			assert_true(n.capstone, "%s/%s: tier 4 holds only capstones" % [hero_id, n.id])
 		assert_eq(t.owner_id, hero_id)
 		assert_eq(t.gate_kind, MetaSkillTree.GateKind.LEVEL)
 		for n in t.nodes:

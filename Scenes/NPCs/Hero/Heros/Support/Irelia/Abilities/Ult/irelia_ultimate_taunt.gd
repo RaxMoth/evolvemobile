@@ -1,6 +1,13 @@
 extends AbilityBase
 class_name IreliaUltimateTaunt
 
+@export_group("Rallying Taunt")
+## hero_irelia capstone "Rallying Taunt": every living hero within this many px
+## of Irelia (herself included) gets Rally Cry's attack-speed boost,
+## rally_attack_speed, for the taunt's duration. 0 = off.
+@export var rally_radius: float = 0.0
+@export var rally_attack_speed: float = 1.25
+
 func execute(caster: Node2D, _target: Node2D = null, _override_damage: float = -1.0) -> void:
 	var monsters = caster.get_tree().get_nodes_in_group("Monster")
 	var taunted_count = 0
@@ -30,6 +37,22 @@ func execute(caster: Node2D, _target: Node2D = null, _override_damage: float = -
 				taunted_count += 1
 	
 	_create_taunt_effect(caster)
+	if rally_radius > 0.0:
+		_rally_heroes(caster)
+
+## Rallying Taunt: the heroes around Irelia attack faster while the taunt lasts.
+func _rally_heroes(caster: Node2D) -> void:
+	var team := TeamRegistry.get_team(TeamRegistry.HEROES)
+	if team == null:
+		return
+	var r_sq: float = rally_radius * rally_radius
+	var tint: Color = UiPalette.get_default().amber
+	for ally in team.members:
+		var hero := ally as HeroBase
+		if hero == null or not hero.is_alive() or hero.global_position.distance_squared_to(caster.global_position) > r_sq:
+			continue
+		hero.apply_attack_speed_boost(rally_attack_speed, duration)
+		GameUtils.flash_modulate(hero, tint, 0.15, 0.3)
 
 func _apply_taunt(enemy: Node2D, caster: Node2D) -> void:
 	# CRITICAL: Validate both enemy and caster before proceeding

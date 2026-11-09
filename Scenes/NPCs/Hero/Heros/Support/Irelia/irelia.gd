@@ -9,6 +9,19 @@ class_name Irelia
 ## hero it is applied to — not only Irelia — and survives Irelia dying.
 
 
+## Last Stand (hero_irelia capstone ir_laststand, on her own Regeneration
+## copy): once per match the lethal hit leaves her at 1 HP and she cannot be
+## hurt for the passive's last_stand_duration (HeroBase._invulnerable_timer).
+func _survives_lethal_hit() -> bool:
+	var regen: IreliaPassiveRegeneration = (ability_system.passive_ability as IreliaPassiveRegeneration) if ability_system else null
+	if regen == null or not regen.claim_last_stand():
+		return false
+	make_invulnerable(regen.last_stand_duration)
+	EventBus.notify_ability_event(self, regen, FxEvents.LAST_STAND, global_position, regen.last_stand_duration)
+	GameUtils.flash_modulate(self, UiPalette.get_default().amber_light, 0.1, regen.last_stand_duration)
+	return true
+
+
 ## Divine Shield when someone close to Irelia (including herself) is hurt and
 ## she is in a fight.
 func _should_auto_use_active() -> bool:

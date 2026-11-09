@@ -24,3 +24,4 @@ const SHIELD_EXPIRED := &"shield_expired"
 const TAUNTED := &"taunted"                # source = taunted enemy, pos = taunter, value = duration
 const CAGE_CLOSED := &"cage_closed"        # source = cage node, value = radius
 const CAGE_OPENED := &"cage_opened"
+const LAST_STAND := &"last_stand"          # source = the hero saved at 1 HP, value = invulnerable seconds

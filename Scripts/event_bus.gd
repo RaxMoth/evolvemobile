@@ -12,7 +12,9 @@ extends Node
 ##   2. damage_requested fires; listeners may mutate packet.amount or flip packet.canceled
 ##      (Irelia shield, lifesteal, skill-tree damage mods all hook here)
 ##   3. If not canceled, target._receive_damage(packet) applies the final amount
-##      and may send CombatEvents.SELF_DEAD to its own state chart
+##      and may send CombatEvents.SELF_DEAD to its own state chart. It may still
+##      cancel the hit itself (a hero's Last Stand invulnerability): then nothing
+##      landed, so steps 4 and 5 are skipped and deal_damage returns 0
 ##   4. If the target is a living EntityBase, target._on_damage_taken(packet)
 ##      runs — the per-target reaction hook (flinch, "help!" broadcasts).
 ##      This is a direct call, NOT a signal: with ~150 entities alive a global
@@ -69,6 +71,8 @@ func _route_packet(packet: DamagePacket) -> float:
 		t._receive_damage(packet)
 	else:
 		push_warning("EventBus: target ", t, " has no _receive_damage(packet) method. Damage dropped.")
+		return 0.0
+	if packet.canceled:
 		return 0.0
 
 	# Targeted reaction hook. Guarded: the pet has no hook, and a killing blow

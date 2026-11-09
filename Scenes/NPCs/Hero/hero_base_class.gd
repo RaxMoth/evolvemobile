@@ -33,6 +33,9 @@ var _auto_active_timer: float = 0.0
 # Temporary attack-speed boost (Rally Cry etc.); read by AbilitySystem.
 var _attack_speed_boost: float = 1.0
 var _attack_speed_boost_timer: float = 0.0
+## Seconds left in which every hit on this hero is canceled (Irelia's Last
+## Stand). A timer on the hero, whatever its chart state; 0 = takes damage.
+var _invulnerable_timer: float = 0.0
 
 func _ready() -> void:
 	if not stats or not stats.base_stats:
@@ -87,6 +90,8 @@ func _process(delta: float) -> void:
 		_attack_speed_boost_timer -= delta
 		if _attack_speed_boost_timer <= 0.0:
 			_attack_speed_boost = 1.0
+	if _invulnerable_timer > 0.0:
+		_invulnerable_timer = maxf(_invulnerable_timer - delta, 0.0)
 	if is_stunned():
 		return
 	if auto_use_active and is_alive():
@@ -118,9 +123,13 @@ func _use_active_now() -> void:
 	use_active_ability()
 
 
-## Temporary attack-speed multiplier (e.g. Rally Cry). Folded into basic-attack
-## cooldown recovery by AbilitySystem.get_attack_speed_multiplier.
+## Temporary attack-speed multiplier (Rally Cry, and the haste of War Cry and
+## Rallying Taunt). Folded into basic-attack cooldown recovery by
+## AbilitySystem.get_attack_speed_multiplier. A weaker boost never replaces a
+## stronger one that is still running; an equal or stronger one restarts it.
 func apply_attack_speed_boost(multiplier: float, duration: float) -> void:
+	if _attack_speed_boost_timer > 0.0 and multiplier < _attack_speed_boost:
+		return
 	_attack_speed_boost = maxf(multiplier, 0.01)
 	_attack_speed_boost_timer = duration
 
@@ -262,14 +271,37 @@ func heal(amount: float) -> void:
 	if stats:
 		stats.heal(amount)
 
+
+## Cancel every hit for `duration` seconds (a running immunity is never cut
+## short). Irelia's Last Stand.
+func make_invulnerable(duration: float) -> void:
+	_invulnerable_timer = maxf(_invulnerable_timer, duration)
+
+
+func is_invulnerable() -> bool:
+	return _invulnerable_timer > 0.0
+
+
+## A hit is about to kill this hero: true when something keeps it alive at
+## 1 HP instead (Irelia's Last Stand overrides it). Default: nothing does.
+func _survives_lethal_hit() -> bool:
+	return false
+
 func _receive_damage(packet: DamagePacket) -> void:
 	if not is_alive() or not stats:
+		return
+	if is_invulnerable():
+		# Nothing lands: EventBus skips the reaction and damage_applied.
+		packet.canceled = true
 		return
 
 	last_attacker = packet.source if packet.source is Node2D else null
 	# Tempered Mail / Plated (damage_taken_mult): the hit's final amount, so the
 	# damage_applied listeners (numbers, threat, the sim) see what landed.
 	packet.amount *= stats.get_damage_taken_multiplier()
+	var hp: float = stats.get_current_health()
+	if packet.amount >= hp and _survives_lethal_hit():
+		packet.amount = maxf(hp - 1.0, 0.0)
 	stats.take_damage(packet.amount)
 
 	if not stats.is_alive():

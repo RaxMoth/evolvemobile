@@ -241,6 +241,11 @@ func is_stunned() -> bool:
 	return _stun_timer > 0.0
 
 
+## End a running stun now (Irelia's Guardian Angel: Divine Shield breaks it).
+func clear_stun() -> void:
+	_stun_timer = 0.0
+
+
 ## Re-pick the idle goal on the next idle tick (a new exploration target).
 func request_idle_retarget() -> void:
 	_idle_timer = 0.0

@@ -149,6 +149,9 @@ Power Level
 - **Basic Attack**: 5 dmg at 120 range / 1.5s
 - **Ultimate**: Monster Taunt (Forces monster to attack Irelia for 5s)
 - **Scaling**: +8 HP, +1.2 dmg per level
+- **Capstones** (one equipped): Last Stand (survive a lethal hit once at 1 HP,
+  2 s invulnerable), Guardian Angel (Divine Shield breaks stuns), Rallying
+  Taunt (heroes within 250 px +25% attack speed during the taunt)
 
 ### Hero Leveling (In-Round)
 
@@ -1511,6 +1514,26 @@ keys come from `collect_monster_modifiers` into `MonsterBase._meta_*`. The F3
 overlay prints them as a "tree keys:" line under the followed hero and under
 each monster ("dmg taken x0.79 cd x0.85 start Lv 2"; "-" on a fresh save).
 
+#### Hero capstones and behaviour nodes
+
+Nodes whose effect is an export of one hero ability (`ability_name` +
+`stat_name` = the export). Every export is off by default (false, 0, 1 or
+x1.0), so a fresh save plays exactly as before; a spawn sets it on the hero's
+own ability copy (`AbilitySystem.make_abilities_unique`), never on the shared
+`.tres`. Capstones apply only while equipped (one per tree).
+
+| node | export (ability) | effect |
+|---|---|---|
+| ir_laststand CAP | `last_stand`, `last_stand_duration` 2 s (Regeneration) | once per match the lethal hit leaves Irelia at 1 HP (`HeroBase._survives_lethal_hit`, which `Irelia` overrides); `HeroBase.make_invulnerable` then cancels every hit for 2 s (a timer on the hero, not a chart state: `_receive_damage` flips `packet.canceled`, so `EventBus` skips the reaction and `damage_applied`, and `deal_damage` returns 0) |
+| ir_guardian CAP | `cleanse_stuns` (Divine Shield) | every hero the shield lands on loses its stun (`EntityBase.clear_stun`) |
+| ir_banner CAP | `rally_radius` 250, `rally_attack_speed` 1.25 (Monster Taunt) | every living hero within 250 px of Irelia, herself included, gets Rally Cry's attack-speed boost x1.25 for the taunt's 5 s |
+
+Haste rule (`HeroBase.apply_attack_speed_boost`, Rally Cry and the
+capstones above): a weaker boost never replaces a stronger one that is still
+running; an equal or stronger one restarts it. The F3 overlay's ability lines
+show each export as a tree modifier ("Regeneration ... tree last_stand +1.00
+last stand ready").
+
 #### Tree content v2 (Data/SkillTrees)
 
 Nine trees, one `MetaSkillTree` resource each with its nodes as sub-resources:
@@ -1573,14 +1596,14 @@ code yet (5.4: hero behaviours; 6.6: monster behaviours):
   - Bulwark: T1 Reinforced Plate +8/11/14/17/20% max HP; T2 Unbreakable
     +12/16/20%; T2 Plated -5/9/12% damage taken; T3 Bulwark
     +20/25/30%; T4 CAP Last Stand (a lethal hit once leaves 1 HP, 2 s
-    invulnerable) **[hidden]**.
+    invulnerable).
   - Oathkeeper: T1 Second Breath Regeneration heals 1.5/2/2.5x; T2 Shield
     Cadence Divine Shield cooldown -20/28/35%; T3 Aegis Divine Shield absorbs
-    +30/60/90%; T4 CAP Guardian Angel (the shield breaks stuns) **[hidden]**.
+    +30/60/90%; T4 CAP Guardian Angel (the shield breaks stuns).
   - Vanguard: T1 Shield Bash +5/8/11/14/17% damage; T1 Marching Order +5/7/9%
     speed; T2 Riposte +10/14/18% attack speed; T3 Vanguard +10/15/20% damage;
     T3 Relentless Monster Taunt cooldown -30/38/45%; T4 CAP Rallying Taunt
-    (+25% attack speed to heroes within 250 px) **[hidden]**.
+    (+25% attack speed to heroes within 250 px).
 - **hero_vlad** (Butcher / Blood / Demolition):
   - Butcher: T1 Keen Blade +5/8/11/14/17% damage; T1 Eager Swings +5/8/11%
     attack speed; T2 Bloodthirst +10/14/18%; T3 Executioner +20/25/30%; T4 CAP

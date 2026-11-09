@@ -1,6 +1,10 @@
 extends AbilityBase
 class_name IreliaActiveShield
 
+## hero_irelia capstone "Guardian Angel": the shield also ends every stun on
+## the heroes it lands on (EntityBase.clear_stun).
+@export var cleanse_stuns: bool = false
+
 func execute(caster: Node2D, _target: Node2D = null, _override_damage: float = -1.0) -> void:
 	var heroes = caster.get_tree().get_nodes_in_group("Hero")
 	
@@ -9,6 +13,8 @@ func execute(caster: Node2D, _target: Node2D = null, _override_damage: float = -
 			continue
 		
 		_apply_shield(hero)
+		if cleanse_stuns:
+			(hero as HeroBase).clear_stun()
 
 func _apply_shield(hero: Node2D) -> void:
 	# Remove existing shield if any
