@@ -82,13 +82,23 @@ func _use_ability(ability: AbilityBase, ability_type: AbilityBase.AbilityType, t
 
 	if not is_on_cooldown(ability_type) and ability.can_use(owner_entity):
 		ability.execute(owner_entity, target)
-		cooldowns[ability_type] = ability.cooldown
-		_cooldown_totals[ability_type] = ability.cooldown
+		var cooldown: float = ability.cooldown * _cooldown_multiplier(ability_type)
+		cooldowns[ability_type] = cooldown
+		_cooldown_totals[ability_type] = cooldown
 		ability_used.emit(ability)
 		EventBus.notify_ability_cast(owner_entity, ability, target)
 		return true
 
 	return false
+
+## Battle Drills (hero tree key cooldown_mult) shortens the active and the
+## ultimate as they start. The basic attack has attack speed instead and the
+## passive no cooldown; 1.0 for an owner without HeroStats and on a fresh save.
+func _cooldown_multiplier(ability_type: AbilityBase.AbilityType) -> float:
+	if ability_type != AbilityBase.AbilityType.ACTIVE and ability_type != AbilityBase.AbilityType.ULTIMATE:
+		return 1.0
+	var stats := _get_hero_stats()
+	return stats.get_cooldown_multiplier() if stats else 1.0
 
 func is_on_cooldown(ability_type: AbilityBase.AbilityType) -> bool:
 	return cooldowns[ability_type] > 0.0

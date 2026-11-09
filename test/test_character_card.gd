@@ -106,8 +106,8 @@ func test_upgrades_ready_counts_buyable_nodes() -> void:
 	PersistedData.add_currency(PersistedData.STEEL, 500)
 	PersistedData.add_hero_xp(&"irelia", 300)
 	# Tier 1: all four (Reinforced Plate's rank 2 included); tier 2 (Lv 3): only
-	# Unbreakable, the one whose parent (Reinforced Plate) is owned.
-	assert_eq(CharacterProgress.upgrades_ready(irelia), HERO_TIER_1 + 1,
+	# Unbreakable and Plated, the two whose parent (Reinforced Plate) is owned.
+	assert_eq(CharacterProgress.upgrades_ready(irelia), HERO_TIER_1 + 2,
 			"an owned node's next rank counts, and so does the opened tier 2 where its parent is owned")
 	assert_eq(CharacterProgress.upgrades_ready(_locked_def(100)), 0, "a locked character has none")
 

@@ -39,6 +39,8 @@ signal evolved(stage: int)
 
 ## README attack range before skill nodes (80 flat at every stage).
 const BASE_ATTACK_RANGE: float = 80.0
+## The last evolution stage (Stage III, "Apex Predator").
+const FINAL_STAGE: int = 3
 ## Fight hands back to Approach beyond this distance (+ get_range_bonus()).
 const FIGHT_LEAVE_DISTANCE: float = 100.0
 
@@ -78,6 +80,15 @@ var _meta_speed_mult: float = 1.0
 var _meta_xp_mult: float = 1.0
 var _meta_evo_threshold_mult: float = 1.0
 var _meta_range_mult: float = 1.0
+# Generic keys (README "Generic stat keys"), one apply site each, neutral when
+# not owned: incoming hits (_receive_damage), rest regeneration (_update_rest),
+# cast cooldowns (_cast), damage at the final stage (effective_ability_damage)
+# and the XP banked at spawn (_ready; additive, 0 = none).
+var _meta_damage_taken_mult: float = 1.0
+var _meta_regen_mult: float = 1.0
+var _meta_cooldown_mult: float = 1.0
+var _meta_final_stage_damage_mult: float = 1.0
+var _meta_start_xp: float = 0.0
 # Behaviour nodes (additive keys from the same collect_monster_modifiers call;
 # 0 = not unlocked). Enrage and Titan Form are flags, Second Wind an amount.
 var _meta_enrage: bool = false
@@ -101,6 +112,10 @@ func _ready() -> void:
 	# Load permanent upgrades BEFORE stage config so stage-1 health/damage
 	# already reflect any purchased Monster Base skills.
 	_load_meta_modifiers()
+	# Head Start (monster_start_xp): XP banked before the first kill. Set, not
+	# gained, so Bloodhound's XP bonus does not scale it; the next XP gain
+	# checks evolution as usual.
+	current_xp = _meta_start_xp
 	_enter_stage()
 	super._ready()
 
@@ -241,6 +256,9 @@ func _receive_damage(packet: DamagePacket) -> void:
 
 	last_attacker = packet.source if packet.source is Node2D else null
 	_since_damage = 0.0
+	# Scarred Hide / Thick Hide (monster_damage_taken_mult): the hit's final
+	# amount, so the damage_applied listeners see what landed.
+	packet.amount *= _meta_damage_taken_mult
 	current_health -= packet.amount
 	set_hp_display(current_health, get_max_health())
 
@@ -263,7 +281,7 @@ func _check_evolution() -> void:
 	if current_xp >= next_threshold:
 		var new_stage = current_stage + 1
 		
-		if new_stage <= 3:
+		if new_stage <= FINAL_STAGE:
 			_evolve_to_stage(new_stage)
 
 func _evolve_to_stage(new_stage: int) -> void:
@@ -307,7 +325,12 @@ func _load_meta_modifiers() -> void:
 	_meta_xp_mult = float(mods.get("monster_xp_mult", 1.0))
 	_meta_evo_threshold_mult = float(mods.get("monster_evo_threshold", 1.0))
 	_meta_range_mult = float(mods.get("monster_range_mult", 1.0))
-	# Behaviour nodes are additive keys: missing = 0.0 = off.
+	_meta_damage_taken_mult = float(mods.get("monster_damage_taken_mult", 1.0))
+	_meta_regen_mult = float(mods.get("monster_regen_mult", 1.0))
+	_meta_cooldown_mult = float(mods.get("monster_cooldown_mult", 1.0))
+	_meta_final_stage_damage_mult = float(mods.get("monster_s3_damage_mult", 1.0))
+	# Additive keys: missing = 0.0 = none / off (Head Start, behaviour nodes).
+	_meta_start_xp = float(mods.get("monster_start_xp", 0.0))
 	_meta_enrage = float(mods.get("monster_enrage", 0.0)) > 0.5
 	_meta_titan = float(mods.get("monster_titan_form", 0.0)) > 0.5
 	_meta_stage_2_evo_heal = float(mods.get("monster_stage_2_evo_heal", 0.0))
@@ -406,6 +429,24 @@ func debug_meta_line() -> String:
 	return "%s S%d HP %d/%d nodes: %s" % [name, current_stage, roundi(current_health), roundi(get_max_health()), listed]
 
 
+## The F3 line under debug_meta_line: the generic tree keys this monster
+## carries ("!" = Apex Predator active now; "-" on a fresh save).
+func debug_keys_line() -> String:
+	var tags: Array[String] = []
+	if _meta_damage_taken_mult != 1.0:
+		tags.append("dmg taken x%.2f" % _meta_damage_taken_mult)
+	if _meta_regen_mult != 1.0:
+		tags.append("regen x%.2f" % _meta_regen_mult)
+	if _meta_cooldown_mult != 1.0:
+		tags.append("cd x%.2f" % _meta_cooldown_mult)
+	if _meta_final_stage_damage_mult != 1.0:
+		var apex: String = "apex x%.2f" % _meta_final_stage_damage_mult
+		tags.append(apex + "!" if current_stage >= FINAL_STAGE else apex)
+	if _meta_start_xp > 0.0:
+		tags.append("xp +%d" % roundi(_meta_start_xp))
+	return "tree keys: " + (" ".join(tags) if not tags.is_empty() else "-")
+
+
 # ============================================
 # Stage Visuals
 # ============================================
@@ -493,13 +534,18 @@ func _choose_and_use_ability() -> void:
 ## the stage multiplier (Front Cleave 12/17/24 = 12 x 1.0/1.4/2.0, Ram Dash
 ## 18/25/36), so a tabled ability only gets the permanent skill-tree bonus;
 ## applying the stage multiplier again made a stage-3 cleave hit for 48.
-## Enrage multiplies on top at cast time (Grount has no separate basic attack:
-## Front Cleave, Ram Dash and Ground Slam all come through here).
+## Apex Predator (monster_s3_damage_mult) multiplies at the final stage, and
+## Enrage on top of everything at cast time (Grount has no separate basic
+## attack: Front Cleave, Ram Dash and Ground Slam all come through here).
 func effective_ability_damage(ability: AbilityBase) -> float:
 	var dmg: float = ability.damage * _meta_damage_mult
 	if ability.damage_per_stage.is_empty():
 		dmg = ability.damage * damage_multiplier
-	return dmg * _enrage_factor(enrage_damage_mult)
+	return dmg * _final_stage_damage_factor() * _enrage_factor(enrage_damage_mult)
+
+
+func _final_stage_damage_factor() -> float:
+	return _meta_final_stage_damage_mult if current_stage >= FINAL_STAGE else 1.0
 
 
 ## Cast with an explicit target (null = facing-direction cast, e.g. an escape
@@ -511,8 +557,10 @@ func _cast(ability_name: String, ability: AbilityBase, cast_target: Node2D) -> b
 	if not ability.is_unlocked_at(current_stage) or not ability.can_use(self):
 		return false
 	ability.execute(self, cast_target, effective_ability_damage(ability))
-	ability_cooldowns[ability_name] = ability.cooldown
-	_cooldown_totals[ability_name] = ability.cooldown
+	# Primal Rhythm (monster_cooldown_mult) shortens every cast's cooldown.
+	var cooldown: float = ability.cooldown * _meta_cooldown_mult
+	ability_cooldowns[ability_name] = cooldown
+	_cooldown_totals[ability_name] = cooldown
 	if strategy_profile:
 		_cast_lock = strategy_profile.cast_lock_time
 	EventBus.notify_ability_cast(self, ability, cast_target)
@@ -597,7 +645,8 @@ func _update_rest(delta: float) -> void:
 		if _resting and is_target_valid():
 			_reevaluate_current_target(0.0)
 	if _resting and _since_damage >= p.regen_delay and p.rest_regen_pct_per_sec > 0.0 and current_health < max_hp:
-		current_health = minf(current_health + max_hp * p.rest_regen_pct_per_sec * delta, max_hp)
+		# Primal Regeneration (monster_regen_mult) speeds the rest regeneration.
+		current_health = minf(current_health + max_hp * p.rest_regen_pct_per_sec * _meta_regen_mult * delta, max_hp)
 		set_hp_display(current_health, max_hp)
 
 

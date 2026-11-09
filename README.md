@@ -977,6 +977,8 @@ Methods:
 - add_experience(amount: int)
 - level_up()
 - _recalculate_all_stats()
+- get_modifier(stat, multiplicative) / get_damage_taken_multiplier() /
+  get_cooldown_multiplier() / get_start_level()   # generic stat keys
 ```
 
 #### AbilitySystem (4-Slot System)
@@ -993,6 +995,7 @@ Slots:
 Methods:
 - use_ability(slot: String)
 - update_cooldowns(delta: float)
+# Active and ultimate cooldowns start x HeroStats cooldown_mult (Battle Drills).
 ```
 
 #### State Machine (godotstatecharts)
@@ -1483,6 +1486,31 @@ stat, one ability property, or a behaviour key.
   `get_unlocked_skills` is its view now. The step is idempotent: an id that
   already has a rank keeps it.
 
+#### Generic stat keys
+
+Keys a node can carry that are not a stat of their own. Each has ONE apply
+site and is neutral (x1.0, or 0 / level 1) when no node with it is owned, so a
+fresh save plays exactly as before. Multiplicative keys stack by product
+(Tempered Mail -10% and Plated -12% take x0.79), additive ones by sum.
+
+| key | nodes | apply site |
+|---|---|---|
+| `damage_taken_mult` | hb_armor, ir_armor | `HeroBase._receive_damage` scales `packet.amount` (the final amount: `damage_applied` listeners and `deal_damage`'s return see it) |
+| `cooldown_mult` | hb_cdr | `AbilitySystem._use_ability`: the active and ultimate cooldown (and the HUD's total) as they start; the basic attack keeps attack speed |
+| `start_level` | hb_startlvl | `HeroBase._ready` levels the hero up to it after the tree is applied (growth on top of the % nodes, full HP) |
+| `monster_damage_taken_mult` | mb_bark, g1_hide, gk_bark | `MonsterBase._receive_damage` scales `packet.amount` |
+| `monster_regen_mult` | mb_regen, ny_regen, gk_regen | `MonsterBase._update_rest`: rest regeneration per second |
+| `monster_cooldown_mult` | mb_cdr | `MonsterBase._cast`: every cast's cooldown (after the stage table) |
+| `monster_s3_damage_mult` | mb_apex | `MonsterBase.effective_ability_damage` at `FINAL_STAGE` (3), under Enrage |
+| `monster_start_xp` | mb_headstart | `MonsterBase._ready` sets `current_xp` (not gained, so Bloodhound does not scale it); the next XP gain checks evolution |
+
+Hero keys reach `HeroStatsComponent` through `add_stat_modifier` like the
+stats (`get_damage_taken_multiplier`, `get_cooldown_multiplier`,
+`get_start_level`, all over `get_modifier(stat, multiplicative)`); monster
+keys come from `collect_monster_modifiers` into `MonsterBase._meta_*`. The F3
+overlay prints them as a "tree keys:" line under the followed hero and under
+each monster ("dmg taken x0.79 cd x0.85 start Lv 2"; "-" on a fresh save).
+
 #### Tree content v2 (Data/SkillTrees)
 
 Nine trees, one `MetaSkillTree` resource each with its nodes as sub-resources:
@@ -1521,31 +1549,29 @@ in the inspector (the tool keeps an existing file unless `--force`).
   last) wait for the Opponent Threat rule.
 
 Nodes, "branch: tier node (ranks)", `<-` = requires any; **[hidden]** = no
-code yet (5.3: new stat keys; 5.4: hero behaviours; 6.6: monster behaviours):
+code yet (5.4: hero behaviours; 6.6: monster behaviours):
 
 - **hero_base** (Might / Vitality / Tactics):
   - Might: T1 Sharp Edge +5/8/10% damage; T2 Forged Steel +10/13/15% <- Sharp
     Edge; T3 Battle Rhythm +15/20% attack speed; T4 Berserker +20% damage.
   - Vitality: T1 Iron Skin +5/8/10% max HP; T2 Hardened +10/13/15%; T2 Tempered
-    Mail -4/7/10% damage taken **[hidden]**; T3 Veteran Plate +15/20%; T4 Titan
-    +25%.
+    Mail -4/7/10% damage taken; T3 Veteran Plate +15/20%; T4 Titan +25%.
   - Tactics: T1 Light Step +5/7/9% move speed; T2 Quick Strike +10/13/15% attack
     speed; T3 Swift Runner +15/18%; T3 Battle Drills -8/15% active and ultimate
-    cooldowns **[hidden]**; T4 Storm Blades +25% attack speed; T4 Veteran Squad
-    heroes start at level 2 **[hidden]**.
+    cooldowns; T4 Storm Blades +25% attack speed; T4 Veteran Squad heroes start
+    at level 2.
 - **monster_base** (Ferocity / Hide / Instinct):
   - Ferocity: T1 Sharpened Claws +3/5/7% damage; T2 Brutal Strikes +15/18/20%;
     T3 Long Reach +10/15% ability range; T4 Apex Predator +15% damage at
-    Stage 3 **[hidden]**.
+    Stage 3.
   - Hide: T1 Thicker Hide +10/13/15% max HP; T2 Scarred Hide -4/7/10% damage
-    taken **[hidden]**; T3 Apex Body +20/25%; T4 Primal Regeneration resting
-    regen x2 **[hidden]**.
+    taken; T3 Apex Body +20/25%; T4 Primal Regeneration resting regen x2.
   - Instinct: T1 Faster Hunt +5/7/9% speed; T1 Bloodhound +10/15/20% XP; T2
-    Quick Evolution -10/13/15% stage XP; T3 Primal Rhythm -5/10% cooldowns
-    **[hidden]**; T4 Head Start 60 XP at the start **[hidden]**.
+    Quick Evolution -10/13/15% stage XP; T3 Primal Rhythm -5/10% cooldowns; T4
+    Head Start 60 XP at the start.
 - **hero_irelia** (Bulwark / Oathkeeper / Vanguard):
   - Bulwark: T1 Reinforced Plate +8/11/14/17/20% max HP; T2 Unbreakable
-    +12/16/20%; T2 Plated -5/9/12% damage taken **[hidden]**; T3 Bulwark
+    +12/16/20%; T2 Plated -5/9/12% damage taken; T3 Bulwark
     +20/25/30%; T4 CAP Last Stand (a lethal hit once leaves 1 HP, 2 s
     invulnerable) **[hidden]**.
   - Oathkeeper: T1 Second Breath Regeneration heals 1.5/2/2.5x; T2 Shield
@@ -1596,7 +1622,7 @@ code yet (5.3: new stat keys; 5.4: hero behaviours; 6.6: monster behaviours):
     Wrath +20/25/30%; T3 **Enrage** (below 20% HP: +30% speed and +50% on every
     cast; ends once HP is back at 20%, by rest regen or the evolution heal); T4
     CAP Rampage (a hero kill resets the cooldowns, heals 15%) **[hidden]**.
-  - Hide: T1 Thick Hide -3/5/7/9/10% damage taken **[hidden]**; T2 Scar Tissue
+  - Hide: T1 Thick Hide -3/5/7/9/10% damage taken; T2 Scar Tissue
     +15/20/25% max HP; T2 Early Slam (Ground Slam at Stage 1); T3 Wider Slam
     Ground Slam radius +20/30/40%; T3 **Gravity Slam** (at impact, living
     heroes, Ted's pet and mobs within 200 px are dragged to 80 px from it along
@@ -1609,7 +1635,8 @@ code yet (5.3: new stat keys; 5.4: hero behaviours; 6.6: monster behaviours):
     +33/45/55%; T3 Apex Charge +15/18/21% speed; T4 CAP Trample **[hidden]**.
 - **monster_nyxa** (Hunger / Shadow / Brood) and **monster_gorrak** (Tusks /
   Bristles / Warband): generated with the gamedesign values, registered with
-  their defs in Phase 6.
+  their defs in Phase 6. Their generic-key nodes (Night Recovery, Mud Armour,
+  Mud Bath) are already shown; their other new-code nodes stay hidden.
 
 **Permanent XP** (per hero and per monster) opens a character tree's tiers:
 Lv 3, 5 and 8 take about 2, 7 and 19 matches with that character.

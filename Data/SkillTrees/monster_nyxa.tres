@@ -48,7 +48,6 @@ rank_costs = Array[int]([240, 400, 600])
 rank_values = Array[float]([1.5, 2.0, 2.5])
 requires = Array[StringName]([&"ny_leech"])
 branch = 0
-hidden = true
 stat_name = "monster_regen_mult"
 stat_value = 1.5
 

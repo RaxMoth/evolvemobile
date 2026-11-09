@@ -103,7 +103,6 @@ max_rank = 5
 rank_costs = Array[int]([40, 60, 100, 150, 240])
 rank_values = Array[float]([0.97, 0.95, 0.93, 0.91, 0.9])
 branch = 1
-hidden = true
 stat_name = "monster_damage_taken_mult"
 stat_value = 0.97
 

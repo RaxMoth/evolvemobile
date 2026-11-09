@@ -302,7 +302,9 @@ func _requires_met(tree_id: StringName, n: MetaSkillNode) -> bool:
 
 ## Called by HeroBase._ready. Stacks every owned node of the Hero Base tree AND
 ## of this hero's own tree (hero_<id>) onto its HeroStatsComponent, each at its
-## rank (one apply call per node; see applied_ranks).
+## rank (one apply call per node; see applied_ranks). The generic keys
+## (damage_taken_mult, cooldown_mult, start_level) stack there like the stats;
+## their apply sites read them back (README "Generic stat keys").
 func apply_unlocked_to_hero(hero: Node) -> void:
 	var stats := hero.get_node_or_null("HeroStats") as HeroStatsComponent
 	if stats == null:
@@ -375,7 +377,8 @@ func _apply_tree_to_stats(tree_id: StringName, stats: HeroStatsComponent) -> voi
 ## Monster Base tree merged with the monster's own tree (monster_<id>) when an
 ## id is given. A key is either always multiplicative (stacked from 1.0; a
 ## missing key means 1.0) or always additive (behaviour keys such as
-## monster_enrage, summed from 0.0; a missing key means 0.0 = off).
+## monster_enrage and amounts such as monster_start_xp, summed from 0.0; a
+## missing key means 0.0 = off).
 func collect_monster_modifiers(monster_id: StringName = &"") -> Dictionary:
 	var out: Dictionary = {}
 	_merge_monster_tree(TREE_MONSTER_BASE, out)

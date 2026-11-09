@@ -13,6 +13,8 @@ const TREE_IDS: Array[StringName] = [&"hero_base", &"monster_base", &"hero_river
 	&"hero_ted", &"hero_irelia", &"monster_grount", &"monster_nyxa", &"monster_gorrak"]
 ## Not in the roster until Phase 6: generated, not registered.
 const UNLINKED: Array[StringName] = [&"monster_nyxa", &"monster_gorrak"]
+## The throwaway tree of the hidden-node tests (_register_hidden_tree).
+const HIDDEN_TREE := &"test_hidden_nodes"
 const TED := "res://Scenes/NPCs/Hero/Heros/Support/Ted/Ted.tscn"
 const IRELIA := "res://Scenes/NPCs/Hero/Heros/Support/Irelia/Irelia.tscn"
 
@@ -107,12 +109,31 @@ func before_each() -> void:
 
 
 func after_each() -> void:
+	MetaSkillManager.trees.erase(HIDDEN_TREE)
 	if is_isolated():
 		PersistedData.wipe_progress(false)
 
 
 func _load_tree(tree_id: StringName) -> MetaSkillTree:
 	return load("%s/%s.tres" % [TREE_DIR, tree_id]) as MetaSkillTree
+
+
+## A throwaway tree (after_each removes it), as the shipped trees change while
+## batches unhide their nodes. Tier 1, no gates: Shown, Secret (hidden), Both
+## (needs Secret or Shown) and Orphan (needs Secret).
+func _register_hidden_tree() -> MetaSkillTree:
+	var t := MetaSkillTree.new()
+	t.id = HIDDEN_TREE
+	var shown := MetaSkillNode.make(&"shown", "Shown", "+{v}% max HP", 1, 100, PersistedData.GOLD, "max_health", 1.05)
+	var secret := MetaSkillNode.make(&"secret", "Secret", "-{v}% damage taken", 1, 100, PersistedData.GOLD, "damage_taken_mult", 0.9)
+	secret.hidden = true
+	var both := MetaSkillNode.make(&"both", "Both", "+{v}% damage", 1, 100, PersistedData.GOLD, "attack_damage", 1.1)
+	both.requires = [&"secret", &"shown"]
+	var orphan := MetaSkillNode.make(&"orphan", "Orphan", "+{v}% move speed", 1, 100, PersistedData.GOLD, "move_speed", 1.1)
+	orphan.requires = [&"secret"]
+	t.nodes = [shown, secret, both, orphan]
+	MetaSkillManager.register_tree(t)
+	return t
 
 
 # ------------------------------------------------------- save compatibility
@@ -295,41 +316,57 @@ func test_ai_build_orders_are_valid() -> void:
 func test_hidden_nodes_are_not_shown_bought_or_applied() -> void:
 	if not require_isolated():
 		return
-	var tree := MetaSkillManager.TREE_HERO_BASE
-	var t := MetaSkillManager.get_tree_def(tree)
-	assert_true(t.find_node(&"hb_armor").hidden, "Tempered Mail waits for damage_taken_mult (5.3)")
+	var t := _register_hidden_tree()
+	var tree := HIDDEN_TREE
 	PersistedData.add_currency(PersistedData.GOLD, 5000)
-	_buy(tree, [&"t1_hp", &"t1_hp", &"t1_hp", &"t1_dmg"])
-	assert_true(MetaSkillManager.is_tier_open(tree, 2), "4 ranks open tier 2")
-	assert_eq(MetaSkillManager.node_state(tree, &"hb_armor"), MetaSkillManager.NodeState.INVALID, "not part of the game yet")
-	assert_false(MetaSkillManager.rank_up(tree, &"hb_armor"))
-	assert_eq(MetaSkillManager.next_rank_cost(tree, &"hb_armor"), 0)
+	assert_eq(MetaSkillManager.node_state(tree, &"secret"), MetaSkillManager.NodeState.INVALID, "not part of the game yet")
+	assert_false(MetaSkillManager.rank_up(tree, &"secret"))
+	assert_eq(MetaSkillManager.next_rank_cost(tree, &"secret"), 0)
 	var model := UxTreeModel.from_meta_skills(tree)
-	assert_true(model.find(&"hb_armor") == null, "not on the screen")
-	assert_eq(model.find(&"t3_hp").requires, [&"t2_hp"] as Array[StringName], "its hidden parent is dropped")
+	assert_true(model.find(&"secret") == null, "not on the screen")
+	assert_eq(model.find(&"both").requires, [&"shown"] as Array[StringName], "its hidden parent is dropped")
 	assert_eq(model.nodes.size(), t.shown_nodes().size())
+	assert_eq(model.nodes.size(), 3)
+	_buy(tree, [&"shown"])
 	var open_before: int = MetaSkillManager.card_progress(tree)["open_ranks"]
 	# A save that owns one anyway (written by hand) keeps it, but it applies nothing.
-	PersistedData.set_skill_rank(tree, &"hb_armor", 1)
-	assert_eq(MetaSkillManager.node_state(tree, &"hb_armor"), MetaSkillManager.NodeState.UNLOCKED)
-	assert_false(MetaSkillManager.applied_ranks(tree).has(&"hb_armor"))
+	PersistedData.set_skill_rank(tree, &"secret", 1)
+	assert_eq(MetaSkillManager.node_state(tree, &"secret"), MetaSkillManager.NodeState.UNLOCKED)
+	assert_false(MetaSkillManager.applied_ranks(tree).has(&"secret"))
 	assert_eq(MetaSkillManager.card_progress(tree)["open_ranks"], open_before, "left out of the card pill")
-	assert_eq(MetaSkillManager.card_progress(tree)["owned_ranks"], 4)
+	assert_eq(MetaSkillManager.card_progress(tree)["owned_ranks"], 1)
 
 
-## A node whose parents are all hidden needs only its tier: Grount's Scar Tissue
-## and Early Slam hang under the hidden Thick Hide.
+## A node whose parents are all hidden needs only its tier; a hidden parent
+## next to a shown one does not open it.
 func test_a_hidden_parent_neither_opens_nor_blocks() -> void:
 	if not require_isolated():
 		return
-	var tree := MetaSkillManager.monster_tree_id(&"grount")
-	PersistedData.add_currency(PersistedData.LEAVES, 5000)
-	PersistedData.add_monster_xp(&"grount", 300)
-	assert_eq(MetaSkillManager.node_state(tree, &"g2_hp"), MetaSkillManager.NodeState.AVAILABLE)
-	assert_eq(MetaSkillManager.node_state(tree, &"g2_earlyslam"), MetaSkillManager.NodeState.AVAILABLE)
-	assert_eq(MetaSkillManager.node_state(tree, &"g2_evo"), MetaSkillManager.NodeState.REQUIRES_MISSING, "Ravenous needs Stampede")
-	_buy(tree, [&"g1_speed"])
-	assert_eq(MetaSkillManager.node_state(tree, &"g2_evo"), MetaSkillManager.NodeState.AVAILABLE)
+	_register_hidden_tree()
+	var tree := HIDDEN_TREE
+	PersistedData.add_currency(PersistedData.GOLD, 5000)
+	assert_eq(MetaSkillManager.node_state(tree, &"orphan"), MetaSkillManager.NodeState.AVAILABLE, "its only parent is hidden")
+	PersistedData.set_skill_rank(tree, &"secret", 1)
+	assert_eq(MetaSkillManager.node_state(tree, &"both"), MetaSkillManager.NodeState.REQUIRES_MISSING,
+		"an owned hidden parent opens nothing")
+	_buy(tree, [&"shown"])
+	assert_eq(MetaSkillManager.node_state(tree, &"both"), MetaSkillManager.NodeState.AVAILABLE)
+
+
+## Every hidden node of a registered tree: data only, never bought or applied.
+func test_shipped_hidden_nodes_stay_out_of_the_game() -> void:
+	if not require_isolated():
+		return
+	for tree_id: StringName in TREE_IDS:
+		var t := MetaSkillManager.get_tree_def(tree_id)
+		if t == null:
+			continue
+		for n in t.nodes:
+			if not n.hidden:
+				continue
+			assert_eq(MetaSkillManager.node_state(tree_id, n.id), MetaSkillManager.NodeState.INVALID, "%s/%s" % [tree_id, n.id])
+			PersistedData.set_skill_rank(tree_id, n.id, 1)
+			assert_false(MetaSkillManager.applied_ranks(tree_id).has(n.id), "%s/%s applies nothing" % [tree_id, n.id])
 
 
 # ------------------------------------------------------------ gates

@@ -317,18 +317,23 @@ func _update_hud_label(active_hero: Node, heroes_team: TeamBlackboard, enemies_t
 		EntityRegistry.hero_side.size() - EntityRegistry.heroes.size(),
 		EntityRegistry.monsters.size(),
 		EntityRegistry.mobs.size()])
-	# Per monster: stage, HP and the behaviour nodes it carries.
+	# Per monster: stage, HP and the behaviour nodes it carries, then its
+	# generic tree keys (damage taken, regen, cooldowns, Apex, Head Start).
 	for mon in EntityRegistry.monsters:
 		if is_instance_valid(mon) and mon is MonsterBase:
 			lines.append((mon as MonsterBase).debug_meta_line())
+			lines.append("  " + (mon as MonsterBase).debug_keys_line())
 	if active_hero and is_instance_valid(active_hero):
 		lines.append("Camera focus: %s" % active_hero.name)
 		if active_hero is EntityBase:
 			var t: Variant = (active_hero as EntityBase).target_entity
 			if is_instance_valid(t):
 				lines.append("  → targeting: %s" % t.name)
-		# Its own ability copies: the cooldown each starts and the skill-tree
-		# modifiers applied at spawn (MetaSkillManager).
+		# The tree keys without a stat of their own (damage taken, cooldowns,
+		# start level), then its own ability copies: the cooldown each starts
+		# and the skill-tree modifiers applied at spawn (MetaSkillManager).
+		if active_hero is HeroBase:
+			lines.append("  " + (active_hero as HeroBase).debug_keys_line())
 		var abilities := active_hero.get_node_or_null("AbilitySystem") as AbilitySystem
 		if abilities:
 			for a in abilities.all_abilities():

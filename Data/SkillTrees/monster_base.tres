@@ -54,7 +54,6 @@ tier = 4
 cost = 600
 requires = Array[StringName]([&"mt3_range"])
 branch = 0
-hidden = true
 stat_name = "monster_s3_damage_mult"
 stat_value = 1.15
 
@@ -82,7 +81,6 @@ rank_costs = Array[int]([100, 160, 250])
 rank_values = Array[float]([0.96, 0.93, 0.9])
 requires = Array[StringName]([&"mt1_hp"])
 branch = 1
-hidden = true
 stat_name = "monster_damage_taken_mult"
 stat_value = 0.96
 
@@ -110,7 +108,6 @@ tier = 4
 cost = 600
 requires = Array[StringName]([&"mt3_hp"])
 branch = 1
-hidden = true
 stat_name = "monster_regen_mult"
 stat_value = 2.0
 
@@ -166,7 +163,6 @@ rank_costs = Array[int]([200, 320])
 rank_values = Array[float]([0.95, 0.9])
 requires = Array[StringName]([&"mt2_evo"])
 branch = 2
-hidden = true
 stat_name = "monster_cooldown_mult"
 stat_value = 0.95
 
@@ -179,7 +175,6 @@ tier = 4
 cost = 900
 requires = Array[StringName]([&"mb_cdr"])
 branch = 2
-hidden = true
 stat_name = "monster_start_xp"
 stat_value = 60.0
 stat_multiplicative = false

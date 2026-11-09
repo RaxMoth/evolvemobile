@@ -89,6 +89,34 @@ func get_attack_speed_multiplier() -> float:
 	return stat_modifiers.attack_speed_mult
 
 
+## A permanent modifier as add_stat_modifier stacked it: the product of every
+## multiplier on `stat_name` (1.0 = none) or the sum of every delta (0.0 = none).
+func get_modifier(stat_name: String, multiplicative: bool) -> float:
+	if multiplicative:
+		return float(stat_modifiers.get(stat_name + "_mult", 1.0))
+	return float(stat_modifiers.get(stat_name + "_add", 0.0))
+
+
+## Skill-tree keys that are not a stat of their own (README "Generic stat
+## keys"); each has one apply site and is neutral on a fresh save.
+## damage_taken_mult (Tempered Mail, Plated): HeroBase._receive_damage scales
+## every hit by it.
+func get_damage_taken_multiplier() -> float:
+	return get_modifier("damage_taken_mult", true)
+
+
+## cooldown_mult (Battle Drills): AbilitySystem scales the active and the
+## ultimate cooldown by it when they start.
+func get_cooldown_multiplier() -> float:
+	return get_modifier("cooldown_mult", true)
+
+
+## start_level (Veteran Squad): the in-round level HeroBase._ready levels the
+## hero up to once the tree is applied; 1 without the node.
+func get_start_level() -> int:
+	return clampi(roundi(get_modifier("start_level", false)), 1, MAX_LEVEL)
+
+
 func add_stat_modifier(stat_name: String, value: float, is_multiplicative: bool = false) -> void:
 	var modifier_key := stat_name + ("_mult" if is_multiplicative else "_add")
 	

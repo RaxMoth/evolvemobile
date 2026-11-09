@@ -123,7 +123,9 @@ func test_live_grount_tree() -> void:
 	assert_eq(m.tree_id, tree_id)
 	assert_eq(m.title, t.display_name)
 	assert_eq(m.nodes.size(), t.shown_nodes().size(), "every shown node")
-	assert_true(m.find(&"g1_hide") == null, "a hidden node is left out")
+	for n in t.nodes:
+		if n.hidden:
+			assert_true(m.find(n.id) == null, "hidden %s is left out" % n.id)
 	assert_eq(m.tiers, 4)
 	assert_eq(m.columns(), 3)
 	assert_eq(m.branches, PackedStringArray(["Horns", "Hide", "Charge"]), "the tree's branches")
@@ -152,7 +154,7 @@ func test_live_grount_tree() -> void:
 			assert_eq(m.state_of(n), UxTreeModel.NodeState.LOCKED, "%s is gated" % n.id)
 			assert_eq(m.block_reason(n), "Needs Lv %d" % t.gate_for_tier(n.tier))
 	assert_eq(str(capstones), str([&"g4_titan"]), "the only shown capstone")
-	assert_eq(m.find(&"g2_hp").requires, [] as Array[StringName], "its only parent, Thick Hide, is hidden")
+	assert_eq(m.find(&"g2_hp").requires, [&"g1_hide"] as Array[StringName], "Thick Hide opens Scar Tissue")
 	assert_eq(m.find(&"g4_titan").requires, [&"g3_slam", &"g3_pull", &"g2_hp"] as Array[StringName])
 	assert_eq(m.find(&"g1_dmg").effect_at(2), "+14% damage")
 	assert_eq(m.find(&"g1_dmg").icon.resource_path, "res://Assets/UI/Icons/Stats/stat_damage.svg")

@@ -46,7 +46,6 @@ rank_costs = Array[int]([120, 200, 330])
 rank_values = Array[float]([0.95, 0.91, 0.88])
 requires = Array[StringName]([&"i1_hp"])
 branch = 0
-hidden = true
 stat_name = "damage_taken_mult"
 stat_value = 0.95
 

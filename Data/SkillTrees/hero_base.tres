@@ -95,7 +95,6 @@ rank_costs = Array[int]([100, 160, 250])
 rank_values = Array[float]([0.96, 0.93, 0.9])
 requires = Array[StringName]([&"t1_hp"])
 branch = 1
-hidden = true
 stat_name = "damage_taken_mult"
 stat_value = 0.96
 
@@ -180,7 +179,6 @@ rank_costs = Array[int]([200, 320])
 rank_values = Array[float]([0.92, 0.85])
 requires = Array[StringName]([&"t2_atkspd"])
 branch = 2
-hidden = true
 stat_name = "cooldown_mult"
 stat_value = 0.92
 
@@ -205,7 +203,6 @@ tier = 4
 cost = 900
 requires = Array[StringName]([&"t3_speed", &"hb_cdr"])
 branch = 2
-hidden = true
 stat_name = "start_level"
 stat_value = 2.0
 stat_multiplicative = false

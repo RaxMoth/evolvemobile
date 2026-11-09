@@ -53,8 +53,34 @@ func _ready() -> void:
 	# super._ready() so the EntityBase HUD setup reads the post-bonus
 	# max_health for the floating HP bar.
 	MetaSkillManager.apply_unlocked_to_hero(self)
+	_apply_start_level()
 
 	super._ready()
+
+## Veteran Squad (hero_base key start_level): the hero starts the match at the
+## tree's start level. Runs after the tree is applied, so each level adds its
+## growth on top of the % nodes, and before EntityBase._ready writes the level
+## label and HP bar. Nothing happens at level 1, the fresh-save default.
+func _apply_start_level() -> void:
+	var start_level: int = stats.get_start_level()
+	if start_level <= stats.level:
+		return
+	while stats.level < start_level:
+		stats.level_up()
+	stats.refill_health()
+
+
+## One F3 HUD line for the followed hero: the tree keys without a stat of their
+## own it carries ("cd" = active and ultimate; "-" on a fresh save).
+func debug_keys_line() -> String:
+	var tags: Array[String] = []
+	if stats.get_damage_taken_multiplier() != 1.0:
+		tags.append("dmg taken x%.2f" % stats.get_damage_taken_multiplier())
+	if stats.get_cooldown_multiplier() != 1.0:
+		tags.append("cd x%.2f" % stats.get_cooldown_multiplier())
+	if stats.get_start_level() > 1:
+		tags.append("start Lv %d" % stats.get_start_level())
+	return "tree keys: " + (" ".join(tags) if not tags.is_empty() else "-")
 
 func _process(delta: float) -> void:
 	if _attack_speed_boost_timer > 0.0:
@@ -241,6 +267,9 @@ func _receive_damage(packet: DamagePacket) -> void:
 		return
 
 	last_attacker = packet.source if packet.source is Node2D else null
+	# Tempered Mail / Plated (damage_taken_mult): the hit's final amount, so the
+	# damage_applied listeners (numbers, threat, the sim) see what landed.
+	packet.amount *= stats.get_damage_taken_multiplier()
 	stats.take_damage(packet.amount)
 
 	if not stats.is_alive():

@@ -139,7 +139,7 @@ func test_grount_tree_ends_in_the_titan_form_capstone() -> void:
 func test_grount_tree_lists_its_shipped_nodes() -> void:
 	var t: MetaSkillTree = MetaSkillManager.get_tree_def(_tree())
 	var expected: Dictionary = {
-		1: ["g1_dmg", "g1_range", "g1_speed", "g1_stun"],
+		1: ["g1_dmg", "g1_hide", "g1_range", "g1_speed", "g1_stun"],
 		2: ["g2_cleavecd", "g2_earlyslam", "g2_evo", "g2_hp"],
 		3: ["g3_dash", "g3_dmg", "g3_enrage", "g3_pull", "g3_slam", "g3_speed"],
 		4: ["g4_titan"],
@@ -151,7 +151,7 @@ func test_grount_tree_lists_its_shipped_nodes() -> void:
 			ids.append(String(n.id))
 		ids.sort()
 		assert_eq(ids, expected[tier], "tier %d" % tier)
-	for id: StringName in [&"g1_hide", &"g4_rampage", &"g4_stampede"]:
+	for id: StringName in [&"g4_rampage", &"g4_stampede"]:
 		var n := t.find_node(id)
 		assert_true(n != null and n.hidden, "%s is in the data, hidden until its code lands" % id)
 	assert_true(t.find_node(&"g3_evoheal") == null, "Second Wind is not in the shipped tree yet")
@@ -160,21 +160,20 @@ func test_grount_tree_lists_its_shipped_nodes() -> void:
 		PersistedData.add_monster_xp(&"grount", 2800)
 		_grant(["g1_dmg", "g2_hp"])
 		assert_false(MetaSkillManager.unlock(_tree(), &"g3_evoheal"), "so it cannot be bought")
-		assert_false(MetaSkillManager.unlock(_tree(), &"g1_hide"), "nor can a hidden node")
-		assert_eq(MetaSkillManager.node_state(_tree(), &"g1_hide"), MetaSkillManager.NodeState.INVALID)
+		assert_false(MetaSkillManager.unlock(_tree(), &"g4_rampage"), "nor can a hidden node")
+		assert_eq(MetaSkillManager.node_state(_tree(), &"g4_rampage"), MetaSkillManager.NodeState.INVALID)
 
 
 ## Character trees open tiers by the character's permanent level (1/3/5/8).
-## Gravity Slam's Hide branch starts at the hidden Thick Hide: a hidden parent
-## neither opens nor blocks, so Scar Tissue needs only its tier.
+## Titan Form's Hide branch starts at Thick Hide, Scar Tissue's only parent.
 func test_tier_4_opens_at_grount_level_8() -> void:
 	if not require_isolated():
 		return
 	PersistedData.add_currency(PersistedData.LEAVES, 40 + 120 + 1500)
-	assert_true(MetaSkillManager.unlock(_tree(), &"g1_dmg"))
+	assert_true(MetaSkillManager.unlock(_tree(), &"g1_hide"))
 	assert_eq(MetaSkillManager.node_state(_tree(), &"g2_hp"), MetaSkillManager.NodeState.LEVEL_GATED, "Lv 1")
 	PersistedData.add_monster_xp(&"grount", 1000)  # Lv 5: tiers 2 and 3
-	assert_true(MetaSkillManager.unlock(_tree(), &"g2_hp"), "its only parent, Thick Hide, is hidden")
+	assert_true(MetaSkillManager.unlock(_tree(), &"g2_hp"), "Thick Hide opens Scar Tissue")
 	assert_eq(MetaSkillManager.node_state(_tree(), &"g4_titan"), MetaSkillManager.NodeState.LEVEL_GATED)
 	assert_false(MetaSkillManager.unlock(_tree(), &"g4_titan"), "tier 4 needs Lv 8")
 	PersistedData.add_monster_xp(&"grount", 1800)  # 2800 XP: Lv 8
