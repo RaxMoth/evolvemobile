@@ -203,6 +203,13 @@ theme_type_variation = &"HeaderSmall"
 theme_override_font_sizes/font_size = 28
 text_overrun_behavior = 3
 
+[node name="HeadRanks" type="Label" parent="Column/Header/Row/Info/TitleRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 8
+theme_type_variation = &"HintLabel"
+horizontal_alignment = 2
+
 [node name="HeadLevel" type="Label" parent="Column/Header/Row/Info/TitleRow"]
 unique_name_in_owner = true
 layout_mode = 2
@@ -426,40 +433,30 @@ theme_type_variation = &"HintLabel"
 [node name="EffectNow" type="Label" parent="Column/Sheet/Row/Info"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_type_variation = &"BodyDim"
+theme_type_variation = &"NowLabel"
 text_overrun_behavior = 3
 
 [node name="EffectNext" type="Label" parent="Column/Sheet/Row/Info"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_type_variation = &"AmberLabel"
-theme_override_font_sizes/font_size = 20
+theme_type_variation = &"NextLabel"
 text_overrun_behavior = 3
 
 [node name="BuyRow" type="HBoxContainer" parent="Column/Sheet/Row/Info"]
 layout_mode = 2
 theme_override_constants/separation = 12
 
-[node name="Cost" type="HBoxContainer" parent="Column/Sheet/Row/Info/BuyRow"]
+[node name="Equip" type="Button" parent="Column/Sheet/Row/Info/BuyRow"]
 unique_name_in_owner = true
+visible = false
+custom_minimum_size = Vector2(170, 62)
 layout_mode = 2
-theme_override_constants/separation = 6
-
-[node name="CostIcon" type="TextureRect" parent="Column/Sheet/Row/Info/BuyRow/Cost"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(36, 36)
-layout_mode = 2
-size_flags_vertical = 4
-mouse_filter = 2
-expand_mode = 1
-stretch_mode = 5
-
-[node name="CostValue" type="Label" parent="Column/Sheet/Row/Info/BuyRow/Cost"]
-unique_name_in_owner = true
-layout_mode = 2
-theme_type_variation = &"Counter"
-theme_override_font_sizes/font_size = 28
-vertical_alignment = 1
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 0.6
+theme_type_variation = &"ButtonHero"
+disabled = true
+text = "EQUIP"
+text_overrun_behavior = 3
 
 [node name="Upgrade" type="Button" parent="Column/Sheet/Row/Info/BuyRow"]
 unique_name_in_owner = true
@@ -470,6 +467,38 @@ theme_type_variation = &"ButtonPrimary"
 disabled = true
 text = "UPGRADE"
 text_overrun_behavior = 3
+
+[node name="Cost" type="HBoxContainer" parent="Column/Sheet/Row/Info/BuyRow/Upgrade"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 11
+anchor_left = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -150.0
+offset_right = -16.0
+offset_bottom = -6.0
+grow_horizontal = 0
+grow_vertical = 2
+mouse_filter = 2
+theme_override_constants/separation = 6
+alignment = 2
+
+[node name="CostIcon" type="TextureRect" parent="Column/Sheet/Row/Info/BuyRow/Upgrade/Cost"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(34, 34)
+layout_mode = 2
+size_flags_vertical = 4
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="CostValue" type="Label" parent="Column/Sheet/Row/Info/BuyRow/Upgrade/Cost"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"Counter"
+theme_override_font_sizes/font_size = 24
+vertical_alignment = 1
 
 [node name="TopBar" parent="." instance=ExtResource("4_top_bar")]
 unique_name_in_owner = true
@@ -487,6 +516,7 @@ layout_mode = 1
 [connection signal="tile_pressed" from="Column/Overview/Abilities/Ability2" to="." method="_on_ability_tile_pressed"]
 [connection signal="tile_pressed" from="Column/Overview/Abilities/Ability3" to="." method="_on_ability_tile_pressed"]
 [connection signal="node_selected" from="Column/TreeView" to="." method="_on_tree_view_node_selected"]
+[connection signal="pressed" from="Column/Sheet/Row/Info/BuyRow/Equip" to="." method="_on_equip_pressed"]
 [connection signal="pressed" from="Column/Sheet/Row/Info/BuyRow/Upgrade" to="." method="_on_upgrade_pressed"]
 [connection signal="left_pressed" from="TopBar" to="." method="_on_top_bar_left_pressed"]
 [connection signal="tab_selected" from="NavBar" to="." method="_on_nav_bar_tab_selected"]

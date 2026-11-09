@@ -16,8 +16,11 @@ extends Control
 ##   - autoloads: the tree unpaused on entry (a match result pauses it), the
 ##     menu music, the UI click on every button press, the first-run tutorial,
 ##     GameManager's chosen side (persisted), the background World load, the
-##     skill purchases (MetaSkillManager.rank_up) and the refresh of the open
-##     screens when skills or currencies change.
+##     skill purchases (MetaSkillManager.rank_up) and capstone swaps
+##     (equip_capstone), the refresh of the open screens when skills or
+##     currencies change, and the nav bars' red dots: Heroes / Monsters while a
+##     character of that side has a rank to buy, Growth while the chosen side's
+##     account tree has one.
 ## The rosters (Heroes / Monsters and the lobby's plaques) open a character's
 ## detail; Growth opens the chosen side's account-wide tree in the detail
 ## screen. Until their new screens land, HUNT opens the old PreRoundSetup
@@ -60,6 +63,7 @@ func _ready() -> void:
 	_stack = [lobby]
 	_settle()
 	lobby.show_side(GameManager.chosen_side)
+	_update_nav_notify()
 	AudioManager.play_music(&"menu")
 	_wire_clicks(self)
 	get_tree().node_added.connect(_on_node_added)
@@ -212,6 +216,32 @@ func _refresh_screens() -> void:
 			(screen as RosterScreen).refresh()
 		elif screen is CharacterDetail:
 			(screen as CharacterDetail).refresh()
+	_update_nav_notify()
+
+
+## The red dots of every nav bar under the menu (NavBar.GROUP): Heroes and
+## Monsters while a character of that side has a rank to buy now
+## (CharacterProgress.upgrades_ready), Growth while the chosen side's account
+## tree has one (MetaSkillManager.card_progress).
+func _update_nav_notify() -> void:
+	var heroes := false
+	var monsters := false
+	for def in GameManager.ROSTER.all():
+		if CharacterProgress.upgrades_ready(def) > 0:
+			if def.is_monster():
+				monsters = true
+			else:
+				heroes = true
+	var monster_side := GameManager.chosen_side == MatchRewards.Side.MONSTER
+	var base := MetaSkillManager.TREE_MONSTER_BASE if monster_side else MetaSkillManager.TREE_HERO_BASE
+	var base_ready: bool = MetaSkillManager.card_progress(base)["upgrade_ready"]
+	for node in get_tree().get_nodes_in_group(NavBar.GROUP):
+		var bar := node as NavBar
+		if bar == null or not is_ancestor_of(bar):
+			continue
+		bar.set_notify(&"heroes", heroes)
+		bar.set_notify(&"monsters", monsters)
+		bar.set_notify(&"growth", base_ready)
 
 
 func _on_currency_changed(_currency: StringName, _amount: int) -> void:
@@ -230,6 +260,8 @@ func _start_match() -> void:
 
 func _on_side_chosen(side: int) -> void:
 	GameManager.choose_side(side)
+	# Growth's dot follows the chosen side's account tree.
+	_update_nav_notify()
 
 
 func _on_hunt_requested(side: int) -> void:
@@ -285,6 +317,12 @@ func _on_back_requested() -> void:
 ## the screens refresh on the signals it fires.
 func _on_upgrade_requested(tree_id: StringName, node_id: StringName) -> void:
 	MetaSkillManager.rank_up(tree_id, node_id)
+
+
+## A capstone's EQUIP makes it the tree's active one (free; the next spawn
+## applies it); the screens refresh on skills_changed.
+func _on_equip_requested(tree_id: StringName, node_id: StringName) -> void:
+	MetaSkillManager.equip_capstone(tree_id, node_id)
 
 
 func _on_tab_selected(tab_id: StringName) -> void:

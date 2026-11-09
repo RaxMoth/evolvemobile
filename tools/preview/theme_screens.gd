@@ -1,16 +1,21 @@
 extends Control
 ## Proof sheet for the theme variations the Phase 3-5 screens use on top of
 ## the art set (tools/art/make_theme.py "screen variations"): skill-tree nodes
-## and capstones in every state with rank pips and the selection ring, branch
-## plaques, tier gate chip, detail tabs, flat button, the bottom sheet with its
-## labels, chip and evolution bar, and the side frames. Not a production
-## screen and not shipped (tools/). Render muted on a copy of the project:
+## (the real SkillNodeButton: NodeTile in the branch colours, pips, the red "+"
+## badge, the selection ring) and capstones in their arch in every state,
+## branch plaques, the tier gutter's plaques, detail tabs, flat button, the
+## bottom sheet with its labels, chip and evolution bar, and the side frames.
+## Not a production screen and not shipped (tools/). Render muted on a copy of
+## the project:
 ##   godot --path <copy> --audio-driver Dummy --fixed-fps 30
 ##         --write-movie <dir>/f.png --quit-after 8 res://tools/preview/ThemeScreens.tscn
 
 const UI := "res://Assets/UI/"
-const NODE_SIZE := Vector2(84, 84)
-const PIP_SIZE := Vector2(14, 14)
+const NODE_SCENE := preload("res://Scenes/UI/Components/SkillNodeButton.tscn")
+const LOCKED := UxTreeModel.NodeState.LOCKED
+const AVAILABLE := UxTreeModel.NodeState.AVAILABLE
+const OWNED := UxTreeModel.NodeState.OWNED
+const MAXED := UxTreeModel.NodeState.MAXED
 
 @onready var _root: VBoxContainer = $Margin/Root
 
@@ -18,21 +23,22 @@ const PIP_SIZE := Vector2(14, 14)
 func _ready() -> void:
 	_root.add_child(_label("Skill Tree", &"HeaderLarge"))
 	_root.add_child(_tabs())
-	_root.add_child(_plaques())
-	_root.add_child(_label("Nodes: locked · available · owned · maxed", &"HintLabel"))
-	var nodes := _row(22)
-	nodes.add_child(_node(&"NodeLocked", "stat_hp", 0, 3, false))
-	nodes.add_child(_node(&"NodeAvailable", "stat_damage", 0, 3, false))
-	nodes.add_child(_node(&"NodeOwned", "stat_speed", 2, 3, true))
-	nodes.add_child(_node(&"NodeMaxed", "stat_armor", 3, 3, false))
+	_plaques()
+	_root.add_child(_label("Nodes: locked · open, buyable · owned, selected · maxed", &"HintLabel"))
+	var nodes := _row(40)
 	_root.add_child(nodes)
-	_root.add_child(_gate())
-	_root.add_child(_label("Capstones: locked · available · owned", &"HintLabel"))
+	_node(nodes, "Iron Skin", "stat_hp", 0, 3, LOCKED, 0)
+	_node(nodes, "Sharp Edge", "stat_damage", 0, 3, AVAILABLE, 0, true)
+	_node(nodes, "Light Step", "stat_speed", 2, 3, OWNED, 1, false, false, true)
+	_node(nodes, "Plated", "stat_armor", 3, 3, MAXED, 2)
+	_root.add_child(_gutter())
+	_root.add_child(_label("Capstones: locked · open · owned · equipped", &"HintLabel"))
 	var caps := _row(30)
-	caps.add_child(_node(&"CapLocked", "stat_aoe", 0, 1, false))
-	caps.add_child(_node(&"CapAvailable", "stat_threat", 0, 1, false))
-	caps.add_child(_node(&"CapOwned", "stat_lifesteal", 1, 1, false))
 	_root.add_child(caps)
+	_node(caps, "Last Stand", "stat_hp", 0, 1, LOCKED, 0)
+	_node(caps, "Guardian Angel", "stat_heal", 0, 1, AVAILABLE, 1, true)
+	_node(caps, "Rallying Taunt", "stat_threat", 1, 1, MAXED, 2)
+	_node(caps, "Titan Form", "stat_hp", 1, 1, MAXED, 1, false, true)
 	_root.add_child(_frames())
 	var spacer := Control.new()
 	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -87,69 +93,66 @@ func _tabs() -> Control:
 	return h
 
 
-func _plaques() -> Control:
+## The branch plaques, each tinted like SkillTreeView's (the row joins the
+## sheet first: a plaque reads its theme's stylebox once it is in the tree).
+func _plaques() -> void:
 	var h := _row(14)
-	for branch: String in ["Bulwark", "Oathkeeper", "Vanguard"]:
+	_root.add_child(h)
+	var names := ["Bulwark", "Oathkeeper", "Vanguard"]
+	for i in names.size():
 		var p := PanelContainer.new()
 		p.theme_type_variation = &"BranchPlaque"
-		p.add_child(_label(branch, &"NavLabel"))
+		p.custom_minimum_size = Vector2(192, 40)
+		p.add_child(_label(String(names[i]).to_upper(), &"Counter"))
 		h.add_child(p)
-	return h
+		var box := p.get_theme_stylebox(&"panel").duplicate() as StyleBoxFlat
+		if box != null:
+			box.bg_color = UiPalette.branch_color(i, false).darkened(SkillTreeView.PLAQUE_DARKEN)
+			p.add_theme_stylebox_override(&"panel", box)
 
 
-## A tree node: the frame variation around a stat glyph, rank pips under it,
-## and (selected) the white ring around the frame.
-func _node(variation: StringName, glyph: String, rank: int, max_rank: int, selected: bool) -> Control:
-	var v := VBoxContainer.new()
-	v.add_theme_constant_override("separation", 6)
-	var holder := CenterContainer.new()
-	holder.custom_minimum_size = NODE_SIZE + Vector2(14, 14)
-	var frame := PanelContainer.new()
-	frame.theme_type_variation = variation
-	frame.custom_minimum_size = NODE_SIZE
-	var icon := _tex("Icons/Stats/" + glyph, Vector2(48, 48))
-	if String(variation).ends_with("Locked"):
-		icon.self_modulate = UiPalette.LOCKED_MODULATE.lightened(0.35)
-		var lock := _tex("Icons/UI/ui_lock", Vector2(30, 30))
-		lock.size_flags_horizontal = Control.SIZE_SHRINK_END
-		lock.size_flags_vertical = Control.SIZE_SHRINK_END
-		frame.add_child(icon)
-		frame.add_child(lock)
-	else:
-		frame.add_child(icon)
-	holder.add_child(frame)
-	if selected:
-		var ring := PanelContainer.new()
-		ring.theme_type_variation = &"SelectRing"
-		ring.custom_minimum_size = NODE_SIZE + Vector2(12, 12)
-		ring.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		holder.add_child(ring)
-	v.add_child(holder)
-	var pips := _row(4)
+## A SkillNodeButton (a capstone when max_rank is 1) in `row`: `rank` of
+## `max_rank` owned in `node_state`, in branch `branch`'s hero colour.
+func _node(row: Control, title: String, glyph: String, rank: int, max_rank: int, node_state: UxTreeModel.NodeState,
+		branch: int, buyable: bool = false, equipped: bool = false, selected: bool = false) -> void:
+	var holder := Control.new()
+	holder.custom_minimum_size = Vector2(150, 102 + SkillNodeButton.ARCH_RISE)
+	row.add_child(holder)
+	var b := NODE_SCENE.instantiate() as SkillNodeButton
+	holder.add_child(b)
+	var n := UxTreeModel.TreeNodeData.new()
+	n.id = StringName(title)
+	n.name = title
+	n.icon = _svg("Icons/Stats/" + glyph)
+	n.capstone = max_rank == 1
+	n.branch = branch
+	n.rank = rank
 	for i in max_rank:
-		var pip := PanelContainer.new()
-		pip.custom_minimum_size = PIP_SIZE
-		if i >= rank:
-			pip.theme_type_variation = &"PipOff"
-		elif rank == max_rank:
-			pip.theme_type_variation = &"PipMax"
-		else:
-			pip.theme_type_variation = &"PipOn"
-		pips.add_child(pip)
-	v.add_child(pips)
-	return v
+		n.rank_costs.append(100 * (i + 1))
+	b.setup(n, node_state, buyable, UiPalette.branch_color(branch, false), equipped)
+	b.position = Vector2((150 - b.tile_size()) * 0.5, SkillNodeButton.ARCH_RISE)
+	if selected:
+		b.set_selected(true)
 
 
-func _gate() -> Control:
-	var c := CenterContainer.new()
-	var chip := PanelContainer.new()
-	chip.theme_type_variation = &"GateChip"
-	var h := _row(6)
-	h.add_child(_tex("Icons/UI/ui_lock", Vector2(22, 22)))
-	h.add_child(_label("Lv 5 · 10 pts", &"Caption"))
-	chip.add_child(h)
-	c.add_child(chip)
-	return c
+## The tier gutter's plaques: an open tier ("Lv 3") and a closed one.
+func _gutter() -> Control:
+	var h := _row(16)
+	for spec: Array in [["Lv", 3, true], ["Lv", 8, false], ["pts", 10, true], ["pts", 18, false]]:
+		var open: bool = spec[2]
+		var plaque := PanelContainer.new()
+		plaque.theme_type_variation = &"GutterPlaque" if open else &"GutterPlaqueLocked"
+		plaque.custom_minimum_size = Vector2(52, 84)
+		var v := VBoxContainer.new()
+		v.alignment = BoxContainer.ALIGNMENT_CENTER
+		v.add_theme_constant_override("separation", 0)
+		v.add_child(_label(str(spec[0]), &"GutterCaption" if open else &"GutterCaptionLocked"))
+		v.add_child(_label(str(spec[1]), &"GutterNumber" if open else &"GutterNumberLocked"))
+		if not open:
+			v.add_child(_tex("Kit/padlock", Vector2(18, 20)))
+		plaque.add_child(v)
+		h.add_child(plaque)
+	return h
 
 
 func _frames() -> Control:
@@ -175,7 +178,7 @@ func _sheet() -> Control:
 	var top := HBoxContainer.new()
 	top.add_theme_constant_override("separation", 14)
 	var slot := PanelContainer.new()
-	slot.theme_type_variation = &"NodeOwned"
+	slot.theme_type_variation = &"PanelInset"
 	slot.custom_minimum_size = Vector2(96, 96)
 	slot.add_child(_tex("Icons/Stats/stat_speed", Vector2(56, 56)))
 	top.add_child(slot)
@@ -184,8 +187,8 @@ func _sheet() -> Control:
 	var title := _label("Swift Runner", &"HeaderSmall")
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	text.add_child(title)
-	for line: Array in [["Rank 2/3 · Vanguard · Tier 2", &"BodyDim"], ["Now: +10% move speed", &"Label"],
-			["Next: +15% move speed", &"AmberLabel"], ["Not learned yet by Vlad", &"HintLabel"]]:
+	for line: Array in [["Rank 2/3 · Vanguard · Tier 2", &"HintLabel"], ["Now: +10% move speed", &"NowLabel"],
+			["Next: +15% move speed", &"NextLabel"]]:
 		var l := _label(str(line[0]), line[1])
 		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 		text.add_child(l)

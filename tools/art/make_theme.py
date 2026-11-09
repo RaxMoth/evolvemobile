@@ -412,35 +412,40 @@ p("PopupMenu/colors/font_hover_color", C(P["amber_light"]))
 #   SmallLabel -> BodyDim
 # test/test_theme_contract.gd keeps the UX names out of the theme.
 
-# Skill-tree nodes: the round node_minor ring around a stat glyph, the square
-# leafy node_major frame for capstones. The tint versions are white, so the
-# state colour is the StyleBoxTexture modulate. Texture margins 0: the frame
-# scales with the (square) node, the ring stays round.
-for kind in ("node_minor", "node_minor_tint"):
-    kit.MARGINS.setdefault(kind, (0, 0, 0, 0))
-for kind in ("node_major", "node_major_tint"):
-    kit.MARGINS.setdefault(kind, (20, 20, 20, 20))
-NODE_CONTENT = (14, 14, 14, 14)
-for name, art, tint in (("NodeLocked", "node_minor_tint", P["locked_line"]),
-                        ("NodeAvailable", "node_minor", None),
-                        ("NodeOwned", "node_minor_tint", P["moss_light"]),
-                        ("NodeMaxed", "node_minor_tint", P["rank_max"]),
-                        ("CapLocked", "node_major_tint", P["locked_line"]),
-                        ("CapAvailable", "node_major", None),
-                        ("CapOwned", "node_major_tint", P["rank_max"])):
+# Skill-tree screen (gamedesign 1.8). A node is a square NodeTile (84 px, a
+# capstone 92 px in a drawn stone arch): the locked look here, and
+# SkillNodeButton recolours its own copy from its branch colour
+# (UiPalette.branch_color) once the node is open or owned. The red "+" badge
+# of a node whose next rank can be bought now, the node names under the tiles
+# and the tier gutter's wood plaques ("Lv 5", padlocked while closed).
+p("NodeTile/base_type", '&"PanelContainer"')
+p("NodeTile/styles/panel", SR(sb_flat("node_tile_sb", C(P["locked_fill"]), C(P["locked_line"]), (4, 4, 4, 4), 14,
+                                      (0, 0, 0, 0))))
+p("BadgeReady/base_type", '&"PanelContainer"')
+p("BadgeReady/styles/panel", SR(sb_flat("badge_ready_sb", C(P["upgrade_ready"]), INK, (3, 3, 3, 3), 12, (4, 4, 4, 4))))
+for name, col in (("GutterPlaque", P["wood_dark"]), ("GutterPlaqueLocked", P["locked_fill"])):
     p(f"{name}/base_type", '&"PanelContainer"')
-    p(f"{name}/styles/panel", SR(sb_tex(f"{name}_sb", art, NODE_CONTENT, C(tint) if tint else None)))
+    p(f"{name}/styles/panel", SR(sb_flat(f"{name}_sb", C(col), INK, (3, 3, 3, 3), 8, (2, 4, 2, 4))))
+label_type("NodeName", 13, TXT, 4, "font_body")
+label_type("NodeNameLocked", 13, C(P["text_muted"]), 4, "font_body")
+label_type("GutterCaption", 15, C(P["text_dim"]), 4, "font_body")
+label_type("GutterCaptionLocked", 15, C(P["text_muted"]), 4, "font_body")
+label_type("GutterNumber", 28, TXT, 6)
+label_type("GutterNumberLocked", 28, C(P["text_muted"]), 6)
+# The bottom sheet's "Now: ..." (white) and "Next: ..." (moss green) lines.
+label_type("NowLabel", 19, TXT, 6)
+label_type("NextLabel", 19, C(P["moss_light"]), 6)
 
-# Rank pips under a node (filled / empty / maxed) and the selection ring.
+# Rank pips inside a node tile (filled / empty / maxed) and the selection ring
+# around the tile.
 for name, col in (("PipOn", P["amber"]), ("PipOff", P["panel_inset"]), ("PipMax", P["rank_max"])):
     p(f"{name}/base_type", '&"PanelContainer"')
     p(f"{name}/styles/panel", SR(sb_flat(f"{name}_sb", C(col), INK, (2, 2, 2, 2), 7, (0, 0, 0, 0))))
 p("SelectRing/base_type", '&"PanelContainer"')
-p("SelectRing/styles/panel", SR(sb_flat("select_ring_sb", C(P["white"], 0), C(P["white"]), (4, 4, 4, 4), 48, (0, 0, 0, 0))))
+p("SelectRing/styles/panel", SR(sb_flat("select_ring_sb", C(P["white"], 0), C(P["white"]), (4, 4, 4, 4), 18, (0, 0, 0, 0))))
 
-# Tier gate chip ("Lv 5 · 10 pts"), branch name plaque, bottom sheet, chips.
-p("GateChip/base_type", '&"PanelContainer"')
-p("GateChip/styles/panel", SR(sb_flat("gate_chip_sb", C(P["bg_void"]), C(P["divider"]), (2, 2, 2, 2), 12, (10, 2, 10, 2))))
+# Branch name plaque (the tree view tints its copy in the branch colour),
+# bottom sheet, chips.
 p("BranchPlaque/base_type", '&"PanelContainer"')
 p("BranchPlaque/styles/panel", SR(sb_flat("branch_plaque_sb", C(P["wood"]), INK, (3, 3, 3, 3), 10, (10, 4, 10, 4))))
 p("SheetPanel/base_type", '&"PanelContainer"')

@@ -6,9 +6,10 @@ extends TestCase
 ## its requests, the locked teasers in the lair, the chosen side persisted
 ## through GameManager, the first-run tutorial, the rosters, Growth and the
 ## character detail each request opens (nav tabs switch, cards push), the
-## purchases MenuRoot makes for the detail screen and the refresh after them,
-## and the old overlays that still stand in for the pre-round and settings
-## screens. Tests that write the save run only in the isolated test user dir.
+## purchases and capstone swaps MenuRoot makes for the detail screen and the
+## refresh after them, the nav bars' red dots for buyable ranks, and the old
+## overlays that still stand in for the pre-round and settings screens. Tests
+## that write the save run only in the isolated test user dir.
 
 const MENU_ROOT_PATH := "res://Scenes/UI/Screens/MenuRoot.tscn"
 const MENU_ROOT := preload("res://Scenes/UI/Screens/MenuRoot.tscn")
@@ -406,4 +407,62 @@ func test_the_detail_opens_buys_and_goes_back() -> void:
 	await _settle()
 	(root.lobby.get_node("MonsterStage/Nyxa") as BaseButton).pressed.emit()
 	assert_eq(root.top(), root.lobby, "a locked teaser has no detail yet")
+	root.queue_free()
+
+
+## Every nav bar under the menu lights Heroes, Monsters and Growth while that
+## side (Growth: the chosen side's account tree) has a rank to buy.
+func test_nav_dots_follow_buyable_ranks() -> void:
+	if not require_isolated():
+		return
+	GameManager.choose_side(HEROES, false)
+	var root := await _menu_root()
+	var bars: Array[NavBar] = []
+	for node in root.get_tree().get_nodes_in_group(NavBar.GROUP):
+		if root.is_ancestor_of(node):
+			bars.append(node as NavBar)
+	assert_eq(bars.size(), 5, "the lobby, both rosters and both details")
+	for bar in bars:
+		assert_eq(bar.notify_tabs.size(), 0, "%s: a fresh save has nothing to buy" % root.get_path_to(bar))
+	PersistedData.add_currency(PersistedData.STEEL, 40)  # a hero's first tier-1 rank
+	await wait_frames(1)
+	for bar in bars:
+		assert_true(bar.notify_tabs.has(&"heroes"), "%s: Heroes" % root.get_path_to(bar))
+		assert_false(bar.notify_tabs.has(&"monsters") or bar.notify_tabs.has(&"growth"))
+		assert_true(bar.tab(&"heroes").notify, "the dot shows")
+	PersistedData.add_currency(PersistedData.LEAVES, 40)
+	PersistedData.add_currency(PersistedData.GOLD, 40)
+	await wait_frames(1)
+	for bar in bars:
+		for tab: StringName in [&"heroes", &"monsters", &"growth"]:
+			assert_true(bar.notify_tabs.has(tab), "%s: %s" % [root.get_path_to(bar), tab])
+	# Spend the Gold on the monster side's account tree: the hero tree can no
+	# longer afford anything, so Growth's dot goes out.
+	assert_true(MetaSkillManager.rank_up(MetaSkillManager.TREE_MONSTER_BASE, &"mt1_hp"))
+	await wait_frames(1)
+	assert_false(bars[0].notify_tabs.has(&"growth"), "no Gold left")
+	root.queue_free()
+
+
+## EQUIP on the detail's sheet goes through MenuRoot to
+## MetaSkillManager.equip_capstone, and the sheet refreshes.
+func test_the_detail_equips_a_capstone() -> void:
+	if not require_isolated():
+		return
+	var tree_id := MetaSkillManager.hero_tree_id(&"irelia")
+	PersistedData.add_hero_xp(&"irelia", 2800)
+	for id: StringName in [&"i1_hp", &"i2_hp", &"i3_hp", &"ir_regen", &"i2_rallycd", &"ir_aegis", &"ir_laststand", &"ir_guardian"]:
+		PersistedData.set_skill_rank(tree_id, id, 1)
+	PersistedData.set_equipped_capstone(tree_id, &"ir_laststand")
+	GameManager.choose_side(HEROES, false)
+	var root := await _menu_root()
+	(root.lobby.get_node("HeroStage/Irelia") as BaseButton).pressed.emit()
+	assert_eq(root.top(), root.detail)
+	root.detail.set_mode(CharacterDetail.Mode.TREE)
+	root.detail.tree_view().select(&"ir_guardian")
+	(root.detail.get_node("%Equip") as BaseButton).pressed.emit()
+	assert_eq(MetaSkillManager.equipped_capstone(tree_id), &"ir_guardian", "MenuRoot equips it")
+	await wait_frames(1)
+	assert_eq((root.detail.get_node("%Equip") as Button).text, "EQUIPPED", "the sheet refreshed")
+	assert_true(root.detail.tree_view().button(&"ir_guardian").equipped)
 	root.queue_free()

@@ -68,6 +68,8 @@ mode = 1
 [connection signal="back_requested" from="Screens/CharacterDetail" to="." method="_on_back_requested"]
 [connection signal="tab_selected" from="Screens/CharacterDetail" to="." method="_on_tab_selected"]
 [connection signal="upgrade_requested" from="Screens/CharacterDetail" to="." method="_on_upgrade_requested"]
+[connection signal="equip_requested" from="Screens/CharacterDetail" to="." method="_on_equip_requested"]
 [connection signal="back_requested" from="Screens/Growth" to="." method="_on_back_requested"]
 [connection signal="tab_selected" from="Screens/Growth" to="." method="_on_tab_selected"]
 [connection signal="upgrade_requested" from="Screens/Growth" to="." method="_on_upgrade_requested"]
+[connection signal="equip_requested" from="Screens/Growth" to="." method="_on_equip_requested"]

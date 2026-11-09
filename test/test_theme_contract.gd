@@ -17,11 +17,12 @@ const SCAN_DIRS: Array[String] = ["res://Scenes", "res://Scripts"]
 ## Variations for the skill tree, pre-round, lobby and detail screens, with
 ## the type each one extends.
 const SCREEN_VARIATIONS: Dictionary[String, String] = {
-	"NodeLocked": "PanelContainer", "NodeAvailable": "PanelContainer",
-	"NodeOwned": "PanelContainer", "NodeMaxed": "PanelContainer",
-	"CapLocked": "PanelContainer", "CapAvailable": "PanelContainer", "CapOwned": "PanelContainer",
+	"NodeTile": "PanelContainer", "BadgeReady": "PanelContainer",
+	"GutterPlaque": "PanelContainer", "GutterPlaqueLocked": "PanelContainer",
+	"NodeName": "Label", "NodeNameLocked": "Label", "GutterCaption": "Label", "GutterCaptionLocked": "Label",
+	"GutterNumber": "Label", "GutterNumberLocked": "Label", "NowLabel": "Label", "NextLabel": "Label",
 	"PipOn": "PanelContainer", "PipOff": "PanelContainer", "PipMax": "PanelContainer",
-	"GateChip": "PanelContainer", "BranchPlaque": "PanelContainer", "SheetPanel": "PanelContainer",
+	"BranchPlaque": "PanelContainer", "SheetPanel": "PanelContainer",
 	"ChipPanel": "PanelContainer", "SelectRing": "PanelContainer",
 	"FrameHero": "PanelContainer", "FrameMonster": "PanelContainer",
 	"EvoBar": "ProgressBar", "TabButton": "Button", "FlatButton": "Button",
@@ -158,24 +159,30 @@ func test_screen_variations_exist() -> void:
 	for variation: String in SCREEN_VARIATIONS:
 		assert_eq(theme.get_type_variation_base(variation), StringName(SCREEN_VARIATIONS[variation]),
 				"%s extends %s" % [variation, SCREEN_VARIATIONS[variation]])
-	# Skill-tree nodes and capstones are the kit's node_minor / node_major
-	# frames; the white tint versions carry the state colour as modulate.
-	for variation: String in ["NodeLocked", "NodeAvailable", "NodeOwned", "NodeMaxed",
-			"CapLocked", "CapAvailable", "CapOwned"]:
-		var sb := theme.get_stylebox(&"panel", variation) as StyleBoxTexture
-		assert_true(sb != null and sb.texture != null, "%s is a kit frame" % variation)
-		if sb == null or sb.texture == null:
-			continue
-		var art := "node_major" if variation.begins_with("Cap") else "node_minor"
-		assert_true(sb.texture.resource_path.get_file().begins_with(art), "%s uses %s" % [variation, art])
-		var tinted := sb.texture.resource_path.ends_with("_tint.svg")
-		assert_eq(sb.modulate_color != Color.WHITE, tinted, "%s: tint art <=> state colour" % variation)
+	# Skill-tree nodes are flat square tiles: the theme holds the locked look,
+	# SkillNodeButton recolours its own copy per branch (UiPalette.branch_color).
 	var palette := UiPalette.get_default()
-	for state: Array in [[&"NodeLocked", palette.locked_line], [&"NodeOwned", palette.moss_light],
-			[&"NodeMaxed", palette.rank_max], [&"CapLocked", palette.locked_line], [&"CapOwned", palette.rank_max]]:
-		var sb := theme.get_stylebox(&"panel", state[0]) as StyleBoxTexture
+	var tile := theme.get_stylebox(&"panel", &"NodeTile") as StyleBoxFlat
+	assert_true(tile != null, "NodeTile is a StyleBoxFlat")
+	if tile != null:
+		_assert_rgb(tile.bg_color, palette.locked_fill, "NodeTile fill")
+		_assert_rgb(tile.border_color, palette.locked_line, "NodeTile rim")
+		assert_eq(tile.border_width_left, 4, "a 4 px rim")
+		assert_eq(tile.corner_radius_top_left, 14, "rounded square")
+	var badge := theme.get_stylebox(&"panel", &"BadgeReady") as StyleBoxFlat
+	assert_true(badge != null, "BadgeReady is a StyleBoxFlat")
+	if badge != null:
+		_assert_rgb(badge.bg_color, palette.upgrade_ready, "the red + badge")
+	for pair: Array in [[&"GutterPlaque", palette.wood_dark], [&"GutterPlaqueLocked", palette.locked_fill]]:
+		var sb := theme.get_stylebox(&"panel", pair[0]) as StyleBoxFlat
+		assert_true(sb != null, "%s is a StyleBoxFlat" % pair[0])
 		if sb != null:
-			_assert_rgb(sb.modulate_color, state[1], "%s state colour" % state[0])
+			_assert_rgb(sb.bg_color, pair[1], "%s fill" % pair[0])
+	_assert_rgb(theme.get_color(&"font_color", &"NextLabel"), palette.moss_light, "Next: in moss green")
+	_assert_rgb(theme.get_color(&"font_color", &"NowLabel"), palette.text, "Now: in white")
+	_assert_rgb(theme.get_color(&"font_color", &"NodeNameLocked"), palette.text_muted, "a locked node's name")
+	for gone: String in ["NodeLocked", "NodeAvailable", "NodeOwned", "NodeMaxed", "CapLocked", "CapAvailable", "CapOwned", "GateChip"]:
+		assert_false(theme.get_type_list().has(gone), "%s left with the round rings" % gone)
 
 
 ## The theme writes colours with 4 significant digits.

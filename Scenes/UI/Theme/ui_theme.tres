@@ -49,10 +49,6 @@
 [ext_resource type="Texture2D" uid="uid://cs25mr5o05tm2" path="res://Assets/UI/Kit/toggle_off.svg" id="k_toggle_off"]
 [ext_resource type="Texture2D" uid="uid://cfa36fd633phl" path="res://Assets/UI/Kit/check_on.svg" id="k_check_on"]
 [ext_resource type="Texture2D" uid="uid://b071j5lg3a3kx" path="res://Assets/UI/Kit/check_off.svg" id="k_check_off"]
-[ext_resource type="Texture2D" uid="uid://cmq524nw0esee" path="res://Assets/UI/Kit/node_minor_tint.svg" id="k_node_minor_tint"]
-[ext_resource type="Texture2D" uid="uid://bd8a7nhi0q2x3" path="res://Assets/UI/Kit/node_minor.svg" id="k_node_minor"]
-[ext_resource type="Texture2D" uid="uid://chuwoa4xp3n8u" path="res://Assets/UI/Kit/node_major_tint.svg" id="k_node_major_tint"]
-[ext_resource type="Texture2D" uid="uid://cy6msp0thxrvi" path="res://Assets/UI/Kit/node_major.svg" id="k_node_major"]
 
 [sub_resource type="FontVariation" id="font_body"]
 variation_embolden = 0.25
@@ -1030,87 +1026,69 @@ corner_radius_top_right = 6
 corner_radius_bottom_right = 6
 corner_radius_bottom_left = 6
 
-[sub_resource type="StyleBoxTexture" id="NodeLocked_sb"]
-content_margin_left = 14.0
-content_margin_top = 14.0
-content_margin_right = 14.0
-content_margin_bottom = 14.0
-texture = ExtResource("k_node_minor_tint")
-texture_margin_left = 0.0
-texture_margin_top = 0.0
-texture_margin_right = 0.0
-texture_margin_bottom = 0.0
-modulate_color = Color(0.2902, 0.2706, 0.2549, 1)
+[sub_resource type="StyleBoxFlat" id="node_tile_sb"]
+content_margin_left = 0.0
+content_margin_top = 0.0
+content_margin_right = 0.0
+content_margin_bottom = 0.0
+bg_color = Color(0.07843, 0.06667, 0.06275, 1)
+border_width_left = 4
+border_width_top = 4
+border_width_right = 4
+border_width_bottom = 4
+border_color = Color(0.2902, 0.2706, 0.2549, 1)
+corner_radius_top_left = 14
+corner_radius_top_right = 14
+corner_radius_bottom_right = 14
+corner_radius_bottom_left = 14
 
-[sub_resource type="StyleBoxTexture" id="NodeAvailable_sb"]
-content_margin_left = 14.0
-content_margin_top = 14.0
-content_margin_right = 14.0
-content_margin_bottom = 14.0
-texture = ExtResource("k_node_minor")
-texture_margin_left = 0.0
-texture_margin_top = 0.0
-texture_margin_right = 0.0
-texture_margin_bottom = 0.0
+[sub_resource type="StyleBoxFlat" id="badge_ready_sb"]
+content_margin_left = 4.0
+content_margin_top = 4.0
+content_margin_right = 4.0
+content_margin_bottom = 4.0
+bg_color = Color(0.851, 0.2118, 0.1686, 1)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.102, 0.07451, 0.06667, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
 
-[sub_resource type="StyleBoxTexture" id="NodeOwned_sb"]
-content_margin_left = 14.0
-content_margin_top = 14.0
-content_margin_right = 14.0
-content_margin_bottom = 14.0
-texture = ExtResource("k_node_minor_tint")
-texture_margin_left = 0.0
-texture_margin_top = 0.0
-texture_margin_right = 0.0
-texture_margin_bottom = 0.0
-modulate_color = Color(0.5255, 0.6824, 0.3059, 1)
+[sub_resource type="StyleBoxFlat" id="GutterPlaque_sb"]
+content_margin_left = 2.0
+content_margin_top = 4.0
+content_margin_right = 2.0
+content_margin_bottom = 4.0
+bg_color = Color(0.2627, 0.1608, 0.1216, 1)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.102, 0.07451, 0.06667, 1)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
 
-[sub_resource type="StyleBoxTexture" id="NodeMaxed_sb"]
-content_margin_left = 14.0
-content_margin_top = 14.0
-content_margin_right = 14.0
-content_margin_bottom = 14.0
-texture = ExtResource("k_node_minor_tint")
-texture_margin_left = 0.0
-texture_margin_top = 0.0
-texture_margin_right = 0.0
-texture_margin_bottom = 0.0
-modulate_color = Color(0.949, 0.7882, 0.298, 1)
-
-[sub_resource type="StyleBoxTexture" id="CapLocked_sb"]
-content_margin_left = 14.0
-content_margin_top = 14.0
-content_margin_right = 14.0
-content_margin_bottom = 14.0
-texture = ExtResource("k_node_major_tint")
-texture_margin_left = 20.0
-texture_margin_top = 20.0
-texture_margin_right = 20.0
-texture_margin_bottom = 20.0
-modulate_color = Color(0.2902, 0.2706, 0.2549, 1)
-
-[sub_resource type="StyleBoxTexture" id="CapAvailable_sb"]
-content_margin_left = 14.0
-content_margin_top = 14.0
-content_margin_right = 14.0
-content_margin_bottom = 14.0
-texture = ExtResource("k_node_major")
-texture_margin_left = 20.0
-texture_margin_top = 20.0
-texture_margin_right = 20.0
-texture_margin_bottom = 20.0
-
-[sub_resource type="StyleBoxTexture" id="CapOwned_sb"]
-content_margin_left = 14.0
-content_margin_top = 14.0
-content_margin_right = 14.0
-content_margin_bottom = 14.0
-texture = ExtResource("k_node_major_tint")
-texture_margin_left = 20.0
-texture_margin_top = 20.0
-texture_margin_right = 20.0
-texture_margin_bottom = 20.0
-modulate_color = Color(0.949, 0.7882, 0.298, 1)
+[sub_resource type="StyleBoxFlat" id="GutterPlaqueLocked_sb"]
+content_margin_left = 2.0
+content_margin_top = 4.0
+content_margin_right = 2.0
+content_margin_bottom = 4.0
+bg_color = Color(0.07843, 0.06667, 0.06275, 1)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.102, 0.07451, 0.06667, 1)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
 
 [sub_resource type="StyleBoxFlat" id="PipOn_sb"]
 content_margin_left = 0.0
@@ -1171,26 +1149,10 @@ border_width_top = 4
 border_width_right = 4
 border_width_bottom = 4
 border_color = Color(1, 1, 1, 1)
-corner_radius_top_left = 48
-corner_radius_top_right = 48
-corner_radius_bottom_right = 48
-corner_radius_bottom_left = 48
-
-[sub_resource type="StyleBoxFlat" id="gate_chip_sb"]
-content_margin_left = 10.0
-content_margin_top = 2.0
-content_margin_right = 10.0
-content_margin_bottom = 2.0
-bg_color = Color(0.1176, 0.1098, 0.102, 1)
-border_width_left = 2
-border_width_top = 2
-border_width_right = 2
-border_width_bottom = 2
-border_color = Color(0.2902, 0.2706, 0.2549, 1)
-corner_radius_top_left = 12
-corner_radius_top_right = 12
-corner_radius_bottom_right = 12
-corner_radius_bottom_left = 12
+corner_radius_top_left = 18
+corner_radius_top_right = 18
+corner_radius_bottom_right = 18
+corner_radius_bottom_left = 18
 
 [sub_resource type="StyleBoxFlat" id="branch_plaque_sb"]
 content_margin_left = 10.0
@@ -1769,20 +1731,62 @@ PopupMenu/styles/panel = SubResource("tooltip_sb")
 PopupMenu/styles/hover = SubResource("popup_hover")
 PopupMenu/colors/font_color = Color(0.9647, 0.9451, 0.9059, 1)
 PopupMenu/colors/font_hover_color = Color(1, 0.8235, 0.4784, 1)
-NodeLocked/base_type = &"PanelContainer"
-NodeLocked/styles/panel = SubResource("NodeLocked_sb")
-NodeAvailable/base_type = &"PanelContainer"
-NodeAvailable/styles/panel = SubResource("NodeAvailable_sb")
-NodeOwned/base_type = &"PanelContainer"
-NodeOwned/styles/panel = SubResource("NodeOwned_sb")
-NodeMaxed/base_type = &"PanelContainer"
-NodeMaxed/styles/panel = SubResource("NodeMaxed_sb")
-CapLocked/base_type = &"PanelContainer"
-CapLocked/styles/panel = SubResource("CapLocked_sb")
-CapAvailable/base_type = &"PanelContainer"
-CapAvailable/styles/panel = SubResource("CapAvailable_sb")
-CapOwned/base_type = &"PanelContainer"
-CapOwned/styles/panel = SubResource("CapOwned_sb")
+NodeTile/base_type = &"PanelContainer"
+NodeTile/styles/panel = SubResource("node_tile_sb")
+BadgeReady/base_type = &"PanelContainer"
+BadgeReady/styles/panel = SubResource("badge_ready_sb")
+GutterPlaque/base_type = &"PanelContainer"
+GutterPlaque/styles/panel = SubResource("GutterPlaque_sb")
+GutterPlaqueLocked/base_type = &"PanelContainer"
+GutterPlaqueLocked/styles/panel = SubResource("GutterPlaqueLocked_sb")
+NodeName/base_type = &"Label"
+NodeName/fonts/font = SubResource("font_body")
+NodeName/font_sizes/font_size = 13
+NodeName/colors/font_color = Color(0.9647, 0.9451, 0.9059, 1)
+NodeName/colors/font_outline_color = Color(0.102, 0.07451, 0.06667, 1)
+NodeName/constants/outline_size = 4
+NodeNameLocked/base_type = &"Label"
+NodeNameLocked/fonts/font = SubResource("font_body")
+NodeNameLocked/font_sizes/font_size = 13
+NodeNameLocked/colors/font_color = Color(0.5608, 0.5294, 0.4863, 1)
+NodeNameLocked/colors/font_outline_color = Color(0.102, 0.07451, 0.06667, 1)
+NodeNameLocked/constants/outline_size = 4
+GutterCaption/base_type = &"Label"
+GutterCaption/fonts/font = SubResource("font_body")
+GutterCaption/font_sizes/font_size = 15
+GutterCaption/colors/font_color = Color(0.8118, 0.7765, 0.7216, 1)
+GutterCaption/colors/font_outline_color = Color(0.102, 0.07451, 0.06667, 1)
+GutterCaption/constants/outline_size = 4
+GutterCaptionLocked/base_type = &"Label"
+GutterCaptionLocked/fonts/font = SubResource("font_body")
+GutterCaptionLocked/font_sizes/font_size = 15
+GutterCaptionLocked/colors/font_color = Color(0.5608, 0.5294, 0.4863, 1)
+GutterCaptionLocked/colors/font_outline_color = Color(0.102, 0.07451, 0.06667, 1)
+GutterCaptionLocked/constants/outline_size = 4
+GutterNumber/base_type = &"Label"
+GutterNumber/fonts/font = SubResource("font_display")
+GutterNumber/font_sizes/font_size = 28
+GutterNumber/colors/font_color = Color(0.9647, 0.9451, 0.9059, 1)
+GutterNumber/colors/font_outline_color = Color(0.102, 0.07451, 0.06667, 1)
+GutterNumber/constants/outline_size = 6
+GutterNumberLocked/base_type = &"Label"
+GutterNumberLocked/fonts/font = SubResource("font_display")
+GutterNumberLocked/font_sizes/font_size = 28
+GutterNumberLocked/colors/font_color = Color(0.5608, 0.5294, 0.4863, 1)
+GutterNumberLocked/colors/font_outline_color = Color(0.102, 0.07451, 0.06667, 1)
+GutterNumberLocked/constants/outline_size = 6
+NowLabel/base_type = &"Label"
+NowLabel/fonts/font = SubResource("font_display")
+NowLabel/font_sizes/font_size = 19
+NowLabel/colors/font_color = Color(0.9647, 0.9451, 0.9059, 1)
+NowLabel/colors/font_outline_color = Color(0.102, 0.07451, 0.06667, 1)
+NowLabel/constants/outline_size = 6
+NextLabel/base_type = &"Label"
+NextLabel/fonts/font = SubResource("font_display")
+NextLabel/font_sizes/font_size = 19
+NextLabel/colors/font_color = Color(0.5255, 0.6824, 0.3059, 1)
+NextLabel/colors/font_outline_color = Color(0.102, 0.07451, 0.06667, 1)
+NextLabel/constants/outline_size = 6
 PipOn/base_type = &"PanelContainer"
 PipOn/styles/panel = SubResource("PipOn_sb")
 PipOff/base_type = &"PanelContainer"
@@ -1791,8 +1795,6 @@ PipMax/base_type = &"PanelContainer"
 PipMax/styles/panel = SubResource("PipMax_sb")
 SelectRing/base_type = &"PanelContainer"
 SelectRing/styles/panel = SubResource("select_ring_sb")
-GateChip/base_type = &"PanelContainer"
-GateChip/styles/panel = SubResource("gate_chip_sb")
 BranchPlaque/base_type = &"PanelContainer"
 BranchPlaque/styles/panel = SubResource("branch_plaque_sb")
 SheetPanel/base_type = &"PanelContainer"

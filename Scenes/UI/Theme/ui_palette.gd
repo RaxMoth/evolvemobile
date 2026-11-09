@@ -44,6 +44,11 @@ const SIGNATURE_TOKENS: Dictionary[String, StringName] = {
 	"nyxa": &"monster2",
 	"gorrak": &"monster3",
 }
+## Skill-tree branch colours (gamedesign 1.8) by branch index (offense,
+## defense, utility): the heroes' red, teal and amber, the monsters' crimson,
+## purple and moss (branch_color()).
+const BRANCH_TOKENS_HEROES: Array[StringName] = [&"vlad", &"teal", &"hero"]
+const BRANCH_TOKENS_MONSTER: Array[StringName] = [&"monster", &"monster_purple", &"moss"]
 
 static var _default: UiPalette = null
 
@@ -173,6 +178,15 @@ static func get_default() -> UiPalette:
 static func signature(id: String, is_monster: bool) -> Color:
 	var token: StringName = SIGNATURE_TOKENS.get(id, &"monster" if is_monster else &"hero")
 	return get_default().color(token)
+
+
+## Colour of skill-tree branch `branch` (0 offense, 1 defense, 2 utility) on
+## the heroes' or the monster's trees; copper for a node without a branch.
+static func branch_color(branch: int, is_monster: bool) -> Color:
+	var side := BRANCH_TOKENS_MONSTER if is_monster else BRANCH_TOKENS_HEROES
+	if branch < 0 or branch >= side.size():
+		return get_default().copper
+	return get_default().color(side[branch])
 
 
 ## Data-side lookup by token name. An unknown token is a content bug, so it

@@ -6,9 +6,12 @@ extends Control
 ## bar, so exactly one is lit; screens connect tab_selected scene-side and the
 ## menu root swaps screens. The arch glows in the chosen side's colour, and any tab
 ## can carry the red notify dot (notify_tabs: affordable upgrades, new codex
-## entries).
+## entries). Every bar is in the GROUP group (NavBar.tscn): MenuRoot lights the
+## Heroes, Monsters and Growth dots on all of them while ranks can be bought.
 
 signal tab_selected(tab_id: StringName)
+
+const GROUP := &"nav_bar"
 
 @export var active_tab: StringName = &"hunt":
 	set(v):

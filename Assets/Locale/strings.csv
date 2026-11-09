@@ -112,7 +112,6 @@ Not learned yet,Not learned yet,Noch nicht gelernt
 Now: %s,Now: %s,Jetzt: %s
 Next: %s,Next: %s,Als Nächstes: %s
 Rank %d/%d · Tier %d,Rank %d/%d · Tier %d,Rang %d/%d · Ebene %d
-Tier %d,Tier %d,Ebene %d
 Learn a Tier %d skill first,Learn a Tier %d skill first,Lerne zuerst eine Fähigkeit der Ebene %d
 Need %s more,Need %s more,Noch %s nötig
 Maxed,Maxed,Maximal
@@ -152,5 +151,14 @@ Front Cleave,Front Cleave,Frontalhieb
 Ram Dash,Ram Dash,Rammsturm
 Ground Slam,Ground Slam,Bodenschlag
 Needs Lv %d,Needs Lv %d,Benötigt Lv %d
-%d pts,%d pts,%d Pkt.
 Needs %d points in this tree,Needs %d points in this tree,Benötigt %d Punkte in diesem Baum
+Lv,Lv,Lv
+pts,pts,Pkt.
+Tier,Tier,Ebene
+Spend %d more points,Spend %d more points,Noch %d Punkte ausgeben
+Spend 1 more point,Spend 1 more point,Noch 1 Punkt ausgeben
+Rank %d/%d · %s · Tier %d,Rank %d/%d · %s · Tier %d,Rang %d/%d · %s · Ebene %d
+Capstone,Capstone,Schlussstein
+EQUIP,EQUIP,AUSRÜSTEN
+EQUIPPED,EQUIPPED,AUSGERÜSTET
+Ranks %d/%d,Ranks %d/%d,Ränge %d/%d

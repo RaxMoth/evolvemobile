@@ -3,16 +3,19 @@ extends RefCounted
 
 ## One skill tree as the menus show it, and the only thing SkillTreeView and the
 ## character detail's bottom sheet read: columns (branches), rows (tiers) and
-## nodes with ranks, prices and prerequisites, plus each node's state and why
-## it cannot be bought. Adapters fill it from the game's data; the view never
-## talks to MetaSkillManager.
+## their gates, nodes with ranks, prices, effects and prerequisites, the
+## equipped capstone, plus each node's state and why it cannot be bought.
+## Adapters fill it from the game's data; the view never talks to
+## MetaSkillManager.
 ##
 ## A snapshot: rebuild it after MetaSkillManager.skills_changed or
 ## PersistedData.currency_changed (MenuRoot does, through CharacterDetail).
 ##
-## from_meta_skills() maps MetaSkillManager's ranked trees (named branches,
-## ranks, prerequisites, capstones; hidden nodes left out) and takes the gates
-## and ranks from MetaSkillManager, so the screen and the shop never disagree.
+## from_ranked_manager() maps MetaSkillManager's ranked trees (named branches,
+## ranks with their prices and values, prerequisites, gates, capstones; hidden
+## nodes only as "coming soon" slots) and takes the gates, ranks and the
+## equipped capstone from MetaSkillManager, so the screen and the shop never
+## disagree.
 
 enum NodeState { LOCKED, AVAILABLE, OWNED, MAXED }
 
@@ -67,12 +70,16 @@ class TreeNodeData:
 	## Column (branch index) and row (1-based tier).
 	var branch: int = 0
 	var tier: int = 1
-	## The tree's final reward: a square frame instead of the round ring.
+	## A branch's tier-4 reward: the 92 px tile in the stone arch. Several can
+	## be owned, one is equipped (UxTreeModel.equipped).
 	var capstone: bool = false
 	## Ranks owned.
 	var rank: int = 0
 	## Price of each rank (rank 1 first): its size is the node's max rank.
 	var rank_costs: Array[int] = []
+	## The node's value when owning each rank (MetaSkillNode.value_at_rank),
+	## rank 1 first; rank_texts says the same in words.
+	var rank_values: Array[float] = []
 	## What the node gives at each rank ("+5% Max HP"), rank 1 first.
 	var rank_texts: PackedStringArray = PackedStringArray()
 	## Owning any one of these opens the node (empty: no prerequisite).
@@ -94,6 +101,9 @@ var tree_id: StringName = &""
 ## The tree's name and blurb (the Growth header).
 var title: String = ""
 var description: String = ""
+## A monster-side tree (monster_<id>, monster_base): the monsters' branch
+## colours.
+var monster: bool = false
 ## The currency every price is in, and the player's amount of it when built.
 var currency: StringName = PersistedData.GOLD
 var wallet: int = 0
@@ -101,12 +111,21 @@ var wallet: int = 0
 var branches: PackedStringArray = PackedStringArray()
 ## Rows, 1..tiers.
 var tiers: int = 0
-## Per tier (index tier - 1): open for buying, the gate chip's text and the
-## reason a node of a closed tier cannot be bought.
+## How a tier opens (the tier gutter): MetaSkillTree.GateKind, and per tier
+## (index tier - 1) the gate's number: the owner's level (LEVEL, "Lv 5"), the
+## ranks owned in the tree (POINTS, "pts 10") or the tier itself (TIER_BELOW).
+var gate_kind: MetaSkillTree.GateKind = MetaSkillTree.GateKind.TIER_BELOW
+var tier_gates: Array[int] = []
+## Per tier (index tier - 1): open for buying, and the reason a node of a
+## closed tier cannot be bought.
 var tier_open: Array[bool] = []
-var tier_gate_text: PackedStringArray = PackedStringArray()
 var tier_block_reason: PackedStringArray = PackedStringArray()
+## The capstone that applies (&"" while the tree owns none).
+var equipped: StringName = &""
 var nodes: Array[TreeNodeData] = []
+## Nodes the data has but the game does not yet (MetaSkillNode.hidden): only
+## their place (id, branch, tier, capstone) for the view's "coming soon" slots.
+var hidden_nodes: Array[TreeNodeData] = []
 
 var _by_id: Dictionary[StringName, TreeNodeData] = {}
 
@@ -129,6 +148,21 @@ func tier_unlocked(tier: int) -> bool:
 	return tier >= 1 and tier <= tier_open.size() and tier_open[tier - 1]
 
 
+## The tier gutter's caption over the gate numbers: "Lv", "pts" or "Tier".
+func gate_caption() -> String:
+	match gate_kind:
+		MetaSkillTree.GateKind.LEVEL:
+			return TranslationServer.translate("Lv")
+		MetaSkillTree.GateKind.POINTS:
+			return TranslationServer.translate("pts")
+	return TranslationServer.translate("Tier")
+
+
+## The gate number of `tier` (the gutter): tier_gates, else the tier itself.
+func gate_value(tier: int) -> int:
+	return tier_gates[tier - 1] if tier >= 1 and tier <= tier_gates.size() else tier
+
+
 func state_of(n: TreeNodeData) -> NodeState:
 	if n.rank >= n.max_rank():
 		return NodeState.MAXED
@@ -140,7 +174,7 @@ func state_of(n: TreeNodeData) -> NodeState:
 
 
 ## Why the next rank of `n` cannot be bought, ignoring the price; "" when only
-## the price can stop it.
+## the price can stop it. The gates guard rank 1 only.
 func block_reason(n: TreeNodeData) -> String:
 	if n.rank >= n.max_rank():
 		return TranslationServer.translate("Maxed")
@@ -177,6 +211,61 @@ func buyable_count() -> int:
 	return count
 
 
+## The capstone that applies (the tree has one at a time).
+func is_equipped(n: TreeNodeData) -> bool:
+	return n.capstone and n.id == equipped
+
+
+## An owned capstone that is not the equipped one: EQUIP swaps to it.
+func can_equip(n: TreeNodeData) -> bool:
+	return n.capstone and n.rank >= 1 and not is_equipped(n)
+
+
+## Ranks owned in the tree (the header's left number).
+func ranks_owned() -> int:
+	var total := 0
+	for n in nodes:
+		total += n.rank
+	return total
+
+
+## Ranks the player can hold today: every rank of a node in an open tier, plus
+## what is owned in a closed one (MetaSkillManager.card_progress's open_ranks).
+func ranks_open() -> int:
+	var total := 0
+	for n in nodes:
+		total += n.max_rank() if tier_unlocked(n.tier) else n.rank
+	return total
+
+
+## The nodes top to bottom, left to right: by tier, then branch, then the
+## tree's order.
+func display_order() -> Array[TreeNodeData]:
+	var out: Array[TreeNodeData] = nodes.duplicate()
+	out.sort_custom(func(a: TreeNodeData, b: TreeNodeData) -> bool:
+		if a.tier != b.tier:
+			return a.tier < b.tier
+		if a.branch != b.branch:
+			return a.branch < b.branch
+		return nodes.find(a) < nodes.find(b))
+	return out
+
+
+## The node the sheet opens on: the first one that can be bought now, else
+## the first open one with a rank left, else the first node; &"" for an empty
+## tree.
+func suggested_node() -> StringName:
+	var order := display_order()
+	for n in order:
+		if can_buy(n):
+			return n.id
+	for n in order:
+		var state := state_of(n)
+		if state == NodeState.AVAILABLE or state == NodeState.OWNED:
+			return n.id
+	return order[0].id if not order.is_empty() else &""
+
+
 func _requirement_met(n: TreeNodeData) -> bool:
 	if n.requires.is_empty():
 		return true
@@ -199,16 +288,19 @@ static func icon_for(stat_key: String, ability_name: String, ability_icons: Dict
 	return load(STAT_ICON_PATH % FALLBACK_ICON) as Texture2D
 
 
-## Live adapter over MetaSkillManager's trees. Columns are the tree's branches
-## (a node without one takes its index inside its tier); every shown node with
-## its owned rank, the price and effect text of each rank (cost_of_rank,
-## effect_text), its capstone flag and its prerequisites (hidden parents
-## dropped: MetaSkillManager ignores them too). Tier gates come from
-## MetaSkillManager.is_tier_open with a chip and a block reason per gate kind
-## (Lv 3 / 4 pts / Tier 2); the wallet from PersistedData. Hidden nodes are left
-## out. `ability_icons` (ability_name -> icon) is the fallback icon of ability
+## Live adapter over MetaSkillManager's ranked trees. Columns are the tree's
+## branches (a node without one takes its index inside its tier); every shown
+## node with its owned rank, the price, value and effect text of each rank
+## (cost_of_rank, value_at_rank, effect_text), its capstone flag and its
+## prerequisites (hidden parents dropped: MetaSkillManager ignores them too).
+## Hidden nodes go to hidden_nodes. The gates: gate_kind and tier_gates from
+## the tree, which tiers are open from MetaSkillManager.is_tier_open, and the
+## block reason of a closed tier by gate kind ("Needs Lv 5", "Spend 3 more
+## points", "Learn a Tier 1 skill first"). The equipped capstone from
+## MetaSkillManager.equipped_capstone, the wallet from PersistedData.
+## `ability_icons` (ability_name -> icon) is the fallback icon of ability
 ## nodes. Null when the tree does not exist.
-static func from_meta_skills(p_tree_id: StringName, ability_icons: Dictionary = {}) -> UxTreeModel:
+static func from_ranked_manager(p_tree_id: StringName, ability_icons: Dictionary = {}) -> UxTreeModel:
 	var t: MetaSkillTree = MetaSkillManager.get_tree_def(p_tree_id)
 	if t == null:
 		return null
@@ -216,33 +308,42 @@ static func from_meta_skills(p_tree_id: StringName, ability_icons: Dictionary = 
 	m.tree_id = p_tree_id
 	m.title = t.display_name
 	m.description = t.description
+	m.monster = String(p_tree_id).begins_with(MetaSkillManager.TREE_MONSTER_PREFIX)
 	m.tiers = t.max_tier()
+	m.gate_kind = t.gate_kind
+	m.equipped = MetaSkillManager.equipped_capstone(p_tree_id)
+	var spent := MetaSkillManager.points_spent(p_tree_id)
 	for tier in range(1, m.tiers + 1):
-		# gate_for_tier says 0 (open) for tier 1; its chip shows the data's value.
+		# gate_for_tier says 0 (open) for tier 1; the gutter shows the data's value.
 		var gate := t.gate_for_tier(tier) if tier > 1 or t.tier_gates.is_empty() else t.tier_gates[0]
 		m.tier_open.append(MetaSkillManager.is_tier_open(p_tree_id, tier))
 		match t.gate_kind:
 			MetaSkillTree.GateKind.LEVEL:
-				m.tier_gate_text.append(TranslationServer.translate("Lv %d") % gate)
+				m.tier_gates.append(gate)
 				m.tier_block_reason.append(TranslationServer.translate("Needs Lv %d") % gate)
 			MetaSkillTree.GateKind.POINTS:
-				m.tier_gate_text.append(TranslationServer.translate("%d pts") % gate)
-				m.tier_block_reason.append(TranslationServer.translate("Needs %d points in this tree") % gate)
+				m.tier_gates.append(gate)
+				m.tier_block_reason.append(_points_reason(gate - spent))
 			_:
-				m.tier_gate_text.append(TranslationServer.translate("Tier %d") % tier)
+				m.tier_gates.append(tier)
 				m.tier_block_reason.append(TranslationServer.translate("Learn a Tier %d skill first") % (tier - 1))
 	var cols := t.branches.size()
-	for raw in t.shown_nodes():
+	for raw in t.nodes:
 		var n := TreeNodeData.new()
 		n.id = raw.id
-		n.name = raw.display_name
 		n.tier = raw.tier
 		n.branch = raw.branch if raw.branch >= 0 else t.nodes_in_tier(raw.tier).find(raw)
-		cols = maxi(cols, n.branch + 1)
 		n.capstone = raw.capstone
+		if raw.hidden:
+			n.branch = maxi(raw.branch, 0)
+			m.hidden_nodes.append(n)
+			continue
+		cols = maxi(cols, n.branch + 1)
+		n.name = raw.display_name
 		n.rank = mini(MetaSkillManager.get_rank(p_tree_id, raw.id), raw.max_rank)
 		for r in range(1, raw.max_rank + 1):
 			n.rank_costs.append(raw.cost_of_rank(r))
+			n.rank_values.append(raw.value_at_rank(r))
 			n.rank_texts.append(raw.effect_text(r))
 		for req in raw.requires:
 			var parent := t.find_node(req)
@@ -256,3 +357,10 @@ static func from_meta_skills(p_tree_id: StringName, ability_icons: Dictionary = 
 		m.branches.append("")
 	m.wallet = PersistedData.get_currency(m.currency)
 	return m
+
+
+## A closed POINTS tier: "Spend 3 more points" (the ranks still to buy).
+static func _points_reason(missing: int) -> String:
+	if missing == 1:
+		return TranslationServer.translate("Spend 1 more point")
+	return TranslationServer.translate("Spend %d more points") % maxi(missing, 0)

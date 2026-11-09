@@ -8,7 +8,7 @@
 [ext_resource type="Texture2D" uid="uid://b1py02lvn56ai" path="res://Assets/UI/Icons/Nav/nav_codex.svg" id="6_codex"]
 [ext_resource type="Texture2D" uid="uid://bgk5hk8b80cvs" path="res://Assets/UI/Icons/Nav/nav_monsters.svg" id="7_monsters"]
 
-[node name="NavBar" type="Control"]
+[node name="NavBar" type="Control" groups=["nav_bar"]]
 custom_minimum_size = Vector2(0, 166)
 layout_mode = 3
 anchors_preset = 12

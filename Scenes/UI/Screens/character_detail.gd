@@ -6,29 +6,36 @@ extends Control
 ##   - OVERVIEW: the character big on its stage (its live rig with the stage
 ##     idle; a tap cheers), the role pill, "Lv.N" and the XP bar toward the next
 ##     level, six StatTiles read from its HeroStats or MonsterStats (stat_rows),
-##     and its abilities as AbilityTiles (the .tres icon and name; the toggled
-##     one shows its description underneath).
+##     and its abilities as AbilityTiles (the display icon and name; the
+##     toggled one shows its description underneath).
 ##   - SKILL TREE: the stage folds into a compact header (head portrait, name,
-##     level, XP), the character's tree as a SkillTreeView
-##     (UxTreeModel.from_meta_skills) and the bottom sheet of the selected node:
-##     rank and tier, what it gives now and next, its price (in the danger
-##     colour when the wallet is short) and UPGRADE, disabled and showing the
-##     reason ("Learn a Tier 1 skill first", "Maxed", "Need 340 more") when the
-##     node cannot be bought. The tab carries an up-arrow badge with the
-##     number of ranks ready to buy.
+##     ranks owned / open, level, XP), the character's tree as a SkillTreeView
+##     (UxTreeModel.from_ranked_manager) and the bottom sheet of the selected
+##     node: "Rank r/max · branch · Tier t", what it gives now (white) and next
+##     (green), and UPGRADE with the currency and the price (in the danger
+##     colour when the wallet is short), disabled and showing the reason
+##     ("Needs Lv 5", "Spend 3 more points", "Needs Plated or Unbreakable",
+##     "Maxed", "Need 340 more") when the node cannot be bought. A capstone
+##     also gets EQUIP (EQUIPPED on the one that applies); a bought capstone
+##     only equips. The sheet opens on the first node that can be bought
+##     (UxTreeModel.suggested_node), never on an empty selection. The tab
+##     carries an up-arrow badge with the number of ranks ready to buy.
 ## show_base_tree() opens the screen on an account-wide tree instead (the
 ## Growth tab: hero_base or monster_base by side) in TREE mode, without tabs,
 ## under the side's crest.
 ##
 ## UPGRADE only reports upgrade_requested(tree_id, node_id): MenuRoot buys the
 ## node's next rank (MetaSkillManager.rank_up) and calls refresh() once
-## skills_changed or currency_changed fired; the bought node then pops. Every
-## connection inside the screen is in CharacterDetail.tscn, and MenuRoot
-## connects its signals.
+## skills_changed or currency_changed fired; the bought node then pops and its
+## vines recolour (SkillTreeView.pop), while the top bar's chip counts down.
+## EQUIP reports equip_requested(tree_id, node_id) the same way
+## (MetaSkillManager.equip_capstone). Every connection inside the screen is in
+## CharacterDetail.tscn, and MenuRoot connects its signals.
 
 signal back_requested
 signal tab_selected(tab_id: StringName)
 signal upgrade_requested(tree_id: StringName, node_id: StringName)
+signal equip_requested(tree_id: StringName, node_id: StringName)
 
 enum Mode { OVERVIEW, TREE }
 
@@ -75,6 +82,7 @@ var _fade: Tween = null
 @onready var _header: PanelContainer = %Header
 @onready var _head_icon: TextureRect = %HeadIcon
 @onready var _head_name: Label = %HeadName
+@onready var _head_ranks: Label = %HeadRanks
 @onready var _head_level: Label = %HeadLevel
 @onready var _head_xp: ProgressBar = %HeadXp
 @onready var _head_blurb: Label = %HeadBlurb
@@ -99,6 +107,7 @@ var _fade: Tween = null
 @onready var _cost_icon: TextureRect = %CostIcon
 @onready var _cost_value: Label = %CostValue
 @onready var _upgrade: Button = %Upgrade
+@onready var _equip: Button = %Equip
 
 
 func _ready() -> void:
@@ -172,7 +181,8 @@ func own_tab() -> StringName:
 
 
 ## Re-reads the save: level and XP, the tab badge, the tree and the sheet.
-## The node an UPGRADE was asked for pops once it gained a rank.
+## With nothing selected (a tree opened fresh) the sheet shows the model's
+## suggested node. The node an UPGRADE was asked for pops once it gained a rank.
 func refresh() -> void:
 	if character != null:
 		var p := CharacterProgress.progress(character)
@@ -188,11 +198,17 @@ func refresh() -> void:
 		var ready_ranks := CharacterProgress.upgrades_ready(character)
 		_tree_badge.visible = ready_ranks > 0
 		_tree_badge_count.text = str(ready_ranks)
-	model = UxTreeModel.from_meta_skills(tree_id, _ability_icons()) if not tree_id.is_empty() else null
+	model = UxTreeModel.from_ranked_manager(tree_id, _ability_icons()) if not tree_id.is_empty() else null
 	if character == null and model != null:
 		_head_name.text = model.title
 		_head_blurb.text = model.description
+	_head_ranks.visible = model != null
+	if model != null:
+		_head_ranks.text = tr("Ranks %d/%d") % [model.ranks_owned(), model.ranks_open()]
 	_tree_view.build(model)
+	if model != null and _tree_view.selected.is_empty():
+		# select() reports node_selected: the sheet follows (scene connection).
+		_tree_view.select(model.suggested_node())
 	_show_node(_tree_view.selected)
 	if not _buying.is_empty():
 		var bought: UxTreeModel.TreeNodeData = model.find(_buying) if model != null else null
@@ -314,11 +330,11 @@ func _ability_icons() -> Dictionary:
 	var icons := {}
 	if character != null:
 		for ability in character.abilities():
-			icons[ability.ability_name] = ability.icon
+			icons[ability.ability_name] = ability.get_display_icon()
 	return icons
 
 
-## The bottom sheet for node `id` (empty: nothing selected yet).
+## The bottom sheet for node `id` (empty: an empty tree).
 func _show_node(id: StringName) -> void:
 	var n: UxTreeModel.TreeNodeData = null
 	if model != null and not id.is_empty():
@@ -330,26 +346,37 @@ func _show_node(id: StringName) -> void:
 		_effect_now.text = ""
 		_effect_next.text = ""
 		_cost.visible = false
+		_upgrade.visible = true
 		_upgrade.text = "UPGRADE"
 		_upgrade.disabled = true
+		_equip.visible = false
 		return
 	_node_icon.texture = n.icon
 	_node_name.text = n.name
 	var meta := tr("Rank %d/%d · Tier %d") % [n.rank, n.max_rank(), n.tier]
 	if n.branch < model.columns() and not model.branches[n.branch].is_empty():
-		meta += " · " + model.branches[n.branch]
+		meta = tr("Rank %d/%d · %s · Tier %d") % [n.rank, n.max_rank(), model.branches[n.branch], n.tier]
+	if n.capstone:
+		meta += " · " + tr("Capstone")
 	_node_meta.text = meta
 	_effect_now.text = tr("Now: %s") % n.effect_at(n.rank) if n.rank > 0 else tr("Not learned yet")
 	var maxed := n.rank >= n.max_rank()
 	_effect_next.text = "" if maxed else tr("Next: %s") % n.effect_at(n.rank + 1)
-	_cost.visible = not maxed
+	# A bought capstone has nothing left to buy: it only equips.
+	_upgrade.visible = not (n.capstone and maxed)
+	_equip.visible = n.capstone
+	_equip.text = "EQUIPPED" if model.is_equipped(n) else "EQUIP"
+	_equip.disabled = not model.can_equip(n)
+	var reason := model.block_reason(n)
+	# The price shows while it is what stands between the player and the rank.
+	_cost.visible = reason.is_empty()
 	_cost_icon.texture = CurrencyChip.icon_for(model.currency)
 	_cost_value.text = CurrencyChip.format_amount(n.next_cost())
 	if model.affordable(n):
 		_cost_value.remove_theme_color_override(&"font_color")
 	else:
 		_cost_value.add_theme_color_override(&"font_color", UiPalette.get_default().danger)
-	var reason := model.block_reason(n)
+	_upgrade.alignment = HORIZONTAL_ALIGNMENT_LEFT if _cost.visible else HORIZONTAL_ALIGNMENT_CENTER
 	if not reason.is_empty():
 		_upgrade.text = reason
 		_upgrade.disabled = true
@@ -414,6 +441,14 @@ func _on_upgrade_pressed() -> void:
 	_buying = n.id
 	_buying_rank = n.rank
 	upgrade_requested.emit(tree_id, n.id)
+
+
+func _on_equip_pressed() -> void:
+	if model == null:
+		return
+	var n := model.find(_tree_view.selected)
+	if n != null and model.can_equip(n):
+		equip_requested.emit(tree_id, n.id)
 
 
 func _on_top_bar_left_pressed() -> void:

@@ -411,10 +411,11 @@ dangerous (`monster` #C2334A, `monster_purple` #7B3F95).
       locked), carved-wood nav plaques and the mossy-stone HUNT arch, buttons
       (primary, secondary, copper, hero, monster, round) with hover / pressed
       art, panels and banners, ability slot frames (basic, active, passive,
-      ult, locked), skill-tree nodes (`node_minor` ring, `node_major` leafy
-      capstone frame, and their white `_tint` versions that the theme tints
-      per state), toggles, padlock, notification dot, leaf and vine
-      ornaments, the background tile. 9-slice margins live in `kit.MARGINS`.
+      ult, locked), the old round skill-tree rings (`node_minor`,
+      `node_major` and their `_tint` versions; no theme type uses them since
+      the square tiles of the ranked tree screen), toggles, padlock,
+      notification dot, leaf and vine ornaments, the background tile. 9-slice
+      margins live in `kit.MARGINS`.
     - `Icons/` (79, 64x64): `Abilities/` (27, `<owner>_<slot>_<ability>`:
       a full-bleed tile in the owner's tone that the slot frame sits on;
       every hero and Grount ability, River's two basic modes, and Nyxa's and
@@ -461,13 +462,18 @@ dangerous (`monster` #C2334A, `monster_purple` #7B3F95).
       CurrencyPill, NavBar, HudPanel, HudPanelSelected, TooltipPanel) and bars
       (HpBarHero, HpBarMonster, XpBar, CooldownBar, ShieldBar, PillProgress*,
       NavProgress).
-    - **Screen variations** for the Phase 3-5 screens: skill-tree nodes
-      NodeLocked / NodeAvailable / NodeOwned / NodeMaxed (the `node_minor`
-      ring: locked_line, copper, moss_light, rank_max) and capstones
-      CapLocked / CapAvailable / CapOwned (the `node_major` frame), rank pips
-      PipOn / PipOff / PipMax, SelectRing, GateChip, BranchPlaque, SheetPanel,
-      ChipPanel, FrameHero / FrameMonster (border only), EvoBar, TabButton,
-      FlatButton, BigNumberLabel, HintLabel and AmberLabel.
+    - **Screen variations** for the Phase 3-5 screens: the skill tree's
+      NodeTile (a flat 84 px rounded square in the locked look, locked_fill
+      with a 4 px locked_line rim; SkillNodeButton recolours its own copy in
+      the branch colour), BadgeReady (the red "+"), GutterPlaque /
+      GutterPlaqueLocked (the tier gutter's wood_dark / locked_fill plaques)
+      with GutterCaption / GutterNumber (and their Locked versions in
+      text_muted), NodeName / NodeNameLocked (13 px names under the tiles),
+      NowLabel (white) and NextLabel (moss_light) for the sheet, rank pips
+      PipOn / PipOff / PipMax, SelectRing (a white rounded square),
+      BranchPlaque (tinted per branch by the view), SheetPanel, ChipPanel,
+      FrameHero / FrameMonster (border only), EvoBar, TabButton, FlatButton,
+      BigNumberLabel, HintLabel and AmberLabel.
     - **Art names are canonical**: the UX prototype's theme is not shipped,
       and its names for looks the art set has are renamed (CardPanel →
       CharacterCard, PrimaryButton → ButtonPrimary, MossButton → ButtonHero,
@@ -483,14 +489,15 @@ dangerous (`monster` #C2334A, `monster_purple` #7B3F95).
       DPITexture, display types use Lilita One over `font_body` and body
       types `font_body`, every glyph of `strings.csv` (English and German)
       renders in the display font, the screen variations exist with their
-      base types and state colours, and no UX name is back.
+      base types and colours (the old round Node* / Cap* rings and GateChip
+      are gone), and no UX name is back.
 - **Proof scenes** (`tools/preview/`, not shipped; any export preset must
   exclude `tools/*`): `ThemeMockup.tscn` composes every theme type and kit
   piece the way the collection and HUD screens will (role glyphs in the
   signature colours stand in for the character portraits until the rigs
-  land); `ThemeScreens.tscn` shows the screen variations (skill-tree nodes
-  and capstones in every state, pips, tabs, gate chip, bottom sheet, side
-  frames); `PaletteSheet.tscn` shows every UiPalette token. Render them muted
+  land); `ThemeScreens.tscn` shows the screen variations (real
+  SkillNodeButtons and capstones in every state, tinted branch plaques, the
+  tier gutter's plaques, tabs, bottom sheet, side frames); `PaletteSheet.tscn` shows every UiPalette token. Render them muted
   on a copy of the project:
   `godot --path <copy> --audio-driver Dummy --fixed-fps 30 --write-movie <dir>/f.png --quit-after 8 res://tools/preview/ThemeMockup.tscn`.
 
@@ -1149,36 +1156,55 @@ code connections are to autoloads (`PersistedData.currency_changed`).
   title, and the `CurrencyChip`s the screen's side shows (`show_gold`,
   `show_steel`, `show_leaves`; `chip(currency)`).
 - **`CurrencyChip.tscn`**: currency icon and amount ("1,840",
-  `format_amount`), live from `PersistedData.currency_changed` with a pop;
-  `preview_amount` pins a sample.
+  `format_amount`), live from `PersistedData.currency_changed`: the amount
+  counts to the new value over 0.4 s (down after a purchase, `shown_amount()`)
+  and pops; `preview_amount` pins a sample.
 - **`NavBar.tscn`**: Heroes | Growth | HUNT | Codex | Monsters. Carved
   `NavPlaque` plaques (`NavTab.tscn`) and the mossy-stone `NavArch`
   (`NavArch.tscn`, the lobby), toggle buttons in one ButtonGroup per bar.
   `active_tab`, `tab_selected(tab_id)`, `notify_tabs` / `set_notify()` (red
   dots) and `monster_side`: the arch's additive glow is `amber` on the hero
   side and `monster` crimson on the monster side, pulsing through the scene's
-  AnimationPlayer.
+  AnimationPlayer. Every bar is in the `nav_bar` group (`NavBar.GROUP`, set in
+  NavBar.tscn), through which MenuRoot lights the dots.
 - **Press feedback** (`PressFeedback`): cards, stage characters, ability tiles
   and nav tabs shrink to 0.95 while held and spring back with a 0.09 s
   TRANS_BACK tween.
 - **`StatTile.tscn`**: a stat icon, a value in display type and a caption
   (`PanelInset`; `show_stat(icon, value, caption)`).
-- **`AbilityTile.tscn`**: one ability (kind caption, the `.tres` icon, its
-  name), a toggle button; the toggled tile wears `CharacterCardSelected` and
-  reports `tile_pressed(index)`.
-- **`SkillNodeButton.tscn`**: one skill-tree node: an 84 px `Node*` ring
-  (`Cap*` square frame for a capstone) around its icon, rank pips (`PipOn` /
-  `PipOff` / `PipMax`), a padlock while LOCKED, a star once MAXED, the red
-  notify dot (pulsing) while its next rank can be bought, the white
-  `SelectRing` and `pop()` (purchase juice, 1.25 → 1 with TRANS_BACK).
-  Locked icons are dimmed to `UiPalette.LOCKED_ICON_MODULATE`.
-- **`SkillTreeView.tscn`**: a `UxTreeModel` as a node graph: one column per
-  branch (a `BranchPlaque` when it is named), one row per tier, a dashed rule
-  with a `GateChip` ("Tier 2", padlocked while closed) between the rows, and
-  requirement links (ink casing, amber core once the parent is owned, stone
-  before). Without named branches every row is centred; rows share the height
-  (110-156 px) and the graph is centred vertically, re-laid out on resize.
-  `build(model)` keeps the selection; `select(id)` reports `node_selected`.
+- **`AbilityTile.tscn`**: one ability (kind caption, its
+  `get_display_icon()` as the HUD shows it, its name), a toggle button; the
+  toggled tile wears `CharacterCardSelected` and reports `tile_pressed(index)`.
+- **`SkillNodeButton.tscn`**: one skill-tree node in the reference's look
+  (gamedesign 1.8): an 84 px `NodeTile` around its 60 px icon (a capstone's
+  tile is 92 px and stands in a stone arch drawn behind it), rank pips
+  (`PipOn` / `PipOff` / `PipMax`) inside the tile's bottom edge, its name
+  under the tile (`NodeName`, 100 px, or up to 150 px when it is alone in its
+  cell), the red "+" (`BadgeReady`, pulsing) while its next rank can be
+  bought and afforded, a check on the tree's equipped capstone, the white
+  `SelectRing` and `pop()` (purchase juice, 1.25 → 1 with TRANS_BACK). The
+  tile wears its branch colour (`UiPalette.branch_color`): a dark fill of it
+  with a rim in the branch colour once owned, darker while open, gold
+  (`rank_max`) once maxed; locked tiles keep NodeTile and dim the icon to
+  `UiPalette.LOCKED_ICON_MODULATE`. The arch is branch-dark stone with a gold
+  rim once owned. `setup_hidden()` makes the "???" slot of a node the game
+  does not have yet (padlock, ignores taps).
+- **`SkillTreeView.tscn`**: a `UxTreeModel` as the reference's tree: a
+  `BranchPlaque` over each named branch tinted in its colour (darkened 35 %),
+  the tier gutter down the left edge (a 52x84 `GutterPlaque` per tier with
+  "Lv / 5" on character trees or "pts / 10" on the base trees,
+  `GutterPlaqueLocked` with a padlock while closed), one row per tier (two
+  nodes sharing a cell sit ±50 px apart; capstones in their arch; a "???"
+  slot per hidden node), and bezier vines from each prerequisite to the node
+  it opens under the tiles: a 4.5 px core over a 9 px ink casing,
+  `moss_light` with a leaf once both ends are owned, `moss` once the parent
+  is, `locked_line` before. Branch colours (`UiPalette.branch_color`): heroes
+  `vlad` red / `teal` / `hero` amber, monsters `monster` crimson /
+  `monster_purple` / `moss`. Without named branches every row is centred;
+  rows share the height (118-150 px) and the graph is centred vertically,
+  re-laid out on resize. `build(model)` keeps the selection; `select(id)`
+  reports `node_selected`; `pop(id)` after a purchase pops the node and fades
+  its vines from their old colour to the new one over 0.45 s.
 - `test/test_character_card.gd` covers the progress numbers, the card states
   (normal, upgrade-ready, locked-purchasable, rumour, monster, selected) with
   their pill text and variations, the size presets, the RigView fit, flip and
@@ -1220,10 +1246,16 @@ button until the Phase 8 screens retire it.
       lair's teasers) open nothing yet.
     - Purchases: a detail's `upgrade_requested(tree_id, node_id)` →
       `MetaSkillManager.rank_up` (the next rank; the shop decides: gates,
-      price). On
+      price), and `equip_requested(tree_id, node_id)` →
+      `MetaSkillManager.equip_capstone` (free). On
       `MetaSkillManager.skills_changed` and `PersistedData.currency_changed`
       (connected in code: autoloads) every roster and detail on the stack
       re-reads the save, once per frame at most.
+    - Red nav dots: on entry, after every such refresh and when the side
+      changes, every nav bar under the menu (`NavBar.GROUP`) shows Heroes /
+      Monsters while a character of that side has a rank to buy now
+      (`CharacterProgress.upgrades_ready`) and Growth while the chosen side's
+      account tree has one (`MetaSkillManager.card_progress`).
     - Until their new screens land, HUNT opens the old `PreRoundSetup` overlay on
       the hero side (the monster side starts the match at once), Codex the
       tutorial and the gear Settings.
@@ -1259,8 +1291,8 @@ button until the Phase 8 screens retire it.
   glow) and `side_tap_opens_roster`; each request; the cast is the roster plus
   the locked teasers; the chosen side persists; the first-run tutorial; the
   screens each request opens (nav tabs switch, cards push, back); a purchase
-  through the detail and the refresh of the screens under it; the main scene
-  is MenuRoot.
+  and a capstone swap through the detail and the refresh of the screens under
+  it; the nav dots follow buyable ranks; the main scene is MenuRoot.
 
 ### Roster and Character Detail (collections, overview, skill trees)
 
@@ -1288,49 +1320,75 @@ button until the Phase 8 screens retire it.
       Move speed, the Stage II and III XP thresholds and the Stage III health
       from `MonsterStats`. The four `AbilityTile`s follow
       `CharacterDef.ability_slots()` (PASSIVE, BASIC, ACTIVE, ULTIMATE; an
-      empty slot hides its tile) with each `.tres`'s icon and name; the
+      empty slot hides its tile) with each ability's display icon and name; the
       ultimate is described first, a tap describes another.
     - SKILL TREE (the tabs, `TabButton`; the tree tab carries an up-arrow
       badge with `CharacterProgress.upgrades_ready`): the stage folds into a
-      compact header (head portrait, name, level, XP), the character's tree in
-      a `SkillTreeView` and the bottom sheet (`SheetPanel`) of the selected
-      node: name, "Rank r/max · Tier t", "Now: …" or "Not learned yet",
-      "Next: …", the price (in `danger` when the wallet is short) and UPGRADE
-      (`ButtonPrimary`), disabled and showing why when the node cannot be
-      bought ("Learn a Tier 1 skill first", "Maxed", "Need 340 more").
+      compact header (head portrait, name, "Ranks owned/open", level, XP), the
+      character's tree in a `SkillTreeView` and the bottom sheet
+      (`SheetPanel`) of the selected node: name, "Rank r/max · branch · Tier
+      t" (" · Capstone"), "Now: …" (`NowLabel`) or "Not learned yet",
+      "Next: …" (`NextLabel`, moss green), and UPGRADE (`ButtonPrimary`) with
+      the currency icon and the price inside it (the price in `danger` when the
+      wallet is short), disabled and showing why when the node cannot be
+      bought ("Needs Lv 5", "Spend 3 more points", "Needs Plated or
+      Unbreakable", "Maxed", "Need 340 more"; the price hides when a gate, not
+      the wallet, stops it). A capstone also gets EQUIP (`ButtonHero`):
+      usable on an owned capstone that is not the equipped one, "EQUIPPED" on
+      the one that applies; a bought capstone shows only EQUIP. The sheet
+      opens on `UxTreeModel.suggested_node()` (the first node that can be
+      bought, else the first open one), never on an empty selection.
+      Everything fits 720x1280 above the nav bar without scrolling.
     - `show_base_tree(side)`: the Growth tab's account-wide tree (Hero Base or
       Monster Base, Gold) in TREE mode without tabs, under the side's crest
       (`crest_heroes` / `crest_monster` exports, `Assets/UI/Crests`) with the
       tree's name and blurb.
-    - UPGRADE only reports `upgrade_requested(tree_id, node_id)`; MenuRoot buys
-      and calls `refresh()`, and the bought node pops. Every connection inside
-      the screen is in its scene; `back_requested` and `tab_selected` go to
-      MenuRoot, and the nav bar keeps the screen's own tab lit.
+    - UPGRADE only reports `upgrade_requested(tree_id, node_id)` and EQUIP
+      `equip_requested(tree_id, node_id)`; MenuRoot buys or equips and calls
+      `refresh()`. Purchase juice: the bought node pops (1.25 → 1), its vines
+      fade to their new colour, and the top bar's chip counts down. Every
+      connection inside the screen is in its scene; `back_requested`,
+      `tab_selected`, `upgrade_requested` and `equip_requested` go to MenuRoot,
+      and the nav bar keeps the screen's own tab lit.
 - **`UxTreeModel`** (`Scenes/UI/Screens/ux_tree_model.gd`): the one thing the
-  tree view and the sheet read. Branches (columns, "" = unnamed), tiers with
-  `tier_open`, gate chip texts and block reasons, nodes with `rank`,
-  `rank_costs`, `rank_texts`, `requires` (any one owned opens a node),
-  `capstone` and an icon, plus the currency and the wallet. `state_of()`
-  (LOCKED, AVAILABLE, OWNED, MAXED), `block_reason()`, `affordable()`,
-  `can_buy()`, `buyable_count()`. `from_meta_skills(tree_id)` maps the ranked
-  trees: the tree's branches as columns, every shown node (hidden ones left
-  out) with its owned rank, each rank's price (`cost_of_rank`) and effect text
-  (`effect_text`), its capstone flag and its `requires` (hidden parents
-  dropped). Tier gates read from `MetaSkillManager.is_tier_open` (so the screen
-  and the shop never disagree), with the chip and block reason of the gate kind:
-  "Lv 3" / "Needs Lv 3" (character trees), "4 pts" / "Needs 4 points in this
-  tree" (base trees). Icons from the node, else the stat icon of its stat or
-  ability property (`STAT_ICONS`), else the ability's icon. A snapshot: rebuilt
-  after every change.
+  tree view and the sheet read. Branches (columns, "" = unnamed), `monster`
+  (the side's branch colours), tiers with `gate_kind`, `tier_gates` (the
+  gutter's numbers: `gate_caption()` "Lv" / "pts" / "Tier" over
+  `gate_value(tier)`), `tier_open` and block reasons, nodes with `rank`,
+  `rank_costs`, `rank_values`, `rank_texts`, `requires` (any one owned opens
+  a node), `capstone` and an icon, `equipped` (the capstone that applies),
+  `hidden_nodes` (place only: the view's "???" slots), plus the currency and
+  the wallet. `state_of()` (LOCKED, AVAILABLE, OWNED, MAXED),
+  `block_reason()`, `affordable()`, `can_buy()`, `buyable_count()`,
+  `is_equipped()`, `can_equip()`, `ranks_owned()` / `ranks_open()` (the
+  card pill's numbers), `display_order()` and `suggested_node()`.
+  `from_ranked_manager(tree_id)` maps the ranked trees: the tree's branches as
+  columns, every shown node with its owned rank and each rank's price
+  (`cost_of_rank`), value (`value_at_rank`) and effect text (`effect_text`),
+  its capstone flag and its `requires` (hidden parents dropped), hidden nodes
+  as slots, `equipped_capstone`. Tier gates read from
+  `MetaSkillManager.is_tier_open` (so the screen and the shop never disagree),
+  with the block reason of the gate kind: "Needs Lv 3" (character trees),
+  "Spend 3 more points" (base trees: the ranks still to buy), "Learn a Tier 1
+  skill first" (TIER_BELOW). Icons from the node, else the stat icon of its
+  stat or ability property (`STAT_ICONS`), else the ability's display icon. A
+  snapshot: rebuilt after every change.
 - Strings (OVERVIEW, SKILL TREE, ABILITIES, the slot kinds, stat captions, the
   sheet's texts and block reasons) are in `Assets/Locale/strings.csv` with
   German.
-- Tests: `test_ux_tree_model` (states, block reasons, prices on a hand-built
-  ranked tree; the live Grount tree; icons; the live states agree with
-  `node_state` on every node of every tree, fresh and seeded),
+- Tests: `test_ux_tree_model` (states, block reasons, prices, gutter
+  captions, rank totals, the suggested node and capstone equipping on a
+  hand-built ranked tree; the live Grount tree with its hidden slots; the
+  points gates of Hero Base and their reasons in English and German; Irelia's
+  capstones following the equipped one; icons; the live states, rank totals
+  and equipped capstone agree with `node_state`, `card_progress` and
+  `equipped_capstone` on every node of every tree, fresh and seeded),
   `test_roster_screen` (grid, rumour, filters, count, intro, taps, refresh,
   wiring), `test_character_detail` (stat rows, overview, level / XP / badge,
-  tree mode and sheet, every tree fits 720x1280, Growth, wiring), and
+  tree mode and sheet with the purchase juice, the sheet opening on a buyable
+  node, capstones equipping from the sheet, the top bar counting down, every
+  character and account tree fits 720x1280 with its gutter, plaques, arches
+  and names, Growth, wiring), and
   `test_grount_behaviour_nodes` checks the Grount tree on this screen (every
   shown node on it, hidden ones not, Titan Form gated until Grount Lv 8, bought
   through `upgrade_requested`).

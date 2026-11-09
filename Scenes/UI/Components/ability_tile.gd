@@ -2,7 +2,8 @@ class_name AbilityTile
 extends Button
 
 ## One ability of the character overview: its kind (PASSIVE, BASIC, ACTIVE,
-## ULTIMATE), the icon of its .tres and its name. The four tiles of a detail
+## ULTIMATE), its icon (AbilityBase.get_display_icon, as the HUD shows it) and
+## its name. The four tiles of a detail
 ## screen share a ButtonGroup; the toggled-on tile wears the amber frame and
 ## reports tile_pressed, and the screen shows that ability's description.
 
@@ -31,7 +32,7 @@ func show_ability(kind: String, p_ability: AbilityBase) -> void:
 	if p_ability == null:
 		return
 	_kind.text = kind
-	_icon.texture = p_ability.icon
+	_icon.texture = p_ability.get_display_icon()
 	_name.text = p_ability.ability_name
 
 

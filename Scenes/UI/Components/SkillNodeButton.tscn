@@ -1,13 +1,13 @@
 [gd_scene format=3 uid="uid://cq6tgm1b0x3ae"]
 
 [ext_resource type="Script" uid="uid://bgvvevw4mf3eh" path="res://Scenes/UI/Components/skill_node_button.gd" id="1_script"]
-[ext_resource type="Texture2D" uid="uid://b250ke07i0yes" path="res://Assets/UI/Kit/padlock.svg" id="2_lock"]
-[ext_resource type="Texture2D" uid="uid://dsq10cywejcyi" path="res://Assets/UI/Kit/dot_notify.svg" id="3_dot"]
+[ext_resource type="Texture2D" uid="uid://n82hju7uh8q8" path="res://Assets/UI/Icons/UI/ui_check.svg" id="2_check"]
+[ext_resource type="Texture2D" uid="uid://lbxn1ytgoqnu" path="res://Assets/UI/Icons/UI/ui_plus.svg" id="3_plus"]
 
 [node name="SkillNodeButton" type="Button"]
-custom_minimum_size = Vector2(84, 104)
+custom_minimum_size = Vector2(84, 102)
 offset_right = 84.0
-offset_bottom = 104.0
+offset_bottom = 102.0
 theme_type_variation = &"FlatButton"
 script = ExtResource("1_script")
 
@@ -15,27 +15,27 @@ script = ExtResource("1_script")
 unique_name_in_owner = true
 visible = false
 layout_mode = 0
-offset_left = -6.0
-offset_top = -6.0
-offset_right = 90.0
-offset_bottom = 90.0
+offset_left = -7.0
+offset_top = -7.0
+offset_right = 91.0
+offset_bottom = 91.0
 mouse_filter = 2
 theme_type_variation = &"SelectRing"
 
-[node name="Ring" type="PanelContainer" parent="."]
+[node name="Tile" type="PanelContainer" parent="."]
 unique_name_in_owner = true
 layout_mode = 0
 offset_right = 84.0
 offset_bottom = 84.0
 mouse_filter = 2
-theme_type_variation = &"NodeAvailable"
+theme_type_variation = &"NodeTile"
 
 [node name="Icon" type="TextureRect" parent="."]
 unique_name_in_owner = true
 layout_mode = 0
-offset_left = 16.0
-offset_top = 16.0
-offset_right = 68.0
+offset_left = 12.0
+offset_top = 8.0
+offset_right = 72.0
 offset_bottom = 68.0
 mouse_filter = 2
 expand_mode = 1
@@ -44,37 +44,53 @@ stretch_mode = 5
 [node name="Pips" type="HBoxContainer" parent="."]
 unique_name_in_owner = true
 layout_mode = 0
-offset_left = -10.0
-offset_top = 90.0
-offset_right = 94.0
-offset_bottom = 100.0
+offset_top = 68.0
+offset_right = 84.0
+offset_bottom = 78.0
 mouse_filter = 2
 theme_override_constants/separation = 3
 alignment = 1
+
+[node name="NameLabel" type="Label" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = -8.0
+offset_top = 85.0
+offset_right = 92.0
+offset_bottom = 103.0
+theme_type_variation = &"NodeName"
+horizontal_alignment = 1
+text_overrun_behavior = 3
 
 [node name="Badge" type="TextureRect" parent="."]
 unique_name_in_owner = true
 visible = false
 layout_mode = 0
-offset_left = 58.0
-offset_top = -6.0
-offset_right = 86.0
-offset_bottom = 26.0
+offset_left = -9.0
+offset_top = -9.0
+offset_right = 17.0
+offset_bottom = 17.0
 mouse_filter = 2
-texture = ExtResource("2_lock")
+texture = ExtResource("2_check")
 expand_mode = 1
 stretch_mode = 5
 
-[node name="Dot" type="TextureRect" parent="."]
+[node name="Plus" type="PanelContainer" parent="."]
 unique_name_in_owner = true
 visible = false
+custom_minimum_size = Vector2(24, 24)
 layout_mode = 0
-offset_left = 62.0
-offset_top = -4.0
-offset_right = 86.0
-offset_bottom = 20.0
+offset_left = 64.0
+offset_top = -8.0
+offset_right = 88.0
+offset_bottom = 16.0
 mouse_filter = 2
-texture = ExtResource("3_dot")
+theme_type_variation = &"BadgeReady"
+
+[node name="PlusIcon" type="TextureRect" parent="Plus"]
+layout_mode = 2
+mouse_filter = 2
+texture = ExtResource("3_plus")
 expand_mode = 1
 stretch_mode = 5
 
