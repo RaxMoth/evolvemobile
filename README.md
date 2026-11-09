@@ -417,8 +417,10 @@ dangerous (`monster` #C2334A, `monster_purple` #7B3F95).
       DPITexture imports and River's weapon-mode swap.
     - `Crests/`: the hero and monster side crests.
     - `Shaders/ability_cooldown.gdshader` (clockwise cooldown sweep with an
-      amber edge, `ready_flash`, `locked`) and `card_locked.gdshader` (locked
-      character silhouette). Their default colours come from the palette.
+      amber edge, `ready_flash`, `locked`), `card_locked.gdshader` (locked
+      character silhouette) and `ready_glow.gdshader` (the pulsing halo behind
+      a ready ultimate's AbilitySlot, from the UX prototype). Their default
+      colours come from the palette (`ready_glow`: `amber_light`).
     - `test/test_ui_kit.gd` checks the DPITexture imports, every character's
       ability icons, the mockup's variations, the shaders' palette colours
       and the proof scenes.
@@ -696,6 +698,60 @@ grade (they are not redrawn).
       `ability_used`, so River's basic-attack slot swaps between the rifle
       and the heal staff with her weapon mode.
 - **Real-time Updates**: Health changes, cooldown tracking
+- Phase 4 replaces this container with the Jungle Guild `MatchHud`, whose hero
+  cards and monster panel are built from the AbilitySlot below.
+
+### HUD Cooldown Slots (CooldownSource, AbilitySlot)
+
+The in-match ability icons of the Phase 4 HUD. A slot shows the real cooldown
+of its entity and keeps no timer of its own (the old per-cast HUD timers
+drifted from the real cooldown under attack-speed boosts and pauses).
+
+- **`CooldownSource`** (`Scripts/UI/cooldown_source.gd`, RefCounted): a
+  read-only view of one entity's slots in the HUD's left-to-right order. It
+  never writes game state.
+    - `CooldownSource.Hero.new(ability_system)`: basic attack, active,
+      ultimate, passive; reads `AbilitySystem.get_cooldown_progress` and its
+      `cooldowns`.
+    - `CooldownSource.Monster.new(monster)`: `ability_1..3` (framed as basic,
+      active and ultimate) and the passive; reads
+      `MonsterBase.get_cooldown_progress(name)`, which divides the remaining
+      cooldown by `_cooldown_totals` (the cooldown each slot was cast with;
+      only `_cast` writes it and gameplay never reads it).
+    - `slot_type`, `ability`, `icon` (`get_display_icon(caster)`, so River's
+      basic-attack slot follows her weapon mode), `progress` (0 just cast,
+      1 ready), `remaining`, `locked` and `lock_hint`: an ability below its
+      `unlock_stage` is locked with that stage's numeral (Ground Slam: "II").
+- **`AbilitySlot.tscn`** (`Scenes/UI/Hud/`, `AbilitySlot`): 72x72, scales
+  freely; everything sits under `Body`, the part that pops (a container
+  resets its children's scale when it sorts them).
+    - The ability icon on 60/72 of the slot under the slot's own copy of
+      `ability_cooldown.gdshader` (duplicated once in `_ready`): the cooling
+      sector, clockwise from 12 o'clock, desaturated and veiled, with an
+      amber edge on the sweep line.
+    - The kit frame of its `slot_type` over the icon (`slot_basic`,
+      `slot_active`, `slot_ult`, `slot_passive`; exports wired in the scene).
+    - `CooldownNumber`: the seconds left, rounded up: whole seconds above
+      1 s, tenths below ("3", "2", "1.0", "0.4"); `show_countdown` turns it
+      off.
+    - Becoming ready: `ready_flash` 1 → 0 over 0.25 s, a 1.18 scale pop and
+      `became_ready(slot)`. A slot that starts ready does not pop; unlocking
+      into a ready ability does. An ultimate wears the `ready_glow.gdshader`
+      halo while it is ready.
+    - `set_locked(true, "II")`: the padlock and the stage numeral, the icon
+      greyed (`locked`), no sweep or number, the `slot_locked` frame.
+    - Fed by `bind(source, slot)` (polled every frame; callable before the
+      slot enters the tree, and a freed entity stops the polling) or by a
+      card calling `set_cooldown(progress, remaining)` / `set_locked()`. The shader parameter is written only when
+      the progress moved by 0.002 (and always when it reaches 1.0), the label
+      only when the shown number changes.
+- `test/test_cooldown_source.gd` (both sources against a real Grount and Vlad,
+  read-only) and `test/test_ability_slot.gd` (no shader or label write while
+  the value is unchanged, the number format, one pop per ready transition,
+  the lock state and frames, River's icon swap, Ground Slam unlocking on
+  evolution). `tools/preview/SlotStrip.tscn` renders the slots on HudPanels
+  from scripted sources: sweeps, a lock, an ultimate coming ready, River's
+  swap, Grount evolving.
 
 ### Combat Visuals (VfxManager)
 
@@ -1200,7 +1256,7 @@ res://
 │  └─ UI/ (generated Jungle Guild kit, DPITexture SVGs)
 │     ├─ Kit/ · Crests/ · Icons/{Abilities,Currency,Stats,Roles,Nav,UI}/
 │     ├─ Lobby/ (the lobby's campfire and lair backdrops, VS badge)
-│     └─ Shaders/ (ability_cooldown, card_locked)
+│     └─ Shaders/ (ability_cooldown, card_locked, ready_glow)
 ├─ Scenes/
 │  ├─ NPCs/
 │  │  ├─ roster.tres (Roster: every playable character, GameManager.ROSTER)
@@ -1229,6 +1285,7 @@ res://
 │     │            RosterScreen.tscn, CharacterDetail.tscn, ux_tree_model.gd)
 │     ├─ MainMenu/ (the old menu, reachable from the match result until Phase 8)
 │     ├─ HeroContainer/
+│     ├─ Hud/ (AbilitySlot: in-match ability icon with the cooldown sweep)
 │     ├─ Components/ (menu kit: CharacterCard, StageCharacter, TopBar,
 │     │               CurrencyChip, NavBar, NavTab, NavArch, PressFeedback,
 │     │               StatTile, AbilityTile, SkillNodeButton, SkillTreeView)
@@ -1241,6 +1298,7 @@ res://
 │  ├─ Progression/ (CharacterProgress: card level, XP pill, ready upgrades)
 │  ├─ Rig/ (CharacterRig, RigBody, RigProfile: SVG cut-out rigs)
 │  ├─ Roster/ (Roster, CharacterDef: the character registry)
+│  ├─ UI/ (CooldownSource: read-only HUD view of an entity's ability slots)
 │  ├─ Vfx/ (VfxManager, FxSpriteBuffer, FxTex, FxEase, FxEvents: pooled hit feedback)
 │  └─ Systems/
 │     ├─ ability_system.gd
@@ -1249,8 +1307,8 @@ res://
 └─ tools/
    ├─ art/ (Python art pipeline: palette.py, build.py, make_theme.py, ...)
    ├─ rig_builder.gd · build_rigs.gd · build_rigs.sh (SVG parts → rig sheet + body)
-   └─ preview/ (ThemeMockup, ThemeScreens, PaletteSheet, RigGallery, CardGrid
-                proof scenes, not shipped)
+   └─ preview/ (ThemeMockup, ThemeScreens, PaletteSheet, RigGallery, CardGrid,
+                SlotStrip proof scenes, not shipped)
 ```
 
 ---

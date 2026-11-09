@@ -1,0 +1,136 @@
+[gd_scene format=3 uid="uid://bsryhh66u5n3q"]
+
+[ext_resource type="Script" uid="uid://bhavvjcvv11jk" path="res://Scenes/UI/Hud/ability_slot.gd" id="1_script"]
+[ext_resource type="Shader" uid="uid://b78gsslkq6h5f" path="res://Assets/UI/Shaders/ability_cooldown.gdshader" id="2_cooldown"]
+[ext_resource type="Shader" uid="uid://blx8hkohdgcv4" path="res://Assets/UI/Shaders/ready_glow.gdshader" id="3_glow"]
+[ext_resource type="Texture2D" uid="uid://byxfng44l0vcs" path="res://Assets/UI/Kit/slot_basic.svg" id="4_basic"]
+[ext_resource type="Texture2D" uid="uid://catujnu6arlkx" path="res://Assets/UI/Kit/slot_active.svg" id="5_active"]
+[ext_resource type="Texture2D" uid="uid://ct45povl12ont" path="res://Assets/UI/Kit/slot_ult.svg" id="6_ult"]
+[ext_resource type="Texture2D" uid="uid://bnmoy52gk23qc" path="res://Assets/UI/Kit/slot_passive.svg" id="7_passive"]
+[ext_resource type="Texture2D" uid="uid://d3vdd18jcvw74" path="res://Assets/UI/Kit/slot_locked.svg" id="8_locked"]
+[ext_resource type="Texture2D" uid="uid://b250ke07i0yes" path="res://Assets/UI/Kit/padlock.svg" id="9_padlock"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_cooldown"]
+shader = ExtResource("2_cooldown")
+shader_parameter/progress = 1.0
+shader_parameter/ready_flash = 0.0
+shader_parameter/locked = 0.0
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_glow"]
+shader = ExtResource("3_glow")
+
+[node name="AbilitySlot" type="Control"]
+custom_minimum_size = Vector2(72, 72)
+layout_mode = 3
+anchors_preset = 0
+offset_right = 72.0
+offset_bottom = 72.0
+mouse_filter = 2
+script = ExtResource("1_script")
+frame_basic = ExtResource("4_basic")
+frame_active = ExtResource("5_active")
+frame_ult = ExtResource("6_ult")
+frame_passive = ExtResource("7_passive")
+frame_locked = ExtResource("8_locked")
+
+[node name="Body" type="Control" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Glow" type="ColorRect" parent="Body"]
+unique_name_in_owner = true
+visible = false
+material = SubResource("ShaderMaterial_glow")
+layout_mode = 1
+anchors_preset = -1
+anchor_left = -0.2
+anchor_top = -0.2
+anchor_right = 1.2
+anchor_bottom = 1.2
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Icon" type="TextureRect" parent="Body"]
+unique_name_in_owner = true
+material = SubResource("ShaderMaterial_cooldown")
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.083333
+anchor_top = 0.083333
+anchor_right = 0.916667
+anchor_bottom = 0.916667
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Frame" type="TextureRect" parent="Body"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+texture = ExtResource("5_active")
+expand_mode = 1
+
+[node name="CooldownNumber" type="Label" parent="Body"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_type_variation = &"CooldownNumber"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Lock" type="Control" parent="Body"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Padlock" type="TextureRect" parent="Body/Lock"]
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.3
+anchor_top = 0.16
+anchor_right = 0.7
+anchor_bottom = 0.6
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+texture = ExtResource("9_padlock")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="LockText" type="Label" parent="Body/Lock"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = -1
+anchor_top = 0.56
+anchor_right = 1.0
+anchor_bottom = 0.9
+grow_horizontal = 2
+grow_vertical = 2
+theme_type_variation = &"PillText"
+horizontal_alignment = 1
+vertical_alignment = 1

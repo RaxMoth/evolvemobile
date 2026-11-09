@@ -89,6 +89,10 @@ var ability_cooldowns := {
 	"ability_2": 0.0,
 	"ability_3": 0.0,
 }
+## The cooldown each slot started at on its last cast, so the HUD can draw
+## remaining / total (get_cooldown_progress). Written by _cast only, never
+## read by gameplay.
+var _cooldown_totals: Dictionary[String, float] = {}
 
 func _ready() -> void:
 	if not monster_stats:
@@ -508,6 +512,7 @@ func _cast(ability_name: String, ability: AbilityBase, cast_target: Node2D) -> b
 		return false
 	ability.execute(self, cast_target, effective_ability_damage(ability))
 	ability_cooldowns[ability_name] = ability.cooldown
+	_cooldown_totals[ability_name] = ability.cooldown
 	if strategy_profile:
 		_cast_lock = strategy_profile.cast_lock_time
 	EventBus.notify_ability_cast(self, ability, cast_target)
@@ -928,6 +933,15 @@ func get_stage() -> int:
 
 func get_ability_cooldown(ability_name: String) -> float:
 	return ability_cooldowns.get(ability_name, 0.0)
+
+## 0.0 right after a cast, 1.0 when ready. Polled by the monster HUD
+## (CooldownSource.Monster), like AbilitySystem.get_cooldown_progress.
+func get_cooldown_progress(ability_name: String) -> float:
+	var remaining: float = ability_cooldowns.get(ability_name, 0.0)
+	var total: float = _cooldown_totals.get(ability_name, 0.0)
+	if remaining <= 0.0 or total <= 0.0:
+		return 1.0
+	return clampf(1.0 - remaining / total, 0.0, 1.0)
 
 func is_ability_ready(ability_name: String) -> bool:
 	return ability_cooldowns.get(ability_name, 0.0) <= 0.0
