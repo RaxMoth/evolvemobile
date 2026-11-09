@@ -55,6 +55,7 @@ offset_right = 27.0
 offset_bottom = 73.0
 mouse_filter = 2
 theme_type_variation = &"Pill"
+pivot_offset_ratio = Vector2(0.5, 0.5)
 
 [node name="LevelText" type="Label" parent="Card/LevelBadge"]
 unique_name_in_owner = true

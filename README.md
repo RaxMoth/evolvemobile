@@ -712,7 +712,8 @@ writes gameplay state, so `tools/sim_trace.sh` stays byte-identical.
   group, tree order):
     - the head portrait: `CharacterDef.head_texture()` (the def's
       `head_region` of its portrait SVG as an AtlasTexture) in a ring of the
-      hero's signature colour, the in-round level on a pill;
+      hero's signature colour, the in-round level on a pill that pops
+      (1.4 → 1, TRANS_BACK) on each level-up;
     - name, HP bar and in-round XP bar. The HP fill is the theme's
       `HpBarHero` above 50 %, amber down to 25 % and danger below; the two
       extra fills are built once per card;
@@ -741,10 +742,34 @@ writes gameplay state, so `tools/sim_trace.sh` stays byte-identical.
       Slam shows its padlock and "II" until Stage II;
     - a tally from `EventBus.entity_died`: heroes slain of the starting count,
       and the mobs this monster killed.
-- Strings go through `Assets/Locale/strings.csv` (EN/DE).
+- **Event toasts** (both sides): `MatchHud.show_toast(text, queued = true)`
+  drops the crimson `BannerMonster` ribbon (`BannerTitle` text) at y 250,
+  centred (`Root/ToastBar`): it pops in 0.7 → 1 (TRANS_BACK, 0.3 s) while
+  fading in, holds 2.2 s and fades out in 0.3 s. At most one toast is
+  visible; the others wait in line (up to 3, a full line drops its oldest), a
+  text already showing or waiting is not added twice, and `queued` false drops
+  the toast when another one is up. The scene's `Announcer`
+  (`MatchAnnouncer`, `Scenes/UI/Hud/match_announcer.gd`) feeds it:
+  `announced` → `show_toast` is a connection in `MatchHud.tscn`. EventBus is
+  an autoload and cannot be the source of a scene connection, so the
+  Announcer subscribes in `_ready` and re-emits:
+    - `monster_evolved`: "GROUNT EVOLVED · STAGE II" (queued);
+    - `entity_died` of a HeroBase: "VLAD HAS FALLEN" (queued; mobs, the
+      monster and Ted's pet are no news);
+    - `ability_cast` of an ultimate (hero or monster): its name, "BLOOD BOMB",
+      not queued, and the same ultimate at most once per
+      `ultimate_repeat_guard` (12 s of match time; Ted's Trap Cage is back
+      every few seconds).
+  Names are the roster's `CharacterDef` display names, upper-cased; each kind
+  has an `announce_*` export.
+- Strings go through `Assets/Locale/strings.csv` (EN/DE), the toast lines too
+  ("%s EVOLVED · STAGE %s", "%s HAS FALLEN"; the toast label does not
+  auto-translate the finished line again).
 - `test/test_match_hud.gd` (cards, focus across deaths, HP bands, pause and
-  follow wiring, the monster panel and tracker, the intent mapping) and
-  `test/test_hud_fog.gd` (the minimap in its frame, both sides).
+  follow wiring, the monster panel and tracker, the intent mapping),
+  `test/test_match_toasts.gd` (toast texts in EN/DE, the queue, the scene-wired
+  Announcer through an evolution, a hero's fall and ultimates, the level badge
+  pop) and `test/test_hud_fog.gd` (the minimap in its frame, both sides).
 
 ### HUD Cooldown Slots (CooldownSource, AbilitySlot)
 
@@ -1330,7 +1355,8 @@ res://
 │     │            RosterScreen.tscn, CharacterDetail.tscn, ux_tree_model.gd)
 │     ├─ MainMenu/ (the old menu, reachable from the match result until Phase 8)
 │     ├─ Hud/ (MatchHud: the in-match HUD under MainCam, HeroHudCard,
-│     │        MonsterHudPanel, AbilitySlot: ability icon with the cooldown sweep)
+│     │        MonsterHudPanel, AbilitySlot: ability icon with the cooldown sweep,
+│     │        MatchAnnouncer: match events -> the HUD's event toasts)
 │     ├─ Minimap/ (Minimap: fog map + side-fair dots, inside the MatchHud frame)
 │     ├─ Components/ (menu kit: CharacterCard, StageCharacter, TopBar,
 │     │               CurrencyChip, NavBar, NavTab, NavArch, PressFeedback,
@@ -1615,6 +1641,7 @@ Max out hero trees → Unlock new heroes → Compete on leaderboards
 
 - [x] Fog of war (world-space)
 - [x] Match HUD: hero cards / monster panel with real-time stats, top bar, framed minimap
+- [x] Match event toasts (evolution, hero fallen, ultimates) and the level-up badge pop
 - [x] Health bars
 - [x] Ability cooldown indicators
 

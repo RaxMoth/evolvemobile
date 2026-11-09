@@ -12,7 +12,8 @@ extends Button
 ##     bound to a CooldownSource.Hero (the slot polls the real cooldown); the
 ##     passive never cools down, so it only takes its icon.
 ## The selected card (set_active) lifts LIFT px and wears HudPanelSelected. A
-## dead hero's card greys out (UiPalette.FALLEN_MODULATE) under a skull.
+## dead hero's card greys out (UiPalette.FALLEN_MODULATE) under a skull. A
+## level-up pops the level badge (LEVEL_POP -> 1, TRANS_BACK).
 ## Pressing the card emits `selected`; MatchHud decides whether the hero can
 ## take the focus. Presentation only: it reads the hero, never writes it.
 
@@ -30,6 +31,11 @@ const SLOT_ULT := 2
 const SLOT_PASSIVE := 3
 ## Width of the portrait ring.
 const RING_WIDTH := 3
+## The level badge's pop on a level-up: it jumps to LEVEL_POP and settles back
+## to 1 over LEVEL_POP_TIME s (pivot: its centre, pivot_offset_ratio in the
+## scene).
+const LEVEL_POP := 1.4
+const LEVEL_POP_TIME := 0.35
 
 var hero: Node = null
 
@@ -41,10 +47,12 @@ var _fills: Array[StyleBox] = []
 var _band: int = -1
 var _shown_xp: float = -1.0
 var _lift: Tween = null
+var _level_pop: Tween = null
 
 @onready var _card: Panel = %Card
 @onready var _portrait: Panel = %Portrait
 @onready var _head: TextureRect = %Head
+@onready var _level_badge: Control = %LevelBadge
 @onready var _level: Label = %LevelText
 @onready var _name: Label = %Name
 @onready var _hp: ProgressBar = %Hp
@@ -93,7 +101,7 @@ func bind_to_hero(new_hero: Node) -> void:
 		_stats.health_changed.connect(_on_health_changed)
 		_stats.leveled_up.connect(_on_leveled_up)
 		_on_health_changed(_stats.get_current_health(), _stats.get_max_health())
-		_on_leveled_up(_stats.level)
+		_level.text = str(_stats.level)
 		set_process(true)
 
 
@@ -147,8 +155,15 @@ func _on_health_changed(current: float, max_hp: float) -> void:
 		_set_dead()
 
 
+## HeroStats.leveled_up: the new level, with the badge pop.
 func _on_leveled_up(new_level: int) -> void:
 	_level.text = str(new_level)
+	if _level_pop:
+		_level_pop.kill()
+	_level_badge.scale = Vector2.ONE * LEVEL_POP
+	_level_pop = create_tween()
+	_level_pop.tween_property(_level_badge, ^"scale", Vector2.ONE, LEVEL_POP_TIME) \
+			.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 
 func _set_dead() -> void:

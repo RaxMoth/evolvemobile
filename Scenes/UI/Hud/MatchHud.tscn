@@ -8,6 +8,7 @@
 [ext_resource type="Texture2D" uid="uid://bkwmrdgv6sbsq" path="res://Assets/UI/Icons/UI/ui_follow.svg" id="6_follow"]
 [ext_resource type="Texture2D" uid="uid://y0kkgvtujfww" path="res://Assets/UI/Icons/Stats/stat_duration.svg" id="7_clock"]
 [ext_resource type="Texture2D" uid="uid://dys3gnhljaaxn" path="res://Assets/UI/Icons/UI/ui_skull.svg" id="8_skull"]
+[ext_resource type="Script" uid="uid://24c2ujjro1p7" path="res://Scenes/UI/Hud/match_announcer.gd" id="9_announcer"]
 
 [node name="MatchHud" type="CanvasLayer"]
 layer = 5
@@ -286,6 +287,38 @@ offset_bottom = -8.0
 grow_horizontal = 2
 grow_vertical = 0
 
+[node name="ToastBar" type="CenterContainer" parent="Root"]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_top = 250.0
+offset_bottom = 326.0
+grow_horizontal = 2
+mouse_filter = 2
+
+[node name="Toast" type="PanelContainer" parent="Root/ToastBar"]
+unique_name_in_owner = true
+visible = false
+custom_minimum_size = Vector2(320, 76)
+layout_mode = 2
+mouse_filter = 2
+theme_type_variation = &"BannerMonster"
+pivot_offset_ratio = Vector2(0.5, 0.5)
+
+[node name="ToastText" type="Label" parent="Root/ToastBar/Toast"]
+unique_name_in_owner = true
+auto_translate_mode = 2
+layout_mode = 2
+theme_type_variation = &"BannerTitle"
+theme_override_font_sizes/font_size = 28
+text = "GROUNT EVOLVED · STAGE II"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Announcer" type="Node" parent="."]
+script = ExtResource("9_announcer")
+
 [connection signal="pressed" from="Root/Top/Pause" to="." method="_on_pause_pressed"]
 [connection signal="pressed" from="Root/Top/Follow" to="." method="_on_follow_pressed"]
 [connection signal="hero_picked" from="Root/MinimapFrame/MinimapSlot/Minimap" to="." method="select_hero"]
+[connection signal="announced" from="Announcer" to="." method="show_toast"]

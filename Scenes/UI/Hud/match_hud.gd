@@ -18,6 +18,10 @@ extends CanvasLayer
 ## select_hero, wired in this scene).
 ## Bottom: heroes side, one HeroHudCard per hero (the "Hero" group's HeroBase
 ## nodes, in tree order); monster side, the MonsterHudPanel.
+## Event toasts (show_toast): the crimson BannerMonster ribbon at y 250
+## (Root/ToastBar) pops in, holds and fades; toasts queue, at most one shows.
+## The scene's Announcer (MatchAnnouncer) feeds it: monster evolved, hero
+## fell, ultimate cast (Announcer.announced -> show_toast, wired in this scene).
 ##
 ## Hero focus (heroes side; the monster side has no cards, so every call is a
 ## no-op there): a card press, the 1-4 keys and Tab (MainCam), a tap on a hero
@@ -34,6 +38,16 @@ signal follow_requested
 const HERO_CARD: PackedScene = preload("res://Scenes/UI/Hud/HeroHudCard.tscn")
 ## Top bar refresh rate (clock, kills, enemy tracker).
 const TOP_HZ := 4.0
+## Event toast timing (s): pop-in from TOAST_POP_FROM to full size (TRANS_BACK)
+## while fading in, hold, fade out.
+const TOAST_POP_FROM := 0.7
+const TOAST_POP := 0.3
+const TOAST_FADE_IN := 0.15
+const TOAST_HOLD := 2.2
+const TOAST_FADE_OUT := 0.3
+## Toasts waiting behind the visible one; when full, the oldest waiting one
+## gives way to the newest.
+const TOAST_MAX_PENDING := 3
 
 @export var pause_icon: Texture2D
 @export var play_icon: Texture2D
@@ -55,6 +69,10 @@ var _tracked: Array = []
 var _tracked_chips: Array[Control] = []
 var _tracked_bars: Array[ProgressBar] = []
 var _tracked_down: Array[bool] = []
+## The toast on screen ("" when none), the ones waiting, and its tween.
+var _toast_shown: String = ""
+var _toast_queue: Array[String] = []
+var _toast_tween: Tween = null
 
 @onready var _hero_cards: HBoxContainer = %HeroCards
 @onready var _monster_panel: MonsterHudPanel = %MonsterPanel
@@ -69,6 +87,8 @@ var _tracked_down: Array[bool] = []
 @onready var _pause: Button = %Pause
 @onready var _clock: Label = %Clock
 @onready var _kills: Label = %Kills
+@onready var _toast: Control = %Toast
+@onready var _toast_text: Label = %ToastText
 
 
 func _ready() -> void:
@@ -78,6 +98,7 @@ func _ready() -> void:
 	_enemy_monster.visible = _heroes_side
 	_enemy_heroes.visible = not _heroes_side
 	_hero_chip.visible = false
+	_toast.visible = false
 	set_process(false)
 	# Two frames so the entities finish their own _ready (which awaits
 	# physics frames) before the HUD reads their stats.
@@ -191,6 +212,61 @@ static func _monster_id(m: MonsterBase) -> StringName:
 static func _head_of(character_id: StringName) -> Texture2D:
 	var def := GameManager.ROSTER.find(character_id)
 	return def.head_texture() if def != null else null
+
+
+# ============================================
+# Event toasts
+# ============================================
+
+## Shows `text` on the toast ribbon: it pops in (0.7 -> 1, TRANS_BACK, 0.3 s),
+## holds 2.2 s and fades out in 0.3 s, then the next waiting toast shows. At
+## most one toast is visible. While one is up, `queued` true waits in line
+## (TOAST_MAX_PENDING; a full line drops its oldest) and `queued` false is
+## dropped (moment-to-moment news: an ultimate). A text already showing or
+## waiting is not added twice.
+func show_toast(text: String, queued: bool = true) -> void:
+	if text.is_empty() or text == _toast_shown or _toast_queue.has(text):
+		return
+	if _toast_tween == null:
+		_play_toast(text)
+	elif queued:
+		if _toast_queue.size() >= TOAST_MAX_PENDING:
+			_toast_queue.remove_at(0)
+		_toast_queue.append(text)
+
+
+## The toast on screen, "" when none.
+func current_toast() -> String:
+	return _toast_shown
+
+
+## The toasts waiting behind the current one, oldest first.
+func pending_toasts() -> PackedStringArray:
+	return PackedStringArray(_toast_queue)
+
+
+func _play_toast(text: String) -> void:
+	_toast_shown = text
+	_toast_text.text = text
+	_toast.visible = true
+	_toast.scale = Vector2.ONE * TOAST_POP_FROM
+	_toast.modulate.a = 0.0
+	_toast_tween = create_tween()
+	_toast_tween.tween_property(_toast, ^"modulate:a", 1.0, TOAST_FADE_IN)
+	_toast_tween.parallel().tween_property(_toast, ^"scale", Vector2.ONE, TOAST_POP) \
+			.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	_toast_tween.tween_interval(TOAST_HOLD)
+	_toast_tween.tween_property(_toast, ^"modulate:a", 0.0, TOAST_FADE_OUT)
+	_toast_tween.finished.connect(_on_toast_finished)
+
+
+func _on_toast_finished() -> void:
+	_toast_tween = null
+	_toast_shown = ""
+	_toast.visible = false
+	if not _toast_queue.is_empty():
+		var next: String = _toast_queue.pop_front()
+		_play_toast(next)
 
 
 # ============================================
