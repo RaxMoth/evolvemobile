@@ -70,7 +70,7 @@ func test_abilities_are_the_scenes_own_resources() -> void:
 	for d in _roster().all():
 		var id := d.character_id()
 		var abilities := d.abilities()
-		assert_eq(abilities.size(), 3 if d.is_monster() else 4, "%s: every ability slot of the scene" % id)
+		assert_eq(abilities.size(), 4, "%s: every ability slot of the scene (a monster's passive too)" % id)
 		for a in abilities:
 			assert_false(a.ability_name.is_empty(), "%s: ability named" % id)
 			assert_true(a.icon != null, "%s: %s has its icon" % [id, a.ability_name])
@@ -82,6 +82,10 @@ func test_abilities_are_the_scenes_own_resources() -> void:
 	var menu_order: Array[int] = [AbilityBase.AbilityType.PASSIVE, AbilityBase.AbilityType.BASIC_ATTACK,
 		AbilityBase.AbilityType.ACTIVE, AbilityBase.AbilityType.ULTIMATE]
 	assert_eq(hero_types, menu_order, "menu order: passive, basic, active, ultimate")
+	var monster_types: Array[int] = []
+	for a in _roster().find(&"grount").abilities():
+		monster_types.append(a.ability_type)
+	assert_eq(monster_types[0], AbilityBase.AbilityType.PASSIVE, "a monster's passive comes first (Evolution)")
 
 
 func test_monster_fields() -> void:

@@ -7,6 +7,20 @@ class_name MonsterStats
 @export var monster_name: String = "Unknown Monster"
 @export var monster_type: String = "Boss"
 
+@export_group("Combat")
+## Reach before skill nodes (README: Grount 80 at every stage). MonsterBase's
+## attack range = this x the range nodes + Titan Form's flat bonus. The
+## spacing (preferred / min distance, combat_role) is the scene root's.
+@export var base_attack_range: float = 80.0
+## Fight hands back to Approach beyond this distance (+ Titan Form's bonus).
+## Above base_attack_range, so the two never ping-pong.
+@export var fight_leave_distance: float = 100.0
+
+@export_group("Toughness")
+## Incoming damage x this per stage (index 0 = stage 1), after the tree's
+## damage-taken nodes. Empty or shorter = 1.0 (Grount). Gorrak's armour.
+@export var damage_taken_mult_per_stage: Array[float] = []
+
 @export_group("Evolution Thresholds")
 @export var stage_2_xp: int = 100
 @export var stage_3_xp: int = 300
@@ -96,3 +110,8 @@ func get_xp_threshold_for_stage(stage: int) -> int:
 		2: return stage_2_xp
 		3: return stage_3_xp
 		_: return 999999
+
+func get_damage_taken_mult(stage: int) -> float:
+	if stage > 0 and damage_taken_mult_per_stage.size() >= stage:
+		return damage_taken_mult_per_stage[stage - 1]
+	return 1.0

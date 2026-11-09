@@ -70,6 +70,9 @@ extends Resource
 @export var dash_on_mobs: bool = false
 ## A hero this close while farming/retreating triggers an escape dash.
 @export var escape_dash_radius: float = 110.0
+## false: ability 2 is not a movement skill (Gorrak's thrown Tusk Axe) and is
+## never cast away from the heroes as an escape.
+@export var escape_with_ability_2: bool = true
 
 
 func max_mob_health_for_stage(stage: int) -> float:

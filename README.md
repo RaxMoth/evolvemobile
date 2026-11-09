@@ -218,6 +218,8 @@ Power Level
   glowing cracks and a chain (Stage 3); a flash and a ring pulse mark the evolution
 - **Screen Shake**: Alerts players to evolution
 - **Ability Unlocks**: Ground Slam unlocks at Stage 2
+- **Passive slot**: "Evolution" (`grount_evolution.tres`) names this stage system in the HUD's
+  passive slot and on the character screen
 
 ### XP Sources (Monster)
 
@@ -534,7 +536,10 @@ Nyxa have their art but no scene yet.
   which stays crisp up to about camera zoom x7.5 for heroes. `full_speed` is
   the character's move speed (stage 1 for monsters), so its usual walk swings
   the legs fully, and `stride` = 4 x leg (hip pivot to sole) x
-  sin(`leg_swing`) x `world_scale`, so a planted foot does not slide.
+  sin(`leg_swing`) x `world_scale`, so a planted foot does not slide. In a
+  match the rig steps by `walk_stride()` = `stride` x its own +-4 % size x
+  the entity's scale, so an evolved Grount (1.25x, 1.5x) or any growing
+  monster takes proportionally longer steps instead of pedalling.
 - **Builder**: `tools/build_rigs.sh [id ...]` runs `tools/rig_builder.gd`
   (`RigBuilder`) on a temp copy and copies back, per character:
     - `<id>_sheet.svg`: every part cropped to its alpha box and shelf-packed
@@ -596,8 +601,14 @@ Nyxa have their art but no scene yet.
       a dense core and a soft rim (CompressedTexture2D with mipmaps, drawn
       LINEAR_WITH_MIPMAPS like the rig art). `_ready` tints it with the
       palette's `ink` at `shadow_alpha` (0.55) and sizes it once to
-      2 x `shadow_radius` x `SHADOW_SPREAD` (1.5) world px: radius 14 for the
-      heroes and the Hog, 24 for Grount, 10 for the fox, 9 for the Bat. Being
+      2 x `shadow_radius` x `SHADOW_SPREAD` (1.5) world px. The radius is
+      derived, never set per scene: `CharacterRig.shadow_radius_for(body,
+      profile)` = the body's width (`RigBody.bounds`) x `world_scale` x the
+      profile's `shadow_per_width` (0.33 by default; 0.38 for the heroes, 0.36
+      for Grount and Gorrak, 0.21 for the hovering Bat and Nyxa), which gives
+      about 14 for the heroes and the Hog, 24 for Grount, 10 for the fox and 9
+      for the Bat (the old hand-set numbers), 23.5 for Gorrak and 16.6 for
+      Nyxa. The menus' `RigView` uses the same rule. Being
       drawn first, it sits under the body; it stays on the ground at the feet
       while the body bounces or a flyer hovers, and it is hidden while the rig
       is inert. It is not the hurt flash's target (that is the body).
@@ -649,14 +660,14 @@ Nyxa have their art but no scene yet.
   `test/fixtures/rig_fixture/` (generated files fresh for every character,
   z order, stages, broken art refused, no global RNG, no entity writes,
   asleep off screen, inert without a body and its shadow hidden, the budget
-  rule).
+  rule, the stride following the entity's scale).
   `test/test_character_art.gd` checks the real art: the ten characters, their
   sheets' svg/scale and mipmaps, DPITexture portraits, body plans, world
   scales and the no-slide stride. `test/test_rigged_scenes.gd` checks the
   migrated scenes: their own body, profile and tier, the hidden sprite without
   frames, the HP bar rule (at every Grount stage), the notifier covering the
-  drawn body, the ink contact shadow (wiring, tint, size, under the body, on
-  the ground while the bat hovers), real heroes, the fox, Grount and the mobs
+  drawn body, the ink contact shadow (wiring, tint, size from the body's
+  width, under the body, on the ground while the bat hovers), real heroes, the fox, Grount and the mobs
   walking (the bat flapping), facing and flinching in a match (the fox
   through `mover`), Grount's parts and flash through stages 1 to 3, the mob half rate over the
   budget, a pooled mob's rig starting its next life clean, and the F3 line. `RIGS_AWAKE=1 tools/sim_trace.sh`
@@ -756,8 +767,8 @@ writes gameplay state, so `tools/sim_trace.sh` stays byte-identical.
       Approach / Fight against a hero hunts, otherwise the strategy names it;
     - the HP bar ("1008 / 1400") and the EVOLVE bar (XP towards
       `MonsterBase.get_evolution_threshold()`, hidden at Stage III);
-    - the passive (the monster's Evolution icon when it has no passive
-      resource) and ability_1..3 bound to a `CooldownSource.Monster`: Ground
+    - the passive (every monster scene has a passive resource: Grount's
+      Evolution) and ability_1..3 bound to a `CooldownSource.Monster`: Ground
       Slam shows its padlock and "II" until Stage II;
     - a tally from `EventBus.entity_died`: heroes slain of the starting count,
       and the mobs this monster killed.
@@ -1039,6 +1050,52 @@ The chart owns all state. Its active state is **stepped** by the `TickScheduler`
   shows (read-only; RiverBasicAttack returns `heal_icon` while River holds the
   heal staff, every other ability its `icon`)
 
+### Shared Monster Framework (MonsterBase, MonsterStats, AbilityBase)
+
+Everything a monster needs beyond Grount's kit lives in the shared classes, so
+a new monster is data (a scene, its stats, its ability `.tres`) plus at most
+one new ability script. Every default is Grount's old behaviour:
+`tools/sim_trace.sh` stays byte-identical with Grount.
+
+- **`MonsterStats`** (per monster `.tres`):
+  - Combat: `base_attack_range` (80; attack range = this x the range nodes +
+    Titan Form's flat bonus) and `fight_leave_distance` (100; + the same
+    bonus). These were MonsterBase constants. The spacing (`combat_role`,
+    `preferred_distance` 45, `min_distance` 20) stays on the scene root, set in
+    `monster_base_class.tscn` and overridden by a monster scene's own root.
+  - Toughness: `damage_taken_mult_per_stage` (index 0 = Stage 1; empty or
+    shorter = 1.0) and `get_damage_taken_mult(stage)`. `_receive_damage`
+    multiplies every hit by it after the tree's damage-taken nodes, so the
+    `damage_applied` listeners see what landed. Gorrak's armour.
+- **`AbilityBase`** (every ability, heroes and monsters):
+  - `lifesteal_pct` and `deal(caster, target, amount)`: damage through
+    `EventBus.deal_damage`, then `caster.heal_self(landed x lifesteal_pct)`.
+    Every monster ability and every hero `BasicStrike` hit goes through it.
+  - `tick_active(caster, delta)`: MonsterBase calls it for ability_1..3 every
+    frame (three direct calls, no per-frame array). For abilities that keep
+    acting after the cast (an aura that bites, a thrown axe in flight) without
+    timers or tweens. Default: nothing.
+  - `get_cast_center(caster, target)`: where the area lands. The combo's
+    "slam only when it hits `slam_min_targets`" counts targets around it.
+    Default: the target. `BullGroundSlam`: the leap's landing point (the
+    target, at most `leap_distance` away; `leap_distance` 0 = in place).
+- **`MonsterBase`**: `heal_self(amount)` (lifesteal; capped at max HP, never a
+  dead monster), the stats-driven reach and Fight leave distance, the stage's
+  damage-taken multiplier, and `_try_escape_dash` honours
+  `MonsterStrategy.escape_with_ability_2` (true; false = ability 2 is no
+  movement skill, Gorrak's thrown axe, and is never cast away as an escape).
+- **Grount's kit as the shared toolkit**: `BullFrontCleave` keeps a tree's
+  `cone_angle` modifier on top of each stage's angle (Nyxa "Wide Shriek",
+  Gorrak "Wide Arc"); `BullGroundSlam.stun_duration` (0 = off) stuns every
+  target the slam hits (Gorrak's Warcry Stomp; his node Ringing Ears adds to it);
+  `BullRamDash` already had its stun. All three deal through `deal()`.
+- **Passive slot**: every monster scene sets `passive_ability`. Grount's is
+  Evolution (`grount_evolution.tres`, a plain PASSIVE `AbilityBase` with the
+  kit's evolution icon and the stage rules as its description): the HUD's
+  passive slot and the character screen show it; the evolution itself is
+  MonsterBase's.
+- Checks: `test/test_monster_framework.gd`.
+
 ### Character Roster (Roster, CharacterDef, MonsterSlot)
 
 One registry describes every playable character for the menus, the match, the
@@ -1076,8 +1133,8 @@ entity registers it and draws from the global RNG).
     `.tres` from its SceneState, in menu order (passive, basic, active,
     ultimate; monsters passive, ability_1..3). Icons, names and descriptions
     come from there. `ability_slots()` keeps the four slots with null for an
-    empty one (Grount has no passive resource), so screens caption each by
-    its slot.
+    empty one (every shipped character fills all four), so screens caption
+    each by its slot.
 - **`Scenes/World/monster_slot.gd`** (`MonsterSlot`) stands where World.tscn
   used to instance Grount, as World's last child after `Heros`. It spawns
   `resolve_monster(GameManager.selected_monster_id)` in `_enter_tree`, so the
@@ -1094,7 +1151,10 @@ entity registers it and draws from the global RNG).
   determinism baseline is unchanged. The SIM_RESULT JSON gains `monster` and
   `monster_name`, and `sim_summary.py` prints the monster.
 - **Adding a monster**: a scene inheriting `monster_base_class.tscn` with its own
-  MonsterStats (`monster_id`), ability `.tres` and strategy; its
+  MonsterStats (`monster_id`, reach, Fight leave distance, armour; see Shared
+  Monster Framework below), its spacing on the scene root (`preferred_distance`,
+  `min_distance`), ability `.tres` (a passive one too, for the HUD's passive
+  slot) and strategy; its
   `Assets/Characters/<id>/` rig (`src/` + `tools/build_rigs.sh`); a
   `<id>_def.tres` added to `roster.tres`; and its `Data/SkillTrees/monster_<id>.tres`
   linked from the def's `skill_tree` (Nyxa's and Gorrak's are generated and wait
@@ -1770,7 +1830,9 @@ code yet (every hero node has its code since 5.4; 6.6: monster behaviours):
 - **monster_nyxa** (Hunger / Shadow / Brood) and **monster_gorrak** (Tusks /
   Bristles / Warband): generated with the gamedesign values, registered with
   their defs in Phase 6. Their generic-key nodes (Night Recovery, Mud Armour,
-  Mud Bath) are already shown; their other new-code nodes stay hidden.
+  Mud Bath) and the cone nodes (Nyxa Wide Shriek, Gorrak Wide Arc: the shared
+  `BullFrontCleave` keeps `cone_angle` modifiers) are already shown; their
+  other new-code nodes stay hidden.
 
 **Permanent XP** (per hero and per monster) opens a character tree's tiers:
 Lv 3, 5 and 8 take about 2, 7 and 19 matches with that character.

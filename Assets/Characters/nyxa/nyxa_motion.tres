@@ -12,3 +12,4 @@ stride = 57.0
 flap_hz = 3.5
 flap_amount = 0.45
 hover = 6.0
+shadow_per_width = 0.21

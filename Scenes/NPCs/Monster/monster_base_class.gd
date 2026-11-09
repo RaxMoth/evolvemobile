@@ -37,12 +37,8 @@ signal evolved(stage: int)
 @export var titan_bonus_health: float = 500.0
 @export var titan_bonus_range: float = 20.0
 
-## README attack range before skill nodes (80 flat at every stage).
-const BASE_ATTACK_RANGE: float = 80.0
 ## The last evolution stage (Stage III, "Apex Predator").
 const FINAL_STAGE: int = 3
-## Fight hands back to Approach beyond this distance (+ get_range_bonus()).
-const FIGHT_LEAVE_DISTANCE: float = 100.0
 
 ## Current strategy. A pure function of stage, health and nearby heroes,
 ## recomputed every strategy_eval_interval (see _compute_strategy). It only
@@ -127,14 +123,34 @@ func _process(delta: float) -> void:
 
 	if passive_ability:
 		passive_ability.on_passive_update(self, delta)
-	
+	# Abilities that keep acting after their cast (an aura, a thrown weapon in
+	# flight). Three direct calls: no per-frame array.
+	if ability_1:
+		ability_1.tick_active(self, delta)
+	if ability_2:
+		ability_2.tick_active(self, delta)
+	if ability_3:
+		ability_3.tick_active(self, delta)
+
+
+## Lifesteal (AbilityBase.deal with lifesteal_pct) and other self-heals: never
+## above max HP, and a dead monster is never healed back.
+func heal_self(amount: float) -> void:
+	if amount <= 0.0 or not is_alive():
+		return
+	var max_hp: float = get_max_health()
+	current_health = minf(current_health + amount, max_hp)
+	set_hp_display(current_health, max_hp)
+
 
 ## Applies everything that depends on current_stage: HP, damage, XP value,
 ## ability stats, size, aggro radius, strafing and the Fight leave distance.
 ## Idempotent, so re-entering a stage never stacks anything. The values that
 ## never change per stage live on the monster_base_class.tscn root: spacing
 ## (preferred 45 / min 20) and taunt_strength 1.5 (more threat per damage
-## point than a mob, so a hero Tank has to work harder to peel the monster).
+## point than a mob, so a hero Tank has to work harder to peel the monster);
+## a monster scene overrides them on its own root. Reach and the Fight leave
+## distance are MonsterStats numbers (base_attack_range, fight_leave_distance).
 func _enter_stage() -> void:
 	var stage: int = current_stage
 	var new_health: float = _max_health_for_stage(stage)
@@ -162,7 +178,7 @@ func _enter_stage() -> void:
 	# Approach enters Fight at attack_range and Fight leaves past max_distance:
 	# Titan Form's flat reach moves both by the same amount, so the hysteresis
 	# stays what it was (no Approach/Fight ping-pong at the longer range).
-	max_distance = FIGHT_LEAVE_DISTANCE + get_range_bonus()
+	max_distance = monster_stats.fight_leave_distance + get_range_bonus()
 
 func _get_entity_level() -> int:
 	return current_stage
@@ -216,7 +232,9 @@ func _get_move_speed() -> float:
 	return monster_stats.get_speed_for_stage(current_stage) * _meta_speed_mult * _enrage_factor(enrage_speed_mult)
 
 func _get_attack_range() -> float:
-	return BASE_ATTACK_RANGE * _meta_range_mult + get_range_bonus()
+	if not monster_stats:
+		return 0.0
+	return monster_stats.base_attack_range * _meta_range_mult + get_range_bonus()
 
 ## The aggro circle is a child of the root, so it scales with the monster. With
 ## Titan Form its world radius follows the live root scale up to the stage's
@@ -256,9 +274,11 @@ func _receive_damage(packet: DamagePacket) -> void:
 
 	last_attacker = packet.source if packet.source is Node2D else null
 	_since_damage = 0.0
-	# Scarred Hide / Thick Hide (monster_damage_taken_mult): the hit's final
-	# amount, so the damage_applied listeners see what landed.
+	# Scarred Hide / Thick Hide (monster_damage_taken_mult), then the stage's
+	# own toughness (MonsterStats.damage_taken_mult_per_stage, Gorrak's armour):
+	# the hit's final amount, so the damage_applied listeners see what landed.
 	packet.amount *= _meta_damage_taken_mult
+	packet.amount *= monster_stats.get_damage_taken_mult(current_stage)
 	current_health -= packet.amount
 	set_hp_display(current_health, get_max_health())
 
@@ -897,7 +917,9 @@ func _choose_and_use_ability_combo() -> void:
 
 func _count_slam_targets() -> int:
 	var reach: float = ability_3.get_reach()
-	var center: Vector2 = target_entity.global_position  # the leap lands on the target
+	# Where the ultimate lands: Ground Slam's leap target, or the monster
+	# itself for an aura or an in-place stomp.
+	var center: Vector2 = ability_3.get_cast_center(self, target_entity)
 	var n: int = EntityRegistry.count_within(EntityRegistry.hero_side, center, reach)
 	if strategy != Strategy.HUNT:
 		n += EntityRegistry.count_within(EntityRegistry.mobs, center, reach)
@@ -942,6 +964,8 @@ func _try_gap_close() -> bool:
 
 func _try_escape_dash() -> void:
 	var p := strategy_profile
+	if not p.escape_with_ability_2:
+		return
 	if ability_2 == null or not is_ability_ready("ability_2") or _is_busy() or _get_taunter() != null:
 		return
 	if not (strategy == Strategy.RETREAT or (strategy == Strategy.FARM and _heroes_near >= p.retreat_min_heroes)):

@@ -156,8 +156,8 @@ func abilities() -> Array[AbilityBase]:
 
 
 ## The ability in each menu slot (passive, basic, active, ult): always four
-## entries, null where the scene leaves a slot empty (Grount has no passive
-## resource), so a screen can caption each one by its slot. Empty when the def
+## entries, null where a scene leaves a slot empty (every shipped character
+## fills all four), so a screen can caption each one by its slot. Empty when the def
 ## has no scene.
 func ability_slots() -> Array[AbilityBase]:
 	var out: Array[AbilityBase] = []

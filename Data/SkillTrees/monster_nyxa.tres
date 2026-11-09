@@ -171,7 +171,6 @@ rank_costs = Array[int]([120, 200, 330])
 rank_values = Array[float]([8.0, 14.0, 20.0])
 requires = Array[StringName]([&"ny_dmg"])
 branch = 2
-hidden = true
 ability_name = "Sonic Screech"
 stat_name = "cone_angle"
 stat_value = 8.0

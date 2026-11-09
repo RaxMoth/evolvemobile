@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="AbilityBase" load_steps=3 format=3 uid="uid://ccs50qow64lhh"]
+
+[ext_resource type="Script" uid="uid://ckqkql3s1phrf" path="res://Scenes/NPCs/Hero/Abilities/ability_base.gd" id="1_evo"]
+[ext_resource type="Texture2D" uid="uid://cco1b53a65oyn" path="res://Assets/UI/Icons/Abilities/grount_passive_evolution.svg" id="2_evo"]
+
+[resource]
+script = ExtResource("1_evo")
+ability_name = "Evolution"
+ability_type = 0
+icon = ExtResource("2_evo")
+description = "Kills feed Grount XP: he evolves at 150 and 300 XP, growing bigger with more HP, speed and damage, healing to full, and Stage II unlocks Ground Slam"
+metadata/_custom_type_script = "uid://ckqkql3s1phrf"

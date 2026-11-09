@@ -190,12 +190,24 @@ func test_monster_hp_bar_clears_the_head_at_every_stage() -> void:
 		monster.free()
 
 
+## The shadow radius each character had as a hand-set scene number before it
+## was derived from the body (CharacterRig.shadow_radius_for): the profiles'
+## shadow_per_width keep them within half a pixel.
+const SHADOW_RADII: Dictionary[String, float] = {
+	"irelia": 14.0, "river": 14.0, "ted": 14.0, "vlad": 14.0,
+	"grount": 24.0, "bat": 9.0, "hog": 14.0, PET_ID: 10.0,
+}
+## River's body is the narrowest hero's: 13.4 px.
+const SHADOW_TOLERANCE := 0.7
+
+
 ## Every rig stands on one contact shadow: the scene's "Shadow" Sprite2D
 ## (wired to `shadow`) is the Rig's first child, so it draws under the body,
 ## and holds the white blob, mipmapped and linear like the rig art. In the
 ## tree it shows in the palette's ink at shadow_alpha, SHADOW_SPREAD x 2 x
-## shadow_radius wide, at the feet. Grount's is the biggest, the bat's and the
-## fox's the smallest.
+## shadow_radius wide, at the feet, where shadow_radius is the body's width x
+## world_scale x the profile's shadow_per_width (no number per scene). Grount's
+## is the biggest, the bat's and the fox's the smallest.
 func test_rigs_stand_on_an_ink_contact_shadow() -> void:
 	var ink := UiPalette.get_default().ink
 	var paths: Dictionary[String, String] = {PET_ID: PET}
@@ -222,6 +234,10 @@ func test_rigs_stand_on_an_ink_contact_shadow() -> void:
 		add_child(rig)
 		assert_true(shadow.visible, "%s: shown once the rig is live" % id)
 		assert_eq(shadow.modulate, Color(ink, rig.shadow_alpha), "%s: the palette's ink at shadow_alpha" % id)
+		var derived := rig.body.bounds.size.x * rig.profile.world_scale * rig.profile.shadow_per_width
+		assert_near(rig.shadow_radius, derived, 0.0001, "%s: from the body's width" % id)
+		assert_near(rig.shadow_radius, CharacterRig.shadow_radius_for(rig.body, rig.profile), 0.0001)
+		assert_near(rig.shadow_radius, SHADOW_RADII.get(id, -1.0), SHADOW_TOLERANCE, "%s: the size it had" % id)
 		var width := shadow.texture.get_width() * shadow.scale.x
 		assert_near(width, 2.0 * rig.shadow_radius * CharacterRig.SHADOW_SPREAD, 0.01, "%s: sized to shadow_radius" % id)
 		assert_eq(shadow.scale.x, shadow.scale.y, "%s: the blob keeps its ground ellipse" % id)

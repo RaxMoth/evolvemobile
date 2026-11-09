@@ -60,9 +60,6 @@ const MAX_STEP := 64.0
 ## shadow_alpha and sizes it to shadow_radius once; it stays on the ground
 ## while the body bounces or hovers. Hidden while the rig is inert.
 @export var shadow: Sprite2D
-## Half the width of the shadow's dense core in world px (0 = no shadow); the
-## soft rim reaches SHADOW_SPREAD times further.
-@export var shadow_radius: float = 14.0
 ## The ink's alpha at the shadow's core.
 @export_range(0.0, 1.0) var shadow_alpha: float = 0.55
 ## Hit flash: the body's modulate at the start of a hurt reaction is the
@@ -77,6 +74,12 @@ static var _awake: int = 0
 ## byte-identical.
 static var force_awake: bool = false
 
+## Half the width of the shadow's dense core in world px, before the entity's
+## own scale (the shadow grows with an evolving monster like the body); the
+## soft rim reaches SHADOW_SPREAD times further. Set in _ready from the body
+## and profile (shadow_radius_for): 0 while the rig is inert or the profile
+## asks for no shadow.
+var shadow_radius := 0.0
 var _active := false
 ## The character whose position and facing carrier drive the pose (null = puppet).
 var _entity: Node2D = null
@@ -127,6 +130,8 @@ func _ready() -> void:
 				body = c
 				break
 	_active = body != null and profile != null
+	if _active:
+		shadow_radius = shadow_radius_for(body, profile)
 	if shadow:
 		shadow.visible = _active and shadow_radius > 0.0
 	if not _active:
@@ -159,6 +164,22 @@ func _ready() -> void:
 	else:
 		set_on_screen(true)
 	_pose()
+
+
+## The contact shadow's core radius for a body drawn with `p`: the art's width
+## (RigBody.bounds) in world px x the profile's shadow_per_width. One rule for
+## the match and the menus' RigView, so a new character needs no hand-tuned
+## number.
+static func shadow_radius_for(b: RigBody, p: RigProfile) -> float:
+	return b.bounds.size.x * p.world_scale * p.shadow_per_width
+
+
+## World px the entity travels per full step cycle: the profile's stride (at
+## world_scale) x the rig's own +-4 % size x the entity's scale, because the
+## legs grow with both (an evolved Grount at 1.5x takes 1.5x longer steps).
+## Read every frame, so a growing monster's feet stay planted mid-tween.
+func walk_stride() -> float:
+	return profile.stride * _size * maxf(absf(global_scale.x), 0.01)
 
 
 ## A pooled mob re-enters the tree without a new _ready: under the tools'
@@ -335,7 +356,8 @@ func _process(delta: float) -> void:
 		if step > MAX_STEP:
 			step = 0.0
 		speed = step / maxf(dt, 0.0001)
-		_walk_phase += step / profile.stride * PI
+		if step > 0.0:
+			_walk_phase += step / walk_stride() * PI
 		if _facing:
 			var c := cos(_facing.rotation)
 			if c > 0.25:

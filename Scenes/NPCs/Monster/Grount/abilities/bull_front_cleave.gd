@@ -17,8 +17,10 @@ func get_reach() -> float:
 
 func apply_stage_stats(stage: int) -> void:
 	super.apply_stage_stats(stage)
+	# Keeps a tree's cone_angle modifier (Nyxa "Wide Shriek", Gorrak "Wide
+	# Arc") on top of the stage's angle, like the four base stage stats.
 	if cone_angle_per_stage.size() >= stage and stage > 0:
-		cone_angle = cone_angle_per_stage[stage - 1]
+		cone_angle = _modified("cone_angle", cone_angle_per_stage[stage - 1])
 
 func execute(caster: Node2D, _target: Node2D = null, override_damage: float = -1.0) -> void:
 	var effective_damage: float = override_damage if override_damage >= 0.0 else damage
@@ -34,7 +36,7 @@ func execute(caster: Node2D, _target: Node2D = null, override_damage: float = -1
 		if absf(forward_dir.angle_to(to_entity)) > half_cone:
 			continue
 		if GameUtils.can_entity_target(caster, entity):
-			EventBus.deal_damage(caster, entity, effective_damage, self)
+			deal(caster, entity, effective_damage)
 
 
 func _caster_range_bonus(caster: Node2D) -> float:

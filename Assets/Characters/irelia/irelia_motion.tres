@@ -9,3 +9,4 @@ world_scale = 0.4
 full_speed = 75.0
 stride = 18.1
 leg_swing = 0.6
+shadow_per_width = 0.38

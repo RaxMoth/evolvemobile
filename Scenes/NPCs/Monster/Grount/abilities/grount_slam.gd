@@ -13,6 +13,9 @@ extends AbilityBase
 ## Kept outside MonsterStrategy.cornered_radius (70): a pull must not turn a
 ## farming monster's slam into a forced "Desperation" fight with heroes.
 @export var pull_stop_distance: float = 80.0
+## Every target the slam hits is stunned this long (0 = off): Gorrak's Warcry
+## Stomp, the same rule as Ram Dash's Stunning Charge.
+@export var stun_duration: float = 0.0
 
 ## F3 (MonsterBase.debug_meta_line): how many entities the last slam pulled.
 var last_pull_count: int = 0
@@ -45,6 +48,15 @@ func is_channeling() -> bool:
 ## With Gravity Slam the enemies the pull brings in count as slam targets too.
 func get_reach() -> float:
 	return maxf(slam_radius, pull_radius)
+
+
+## The leap lands on the target, at most leap_distance away (execute's rule
+## before the wall clamp); leap_distance 0 stomps in place.
+func get_cast_center(caster: Node2D, target: Node2D) -> Vector2:
+	var to_t: Vector2 = target.global_position - caster.global_position
+	if to_t.length() <= leap_distance:
+		return target.global_position
+	return caster.global_position + to_t.normalized() * leap_distance
 
 
 func execute(caster: Node2D, target: Node2D = null, override_damage: float = -1.0) -> void:
@@ -113,7 +125,9 @@ func _perform_slam(caster: Node2D) -> void:
 	for entity in GameUtils.entities_in_circle(caster.get_world_2d(), caster.global_position,
 			slam_radius, GameUtils.MASK_MONSTER_TARGETS, true, caster):
 		if GameUtils.can_entity_target(caster, entity):
-			EventBus.deal_damage(caster, entity, _effective_damage, self)
+			deal(caster, entity, _effective_damage)
+			if stun_duration > 0.0 and entity is EntityBase:
+				(entity as EntityBase).apply_stun(stun_duration)
 
 
 ## Gravity Slam: drag every living slam target within pull_radius of the impact

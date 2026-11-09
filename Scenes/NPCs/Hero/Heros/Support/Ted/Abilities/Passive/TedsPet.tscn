@@ -42,7 +42,6 @@ profile = ExtResource("4_motion")
 tier = 0
 mover = NodePath("..")
 shadow = NodePath("Shadow")
-shadow_radius = 10.0
 
 [node name="Shadow" type="Sprite2D" parent="Rig"]
 visible = false

@@ -10,9 +10,9 @@ extends PanelContainer
 ##     its rest and its state chart;
 ##   - the HP bar with "1008 / 1400" and the EVOLVE bar with the XP towards the
 ##     next stage (hidden at the last stage);
-##   - the passive (the ability's icon, else the monster's evolution icon) and
-##     ability_1..3 as AbilitySlots bound to a CooldownSource.Monster: Ground
-##     Slam shows its padlock and "II" until Stage II;
+##   - the passive (Grount's Evolution) and ability_1..3 as AbilitySlots
+##     bound to a CooldownSource.Monster: Ground Slam shows its padlock and
+##     "II" until Stage II;
 ##   - a tally: heroes slain and mobs this monster devoured, counted from
 ##     EventBus.entity_died since bind.
 ## The slots poll every frame; everything else is read at POLL_HZ and written
@@ -21,9 +21,6 @@ extends PanelContainer
 enum Intent { FARMING, AMBUSH, HUNTING, RETREAT }
 
 const POLL_HZ := 10.0
-## The passive slot's icon when the monster has no passive ability resource
-## (Grount: Evolution is the stage system itself), by monster id.
-const EVOLUTION_ICON_PATH := "res://Assets/UI/Icons/Abilities/%s_passive_evolution.svg"
 ## Stage numerals and the README's stage names (Stage 1 Vulnerable, 2
 ## Dangerous, 3 Apex Predator), by stage.
 const STAGE_NAMES: Array[String] = ["", "VULNERABLE", "DANGEROUS", "APEX"]
@@ -83,9 +80,8 @@ func bind_to_monster(m: MonsterBase, hero_count: int) -> void:
 	var source := CooldownSource.Monster.new(m)
 	for i in 3:
 		_slots[i].bind(source, i)
+	# Every monster scene has a passive resource; a slot without one hides.
 	var passive := source.icon(SLOT_PASSIVE)
-	if passive == null and ResourceLoader.exists(EVOLUTION_ICON_PATH % id):
-		passive = load(EVOLUTION_ICON_PATH % id) as Texture2D
 	_slots[SLOT_PASSIVE].icon_texture = passive
 	_slots[SLOT_PASSIVE].visible = passive != null
 

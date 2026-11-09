@@ -273,6 +273,30 @@ func test_entity_rig_reads_but_never_writes() -> void:
 	await wait_frames(1)
 
 
+## The step phase follows the distance in units of the drawn legs: a monster
+## grown to 1.5x (or the rig's own +-4 % size) takes proportionally longer
+## steps, so its feet stay planted instead of pedalling.
+func test_stride_follows_the_entity_scale() -> void:
+	var grount := await _spawn_rigged(GROUNT, Vector2(500, 300), CharacterRig.Tier.FULL) as MonsterBase
+	var rig := grount.get_node(^"Rig") as CharacterRig
+	grount._stage_tween.kill()
+	rig.set_on_screen(true)
+	for s: float in [1.0, 1.5]:
+		grount.scale = Vector2(s, s)
+		var stride := rig.profile.stride * rig._size * s
+		assert_near(rig.walk_stride(), stride, 0.0001, "stride at scale %.2f" % s)
+		rig._last_pos = grount.global_position
+		var phase := rig._walk_phase
+		for i in 10:
+			grount.global_position += Vector2(3, 0)
+			rig._process(1.0 / 60.0)
+		assert_near(rig._walk_phase - phase, 30.0 / stride * PI, 0.0001, "30 px at scale %.2f" % s)
+	assert_true(rig.walk_stride() > rig.profile.stride * 1.4, "the evolved monster's step is longer")
+	rig.set_on_screen(false)
+	grount.queue_free()
+	await wait_frames(1)
+
+
 ## Every entity carries a Rig; until its scene adds a body it stays inert:
 ## never awake, nothing drawn (not even its ground shadow), events ignored,
 ## VFX keep the AnimatedSprite2D.

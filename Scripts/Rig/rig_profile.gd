@@ -41,3 +41,10 @@ enum BodyPlan { HUMANOID, QUADRUPED, FLYER }
 @export var attack_windup: float = -1.1
 @export var attack_strike: float = 1.4
 @export var attack_lunge: float = 6.0
+
+@export_group("Ground")
+## Contact shadow: the dense core's radius per world px of body width
+## (RigBody.bounds width x world_scale; CharacterRig.shadow_radius_for). The
+## soft rim reaches CharacterRig.SHADOW_SPREAD times further. A flyer's is
+## lower: it hovers above a smaller shadow. 0 = no shadow.
+@export var shadow_per_width: float = 0.33

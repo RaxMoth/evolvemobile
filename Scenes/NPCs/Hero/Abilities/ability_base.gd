@@ -126,6 +126,21 @@ func get_reach() -> float:
 	return ability_range
 
 
+## Where the ability's area lands when cast at `target`: the centre of
+## MonsterBase's slam-target count (Ground Slam's leap overrides it; an aura
+## around the caster or an in-place stomp returns the caster's position).
+## Default: on the target.
+func get_cast_center(_caster: Node2D, target: Node2D) -> Vector2:
+	return target.global_position
+
+
+## Called every frame by the owning MonsterBase for an ability that keeps
+## acting after execute() (an aura that bites, a thrown weapon in flight): one
+## step of `delta` seconds, no timers or tweens. Default: nothing.
+func tick_active(_caster: Node2D, _delta: float) -> void:
+	pass
+
+
 ## Damage through the EventBus pipeline plus this ability's lifesteal.
 ## Returns the amount that landed.
 func deal(caster: Node, target: Node, amount: float) -> float:

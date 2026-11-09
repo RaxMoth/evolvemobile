@@ -34,6 +34,7 @@ const EXPECTED: Dictionary[String, String] = {
 	"Monster/Grount/abilities/grount_front_cleave.tres": "grount_front_cleave",
 	"Monster/Grount/abilities/grount_ground_slam.tres": "grount_ground_slam",
 	"Monster/Grount/abilities/grout_ram_dash.tres": "grount_ram_dash",
+	"Monster/Grount/abilities/grount_evolution.tres": "grount_passive_evolution",
 }
 ## The <slot> part of a hero icon's name, per AbilityBase.AbilityType.
 const SLOT_WORD: Dictionary[int, String] = {

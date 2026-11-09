@@ -14,3 +14,4 @@ bounce = 2.0
 leg_swing = 0.4
 lean = 0.06
 attack_time = 0.4
+shadow_per_width = 0.36

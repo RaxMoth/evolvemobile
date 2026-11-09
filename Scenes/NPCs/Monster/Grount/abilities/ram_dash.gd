@@ -101,7 +101,7 @@ func _check_dash_collisions(caster: Node2D) -> void:
 			DASH_HIT_RADIUS, GameUtils.MASK_MONSTER_TARGETS, true, caster):
 		if _hit_entities.has(entity) or not GameUtils.can_entity_target(caster, entity):
 			continue
-		EventBus.deal_damage(caster, entity, _effective_damage, self)
+		deal(caster, entity, _effective_damage)
 		_hit_entities.append(entity)
 		if stun_duration > 0.0 and entity is EntityBase:
 			(entity as EntityBase).apply_stun(stun_duration)

@@ -19,8 +19,6 @@ extends Control
 ## Presentation only: the rig never touches the global RNG (its idle phase
 ## comes from a private one), so menus cannot disturb a match's determinism.
 
-## Shadow core half-width per art width (world px), close to the match's radii.
-const SHADOW_PER_WIDTH := 0.33
 const SHADOW_BLOB := preload("res://Assets/Characters/shadow_blob.svg")
 
 ## The character to show (its rig_body and rig_profile). Null = empty.
@@ -110,10 +108,8 @@ func _rebuild() -> void:
 		blob.texture = SHADOW_BLOB
 		blob.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 		rig.add_child(blob)
+		# Sized by the rig itself, by the match's rule (shadow_radius_for).
 		rig.shadow = blob
-		rig.shadow_radius = body.bounds.size.x * profile.world_scale * SHADOW_PER_WIDTH
-	else:
-		rig.shadow_radius = 0.0
 	rig.add_child(body)
 	rig.body = body
 	_holder.add_child(rig)

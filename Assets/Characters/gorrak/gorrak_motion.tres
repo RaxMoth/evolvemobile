@@ -12,3 +12,4 @@ stride = 25.1
 bounce = 2.5
 leg_swing = 0.45
 attack_time = 0.38
+shadow_per_width = 0.36

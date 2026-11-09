@@ -22,6 +22,5 @@ visible = false
 [node name="Rig" parent="." index="9" node_paths=PackedStringArray("body")]
 body = NodePath("BatBody")
 profile = ExtResource("3_motion")
-shadow_radius = 9.0
 
 [node name="BatBody" parent="Rig" instance=ExtResource("2_body")]
