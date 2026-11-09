@@ -1,10 +1,11 @@
-[gd_scene load_steps=8 format=3 uid="uid://dmwsr7r1rglla"]
+[gd_scene load_steps=9 format=3 uid="uid://dmwsr7r1rglla"]
 
 [ext_resource type="Script" uid="uid://bqnd1nwlvm5hc" path="res://Scenes/NPCs/Hero/Heros/Support/Ted/Abilities/Passive/teds_pet.gd" id="1_pet"]
 [ext_resource type="Script" uid="uid://bqdiydcp3yanu" path="res://Scripts/Rig/character_rig.gd" id="2_rig"]
 [ext_resource type="PackedScene" path="res://Assets/Characters/pet/pet_body.tscn" id="3_body"]
 [ext_resource type="Resource" path="res://Assets/Characters/pet/pet_motion.tres" id="4_motion"]
 [ext_resource type="Texture2D" uid="uid://cygm1ijrf37j7" path="res://Assets/Characters/shadow_blob.svg" id="5_shadow"]
+[ext_resource type="Script" uid="uid://cwinir1k1a0v2" path="res://Scripts/hp_bar_2d.gd" id="6_hpbar"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_pet"]
 radius = 14.035668
@@ -50,12 +51,10 @@ texture = ExtResource("5_shadow")
 
 [node name="PetBody" parent="Rig" instance=ExtResource("3_body")]
 
-[node name="HealthBar" type="ProgressBar" parent="."]
-offset_left = -10.0
-offset_top = -43.0
-offset_right = 10.0
-offset_bottom = -40.0
-show_percentage = false
+[node name="HealthBar" type="Node2D" parent="."]
+position = Vector2(-10, -44)
+script = ExtResource("6_hpbar")
+bar_size = Vector2(20, 4)
 
 [node name="NavigationAgent2D" type="NavigationAgent2D" parent="."]
 path_desired_distance = 6.0

@@ -4,12 +4,13 @@ extends TestCase
 ## tools/art/build.py writes, the theme and the two UI shaders that
 ## tools/art/make_theme.py writes, and the proof scenes in tools/preview.
 ## Checks that every SVG imports as a DPITexture (crisp at any canvas scale),
-## that every character's ability icons exist, that the theme's textures
-## resolve, that the shaders' default colours are the palette's, and that the
-## proof scenes build.
+## that every character's ability icons exist, that the mockup's variations
+## exist in the theme, that the shaders' default colours are the palette's,
+## and that the proof scenes build. The theme itself (Scenes/UI/Theme/
+## ui_theme.tres) has its own contract test, test_theme_contract.gd.
 
 const UI_DIR := "res://Assets/UI"
-const THEME_PATH := "res://Assets/UI/Theme/jungle_theme.tres"
+const THEME_PATH := "res://Scenes/UI/Theme/ui_theme.tres"
 const COOLDOWN_SHADER := "res://Assets/UI/Shaders/ability_cooldown.gdshader"
 const LOCKED_SHADER := "res://Assets/UI/Shaders/card_locked.gdshader"
 const MOCKUP_SCENE := "res://tools/preview/ThemeMockup.tscn"
@@ -18,7 +19,7 @@ const PALETTE_SCENE := "res://tools/preview/PaletteSheet.tscn"
 const PALETTE_JSON := "res://tools/art/palette.json"
 ## Group folder -> SVG count (tools/art/build.py GROUPS).
 const GROUP_COUNTS: Dictionary[String, int] = {
-	"Kit": 64,
+	"Kit": 65,
 	"Crests": 2,
 	"Icons/Abilities": 27,
 	"Icons/Currency": 4,
@@ -80,24 +81,6 @@ func test_every_character_has_its_ability_icons() -> void:
 	for hero_id: StringName in GameManager.KNOWN_HERO_IDS:
 		var owned := ABILITY_ICONS.filter(func(n: String) -> bool: return n.begins_with(String(hero_id) + "_"))
 		assert_true(owned.size() >= 4, "%s has an icon per slot (%d)" % [hero_id, owned.size()])
-
-
-func test_theme_textures_resolve() -> void:
-	var theme := load(THEME_PATH) as Theme
-	assert_true(theme != null, "jungle_theme.tres loads")
-	if theme == null:
-		return
-	var styleboxes := 0
-	for type_name: String in theme.get_type_list():
-		for sb_name: String in theme.get_stylebox_list(type_name):
-			var sb := theme.get_stylebox(sb_name, type_name)
-			assert_true(sb != null, "%s/%s" % [type_name, sb_name])
-			if sb is StyleBoxTexture:
-				styleboxes += 1
-				assert_true((sb as StyleBoxTexture).texture is DPITexture, "%s/%s texture resolves" % [type_name, sb_name])
-		for icon_name: String in theme.get_icon_list(type_name):
-			assert_true(theme.get_icon(icon_name, type_name) is DPITexture, "%s/icons/%s resolves" % [type_name, icon_name])
-	assert_true(styleboxes > 40, "the theme is built over the SVG kit (%d texture styleboxes)" % styleboxes)
 
 
 func test_mockup_variations_exist_in_the_theme() -> void:

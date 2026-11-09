@@ -4,11 +4,14 @@ Usage: python3 tools/art/make_theme.py [palette] [theme] [shaders]   (no args = 
   palette  Scenes/UI/Theme/palette.tres     - the UiPalette resource: every token's value
            Scenes/UI/Theme/ui_palette.gd    - its @export token block (between the markers)
            tools/art/palette.json           - the same tokens for tests and the spec
-  theme    Assets/UI/Theme/jungle_theme.tres - the Theme, built over the SVG kit in Assets/UI/Kit
+  theme    Scenes/UI/Theme/ui_theme.tres    - the project Theme (gui/theme/custom, and the
+           `theme` of every UI scene), built over the SVG kit in Assets/UI/Kit with the
+           Lilita One display font from Assets/Fonts
   shaders  Assets/UI/Shaders/ability_cooldown.gdshader, card_locked.gdshader
 """
 import json
 import os
+import re
 import struct
 import sys
 
@@ -20,12 +23,16 @@ import kit  # noqa: E402
 ROOT = os.path.dirname(os.path.dirname(HERE))      # the Godot project (res://)
 UI = os.path.join(ROOT, "Assets", "UI")
 RES = "res://Assets/UI"
+THEME_DIR = os.path.join(ROOT, "Scenes", "UI", "Theme")
+THEME_TRES = os.path.join(THEME_DIR, "ui_theme.tres")
+THEME_UID = "uid://eroe1xxhr5fc"   # the UI scenes reference ui_theme.tres by this uid: keep it
+FONT_DISPLAY = "res://Assets/Fonts/LilitaOne-Regular.ttf"   # SIL OFL 1.1, Assets/Fonts/LilitaOne-OFL.txt
 TARGETS = sys.argv[1:] or ["palette", "theme", "shaders"]
 for _t in TARGETS:
     if _t not in ("palette", "theme", "shaders"):
         sys.exit(f"unknown target {_t!r}: use palette, theme and/or shaders")
 
-ext = []          # (id, path)
+ext = []          # (id, path, type)
 subs = []         # text blocks
 props = []        # theme property lines
 
@@ -33,15 +40,33 @@ props = []        # theme property lines
 def tex(name):
     rid = "k_" + name
     if not any(e[0] == rid for e in ext):
-        ext.append((rid, f"{RES}/Kit/{name}.svg"))
+        ext.append((rid, f"{RES}/Kit/{name}.svg", "Texture2D"))
     return rid
 
 
 def icon_res(group, name):
     rid = "i_" + name
     if not any(e[0] == rid for e in ext):
-        ext.append((rid, f"{RES}/Icons/{group}/{name}.svg"))
+        ext.append((rid, f"{RES}/Icons/{group}/{name}.svg", "Texture2D"))
     return rid
+
+
+def font_res(rid, path):
+    if not any(e[0] == rid for e in ext):
+        ext.append((rid, path, "FontFile"))
+    return rid
+
+
+def import_uid(res_path):
+    """The uid Godot gave an imported file (its .import), so the theme's
+    ext_resources carry it the way the editor writes them; "" before the
+    first import."""
+    imp = os.path.join(ROOT, res_path[len("res://"):]) + ".import"
+    if not os.path.exists(imp):
+        return ""
+    with open(imp) as f:
+        m = re.search(r'^uid="(uid://[a-z0-9]+)"', f.read(), re.M)
+    return f' uid="{m.group(1)}"' if m else ""
 
 
 def sb_tex(sid, name, content=None, modulate=None, draw_center=True, expand=None):
@@ -120,10 +145,16 @@ INK = C(P["ink"])
 TXT = C(P["text"])
 
 # ------------------------------------------------------------------ fonts
-# Godot's built-in fallback is Open Sans SemiBold; FontVariation without a
-# base_font uses it. Embolden gives the chunky "Lv.1" display weight.
+# font_display, for all display text ("Lv.N", headers, banner titles, nav
+# labels, cooldown numbers, counters, buttons), is Lilita One (one weight,
+# Latin only). It falls back to font_body for any glyph it lacks.
+# font_body, for small body text, is Godot's built-in fallback font (Open Sans
+# SemiBold, wide script coverage): a FontVariation without a base_font uses
+# it. A slight embolden keeps it legible under the ink outline.
 subs.append('[sub_resource type="FontVariation" id="font_body"]\nvariation_embolden = 0.25')
-subs.append('[sub_resource type="FontVariation" id="font_display"]\nvariation_embolden = 0.9\nspacing_glyph = 1')
+subs.append('[sub_resource type="FontVariation" id="font_display"]\n'
+            'fallbacks = Array[Font]([SubResource("font_body")])\n'
+            f'base_font = ExtResource("{font_res("f_display", FONT_DISPLAY)}")\nspacing_glyph = 1')
 p("default_font", SR("font_body"))
 p("default_font_size", 20)
 
@@ -355,32 +386,126 @@ for st in ("normal", "hover", "pressed", "disabled"):
 p("OptionButton/styles/focus", SR("focus_ring"))
 p("OptionButton/colors/font_color", TXT)
 p("OptionButton/colors/font_outline_color", INK)
-p("OptionButton/constants/outline_size", 6)
+p("OptionButton/constants/outline_size", 5)
+# A dropdown shows a value, not a call to action: smaller than the 22 px
+# button text, so long values ("Monster Base Upgrades") fit a phone row.
+p("OptionButton/fonts/font", SR("font_display"))
+p("OptionButton/font_sizes/font_size", 16)
 p("PopupMenu/styles/panel", SR("tooltip_sb"))
 p("PopupMenu/styles/hover", SR(sb_flat("popup_hover", C(P["amber"], 0.22), C(P["amber"]), (0, 0, 0, 2), 6)))
 p("PopupMenu/colors/font_color", TXT)
 p("PopupMenu/colors/font_hover_color", C(P["amber_light"]))
 
+# ------------------------------------------------------------------ screen variations
+# Variations the Phase 3-5 screens (lobby, roster, character detail, skill
+# tree, pre-round) need on top of the art set. The UX prototype's theme
+# (ux_theme.tres) is not shipped; art names are canonical, and the UX names
+# for looks the art set already has are renamed (UX -> art), never added:
+#   CardPanel -> CharacterCard          CardSelected -> CharacterCardSelected
+#   CardLocked -> CharacterCardLocked   PrimaryButton -> ButtonPrimary
+#   MonsterButton -> ButtonMonster      MossButton -> ButtonHero
+#   FilterButton -> FilterTab           LevelLabel -> CardLevel
+#   PillPanel -> Pill                   HpBar -> HpBarHero
+#   MonsterHpBar -> HpBarMonster        HudCard -> HudPanel
+#   HudCardSelected -> HudPanelSelected TitleLabel -> HeaderLarge
+#   HeaderLabel -> HeaderSmall          MutedLabel -> Caption
+#   SmallLabel -> BodyDim
+# test/test_theme_contract.gd keeps the UX names out of the theme.
+
+# Skill-tree nodes: the round node_minor ring around a stat glyph, the square
+# leafy node_major frame for capstones. The tint versions are white, so the
+# state colour is the StyleBoxTexture modulate. Texture margins 0: the frame
+# scales with the (square) node, the ring stays round.
+for kind in ("node_minor", "node_minor_tint"):
+    kit.MARGINS.setdefault(kind, (0, 0, 0, 0))
+for kind in ("node_major", "node_major_tint"):
+    kit.MARGINS.setdefault(kind, (20, 20, 20, 20))
+NODE_CONTENT = (14, 14, 14, 14)
+for name, art, tint in (("NodeLocked", "node_minor_tint", P["locked_line"]),
+                        ("NodeAvailable", "node_minor", None),
+                        ("NodeOwned", "node_minor_tint", P["moss_light"]),
+                        ("NodeMaxed", "node_minor_tint", P["rank_max"]),
+                        ("CapLocked", "node_major_tint", P["locked_line"]),
+                        ("CapAvailable", "node_major", None),
+                        ("CapOwned", "node_major_tint", P["rank_max"])):
+    p(f"{name}/base_type", '&"PanelContainer"')
+    p(f"{name}/styles/panel", SR(sb_tex(f"{name}_sb", art, NODE_CONTENT, C(tint) if tint else None)))
+
+# Rank pips under a node (filled / empty / maxed) and the selection ring.
+for name, col in (("PipOn", P["amber"]), ("PipOff", P["panel_inset"]), ("PipMax", P["rank_max"])):
+    p(f"{name}/base_type", '&"PanelContainer"')
+    p(f"{name}/styles/panel", SR(sb_flat(f"{name}_sb", C(col), INK, (2, 2, 2, 2), 7, (0, 0, 0, 0))))
+p("SelectRing/base_type", '&"PanelContainer"')
+p("SelectRing/styles/panel", SR(sb_flat("select_ring_sb", C(P["white"], 0), C(P["white"]), (4, 4, 4, 4), 48, (0, 0, 0, 0))))
+
+# Tier gate chip ("Lv 5 · 10 pts"), branch name plaque, bottom sheet, chips.
+p("GateChip/base_type", '&"PanelContainer"')
+p("GateChip/styles/panel", SR(sb_flat("gate_chip_sb", C(P["bg_void"]), C(P["divider"]), (2, 2, 2, 2), 12, (10, 2, 10, 2))))
+p("BranchPlaque/base_type", '&"PanelContainer"')
+p("BranchPlaque/styles/panel", SR(sb_flat("branch_plaque_sb", C(P["wood"]), INK, (3, 3, 3, 3), 10, (10, 4, 10, 4))))
+p("SheetPanel/base_type", '&"PanelContainer"')
+p("SheetPanel/styles/panel", SR(sb_flat("sheet_sb", C(P["panel_fill"]), C(P["copper"]), (4, 4, 4, 0), (22, 22, 0, 0),
+                                        (22, 18, 22, 18))))
+p("ChipPanel/base_type", '&"PanelContainer"')
+p("ChipPanel/styles/panel", SR(sb_flat("chip_sb", C(P["bg_void"], 0.92), INK, (3, 3, 3, 3), 20, (10, 4, 14, 4))))
+
+# The chosen side's frame on the pre-round stage: a border only.
+for name, col in (("FrameHero", P["amber"]), ("FrameMonster", P["monster_light"])):
+    p(f"{name}/base_type", '&"PanelContainer"')
+    p(f"{name}/styles/panel", SR(sb_flat(f"{name}_sb", C(col, 0), C(col), (5, 5, 5, 5), 0, (0, 0, 0, 0))))
+
+# Monster evolution progress (Stage I -> II -> III).
+bar("EvoBar", P["amber"], P["amber_dark"])
+
+# Detail tabs (Overview / Stats / Skill tree): a carved-wood tab, copper when on.
+p("TabButton/base_type", '&"Button"')
+TAB_CONTENT = (18, 8, 18, 6)
+sb_flat("tab_off", C(P["wood_dark"]), INK, (4, 4, 4, 4), (16, 16, 0, 0), TAB_CONTENT)
+sb_flat("tab_on", C(P["copper"]), INK, (4, 4, 4, 4), (16, 16, 0, 0), TAB_CONTENT)
+for st, sid in (("normal", "tab_off"), ("hover", "tab_off"), ("disabled", "tab_off"), ("pressed", "tab_on"),
+                ("hover_pressed", "tab_on"), ("focus", "empty")):
+    p(f"TabButton/styles/{st}", SR(sid))
+p("TabButton/font_sizes/font_size", 22)
+p("TabButton/constants/outline_size", 6)
+for st in ("font_color", "font_focus_color"):
+    p(f"TabButton/colors/{st}", C(P["text_dim"]))
+for st in ("font_hover_color", "font_pressed_color", "font_hover_pressed_color"):
+    p(f"TabButton/colors/{st}", TXT)
+
+# Text / icon-only button without a frame ("Change", "Skip", info glyphs).
+p("FlatButton/base_type", '&"Button"')
+for st in ("normal", "hover", "pressed", "hover_pressed", "disabled", "focus"):
+    p(f"FlatButton/styles/{st}", SR("empty"))
+p("FlatButton/colors/font_color", C(P["text_dim"]))
+p("FlatButton/colors/font_focus_color", C(P["text_dim"]))
+p("FlatButton/colors/font_hover_color", C(P["amber_light"]))
+p("FlatButton/colors/font_pressed_color", C(P["amber"]))
+p("FlatButton/colors/font_hover_pressed_color", C(P["amber_light"]))
+p("FlatButton/colors/icon_hover_color", C(P["amber_light"]))
+p("FlatButton/colors/icon_pressed_color", C(P["amber"]))
+
+label_type("BigNumberLabel", 40, outline=11)          # cooldown seconds, reward totals
+label_type("HintLabel", 16, C(P["text_muted"]), 4, "font_body")
+label_type("AmberLabel", 22, C(P["amber_light"]), 6)  # live values ("50%"), "Next: ..."
+
 # ------------------------------------------------------------------ write
 if "theme" in TARGETS:
-    os.makedirs(os.path.join(UI, "Theme"), exist_ok=True)
-    out = [f'[gd_resource type="Theme" load_steps={len(ext) + len(subs) + 1} format=3]', ""]
-    for rid, path in ext:
-        out.append(f'[ext_resource type="Texture2D" path="{path}" id="{rid}"]')
+    out = [f'[gd_resource type="Theme" format=3 uid="{THEME_UID}"]', ""]
+    for rid, path, typ in ext:
+        out.append(f'[ext_resource type="{typ}"{import_uid(path)} path="{path}" id="{rid}"]')
     out.append("")
     for s in subs:
         out += [s, ""]
     out.append("[resource]")
     out += props
-    with open(os.path.join(UI, "Theme", "jungle_theme.tres"), "w") as f:
+    with open(THEME_TRES, "w") as f:
         f.write("\n".join(out) + "\n")
-    print("theme:", len(ext), "textures,", len(subs), "sub-resources,", len(props), "properties")
+    print("theme:", len(ext), "external resources,", len(subs), "sub-resources,", len(props), "properties")
 
 # ------------------------------------------------------------------ UiPalette
 # The runtime palette is a Resource (class_name UiPalette): ui_palette.gd
 # declares one @export Color per token (default magenta, so a token without a
 # value cannot hide) and palette.tres holds every value. Both come from GROUPS.
-THEME_DIR = os.path.join(ROOT, "Scenes", "UI", "Theme")
 PALETTE_GD = os.path.join(THEME_DIR, "ui_palette.gd")
 PALETTE_TRES = os.path.join(THEME_DIR, "palette.tres")
 PALETTE_JSON = os.path.join(HERE, "palette.json")

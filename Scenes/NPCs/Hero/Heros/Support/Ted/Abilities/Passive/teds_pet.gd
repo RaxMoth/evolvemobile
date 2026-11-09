@@ -207,12 +207,13 @@ func _receive_damage(packet: DamagePacket) -> void:
 		EventBus.notify_died(self, packet.source)
 		queue_free()
 
-## Mobs and the monster can target the pet now: keep its bar honest.
+## Mobs and the monster can target the pet now: keep its bar honest. The bar
+## is the in-world HpBar2D every entity draws (a themed ProgressBar is too
+## small to read at this size).
 func _update_health_bar() -> void:
-	var bar := get_node_or_null(^"HealthBar") as ProgressBar
+	var bar := get_node_or_null(^"HealthBar") as HpBar2D
 	if bar:
-		bar.max_value = max_health
-		bar.value = maxf(current_health, 0.0)
+		bar.set_values(maxf(current_health, 0.0), max_health)
 
 
 ## Rally Cry: faster attacks for `duration` seconds.

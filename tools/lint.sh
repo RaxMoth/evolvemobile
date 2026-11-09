@@ -15,7 +15,16 @@ printf '[application]\nconfig/use_custom_user_dir=true\nconfig/custom_user_dir_n
 "$GODOT" --headless --import --path "$TMP/proj" > "$TMP/import.log" 2>&1
 "$GODOT" --headless --path "$TMP/proj" -s res://tools/lint_all.gd > "$TMP/lint.log" 2>&1
 grep "LINT DONE" "$TMP/lint.log"
-ERRS=$(grep -c "SCRIPT ERROR\|Parse Error\|LINT:\|Failed to load script" "$TMP/lint.log" "$TMP/import.log" | awk -F: '{s+=$2} END {print s}')
+# The import pass loads the project theme (gui/theme/custom) at startup, before
+# it has imported the theme's font and SVGs on a copy whose .godot lacks them:
+# those "[ext_resource] referenced non-existent resource" lines are import
+# order, not broken files. lint_all.gd loads every resource after the import,
+# so a resource that really is broken still fails in lint.log.
+{ grep -h "SCRIPT ERROR\|Parse Error\|LINT:\|Failed to load script" "$TMP/lint.log"
+  grep -h "SCRIPT ERROR\|Parse Error\|LINT:\|Failed to load script" "$TMP/import.log" |
+    grep -v "Parse Error: \[ext_resource\] referenced non-existent resource"
+} > "$TMP/errors.log"
+ERRS=$(grep -c "" "$TMP/errors.log")
 echo "errors=$ERRS"
-grep -h "SCRIPT ERROR\|Parse Error\|LINT:\|Failed to load script" "$TMP/lint.log" "$TMP/import.log" | head -30
+head -30 "$TMP/errors.log"
 [ "$ERRS" = "0" ]

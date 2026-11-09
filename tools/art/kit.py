@@ -328,12 +328,21 @@ ICONS["node_minor"] = d.svg()
 d = Doc(64, 64)
 d.add(f'<path d="{circle(32, 32, 28)} {circle(32, 32, 22)}" fill="{W}" fill-rule="evenodd" stroke="{INK}" stroke-width="3"/>')
 ICONS["node_minor_tint"] = d.svg()
-d = Doc(72, 72)
-d.add(f'<path d="{rrect(5, 5, 62, 62, 14)} {rrect(11, 11, 50, 50, 9)}" fill="{P["copper"]}" fill-rule="evenodd" '
-      f'stroke="{INK}" stroke-width="3.2"/>')
-for (x0, y0, x1, y1) in ((14, 8, 2, 0), (58, 8, 70, 0)):
-    d.cel(leaf(x0, y0, x1, y1, 0.42), P["leaf"], P["moss"], ow=2.2)
-ICONS["node_major"] = d.svg()
+
+
+def _node_major(frame, leaf_col, leaf_shade):
+    d = Doc(72, 72)
+    d.add(f'<path d="{rrect(5, 5, 62, 62, 14)} {rrect(11, 11, 50, 50, 9)}" fill="{frame}" fill-rule="evenodd" '
+          f'stroke="{INK}" stroke-width="3.2"/>')
+    for (x0, y0, x1, y1) in ((14, 8, 2, 0), (58, 8, 70, 0)):
+        d.cel(leaf(x0, y0, x1, y1, 0.42), leaf_col, leaf_shade, ow=2.2)
+    return d.svg()
+
+
+ICONS["node_major"] = _node_major(P["copper"], P["leaf"], P["moss"])
+# Capstone frame for runtime tint (locked grey, owned gold): white frame and
+# leaves, the leaves keep their shade crescent as a warm grey.
+ICONS["node_major_tint"] = _node_major(W, W, mix(W, INK, 0.3))
 
 # =========================================================== ORNAMENTS
 d = Doc(64, 64)

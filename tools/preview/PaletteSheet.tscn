@@ -1,7 +1,7 @@
 [gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" uid="uid://bjcbvwcf58uhe" path="res://tools/preview/palette_sheet.gd" id="1_s"]
-[ext_resource type="Theme" path="res://Assets/UI/Theme/jungle_theme.tres" id="2_t"]
+[ext_resource type="Theme" uid="uid://eroe1xxhr5fc" path="res://Scenes/UI/Theme/ui_theme.tres" id="2_t"]
 
 [node name="PaletteSheet" type="ColorRect"]
 layout_mode = 3

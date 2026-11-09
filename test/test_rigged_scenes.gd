@@ -165,10 +165,11 @@ func test_hp_bar_sits_above_the_head() -> void:
 		inst.free()
 	var pet := _instance(PET)
 	var pet_rig := _rig(pet)
-	var pet_bar := pet.get_node(^"HealthBar") as ProgressBar
+	var pet_bar := pet.get_node(^"HealthBar") as HpBar2D
+	var pet_bottom := pet_bar.position.y + pet_bar.bar_size.y
 	var pet_expected := -(roundf(pet_rig.body.art_height() * pet_rig.profile.world_scale) + HP_BAR_GAP)
-	assert_near(pet_bar.offset_bottom, pet_expected, 0.01, "pet: HP bar bottom")
-	assert_true(-pet_bar.offset_bottom > _max_top(pet_rig.body, pet_rig.profile), "pet: the bar clears the head")
+	assert_near(pet_bottom, pet_expected, 0.01, "pet: HP bar bottom")
+	assert_true(-pet_bottom > _max_top(pet_rig.body, pet_rig.profile), "pet: the bar clears the head")
 	pet.free()
 
 

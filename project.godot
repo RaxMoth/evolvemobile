@@ -63,6 +63,10 @@ Enemy=""
 Monster=""
 FogOfWar=""
 
+[gui]
+
+theme/custom="res://Scenes/UI/Theme/ui_theme.tres"
+
 [input]
 
 zoom_in={

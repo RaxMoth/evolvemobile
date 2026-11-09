@@ -50,6 +50,7 @@ text = "Skill Tree"
 unique_name_in_owner = true
 custom_minimum_size = Vector2(220, 48)
 layout_mode = 2
+fit_to_longest_item = false
 
 [node name="CloseButton" type="Button" parent="Margin/VBox/HeaderRow"]
 unique_name_in_owner = true
