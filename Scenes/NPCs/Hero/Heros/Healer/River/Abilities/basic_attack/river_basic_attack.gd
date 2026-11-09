@@ -8,6 +8,8 @@ class_name RiverBasicAttack
 @export var sniper_cooldown: float = 1.1
 @export var heal_range: float = 150.0
 @export var heal_cooldown: float = 1.4
+## The heal staff's icon; `icon` is the rifle's. get_display_icon picks one.
+@export var heal_icon: Texture2D
 ## River tree "Triple Shot": each sniper shot also hits up to this many other
 ## enemies within extra_target_radius of the main target (0 = single target).
 @export var extra_targets: int = 0
@@ -28,6 +30,17 @@ func execute(caster: Node2D, target: Node2D = null, _override_damage: float = -1
 			_execute_sniper(caster, target)
 		RiverActiveWeaponSwap.WeaponMode.HEAL_STAFF:
 			_execute_heal(caster, target)
+
+
+## The HUD shows the weapon River holds: the staff's heal_icon while her
+## weapon mode (River.get_weapon_mode) is the heal staff, else the rifle.
+## Only reads the mode, never changes it.
+func get_display_icon(caster: Node = null) -> Texture2D:
+	if heal_icon != null and caster != null and caster.has_method("get_weapon_mode") \
+			and caster.get_weapon_mode() == RiverActiveWeaponSwap.WeaponMode.HEAL_STAFF:
+		return heal_icon
+	return icon
+
 
 func _execute_sniper(caster: Node2D, target: Node2D) -> void:
 	if not is_instance_valid(target) or not is_instance_valid(caster):

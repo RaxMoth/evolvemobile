@@ -162,17 +162,34 @@ func _setup_abilities() -> void:
 	if not _ability_system:
 		return
 
-	if passive_icon and _ability_system.passive_ability:
-		passive_icon.texture = _ability_system.passive_ability.icon
+	_refresh_icons()
 	if active_icon and _ability_system.active_ability:
-		active_icon.texture = _ability_system.active_ability.icon
 		_setup_cooldown_shader(active_icon)
 	if basic_icon and _ability_system.basic_attack:
-		basic_icon.texture = _ability_system.basic_attack.icon
 		_setup_cooldown_shader(basic_icon)
 	if ult_icon and _ability_system.ultimate_ability:
-		ult_icon.texture = _ability_system.ultimate_ability.icon
 		_setup_cooldown_shader(ult_icon)
+	if not _ability_system.ability_used.is_connected(_on_ability_used):
+		_ability_system.ability_used.connect(_on_ability_used)
+
+
+## Each slot shows its ability's display icon, which can follow the hero's
+## state (River's basic attack swaps rifle / staff with her weapon mode).
+func _refresh_icons() -> void:
+	if passive_icon and _ability_system.passive_ability:
+		passive_icon.texture = _ability_system.passive_ability.get_display_icon(hero)
+	if active_icon and _ability_system.active_ability:
+		active_icon.texture = _ability_system.active_ability.get_display_icon(hero)
+	if basic_icon and _ability_system.basic_attack:
+		basic_icon.texture = _ability_system.basic_attack.get_display_icon(hero)
+	if ult_icon and _ability_system.ultimate_ability:
+		ult_icon.texture = _ability_system.ultimate_ability.get_display_icon(hero)
+
+
+## A cast can change a display icon (River's weapon swap).
+func _on_ability_used(_ability: AbilityBase) -> void:
+	if is_instance_valid(_ability_system) and is_instance_valid(hero):
+		_refresh_icons()
 
 
 func _setup_cooldown_shader(icon_node: TextureRect) -> void:

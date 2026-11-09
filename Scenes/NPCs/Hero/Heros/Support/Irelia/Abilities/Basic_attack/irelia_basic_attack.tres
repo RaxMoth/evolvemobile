@@ -1,6 +1,6 @@
 [gd_resource type="Resource" script_class="IreliaBasicAttack" load_steps=3 format=3 uid="uid://qymj70fpxgwf"]
 
-[ext_resource type="Texture2D" uid="uid://0vlvy3mej50h" path="res://Assets/Icon.jpg" id="1_baakk"]
+[ext_resource type="Texture2D" uid="uid://bcv6hnog8uy8p" path="res://Assets/UI/Icons/Abilities/irelia_basic_taunting_strike.svg" id="1_baakk"]
 [ext_resource type="Script" uid="uid://csqf7qfehc1io" path="res://Scenes/NPCs/Hero/Heros/Support/Irelia/Abilities/Basic_attack/irelia_basic_attack.gd" id="1_ixuuq"]
 
 [resource]

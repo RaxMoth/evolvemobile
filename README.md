@@ -409,6 +409,12 @@ dangerous (`monster` #C2334A, `monster_purple` #7B3F95).
       Gorrak's abilities on the `monster2` / `monster3` tiles), `Currency/`
       (gold, steel, leaves, upgrade point), `Stats/` (16), `Roles/` (9 filter
       silhouettes), `Nav/` (6) and `UI/` (16 glyphs).
+    - Every ability `.tres` (the 16 hero abilities and Grount's three) sets
+      its `icon` to its tile; no ability shows the old `Icon.jpg`
+      placeholder. River's basic attack also has `heal_icon`
+      (`river_basic_heal`) next to `icon` (`river_basic_sniper`).
+      `test/test_ability_icons.gd` checks the resource-to-icon table, the
+      DPITexture imports and River's weapon-mode swap.
     - `Crests/`: the hero and monster side crests.
     - `Shaders/ability_cooldown.gdshader` (clockwise cooldown sweep with an
       amber edge, `ready_flash`, `locked`) and `card_locked.gdshader` (locked
@@ -675,7 +681,10 @@ grade (they are not redrawn).
     - Hero name label
     - Portrait (60x60)
     - Health bar (color-coded: >50% green, >25% yellow, <25% red)
-    - 4 ability icons (30x30, dimmed during cooldown)
+    - 4 ability icons (30x30, dimmed during cooldown). Each slot shows
+      `get_display_icon(hero)` and refreshes on the AbilitySystem's
+      `ability_used`, so River's basic-attack slot swaps between the rifle
+      and the heal staff with her weapon mode.
 - **Real-time Updates**: Health changes, cooldown tracking
 
 ### Combat Visuals (Planned)
@@ -824,7 +833,10 @@ The chart owns all state. Its active state is **stepped** by the `TickScheduler`
 
 - **HeroStats** (Resource): Immutable base data (max_health, base_damage)
 - **HeroStatsComponent** (Node): Mutable runtime (current_health, level)
-- **AbilityBase** (Resource): Ability data and execute logic
+- **AbilityBase** (Resource): Ability data and execute logic. `icon` is the
+  ability's SVG tile; `get_display_icon(caster = null)` is what a HUD slot
+  shows (read-only; RiverBasicAttack returns `heal_icon` while River holds the
+  heal staff, every other ability its `icon`)
 
 ### Character Roster (Roster, CharacterDef, MonsterSlot)
 

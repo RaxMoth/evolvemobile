@@ -1,7 +1,7 @@
 [gd_resource type="Resource" script_class="RiverActiveWeaponSwap" load_steps=3 format=3 uid="uid://b5n1wqkllmaqo"]
 
 [ext_resource type="Script" uid="uid://b8vdf3ucve432" path="res://Scenes/NPCs/Hero/Heros/Healer/River/Abilities/active/river_active_weapon_swap.gd" id="1_active"]
-[ext_resource type="Texture2D" uid="uid://b8hlhq44dx3qv" path="res://Assets/icon.svg" id="2_icon"]
+[ext_resource type="Texture2D" uid="uid://b5s2kepi6d86i" path="res://Assets/UI/Icons/Abilities/river_active_weapon_swap.svg" id="2_icon"]
 
 [resource]
 script = ExtResource("1_active")

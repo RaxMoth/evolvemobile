@@ -1,6 +1,6 @@
 [gd_resource type="Resource" script_class="IreliaActiveShield" format=3 uid="uid://dpxctbhrluxfq"]
 
-[ext_resource type="Texture2D" uid="uid://0vlvy3mej50h" path="res://Assets/Icon.jpg" id="1_5qiow"]
+[ext_resource type="Texture2D" uid="uid://ckvk3tfhaugmd" path="res://Assets/UI/Icons/Abilities/irelia_active_divine_shield.svg" id="1_5qiow"]
 [ext_resource type="Script" uid="uid://de7cq4nmteyi6" path="res://Scenes/NPCs/Hero/Heros/Support/Irelia/Abilities/Active/irelia_active_shield.gd" id="1_7h08t"]
 
 [resource]

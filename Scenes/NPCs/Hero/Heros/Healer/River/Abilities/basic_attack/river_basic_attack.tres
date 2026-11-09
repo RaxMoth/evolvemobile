@@ -1,13 +1,15 @@
-[gd_resource type="Resource" script_class="RiverBasicAttack" load_steps=3 format=3 uid="uid://d2wqgg6lrphuo"]
+[gd_resource type="Resource" script_class="RiverBasicAttack" load_steps=4 format=3 uid="uid://d2wqgg6lrphuo"]
 
 [ext_resource type="Script" uid="uid://dbhvu23stv8kb" path="res://Scenes/NPCs/Hero/Heros/Healer/River/Abilities/basic_attack/river_basic_attack.gd" id="1_basic"]
-[ext_resource type="Texture2D" uid="uid://b8hlhq44dx3qv" path="res://Assets/icon.svg" id="2_icon"]
+[ext_resource type="Texture2D" uid="uid://cw2x3otdxf6ll" path="res://Assets/UI/Icons/Abilities/river_basic_sniper.svg" id="2_icon"]
+[ext_resource type="Texture2D" uid="uid://cvoraf2ytwqjw" path="res://Assets/UI/Icons/Abilities/river_basic_heal.svg" id="3_heal_icon"]
 
 [resource]
 script = ExtResource("1_basic")
 sniper_cooldown = 1.1
 heal_range = 150.0
 heal_cooldown = 1.4
+heal_icon = ExtResource("3_heal_icon")
 ability_name = "Adaptive Weapon"
 ability_type = 2
 icon = ExtResource("2_icon")

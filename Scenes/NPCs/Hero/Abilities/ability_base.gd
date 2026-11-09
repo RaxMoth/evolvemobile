@@ -108,6 +108,13 @@ func get_reach() -> float:
 	return ability_range
 
 
+## The icon a HUD slot shows. Presentational and read-only: an ability whose
+## look follows its caster's state (River's basic attack, by weapon mode)
+## overrides it; without a caster it is the resource's own `icon`.
+func get_display_icon(_caster: Node = null) -> Texture2D:
+	return icon
+
+
 # Override these in specific ability scripts
 func execute(_caster: Node2D, _target: Node2D = null, _override_damage: float = -1.0) -> void:
 	push_warning("Ability.execute() not implemented for: " + ability_name)
