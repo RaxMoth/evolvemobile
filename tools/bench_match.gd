@@ -7,7 +7,18 @@ extends SceneTree
 ## line. Use through tools/bench.sh (temp copy, isolated user://).
 ##
 ##   godot --headless --fixed-fps 60 --max-fps 0 --path <copy> \
-##         -s res://tools/bench_match.gd -- <seed> [warmup_frames] [frames] [multiplier] [onscreen] [rigs_awake]
+##         -s res://tools/bench_match.gd -- <seed> [warmup_frames] [frames] [multiplier] [onscreen] [rigs_awake] [monster=<id>]
+##
+## "monster=<id>" picks the roster monster (GameManager.select_monster, not
+## persisted; as in tools/sim_match.gd); without it the roster default plays.
+## The result names it ("monster").
+##
+## The match keeps playing during the window and can end inside it (a seed
+## whose heroes find the monster early). GameManager then pauses the tree, so
+## the frames after it would time an idle tree: the run stops there and
+## reports `ended_at_frame` (frames since start; -1 = the match outlived the
+## window) with fewer measured `frames` (0 when it ended in the warm-up).
+## tools/bench.sh flags such runs.
 ##
 ## CharacterRigs follow the same on-screen marking (onscreen=1); rigs_awake=1
 ## wakes EVERY rig (the zoomed-out worst case). `rigs_awake_mean` is the mean
@@ -36,6 +47,11 @@ var _frames: int = 1800
 var _multiplier: int = 2
 var _onscreen: bool = false
 var _rigs_awake: bool = false
+## Roster id from "monster=<id>"; empty = the selection GameManager loaded.
+var _monster_id: String = ""
+## _frame when GameManager's match_ended fired; -1 while the match runs.
+var _ended_at: int = -1
+var _done: bool = false
 var _frame: int = 0
 var _last_us: int = 0
 var _frame_ms: Array[float] = []
@@ -61,7 +77,12 @@ var _cam: Node
 
 
 func _initialize() -> void:
-	var args := OS.get_cmdline_user_args()
+	var args := PackedStringArray()
+	for arg: String in OS.get_cmdline_user_args():
+		if arg.begins_with("monster="):
+			_monster_id = arg.trim_prefix("monster=")
+		else:
+			args.append(arg)
 	if args.size() > 0:
 		_seed = int(args[0])
 	if args.size() > 1:
@@ -82,7 +103,11 @@ func _initialize() -> void:
 
 func _start() -> void:
 	seed(_seed)
-	root.get_node("GameManager").set("chosen_side", 0)
+	var gm := root.get_node("GameManager")
+	gm.set("chosen_side", 0)
+	if _monster_id != "":
+		gm.call("select_monster", StringName(_monster_id), false)
+	gm.connect("match_ended", _on_match_ended)
 	var world := (load(WORLD) as PackedScene).instantiate()
 	var spawns := world.get_node("Spawns")
 	spawns.set("min_active_spawns", 39)
@@ -122,6 +147,12 @@ func _tick() -> void:
 		_finish()
 
 
+func _on_match_ended(_winner: String, _game_time: float) -> void:
+	if _ended_at < 0:
+		_ended_at = _frame
+		_finish()
+
+
 func _mark_on_screen() -> void:
 	var rect: Rect2 = _cam.call("get_viewport_rect_in_world")
 	rect = rect.grow(ONSCREEN_MARGIN)
@@ -135,10 +166,16 @@ func _mark_on_screen() -> void:
 
 
 func _finish() -> void:
+	if _done:
+		return
+	_done = true
 	process_frame.disconnect(_tick)
+	var n: int = _frame_ms.size()
 	var sorted := _frame_ms.duplicate()
 	sorted.sort()
-	var n: int = sorted.size()
+	if sorted.is_empty():
+		sorted.append(0.0)  # the match ended in the warm-up: zeros, nothing was measured
+	var last: int = sorted.size() - 1
 	var total: float = 0.0
 	for ms in sorted:
 		total += ms
@@ -147,7 +184,9 @@ func _finish() -> void:
 		lod_counts[_scheduler.call("lod_name", i)] = snappedf(_lod_sums[i] / maxf(1.0, n), 0.1)
 	var out := {
 		"seed": _seed,
+		"monster": String(root.get_node("GameManager").get("selected_monster_id")),
 		"frames": n,
+		"ended_at_frame": _ended_at,
 		"multiplier": _multiplier,
 		"onscreen": 1 if _onscreen else 0,
 		"rigs_awake": 1 if _rigs_awake else 0,
@@ -155,7 +194,7 @@ func _finish() -> void:
 		"frame_ms_p50": snappedf(sorted[int(n * 0.5)], 0.001),
 		"frame_ms_p95": snappedf(sorted[int(n * 0.95)], 0.001),
 		"frame_ms_p99": snappedf(sorted[int(n * 0.99)], 0.001),
-		"frame_ms_max": snappedf(sorted[n - 1], 0.001),
+		"frame_ms_max": snappedf(sorted[last], 0.001),
 		"process_peak_ms": snappedf(_process_peak_ms / maxf(1.0, n), 0.001),
 		"physics_peak_ms": snappedf(_physics_peak_ms / maxf(1.0, n), 0.001),
 		"peak_nodes": _peak_nodes,

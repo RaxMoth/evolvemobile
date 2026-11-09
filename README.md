@@ -1146,19 +1146,22 @@ entity registers it and draws from the global RNG).
   the `selected_monster` setting) and `selected_monster_def()`. The old main
   menu's monster tree button and level row follow the selection. The
   `match_ended` analytics event carries `monster`.
-- **Tools**: `MONSTER=<id> tools/sim.sh ...` and `MONSTER=<id> tools/sim_trace.sh ...`
-  (`sim_match.gd ... monster=<id>`). Without it the roster default plays, so the
-  determinism baseline is unchanged. The SIM_RESULT JSON gains `monster` and
-  `monster_name`, and `sim_summary.py` prints the monster.
+- **Tools**: `MONSTER=<id>` or `MONSTER=all` for `tools/sim.sh`, `tools/sim_trace.sh`
+  and `tools/bench.sh` (`sim_match.gd` / `bench_match.gd ... monster=<id>`), with a
+  per-monster trace baseline in `tools/baselines/`; see Headless Tools below.
+  Without it the roster default plays, so the determinism baseline is unchanged.
+  The SIM_RESULT JSON carries `monster` and `monster_name`.
 - **Adding a monster**: a scene inheriting `monster_base_class.tscn` with its own
   MonsterStats (`monster_id`, reach, Fight leave distance, armour; see Shared
   Monster Framework below), its spacing on the scene root (`preferred_distance`,
   `min_distance`), ability `.tres` (a passive one too, for the HUD's passive
   slot) and strategy; its
   `Assets/Characters/<id>/` rig (`src/` + `tools/build_rigs.sh`); a
-  `<id>_def.tres` added to `roster.tres`; and its `Data/SkillTrees/monster_<id>.tres`
+  `<id>_def.tres` added to `roster.tres`; its `Data/SkillTrees/monster_<id>.tres`
   linked from the def's `skill_tree` (Nyxa's and Gorrak's are generated and wait
-  for their defs).
+  for their defs); and its trace baseline, recorded with
+  `MONSTER=all RECORD_DIR=tools/baselines tools/sim_trace.sh` (`test_sim_tools`
+  fails while a roster monster has none).
 
 ### Menu Component Kit (cards, rigs, top bar, nav bar)
 
@@ -1453,6 +1456,67 @@ button until the Phase 8 screens retire it.
   shown node on it, hidden ones not, Titan Form gated until Grount Lv 8, bought
   through `upgrade_requested`).
 
+### Headless Tools (lint, tests, sim, trace, bench)
+
+Every tool copies the project to a temp directory with its own `user://`
+(`override.cfg`) and runs Godot headless there, never on the project directory
+(the editor may have it open), so no tool touches the real save or makes a sound.
+
+- `tools/lint.sh`: loads every script, scene and resource and checks the scene
+  wiring; prints `errors=0`. `tools/run_tests.sh`: the headless suite
+  (`test/test_*.gd`). Both exit non-zero on a failure.
+- `tools/sim.sh [runs=24] [side=heroes|monster] [workers=6] [cap_seconds=660]`:
+  balance. Seeded auto-play matches in parallel, then one summary per monster
+  (`tools/sim_summary.py`): win rates, match length, first contact, evolution
+  timing, and hero deaths by the monster (the row's `monster_name`, the spawned
+  node's name) or by mob. `OUT=<file>` keeps the raw JSON lines (every monster's;
+  `sim_summary.py <file>` summarizes them the same way), `SAVE=<save.cfg>`
+  starts every match from that save. **Reproducible**: the copies turn off the
+  navigation server's asynchronous map and region iterations (as
+  `sim_trace.sh` does) and every seed starts from a fresh `user://` (or
+  `SAVE`), so the same tree gives the same numbers on every run, whatever the
+  CPU load or worker count, and seed s is `sim_trace.sh`'s seed s. Before
+  (async on), 24 seeds of identical code gave 17 % and 33 % hero wins.
+- `tools/sim_trace.sh [seeds="1 2 3"] [sides="heroes monster"] [cap_seconds=660]`:
+  the determinism trace (a state hash every 60 frames and at the end), byte
+  for byte the same for the same tree. `BASELINE=<file>` diffs the output with
+  a saved one and exits 1 on a difference; `RIGS_AWAKE=1` animates every rig
+  and must not change it.
+- `tools/bench.sh [runs=5] [multiplier=2] [frames=1800] [warmup=600] [onscreen=0] [rigs_awake=0]`:
+  performance in the stress config (all camps, `multiplier` mobs per slot),
+  run r plays seed r, medians of frame time, CPU time and LOD buckets. It
+  keeps the asynchronous navigation on (the device's setting and part of the
+  cost), so runs vary between invocations; a run whose match ends inside the
+  window stops there (the tree pauses at the match end) and is flagged
+  (`ended early: seed 3 at frame ...`; ended in the warm-up = left out). Use
+  5 or more runs for a performance gate, before and after back to back.
+- **Monsters** (`tools/monster_env.zsh`, shared by `sim.sh`, `sim_trace.sh`
+  and `bench.sh`):
+  - no `MONSTER`: no `monster=` argument, the roster default (Grount) plays,
+    so old command lines replay the same matches;
+  - `MONSTER=<id>`: that roster monster; an id the roster lacks exits 2
+    instead of quietly playing the default;
+  - `MONSTER=all`: every id `tools/list_monsters.gd` prints
+    (`Roster.monster_ids()`, roster order), one monster after the other.
+    `sim.sh` and `bench.sh` print one summary per monster; `sim_trace.sh`
+    prefixes every line with `<id> `.
+- **Per-monster trace baselines**: `tools/baselines/trace_<id>.txt` is
+  `MONSTER=<id> tools/sim_trace.sh` with the default arguments, for the
+  committed tree (Grount's is the roster-default trace, byte for byte).
+  - check every monster: `MONSTER=all BASELINE_DIR=tools/baselines tools/sim_trace.sh > trace.txt`
+    (exit 1 on a difference or a missing baseline);
+  - re-record: `MONSTER=all RECORD_DIR=tools/baselines tools/sim_trace.sh > /dev/null`
+    (default arguments only; nothing is written if a run failed), in the
+    commit that changes gameplay on purpose and in the one that adds a monster.
+    `test_sim_tools` fails while a roster monster has no baseline.
+  - The hashes depend on the engine build and the CPU: after an engine
+    upgrade or on another machine, re-record before comparing.
+- Typical runs: `MONSTER=all tools/sim.sh 48 heroes 6` and `... 48 monster 6`
+  (balance target 40–60 % hero wins per monster), `MONSTER=all tools/bench.sh 5 2 900 300`.
+- `tools/bake_nav.sh`, `tools/build_rigs.sh` and `tools/build_skill_trees.sh`
+  regenerate the navigation bake, the rig sheets and bodies, and the skill tree
+  resources on their copy and copy only the generated files back.
+
 ### File Structure
 
 ```
@@ -1524,6 +1588,10 @@ res://
    ├─ art/ (Python art pipeline: palette.py, build.py, make_theme.py, ...)
    ├─ rig_builder.gd · build_rigs.gd · build_rigs.sh (SVG parts → rig sheet + body)
    ├─ build_skill_trees.gd · build_skill_trees.sh (one-off: seed data → Data/SkillTrees)
+   ├─ sim.sh · sim_match.gd · sim_summary.py · sim_trace.sh · bench.sh · bench_match.gd
+   │  (headless balance, determinism and performance; see Headless Tools)
+   ├─ list_monsters.gd · monster_env.zsh (MONSTER=<id>|all for those three)
+   ├─ baselines/ (trace_<id>.txt: each roster monster's determinism trace)
    └─ preview/ (ThemeMockup, ThemeScreens, PaletteSheet, RigGallery, CardGrid,
                 SlotStrip proof scenes, not shipped)
 ```
