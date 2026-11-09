@@ -34,6 +34,10 @@ enum AbilityType {
 @export var unlock_stage: int = 1
 const LOCKED_COOLDOWN: float = 999999.0
 
+@export_group("Sustain")
+## Fraction of the damage this ability deals that heals the caster (deal()).
+@export var lifesteal_pct: float = 0.0
+
 # Ability-specific properties (set by subclasses)
 @export_group("Ability Properties")
 @export var speed_modifier: float = 1.0
@@ -120,6 +124,15 @@ func is_channeling() -> bool:
 ## How far this ability reaches from the caster (gap-close / slam checks).
 func get_reach() -> float:
 	return ability_range
+
+
+## Damage through the EventBus pipeline plus this ability's lifesteal.
+## Returns the amount that landed.
+func deal(caster: Node, target: Node, amount: float) -> float:
+	var dealt: float = EventBus.deal_damage(caster, target, amount, self)
+	if lifesteal_pct > 0.0 and dealt > 0.0 and is_instance_valid(caster) and caster.has_method(&"heal_self"):
+		caster.call(&"heal_self", dealt * lifesteal_pct)
+	return dealt
 
 
 ## The icon a HUD slot shows. Presentational and read-only: an ability whose

@@ -129,6 +129,9 @@ Power Level
 - **Basic Attack**: 10 dmg at 50 range / 1.0s
 - **Ultimate**: Blood Bomb (50 dmg, 150 AoE)
 - **Scaling**: +6 HP, +1.7 dmg per level
+- **Capstones** (one equipped): Executioner's Mark (Blood Strike x2 below 25%
+  HP), Sanguine Feast (Blood Strike heals 20% of its damage), Cluster Mines
+  (3 mines per Land Mine)
 
 #### Ted (DPS/Pet Master)
 
@@ -1527,6 +1530,9 @@ own ability copy (`AbilitySystem.make_abilities_unique`), never on the shared
 | ir_laststand CAP | `last_stand`, `last_stand_duration` 2 s (Regeneration) | once per match the lethal hit leaves Irelia at 1 HP (`HeroBase._survives_lethal_hit`, which `Irelia` overrides); `HeroBase.make_invulnerable` then cancels every hit for 2 s (a timer on the hero, not a chart state: `_receive_damage` flips `packet.canceled`, so `EventBus` skips the reaction and `damage_applied`, and `deal_damage` returns 0) |
 | ir_guardian CAP | `cleanse_stuns` (Divine Shield) | every hero the shield lands on loses its stun (`EntityBase.clear_stun`) |
 | ir_banner CAP | `rally_radius` 250, `rally_attack_speed` 1.25 (Monster Taunt) | every living hero within 250 px of Irelia, herself included, gets Rally Cry's attack-speed boost x1.25 for the taunt's 5 s |
+| vl_execute CAP | `execute_threshold` 0.25, `execute_mult` 2 (Blood Strike, `BasicStrike`) | a target below 25% HP takes x2 (its HP fraction read before the hit) |
+| vl_leech CAP | `lifesteal_pct` 0.2 (Blood Strike; `AbilityBase`) | `AbilityBase.deal()` (every `BasicStrike` hit goes through it) heals the caster for 20% of the damage that landed (`HeroBase.heal_self`, never a dead hero) |
+| vl_cluster CAP | `mine_count` 3, `mine_spacing` 40 (Land Mine) | three full mines per cast on a triangle around Vlad, 40 px between neighbours (a count node is multiplicative: 1 x 3) |
 
 Haste rule (`HeroBase.apply_attack_speed_boost`, Rally Cry and the
 capstones above): a weaker boost never replaces a stronger one that is still
@@ -1607,14 +1613,13 @@ code yet (5.4: hero behaviours; 6.6: monster behaviours):
 - **hero_vlad** (Butcher / Blood / Demolition):
   - Butcher: T1 Keen Blade +5/8/11/14/17% damage; T1 Eager Swings +5/8/11%
     attack speed; T2 Bloodthirst +10/14/18%; T3 Executioner +20/25/30%; T4 CAP
-    Executioner's Mark (Blood Strike x2 below 25% HP) **[hidden]**.
+    Executioner's Mark (Blood Strike x2 below 25% HP).
   - Blood: T1 Thick Blood +5/8/11/14/17% max HP; T2 Iron Heart +10/14/18%; T2
     Deeper Thirst Bloodlust 5/10/15% HP sooner; T3 Frenzy +15/20/25% attack
-    speed; T4 CAP Sanguine Feast (Blood Strike heals 20% of its damage)
-    **[hidden]**.
+    speed; T4 CAP Sanguine Feast (Blood Strike heals 20% of its damage).
   - Demolition: T1 Black Powder Land Mine damage +20/40/60%; T2 Bigger Bomb
     Blood Bomb radius +25/35/45%; T3 Quick Mines Land Mine cooldown -25/35/45%;
-    T4 CAP Cluster Mines (3 mines) **[hidden]**.
+    T4 CAP Cluster Mines (3 mines).
 - **hero_ted** (Brawler / Beastmaster / Trapper):
   - Brawler: T1 Trail Rations +5/8/11/14/17% max HP; T2 Sharpened Snares
     +10/14/18% damage; T2 Rapid Traps +10/14/18% attack speed; T3 Pack Leader

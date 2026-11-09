@@ -272,6 +272,13 @@ func heal(amount: float) -> void:
 		stats.heal(amount)
 
 
+## The caster's own lifesteal (AbilityBase.deal: Vlad's Sanguine Feast). A
+## dead hero is never healed back.
+func heal_self(amount: float) -> void:
+	if amount > 0.0 and is_alive():
+		heal(amount)
+
+
 ## Cancel every hit for `duration` seconds (a running immunity is never cut
 ## short). Irelia's Last Stand.
 func make_invulnerable(duration: float) -> void:

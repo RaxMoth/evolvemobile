@@ -74,7 +74,6 @@ currency = &"steel"
 capstone = true
 requires = Array[StringName]([&"v3_dmg"])
 branch = 0
-hidden = true
 ability_name = "Blood Strike"
 stat_name = "execute_threshold"
 stat_value = 0.25
@@ -155,7 +154,6 @@ currency = &"steel"
 capstone = true
 requires = Array[StringName]([&"v3_atkspd"])
 branch = 1
-hidden = true
 ability_name = "Blood Strike"
 stat_name = "lifesteal_pct"
 stat_value = 0.2
@@ -221,11 +219,9 @@ currency = &"steel"
 capstone = true
 requires = Array[StringName]([&"v3_minecd"])
 branch = 2
-hidden = true
 ability_name = "Land Mine"
 stat_name = "mine_count"
 stat_value = 3.0
-stat_multiplicative = false
 
 [resource]
 script = ExtResource("2_5qcyo")

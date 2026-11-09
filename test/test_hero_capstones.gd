@@ -8,7 +8,9 @@ extends TestCase
 const IRELIA := "res://Scenes/NPCs/Hero/Heros/Support/Irelia/Irelia.tscn"
 const VLAD := "res://Scenes/NPCs/Hero/Heros/DMG/Vlad/Vlad.tscn"
 const RIVER := "res://Scenes/NPCs/Hero/Heros/Healer/River/River.tscn"
+const HOG := "res://Scenes/NPCs/Mob/Mobs/Hog/Hog.tscn"
 const IRELIA_TREE := &"hero_irelia"
+const VLAD_TREE := &"hero_vlad"
 
 ## [tree, node, ability, export, the export's off value] of every node that
 ## reaches a hero's ability through an export of its own.
@@ -16,6 +18,9 @@ const NODES: Array = [
 	[&"hero_irelia", &"ir_laststand", "Regeneration", "last_stand", false],
 	[&"hero_irelia", &"ir_guardian", "Divine Shield", "cleanse_stuns", false],
 	[&"hero_irelia", &"ir_banner", "Monster Taunt", "rally_radius", 0.0],
+	[&"hero_vlad", &"vl_execute", "Blood Strike", "execute_threshold", 0.0],
+	[&"hero_vlad", &"vl_leech", "Blood Strike", "lifesteal_pct", 0.0],
+	[&"hero_vlad", &"vl_cluster", "Land Mine", "mine_count", 1],
 ]
 
 
@@ -41,6 +46,19 @@ func _hero(path: String, pos: Vector2) -> HeroBase:
 
 func _abilities(hero: Node) -> AbilitySystem:
 	return hero.get_node("AbilitySystem") as AbilitySystem
+
+
+func _hog(pos: Vector2) -> MobBase:
+	return (await spawn_frozen(HOG, pos)) as MobBase
+
+
+## The Mine nodes a cast added under the test (Vlad's parent), in cast order.
+func _new_mines(before: Array[Node]) -> Array[Mine]:
+	var out: Array[Mine] = []
+	for n in get_children():
+		if n is Mine and not before.has(n):
+			out.append(n as Mine)
+	return out
 
 
 func _free(nodes: Array) -> void:
@@ -197,3 +215,117 @@ func test_only_the_equipped_capstone_applies() -> void:
 	assert_false((kit.passive_ability as IreliaPassiveRegeneration).last_stand, "owned, not equipped")
 	assert_eq((kit.ultimate_ability as IreliaUltimateTaunt).rally_radius, 250.0)
 	_free([irelia])
+
+
+# ---------------------------------------------------------------- Vlad
+
+## A fresh save: one mine under Vlad, no execute bonus, no lifesteal.
+func test_vlads_exports_are_off_on_a_fresh_save() -> void:
+	if not require_isolated():
+		return
+	var vlad := await _hero(VLAD, Vector2.ZERO)
+	var hog := await _hog(Vector2(3000, 0))
+	var kit := _abilities(vlad)
+	var strike := kit.basic_attack as BasicStrike
+	var mine_ability := kit.active_ability as VladActiveMine
+	assert_eq(strike.execute_threshold, 0.0)
+	assert_eq(strike.lifesteal_pct, 0.0)
+	assert_eq(mine_ability.mine_count, 1)
+	var before: Array[Node] = get_children()
+	mine_ability.execute(vlad)
+	var mines := _new_mines(before)
+	assert_eq(mines.size(), 1, "one mine")
+	if mines.size() == 1:
+		assert_eq(mines[0].global_position, vlad.global_position, "under Vlad")
+	_free(mines)
+	await wait_frames(1)
+	hog.global_position = Vector2(30, 0)
+	hog.current_health = hog.max_health * 0.2
+	vlad.stats.take_damage(40.0)
+	var vlad_hp: float = vlad.get_health()
+	var hog_hp: float = hog.get_health()
+	strike.execute(vlad, hog)
+	assert_near(hog_hp - hog.get_health(), strike.damage * kit.get_damage_multiplier(), 0.0001, "no execute bonus")
+	assert_eq(vlad.get_health(), vlad_hp, "no lifesteal")
+	_free([vlad, hog])
+
+
+## Executioner's Mark: Blood Strike deals x2 to a target below 25% HP.
+func test_executioners_mark_doubles_blood_strike_on_a_wounded_target() -> void:
+	if not require_isolated():
+		return
+	_own(VLAD_TREE, &"vl_execute")
+	var vlad := await _hero(VLAD, Vector2.ZERO)
+	var hog := await _hog(Vector2(30, 0))
+	var kit := _abilities(vlad)
+	var strike := kit.basic_attack as BasicStrike
+	assert_near(strike.execute_threshold, 0.25, 0.0001)
+	var shared := load("res://Scenes/NPCs/Hero/Heros/DMG/Vlad/Abilities/basic_attack/basic_attack.tres") as BasicStrike
+	assert_eq(shared.execute_threshold, 0.0, "the shared resource is untouched")
+	var hit: float = strike.damage * kit.get_damage_multiplier()
+	var hits: Array[float] = []
+	var listener := func(p: DamagePacket) -> void:
+		if p.source == vlad:
+			hits.append(p.amount)
+	EventBus.damage_applied.connect(listener)
+	strike.execute(vlad, hog)
+	hog.current_health = hog.max_health * 0.26
+	strike.execute(vlad, hog)
+	hog.current_health = hog.max_health * 0.2
+	strike.execute(vlad, hog)
+	EventBus.damage_applied.disconnect(listener)
+	assert_eq(hits.size(), 3)
+	if hits.size() == 3:
+		assert_near(hits[0], hit, 0.0001, "full HP")
+		assert_near(hits[1], hit, 0.0001, "26% HP")
+		assert_near(hits[2], hit * 2.0, 0.0001, "20% HP: x2")
+	_free([vlad, hog])
+
+
+## Sanguine Feast: Blood Strike heals Vlad for 20% of the damage that landed
+## (AbilityBase.deal -> HeroBase.heal_self); a dead hero is never healed.
+func test_sanguine_feast_heals_vlad_for_a_fifth_of_blood_strike() -> void:
+	if not require_isolated():
+		return
+	_own(VLAD_TREE, &"vl_leech")
+	var vlad := await _hero(VLAD, Vector2.ZERO)
+	var hog := await _hog(Vector2(30, 0))
+	var kit := _abilities(vlad)
+	var strike := kit.basic_attack as BasicStrike
+	assert_near(strike.lifesteal_pct, 0.2, 0.0001)
+	vlad.stats.take_damage(40.0)
+	var hp: float = vlad.get_health()
+	var hit: float = strike.damage * kit.get_damage_multiplier()
+	strike.execute(vlad, hog)
+	assert_near(vlad.get_health(), hp + hit * 0.2, 0.0001, "healed for 20% of the hit")
+	assert_near(strike.deal(vlad, hog, 0.0), 0.0, 0.0001, "nothing landed, nothing healed")
+	assert_near(vlad.get_health(), hp + hit * 0.2, 0.0001)
+	vlad.stats.take_damage(9999.0)
+	vlad.heal_self(50.0)
+	assert_eq(vlad.get_health(), 0.0, "no lifesteal back from the dead")
+	_free([vlad, hog])
+
+
+## Cluster Mines: three mines in a triangle around Vlad, 40 px apart, each
+## a full Land Mine.
+func test_cluster_mines_places_three_mines_40_px_apart() -> void:
+	if not require_isolated():
+		return
+	_own(VLAD_TREE, &"vl_cluster")
+	var vlad := await _hero(VLAD, Vector2(100, 100))
+	var mine_ability := _abilities(vlad).active_ability as VladActiveMine
+	assert_eq(mine_ability.mine_count, 3, "1 x 3")
+	var before: Array[Node] = get_children()
+	mine_ability.execute(vlad)
+	var mines := _new_mines(before)
+	assert_eq(mines.size(), 3)
+	if mines.size() == 3:
+		var centre := Vector2.ZERO
+		for i in 3:
+			centre += mines[i].global_position / 3.0
+			assert_near(mines[i].global_position.distance_to(mines[(i + 1) % 3].global_position), 40.0, 0.01, "neighbours 40 px apart")
+			assert_eq(mines[i].damage, mine_ability.damage)
+			assert_eq(mines[i].owner_entity, vlad)
+		assert_true(centre.distance_to(vlad.global_position) < 0.01, "around Vlad")
+	_free(mines)
+	_free([vlad])

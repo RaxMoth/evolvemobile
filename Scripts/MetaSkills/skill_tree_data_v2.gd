@@ -28,7 +28,9 @@ extends RefCounted
 ##   id, name, desc ("{v}" = this rank's value as the UI shows it), tier (1-4),
 ##   branch (0-2), ranks (Array[float], cumulative), cost (COSTS key),
 ##   kind: "stat" (character stat / monster key), "ability" (ability property),
-##         "flag" (behaviour switch, additive 0 -> 1),
+##         "flag" (behaviour switch, additive 0 -> 1; a count export whose
+##         default is 1, mine_count / pet_count, is multiplicative so the
+##         value is the total: 1 x 3 = 3 mines),
 ##   stat (stat key or ability property), ability (AbilityBase.ability_name for
 ##   kind "ability"), mult (true = multiplier), requires (ANY of these ids at
 ##   rank >= 1; empty = only the tier gate), capstone (tier-4 exclusive),
@@ -204,7 +206,7 @@ static func vlad() -> Array:
 		_n(&"vl_minedmg", "Black Powder", "Land Mine damage +{v}%", 1, 2, [1.20, 1.40, 1.60], "T1x3", "ability", "damage", true, "Land Mine"),
 		_n(&"v2_bombaoe", "Bigger Bomb", "Blood Bomb radius +{v}%", 2, 2, [1.25, 1.35, 1.45], "T2x3", "ability", "area_of_effect", true, "Blood Bomb", [&"vl_minedmg"]),
 		_n(&"v3_minecd", "Quick Mines", "Land Mine cooldown -{v}%", 3, 2, [0.75, 0.65, 0.55], "T3x3", "ability", "cooldown", true, "Land Mine", [&"v2_bombaoe"]),
-		_n(&"vl_cluster", "Cluster Mines", "Land Mine places {v} mines in a triangle", 4, 2, [3.0], "CAP", "flag", "mine_count", false, "Land Mine", [&"v3_minecd"], true, "VladActiveMine: mine_count export (1), mines 40 px apart"),
+		_n(&"vl_cluster", "Cluster Mines", "Land Mine places {v} mines in a triangle", 4, 2, [3.0], "CAP", "flag", "mine_count", true, "Land Mine", [&"v3_minecd"], true, "VladActiveMine: mine_count export (1), mines 40 px apart"),
 	]
 
 
