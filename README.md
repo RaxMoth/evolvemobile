@@ -427,8 +427,9 @@ dangerous (`monster` #C2334A, `monster_purple` #7B3F95).
 
 Characters are moving from the pixel `AnimatedSprite2D` frames to chunky chibi
 SVG cut-out rigs. The runtime, the builder and the art of all ten characters
-are in place; no character scene uses a body yet (the scene migrations follow),
-so every match still draws the sprites.
+are in place. The four heroes and Ted's fox draw their rigs in the match;
+Grount, Gorrak, Nyxa and the jungle mobs still draw their pixel sprites until
+their scenes are migrated.
 
 - **Source** (`Assets/Characters/<id>/src/`, ignored by Godot through
   `.gdignore`): `rig_src.json` (canvas 128x160, baseline 150, optional
@@ -493,13 +494,42 @@ so every match still draws the sprites.
     - LOD: a rig animates only while its entity's ScreenNotifier is on screen.
       While more than 48 rigs are awake, mob rigs (tier BUDGETED) animate
       every other frame, staggered; heroes and the monster use tier FULL.
+- **Migrated scenes** (Irelia, Vlad, Ted, River and `TedsPet.tscn`): the
+  `AnimatedSprite2D` is hidden and its dead SpriteFrames deleted; the hidden
+  facing `Sprite2D` stays as it was (gameplay keeps rotating it); the `Rig`
+  sets `body` (through the scene's `node_paths`, so the export resolves at
+  instantiation), `profile` and `tier = FULL`, with `<Id>Body` (the instanced
+  `<id>_body.tscn`) under it. No existing node is reordered and World.tscn is
+  untouched, so the match and its trace are unchanged.
+    - The rig's origin is the character's feet at the entity's position (the
+      old sprites were centred on it), so the entity's y-sort now orders by
+      the feet.
+    - The HP bar's bottom edge sits 6 px above the art: at
+      -(round(`RigBody.art_height()` x `world_scale`) + 6). Heroes move their
+      `Hud` to y = -68 (Irelia), -64 (Vlad), -59 (Ted) and -70 (River); the
+      fox's bar sits at -43..-40. Each clears the character's tallest pose
+      (largest size, breathing in, top of the walk bounce).
+    - The ScreenNotifier rect must enclose everything the rig can draw
+      (`bounds` x `world_scale` at either facing, the size spread, breathing,
+      hurt squash and bounce or hover). NPCBaseClass's rect already does for
+      the heroes.
+    - Ted's pet is a CharacterBody2D, not an EntityBase, so its `Rig` sets
+      `mover = ".."` and the scene provides what an EntityBase has: its hidden
+      facing carrier "Sprite2D" (the pet aims it along its path), a unique
+      `ScreenNotifier` wired to the rig, and the presentation signals
+      `ability_cast` (each bite) and `damaged` (each hit) wired to the rig's
+      handlers. Gameplay never listens to them.
 - **Checks**: `test/test_rig_pipeline.gd` runs on the fixture character
   `test/fixtures/rig_fixture/` (generated files fresh for every character,
   z order, stages, broken art refused, no global RNG, no entity writes,
   asleep off screen, inert without a body, the budget rule).
   `test/test_character_art.gd` checks the real art: the ten characters, their
   sheets' svg/scale and mipmaps, DPITexture portraits, body plans, world
-  scales and the no-slide stride. `RIGS_AWAKE=1 tools/sim_trace.sh`
+  scales and the no-slide stride. `test/test_rigged_scenes.gd` checks the
+  migrated scenes: their own body, profile and tier, the hidden sprite without
+  frames, the HP bar rule, the notifier covering the drawn body, and real
+  heroes and the fox walking, facing and flinching in a match (the fox through
+  `mover`). `RIGS_AWAKE=1 tools/sim_trace.sh`
   animates every rig and must match the parent trace byte for byte;
   `tools/bench.sh <runs> <mult> <frames> <warmup> <onscreen> 1` wakes every
   rig and reports `rigs_awake_mean`. `tools/preview/RigGallery.tscn` shows

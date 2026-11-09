@@ -1,6 +1,10 @@
 extends CharacterBody2D
 
 signal died
+## Presentation only, like EntityBase's: TedsPet.tscn wires both to its
+## CharacterRig (a bite plays the attack, a hit the flash). Gameplay never listens.
+signal ability_cast(ability: AbilityBase, target: Node)
+signal damaged(packet: DamagePacket)
 
 @export var max_health: float = 50.0
 @export var move_speed: float = 120.0
@@ -187,6 +191,7 @@ func _navigate_to_position(target_pos: Vector2, speed: float, delta: float) -> v
 func _perform_attack() -> void:
 	if not _target_ok():
 		return
+	ability_cast.emit(null, current_target)
 	EventBus.deal_damage(self, current_target, attack_damage, null)
 
 func _receive_damage(packet: DamagePacket) -> void:
@@ -195,6 +200,7 @@ func _receive_damage(packet: DamagePacket) -> void:
 		return
 	current_health -= packet.amount
 	_update_health_bar()
+	damaged.emit(packet)
 
 	if current_health <= 0.0:
 		died.emit()

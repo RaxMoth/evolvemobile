@@ -28,8 +28,13 @@ extends Node2D
 ## awake, so a zoomed-out view of 200+ mobs stays cheap. Heroes and the
 ## monster set tier FULL. No allocation per frame.
 ##
-## Without an entity parent (menus, previews) it runs in puppet mode: always
-## awake, facing right, `puppet_speed` walks it in place, play_move() for emotes.
+## A character that is not an EntityBase (Ted's pet) points `mover` at itself
+## and gives the rig the same three things scene-side: the hidden facing
+## "Sprite2D", a unique ScreenNotifier wired to the rig, and optionally
+## ability_cast / damaged signals wired to the event handlers.
+##
+## Without an entity (menus, previews) it runs in puppet mode: always awake,
+## facing right, `puppet_speed` walks it in place, play_move() for emotes.
 
 enum Tier { FULL, BUDGETED }
 
@@ -42,6 +47,10 @@ const MAX_STEP := 64.0
 ## Optional authored one-shots (AnimationLibrary tracks on "%part:prop").
 @export var moves: AnimationPlayer
 @export var tier: Tier = Tier.BUDGETED
+## The character it animates when that is not an EntityBase parent (Ted's pet:
+## ".." in TedsPet.tscn). Empty: the parent if it is an EntityBase, else puppet
+## mode.
+@export var mover: Node2D
 ## Ground shadow radius in world px (0 = none), drawn once under the body in
 ## the palette's ink at shadow_alpha.
 @export var shadow_radius: float = 14.0
@@ -59,7 +68,8 @@ static var _awake: int = 0
 static var force_awake: bool = false
 
 var _active := false
-var _entity: EntityBase = null
+## The character whose position and facing carrier drive the pose (null = puppet).
+var _entity: Node2D = null
 var _facing: Node2D = null
 var _on_screen := false
 var _t := 0.0
@@ -116,7 +126,9 @@ func _ready() -> void:
 	_size = rng.randf_range(0.96, 1.04)
 	_stagger = rng.randi() & 1
 	_cache_parts()
-	_entity = get_parent() as EntityBase
+	_entity = mover
+	if _entity == null:
+		_entity = get_parent() as EntityBase
 	if _entity:
 		_facing = _entity.get_node_or_null(^"Sprite2D") as Node2D
 		_last_pos = _entity.global_position

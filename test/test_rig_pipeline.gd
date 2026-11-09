@@ -168,12 +168,17 @@ func test_puppet_never_draws_the_global_rng() -> void:
 	await wait_frames(1)
 
 
-## An entity scene with the fixture body under its Rig, AI frozen (as
+## An entity scene with the fixture body under its Rig in place of the
+## scene's own (a migrated hero brings its real one), AI frozen (as
 ## TestCase.spawn_frozen, but the body is added before the scene enters the
 ## tree, as a migrated character scene has it).
 func _spawn_rigged(scene_path: String, pos: Vector2, rig_tier: CharacterRig.Tier) -> Node2D:
 	var inst := (load(scene_path) as PackedScene).instantiate() as Node2D
 	var rig := inst.get_node(^"Rig") as CharacterRig
+	for own in rig.get_children():
+		if own is RigBody:
+			rig.remove_child(own)
+			own.free()
 	var body := (load(FIXTURE_BODY) as PackedScene).instantiate() as RigBody
 	rig.add_child(body)
 	rig.body = body

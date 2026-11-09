@@ -1,32 +1,15 @@
-[gd_scene load_steps=8 format=3 uid="uid://dmwsr7r1rglla"]
+[gd_scene load_steps=7 format=3 uid="uid://dmwsr7r1rglla"]
 
 [ext_resource type="Script" uid="uid://bqnd1nwlvm5hc" path="res://Scenes/NPCs/Hero/Heros/Support/Ted/Abilities/Passive/teds_pet.gd" id="1_pet"]
-[ext_resource type="Texture2D" uid="uid://dbitmrq0kvfo6" path="res://Scenes/NPCs/Hero/Heros/Support/Ted/Abilities/Passive/Assets/down_stand.png" id="2_62k54"]
-[ext_resource type="Texture2D" uid="uid://xsnh6yrty8em" path="res://Scenes/NPCs/Hero/Heros/Support/Ted/Abilities/Passive/Assets/down_walk1.png" id="3_xjask"]
-[ext_resource type="Texture2D" uid="uid://b5ojoat051xwx" path="res://Scenes/NPCs/Hero/Heros/Support/Ted/Abilities/Passive/Assets/down_walk2.png" id="4_pq2yh"]
+[ext_resource type="Script" uid="uid://bqdiydcp3yanu" path="res://Scripts/Rig/character_rig.gd" id="2_rig"]
+[ext_resource type="PackedScene" path="res://Assets/Characters/pet/pet_body.tscn" id="3_body"]
+[ext_resource type="Resource" path="res://Assets/Characters/pet/pet_motion.tres" id="4_motion"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_pet"]
 radius = 14.035668
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_petbody"]
 radius = 16.0
-
-[sub_resource type="SpriteFrames" id="SpriteFrames_63u05"]
-animations = [{
-"frames": [{
-"duration": 1.0,
-"texture": ExtResource("2_62k54")
-}, {
-"duration": 1.0,
-"texture": ExtResource("3_xjask")
-}, {
-"duration": 1.0,
-"texture": ExtResource("4_pq2yh")
-}],
-"loop": true,
-"name": &"default",
-"speed": 5.0
-}]
 
 [node name="TedsPet" type="CharacterBody2D" groups=["Hero"]]
 collision_layer = 2
@@ -44,18 +27,34 @@ monitoring = false
 shape = SubResource("CircleShape2D_petbody")
 
 [node name="Sprite2D" type="AnimatedSprite2D" parent="."]
-modulate = Color(0.6, 0.4, 0.2, 1)
-sprite_frames = SubResource("SpriteFrames_63u05")
-autoplay = "default"
-frame_progress = 0.11522432
+visible = false
+
+[node name="ScreenNotifier" type="VisibleOnScreenNotifier2D" parent="."]
+unique_name_in_owner = true
+rect = Rect2(-24, -40, 48, 44)
+
+[node name="Rig" type="Node2D" parent="." node_paths=PackedStringArray("body", "mover")]
+script = ExtResource("2_rig")
+body = NodePath("PetBody")
+profile = ExtResource("4_motion")
+tier = 0
+mover = NodePath("..")
+shadow_radius = 10.0
+
+[node name="PetBody" parent="Rig" instance=ExtResource("3_body")]
 
 [node name="HealthBar" type="ProgressBar" parent="."]
 offset_left = -10.0
-offset_top = -15.0
+offset_top = -43.0
 offset_right = 10.0
-offset_bottom = -12.0
+offset_bottom = -40.0
 show_percentage = false
 
 [node name="NavigationAgent2D" type="NavigationAgent2D" parent="."]
 path_desired_distance = 6.0
 target_desired_distance = 4.0
+
+[connection signal="screen_entered" from="ScreenNotifier" to="Rig" method="_on_screen_entered"]
+[connection signal="screen_exited" from="ScreenNotifier" to="Rig" method="_on_screen_exited"]
+[connection signal="ability_cast" from="." to="Rig" method="_on_entity_ability_cast"]
+[connection signal="damaged" from="." to="Rig" method="_on_entity_damaged"]

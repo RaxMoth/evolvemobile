@@ -1,4 +1,4 @@
-[gd_scene load_steps=12 format=3 uid="uid://7dofwynrx363"]
+[gd_scene load_steps=10 format=3 uid="uid://7dofwynrx363"]
 
 [ext_resource type="PackedScene" uid="uid://bvyrcj7lkc1k6" path="res://Scenes/NPCs/Hero/HeroBaseClass.tscn" id="1_hqa4n"]
 [ext_resource type="Script" uid="uid://cimbnrg6od0ec" path="res://Scenes/NPCs/Hero/Heros/Healer/River/river.gd" id="2_ecbku"]
@@ -7,26 +7,8 @@
 [ext_resource type="Resource" uid="uid://b5n1wqkllmaqo" path="res://Scenes/NPCs/Hero/Heros/Healer/River/Abilities/active/river_active.tres" id="5_tvvx7"]
 [ext_resource type="Resource" uid="uid://d2wqgg6lrphuo" path="res://Scenes/NPCs/Hero/Heros/Healer/River/Abilities/basic_attack/river_basic_attack.tres" id="6_1hf4a"]
 [ext_resource type="Resource" uid="uid://c0pjxk8ynq6xh" path="res://Scenes/NPCs/Hero/Heros/Healer/River/Abilities/ult/river_ult.tres" id="7_ldrf5"]
-[ext_resource type="Texture2D" uid="uid://ddouityk5d4u1" path="res://Scenes/NPCs/Hero/Heros/Healer/River/Assets/down_stand.png" id="8_ldrf5"]
-[ext_resource type="Texture2D" uid="uid://jxudhekunnex" path="res://Scenes/NPCs/Hero/Heros/Healer/River/Assets/down_walk1.png" id="9_ksh4r"]
-[ext_resource type="Texture2D" uid="uid://c10rukys8i0d2" path="res://Scenes/NPCs/Hero/Heros/Healer/River/Assets/down_walk2.png" id="10_0vo8n"]
-
-[sub_resource type="SpriteFrames" id="SpriteFrames_qjsu5"]
-animations = [{
-"frames": [{
-"duration": 1.0,
-"texture": ExtResource("8_ldrf5")
-}, {
-"duration": 1.0,
-"texture": ExtResource("9_ksh4r")
-}, {
-"duration": 1.0,
-"texture": ExtResource("10_0vo8n")
-}],
-"loop": true,
-"name": &"default",
-"speed": 5.0
-}]
+[ext_resource type="PackedScene" path="res://Assets/Characters/river/river_body.tscn" id="8_body"]
+[ext_resource type="Resource" path="res://Assets/Characters/river/river_motion.tres" id="9_motion"]
 
 [node name="River" instance=ExtResource("1_hqa4n")]
 script = ExtResource("2_ecbku")
@@ -41,10 +23,18 @@ active_ability = ExtResource("5_tvvx7")
 basic_attack = ExtResource("6_1hf4a")
 ultimate_ability = ExtResource("7_ldrf5")
 
+[node name="Hud" parent="." index="2"]
+position = Vector2(0, -70)
+
 [node name="AnimatedSprite2D" parent="." index="3"]
-sprite_frames = SubResource("SpriteFrames_qjsu5")
-autoplay = "default"
-frame_progress = 0.75361794
+visible = false
 
 [node name="Sprite2D" parent="." index="4"]
 visible = false
+
+[node name="Rig" parent="." index="11" node_paths=PackedStringArray("body")]
+body = NodePath("RiverBody")
+profile = ExtResource("9_motion")
+tier = 0
+
+[node name="RiverBody" parent="Rig" instance=ExtResource("8_body")]
