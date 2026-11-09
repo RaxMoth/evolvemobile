@@ -36,6 +36,9 @@ func test_direct_moves_and_strafing_stop_at_the_wall() -> void:
 func test_an_entity_off_the_mesh_still_moves() -> void:
 	var region := await bake_nav_rect(Rect2(0, 0, 400, 400))
 	var river := await spawn_frozen(RIVER, Vector2(600, 200))
+	# spawn_frozen lets the AI tick once or twice before it freezes: start from
+	# a known spot so the step is measured, not her own wandering.
+	river.global_position = Vector2(600, 200)
 	assert_true((river as EntityBase).move_toward_point(Vector2(300, 200), 100.0, 0.5), "never frozen outside the mesh")
 	assert_near(river.global_position.x, 550.0, 0.01)
 	river.queue_free()
