@@ -201,7 +201,9 @@ Power Level
 
 - **Healing on Evolution**: Gains (new max HP - old max HP). The tuned build refills HP on evolution
   instead (`MonsterBase.heal_to_full_on_evolution = true`; false = this README rule) — open decision
-- **Visual Changes**: Orange tint (Stage 2), Red glow (Stage 3)
+- **Visual Changes**: Grount's rig grows with the stage scale (1.0 / 1.25 / 1.5) and shows each
+  stage's parts: bigger horns and orange eyes plus back spikes (Stage 2); huge horns, red eyes,
+  glowing cracks and a chain (Stage 3); a flash and a ring pulse mark the evolution
 - **Screen Shake**: Alerts players to evolution
 - **Ability Unlocks**: Ground Slam unlocks at Stage 2
 
@@ -427,9 +429,9 @@ dangerous (`monster` #C2334A, `monster_purple` #7B3F95).
 
 Characters are moving from the pixel `AnimatedSprite2D` frames to chunky chibi
 SVG cut-out rigs. The runtime, the builder and the art of all ten characters
-are in place. The four heroes and Ted's fox draw their rigs in the match;
-Grount, Gorrak, Nyxa and the jungle mobs still draw their pixel sprites until
-their scenes are migrated.
+are in place. Every character in the match draws its rig: the four heroes,
+Ted's fox, Grount (all three stages) and the Bat and Hog mobs. Gorrak and
+Nyxa have their art but no scene yet.
 
 - **Source** (`Assets/Characters/<id>/src/`, ignored by Godot through
   `.gdignore`): `rig_src.json` (canvas 128x160, baseline 150, optional
@@ -494,25 +496,50 @@ their scenes are migrated.
     - LOD: a rig animates only while its entity's ScreenNotifier is on screen.
       While more than 48 rigs are awake, mob rigs (tier BUDGETED) animate
       every other frame, staggered; heroes and the monster use tier FULL.
-- **Migrated scenes** (Irelia, Vlad, Ted, River and `TedsPet.tscn`): the
-  `AnimatedSprite2D` is hidden and its dead SpriteFrames deleted; the hidden
-  facing `Sprite2D` stays as it was (gameplay keeps rotating it); the `Rig`
-  sets `body` (through the scene's `node_paths`, so the export resolves at
-  instantiation), `profile` and `tier = FULL`, with `<Id>Body` (the instanced
-  `<id>_body.tscn`) under it. No existing node is reordered and World.tscn is
-  untouched, so the match and its trace are unchanged.
+      A rig writes only the pose channels that changed since its last frame
+      (an idle mob mostly breathes), and forgets them after an authored move
+      or `reset_pose`. The F3 overlay shows the rigs awake now, their mean
+      since F3 was pressed and "mobs half rate" while over the budget.
+    - Pooled mobs leave the tree and come back without a new `_ready`: a rig
+      leaving the tree sleeps and drops its hurt flash, attack swing and
+      walk, so the next life starts clean; on re-entry the notifier wakes it
+      (or, under the tools' `force_awake`, the rig itself).
+    - Evolution (`set_stage`): the stage's parts, and on screen the
+      evolution flash (an evolution off screen leaves no flash pending). The
+      stage SIZE stays the monster's root scale (gameplay: collision and
+      aggro shapes grow with it), which the rig inherits; the old sprite path
+      (stage SpriteFrames from `MonsterVisualConfig`, orange/red tint) only
+      runs for a monster scene without a rig body. The stage ring pulse
+      (`enable_stage_effects`) plays either way.
+- **Migrated scenes** (Irelia, Vlad, Ted, River, `TedsPet.tscn`, Grount, Bat
+  and Hog): the `AnimatedSprite2D` is hidden and its dead SpriteFrames
+  deleted; the hidden facing `Sprite2D` stays as it was (gameplay keeps
+  rotating it); the `Rig` sets `body` (through the scene's `node_paths`, so
+  the export resolves at instantiation), `profile` and `tier` (FULL for the
+  heroes, the fox and Grount; the mobs keep the default BUDGETED), with
+  `<Id>Body` (the instanced `<id>_body.tscn`) under it. No existing node is
+  reordered and World.tscn is untouched, so the match and its trace are
+  unchanged. Grount keeps `grount_visual.tres` for its stage ring pulse.
     - The rig's origin is the character's feet at the entity's position (the
       old sprites were centred on it), so the entity's y-sort now orders by
       the feet.
     - The HP bar's bottom edge sits 6 px above the art: at
-      -(round(`RigBody.art_height()` x `world_scale`) + 6). Heroes move their
-      `Hud` to y = -68 (Irelia), -64 (Vlad), -59 (Ted) and -70 (River); the
-      fox's bar sits at -43..-40. Each clears the character's tallest pose
-      (largest size, breathing in, top of the walk bounce).
+      -(round(h x `world_scale`) + 6), where h is `RigBody.art_height()` for
+      a walker and, for a flyer (its art floats above its feet), the art's
+      top plus its highest hover (1.35 x `hover`). Heroes move their `Hud` to
+      y = -68 (Irelia), -64 (Vlad), -59 (Ted) and -70 (River); the fox's bar
+      sits at -43..-40; Grount's `Hud` is at -101, the Hog's at -45 and the
+      Bat's at -48. Each clears the character's tallest pose (largest size,
+      breathing in, top of the walk bounce or hover). Grount's `Hud` is a
+      child of the growing root: its position grows with the stage scale
+      while the bar keeps its pixel size, so it clears the head at every
+      stage and with Titan Form.
     - The ScreenNotifier rect must enclose everything the rig can draw
       (`bounds` x `world_scale` at either facing, the size spread, breathing,
       hurt squash and bounce or hover). NPCBaseClass's rect already does for
-      the heroes.
+      the heroes and the mobs. Grount's is sized from its bounds:
+      Rect2(-58, -114, 116, 118) also covers Ground Slam's 1.2x hop of the
+      rig, and it grows with the stage scale like the rig.
     - Ted's pet is a CharacterBody2D, not an EntityBase, so its `Rig` sets
       `mover = ".."` and the scene provides what an EntityBase has: its hidden
       facing carrier "Sprite2D" (the pet aims it along its path), a unique
@@ -527,9 +554,11 @@ their scenes are migrated.
   sheets' svg/scale and mipmaps, DPITexture portraits, body plans, world
   scales and the no-slide stride. `test/test_rigged_scenes.gd` checks the
   migrated scenes: their own body, profile and tier, the hidden sprite without
-  frames, the HP bar rule, the notifier covering the drawn body, and real
-  heroes and the fox walking, facing and flinching in a match (the fox through
-  `mover`). `RIGS_AWAKE=1 tools/sim_trace.sh`
+  frames, the HP bar rule (at every Grount stage), the notifier covering the
+  drawn body, real heroes, the fox, Grount and the mobs walking (the bat
+  flapping), facing and flinching in a match (the fox through `mover`),
+  Grount's parts and flash through stages 1 to 3, the mob half rate over the
+  budget, a pooled mob's rig starting its next life clean, and the F3 line. `RIGS_AWAKE=1 tools/sim_trace.sh`
   animates every rig and must match the parent trace byte for byte;
   `tools/bench.sh <runs> <mult> <frames> <warmup> <onscreen> 1` wakes every
   rig and reports `rigs_awake_mean`. `tools/preview/RigGallery.tscn` shows

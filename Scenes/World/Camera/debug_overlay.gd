@@ -40,6 +40,10 @@ var _active: bool = false
 var _refresh_timer: float = 0.0
 var _font: Font = null
 var _hud_label: Label = null
+# CharacterRig.awake_count() summed once per frame while the overlay is on
+# (the HUD's rigs-awake mean, as tools/bench.sh reports rigs_awake_mean).
+var _rig_awake_sum: int = 0
+var _rig_awake_frames: int = 0
 
 # Cached snapshots for cheap _draw — refreshed at refresh_rate_hz.
 class EntitySnapshot:
@@ -77,6 +81,8 @@ func _ready() -> void:
 
 func set_active(active: bool) -> void:
 	_active = active
+	_rig_awake_sum = 0
+	_rig_awake_frames = 0
 	if not active:
 		_snapshots.clear()
 		queue_redraw()
@@ -87,11 +93,18 @@ func set_active(active: bool) -> void:
 func _process(delta: float) -> void:
 	if not _active:
 		return
+	_rig_awake_sum += CharacterRig.awake_count()
+	_rig_awake_frames += 1
 	_refresh_timer -= delta
 	if _refresh_timer <= 0.0:
 		_refresh_timer = 1.0 / max(1.0, refresh_rate_hz)
 		_collect_snapshots()
 		queue_redraw()
+
+
+## Mean number of animating CharacterRigs per frame since F3 was pressed.
+func rigs_awake_mean() -> float:
+	return float(_rig_awake_sum) / maxf(1.0, float(_rig_awake_frames))
 
 
 # ============================================
@@ -286,6 +299,14 @@ func _update_hud_label(active_hero: Node, heroes_team: TeamBlackboard, enemies_t
 		lines.append("Enemies live: %d" % enemies_team.members.size())
 	var buckets: Array[int] = TickScheduler.bucket_counts()
 	lines.append("LOD  FULL %d  NEAR %d  MID %d  FAR %d" % [buckets[0], buckets[1], buckets[2], buckets[3]])
+	# Animating SVG rigs now and on average since F3 was pressed; past the
+	# budget the mob rigs (tier BUDGETED) animate every other frame.
+	var awake: int = CharacterRig.awake_count()
+	lines.append("Rigs awake %d  mean %.1f  budget %d%s" % [
+		awake,
+		rigs_awake_mean(),
+		CharacterRig.BUDGET,
+		"  mobs half rate" if awake > CharacterRig.BUDGET else ""])
 	lines.append("Registry: H%d P%d M%d Mob%d" % [
 		EntityRegistry.heroes.size(),
 		EntityRegistry.hero_side.size() - EntityRegistry.heroes.size(),

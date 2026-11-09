@@ -52,7 +52,9 @@ func rest_of(part_name: StringName) -> Transform2D:
 	return rest
 
 
-## Back to the generated pose (pooled reuse, end of an authored move).
+## Back to the generated pose (pooled reuse, end of an authored move). The
+## CharacterRig driving the body only writes the channels that changed, so it
+## forgets what it wrote whenever it calls this.
 func reset_pose() -> void:
 	for n: String in _rest:
 		part(StringName(n)).transform = _rest[n]

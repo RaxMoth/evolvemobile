@@ -26,7 +26,8 @@ extends Node2D
 ## screen (seeded in _ready, toggled by the scene-wired signals). BUDGETED rigs
 ## (mobs) animate every other frame, staggered, while more than BUDGET rigs are
 ## awake, so a zoomed-out view of 200+ mobs stays cheap. Heroes and the
-## monster set tier FULL. No allocation per frame.
+## monster set tier FULL. No allocation per frame, and only the pose channels
+## that changed are written (an idle camp mostly holds still).
 ##
 ## A character that is not an EntityBase (Ted's pet) points `mover` at itself
 ## and gives the rig the same three things scene-side: the hidden facing
@@ -100,6 +101,15 @@ var _tail: Node2D
 var _rest_rot: PackedFloat32Array = PackedFloat32Array()
 var _rest_pos: PackedVector2Array = PackedVector2Array()
 var _limbs: Array[Node2D] = []
+# What _pose last wrote (NAN = unknown: write next time). Most of a camp idles,
+# where most channels hold still, and every write re-propagates a part's
+# transform, so unchanged values are not written again. 64-bit so a held value
+# compares equal to the one computed again.
+var _cur_rot: PackedFloat64Array = PackedFloat64Array()
+var _cur_body_y := NAN
+var _cur_body_scale := Vector2(NAN, NAN)
+var _cur_torso_x := NAN
+var _cur_head_y := NAN
 
 
 func _ready() -> void:
@@ -140,8 +150,31 @@ func _ready() -> void:
 	queue_redraw()
 
 
+## A pooled mob re-enters the tree without a new _ready: under the tools'
+## force_awake switch nothing else would wake its rig again (on a device the
+## notifier's screen_entered does).
+func _enter_tree() -> void:
+	if _active and force_awake:
+		set_on_screen(true)
+
+
+## Leaving the tree is either the end or a pooled mob being parked: drop the
+## reactions in flight so the next life does not start mid-flash or mid-swing.
 func _exit_tree() -> void:
 	set_on_screen(false)
+	if not _active:
+		return
+	_hurt = 0.0
+	_act = 0.0
+	_walk = 0.0
+	_skipped = 0.0
+	if moves and moves.is_playing():
+		moves.stop()
+		body.reset_pose()
+		_forget_pose()
+	if _flashing:
+		body.modulate = Color.WHITE
+		_flashing = false
 
 
 func _draw() -> void:
@@ -164,10 +197,20 @@ func _cache_parts() -> void:
 	_limbs = [_torso, _head, _arm_f, _arm_b, _leg_f, _leg_b, _wing_f, _wing_b, _tail]
 	_rest_rot.resize(_limbs.size())
 	_rest_pos.resize(_limbs.size())
+	_cur_rot.resize(_limbs.size())
 	for i in _limbs.size():
 		if _limbs[i]:
 			_rest_rot[i] = _limbs[i].rotation
 			_rest_pos[i] = _limbs[i].position
+	_forget_pose()
+
+
+## The parts were moved by something else (an authored move, reset_pose):
+## the next _pose writes every part channel again.
+func _forget_pose() -> void:
+	_cur_rot.fill(NAN)
+	_cur_torso_x = NAN
+	_cur_head_y = NAN
 
 
 # ---------------------------------------------------------------- LOD ----
@@ -216,6 +259,7 @@ func _on_entity_ability_cast(ability: AbilityBase, _target: Node) -> void:
 	var move := _move_for(ability)
 	if moves and moves.has_animation(move):
 		body.reset_pose()
+		_forget_pose()
 		moves.play(move)
 		moves.seek(0.0, true)
 		return
@@ -228,12 +272,15 @@ func _on_entity_damaged(_packet: DamagePacket) -> void:
 		play_hurt()
 
 
-## MonsterBase.evolved (scene-wired in monster_base_class.tscn).
+## MonsterBase.evolved (scene-wired in monster_base_class.tscn): the stage's
+## parts, and on screen the evolution flash (the rig's take on the sprite's
+## old stage tint; the stage SIZE stays the entity's root scale, which the rig
+## inherits). Evolving off screen does not flash later when it wakes.
 func set_stage(stage: int) -> void:
 	if body == null:
 		return
 	body.set_stage(stage)
-	if profile:
+	if profile and _on_screen:
 		_hurt = profile.hurt_time
 
 
@@ -243,6 +290,7 @@ func play_move(move: StringName) -> void:
 		return
 	if moves and moves.has_animation(move):
 		body.reset_pose()
+		_forget_pose()
 		moves.play(move)
 	else:
 		_act = profile.attack_time
@@ -309,8 +357,14 @@ func _pose() -> void:
 	else:
 		lift = -absf(sin(_walk_phase)) * p.bounce * _walk
 	var k := p.world_scale * _size
-	body.position = Vector2(0.0, lift * k)
-	body.scale = Vector2(_flip * (1.0 + squash), 1.0 - squash) * (k / body.sheet_scale)
+	var body_y := lift * k
+	if body_y != _cur_body_y:
+		_cur_body_y = body_y
+		body.position = Vector2(0.0, body_y)
+	var body_scale := Vector2(_flip * (1.0 + squash), 1.0 - squash) * (k / body.sheet_scale)
+	if body_scale != _cur_body_scale:
+		_cur_body_scale = body_scale
+		body.scale = body_scale
 	if hurt_k > 0.0:
 		body.modulate = Color.WHITE.lerp(_flash_color, hurt_k)
 		_flashing = true
@@ -319,31 +373,56 @@ func _pose() -> void:
 		_flashing = false
 	if moves and moves.is_playing():
 		body.sync_proxies()
+		_forget_pose()
 		return
 	var s := body.sheet_scale
 	var step := sin(_walk_phase * 2.0)
-	var atk := _attack_curve()
-	_rot(0, p.lean * _walk + atk * 0.15)
+	var atk := _attack_curve() if _act > 0.0 else 0.0
+	# Only the parts this body has (a call per missing limb adds up over a
+	# camp); `moved` = some part changed, so its proxies need a sync.
+	var moved := false
 	if _torso:
+		moved = _rot(0, p.lean * _walk + atk * 0.15)
 		var lunge := sin((1.0 - _act / maxf(p.attack_time, 0.001)) * PI) * p.attack_lunge * s if _act > 0.0 else 0.0
-		_torso.position.x = _rest_pos[0].x + lunge
+		var torso_x := _rest_pos[0].x + lunge
+		if torso_x != _cur_torso_x:
+			_cur_torso_x = torso_x
+			_torso.position.x = torso_x
+			moved = true
 	if _head:
-		_head.position.y = _rest_pos[1].y + breathe * p.head_bob * s * (1.0 - _walk)
-	_rot(2, -step * p.arm_swing * _walk + atk)
-	_rot(3, step * p.arm_swing * _walk)
-	_rot(4, step * p.leg_swing * _walk)
-	_rot(5, -step * p.leg_swing * _walk)
-	var flap := sin(_t * p.flap_hz * TAU + _phase) * p.flap_amount
-	_rot(6, flap)
-	_rot(7, flap * 0.8)
-	_rot(8, sin(_t * 2.0 + _phase) * 0.12 + step * 0.2 * _walk)
-	body.sync_proxies()
+		var head_y := _rest_pos[1].y + breathe * p.head_bob * s * (1.0 - _walk)
+		if head_y != _cur_head_y:
+			_cur_head_y = head_y
+			_head.position.y = head_y
+			moved = true
+	if _arm_f:
+		moved = _rot(2, -step * p.arm_swing * _walk + atk) or moved
+	if _arm_b:
+		moved = _rot(3, step * p.arm_swing * _walk) or moved
+	if _leg_f:
+		moved = _rot(4, step * p.leg_swing * _walk) or moved
+	if _leg_b:
+		moved = _rot(5, -step * p.leg_swing * _walk) or moved
+	if _wing_f or _wing_b:
+		var flap := sin(_t * p.flap_hz * TAU + _phase) * p.flap_amount
+		if _wing_f:
+			moved = _rot(6, flap) or moved
+		if _wing_b:
+			moved = _rot(7, flap * 0.8) or moved
+	if _tail:
+		moved = _rot(8, sin(_t * 2.0 + _phase) * 0.12 + step * 0.2 * _walk) or moved
+	if moved:
+		body.sync_proxies()
 
 
-func _rot(i: int, delta_rot: float) -> void:
-	var n := _limbs[i]
-	if n:
-		n.rotation = _rest_rot[i] + delta_rot
+## Limb i (it exists) at its rest angle + delta_rot; false when it already is.
+func _rot(i: int, delta_rot: float) -> bool:
+	var r := _rest_rot[i] + delta_rot
+	if r == _cur_rot[i]:
+		return false
+	_cur_rot[i] = r
+	_limbs[i].rotation = r
+	return true
 
 
 ## Front-arm angle of the procedural attack: wind-up, strike, recover.

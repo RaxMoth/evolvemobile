@@ -5,7 +5,7 @@ extends TestCase
 ## the real art: the generated files are fresh, a body draws in its art's z
 ## order without z_index, and CharacterRig is pure presentation (no global RNG,
 ## no entity writes, asleep off screen, half rate over budget, inert without a
-## body).
+## body) whose procedural pose takes every part back after an authored move.
 
 const FIXTURE := "rig_fixture"
 const FIXTURE_SRC := "res://test/fixtures/rig_fixture/src/rig_src.json"
@@ -14,7 +14,9 @@ const FIXTURE_MOTION := "res://test/fixtures/rig_fixture/rig_fixture_motion.tres
 const RIG_SCRIPT := "res://Scripts/Rig/character_rig.gd"
 const VLAD := "res://Scenes/NPCs/Hero/Heros/DMG/Vlad/Vlad.tscn"
 const GROUNT := "res://Scenes/NPCs/Monster/Grount/Grount.tscn"
-const BAT := "res://Scenes/NPCs/Mob/Mobs/Bat/Bat.tscn"
+## Every character scene draws its rig now; the bare mob base scene (an
+## EntityBase whose Rig has no body) stands in for one still on its sprite.
+const UNMIGRATED := "res://Scenes/NPCs/Mob/mobs_base_class.tscn"
 ## Broken sources the builder must refuse (written under user://, isolated runs only).
 const BROKEN_ROOT := "user://rig_builder_test"
 const PART_SVG := '<svg xmlns="http://www.w3.org/2000/svg" width="128" height="160" viewBox="0 0 128 160">%s</svg>'
@@ -168,6 +170,46 @@ func test_puppet_never_draws_the_global_rng() -> void:
 	await wait_frames(1)
 
 
+## The procedural layer writes only the channels that changed. An authored
+## move writes the parts directly, so when it ends the rig must take every part
+## back, even one whose procedural value never changed (an idle leg).
+func test_procedural_pose_takes_over_after_a_move() -> void:
+	var holder := Node2D.new()
+	var rig := CharacterRig.new()
+	rig.profile = load(FIXTURE_MOTION)
+	rig.tier = CharacterRig.Tier.FULL
+	var body := (load(FIXTURE_BODY) as PackedScene).instantiate() as RigBody
+	rig.add_child(body)
+	rig.body = body
+	var anim := Animation.new()
+	anim.length = 0.1
+	var track := anim.add_track(Animation.TYPE_VALUE)
+	anim.track_set_path(track, "%leg_f:rotation")
+	anim.track_insert_key(track, 0.0, 1.0)
+	anim.track_insert_key(track, 0.1, 1.0)
+	var lib := AnimationLibrary.new()
+	lib.add_animation(&"attack", anim)
+	var player := AnimationPlayer.new()
+	player.add_animation_library(&"", lib)
+	rig.add_child(player)
+	player.root_node = NodePath("../" + String(body.name))
+	rig.moves = player
+	holder.add_child(rig)
+	add_child(holder)
+	await wait_frames(3)
+	var leg := body.part(&"leg_f")
+	var rest := body.rest_of(&"leg_f").get_rotation()
+	assert_near(leg.rotation, rest, 0.0001, "an idle puppet's leg rests")
+	rig.play_move(&"attack")
+	await wait_frames(2)
+	assert_near(leg.rotation, 1.0, 0.0001, "the move drives the leg")
+	await wait_seconds(0.3)
+	assert_false(player.is_playing(), "the move is over")
+	assert_near(leg.rotation, rest, 0.0001, "the procedural layer takes the leg back")
+	holder.queue_free()
+	await wait_frames(1)
+
+
 ## An entity scene with the fixture body under its Rig in place of the
 ## scene's own (a migrated hero brings its real one), AI frozen (as
 ## TestCase.spawn_frozen, but the body is added before the scene enters the
@@ -235,22 +277,22 @@ func test_entity_rig_reads_but_never_writes() -> void:
 ## never awake, nothing drawn, events ignored, VFX keep the AnimatedSprite2D.
 func test_rig_without_body_stays_inert() -> void:
 	var awake_before := CharacterRig.awake_count()
-	var bat := await spawn_frozen(BAT, Vector2(200, 200)) as EntityBase
-	var rig := bat.get_node(^"Rig") as CharacterRig
-	assert_true(rig.body == null, "the Bat is not migrated yet")
-	assert_eq(bat.visual_root(), bat.get_node(^"AnimatedSprite2D"), "VFX fall back to the sprite")
+	var mob := await spawn_frozen(UNMIGRATED, Vector2(200, 200)) as EntityBase
+	var rig := mob.get_node(^"Rig") as CharacterRig
+	assert_true(rig.body == null, "no body under the Rig")
+	assert_eq(mob.visual_root(), mob.get_node(^"AnimatedSprite2D"), "VFX fall back to the sprite")
 	rig.set_on_screen(true)
 	CharacterRig.force_awake = true
 	rig._on_screen_entered()
 	assert_false(rig.is_processing(), "an inert rig never wakes")
 	assert_eq(CharacterRig.awake_count(), awake_before)
-	bat.announce_cast(null, null)
-	bat.damaged.emit(DamagePacket.make(null, bat, 1.0, null, 0))
+	mob.announce_cast(null, null)
+	mob.damaged.emit(DamagePacket.make(null, mob, 1.0, null, 0))
 	rig.set_stage(2)
 	rig.play_move(&"attack")
 	await wait_frames(1)
 	assert_false(rig.is_processing(), "events do not wake it")
-	bat.queue_free()
+	mob.queue_free()
 	await wait_frames(1)
 
 
