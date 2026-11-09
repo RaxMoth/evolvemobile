@@ -1,9 +1,13 @@
 class_name RingPulse
 extends Line2D
 
-## One-shot expanding ring VFX: a circle outline that scales up and fades out
-## (monster stage evolution, Irelia's taunt, River's supply-drop impact).
-## Create it with `RingPulse.spawn(...)`; it frees itself.
+## Expanding ring VFX: a circle outline.
+## - One-shot: `RingPulse.spawn(...)` scales it up and fades it out, then it
+##   frees itself (monster stage evolution, Irelia's taunt, River's
+##   supply-drop impact).
+## - Pooled: `RingPulse.make_pooled(...)` builds a hidden ring once that its
+##   owner shows, moves, scales and fades and never frees (VfxManager's ground
+##   telegraphs).
 
 const SEGMENTS: int = 32
 
@@ -19,9 +23,7 @@ static func spawn(parent: Node, pos: Vector2, color: Color, start_radius: float,
 	ring.z_index = z
 	ring.default_color = color
 	ring.width = line_width
-	for i in range(SEGMENTS + 1):
-		var angle: float = i * TAU / SEGMENTS
-		ring.add_point(Vector2(cos(angle), sin(angle)) * start_radius)
+	ring._add_circle(start_radius)
 
 	var tween := ring.create_tween()
 	tween.set_parallel(true)
@@ -29,3 +31,20 @@ static func spawn(parent: Node, pos: Vector2, color: Color, start_radius: float,
 	tween.tween_property(ring, "modulate:a", 0.0, duration)
 	tween.tween_callback(ring.queue_free)
 	return ring
+
+
+## A hidden ring of `radius` for a pool: the owner adds it as a child and
+## drives it (visible, position, scale, default_color, width); it never frees
+## itself.
+static func make_pooled(radius: float, line_width: float) -> RingPulse:
+	var ring := RingPulse.new()
+	ring.visible = false
+	ring.width = line_width
+	ring._add_circle(radius)
+	return ring
+
+
+func _add_circle(radius: float) -> void:
+	for i in range(SEGMENTS + 1):
+		var angle: float = i * TAU / SEGMENTS
+		add_point(Vector2(cos(angle), sin(angle)) * radius)

@@ -1,7 +1,8 @@
 class_name SettingsScreen
 extends Control
 
-## SettingsScreen — full-screen overlay for audio volumes and progress reset.
+## SettingsScreen — full-screen overlay for audio volumes, language, screen
+## shake, privacy and progress reset.
 ##
 ## Built entirely in code (no .tscn) so it can be dropped in from any menu with
 ## `add_child(SettingsScreen.new())`. Volume sliders drive the audio buses live
@@ -84,6 +85,9 @@ func _build_panel() -> void:
 	vbox.add_child(_hsep())
 	vbox.add_child(_section_header(tr("LANGUAGE")))
 	vbox.add_child(_build_language_row())
+	vbox.add_child(_hsep())
+	vbox.add_child(_section_header(tr("DISPLAY")))
+	vbox.add_child(_build_shake_row())
 	vbox.add_child(_hsep())
 	vbox.add_child(_section_header(tr("PRIVACY")))
 	vbox.add_child(_build_analytics_row())
@@ -188,6 +192,31 @@ func _rebuild() -> void:
 	_reset_armed = false
 	_build_dim_background()
 	_build_panel()
+
+
+## The match camera's screen shake (GameCamera reads the setting on every
+## shake, so it applies from the next hit on).
+func _build_shake_row() -> Control:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 12)
+
+	var label := Label.new()
+	label.text = tr("Screen shake")
+	label.add_theme_font_size_override("font_size", 15)
+	label.add_theme_color_override("font_color", _MUTED)
+	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(label)
+
+	var toggle := CheckButton.new()
+	toggle.custom_minimum_size = Vector2(0, TOUCH_TARGET)
+	toggle.button_pressed = GameCamera.shake_setting_on()
+	toggle.toggled.connect(_on_shake_toggled)
+	row.add_child(toggle)
+	return row
+
+
+func _on_shake_toggled(enabled: bool) -> void:
+	GameCamera.set_shake_setting(enabled)
 
 
 func _build_analytics_row() -> Control:

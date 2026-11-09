@@ -307,6 +307,10 @@ func _update_hud_label(active_hero: Node, heroes_team: TeamBlackboard, enemies_t
 		rigs_awake_mean(),
 		CharacterRig.BUDGET,
 		"  mobs half rate" if awake > CharacterRig.BUDGET else ""])
+	# The match's VfxManager: its pools against their caps and hit counters.
+	var vfx := get_tree().get_first_node_in_group(&"vfx") as VfxManager
+	if vfx:
+		lines.append(vfx.debug_line())
 	lines.append("Registry: H%d P%d M%d Mob%d" % [
 		EntityRegistry.heroes.size(),
 		EntityRegistry.hero_side.size() - EntityRegistry.heroes.size(),

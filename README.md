@@ -545,6 +545,16 @@ Nyxa have their art but no scene yet.
       attack / cast / ultimate move, `EntityBase.damaged(packet)` the hurt
       flash and squash, `MonsterBase.evolved(stage)` → `Rig.set_stage` the
       stage's parts.
+    - Hit flash: the rig drives the body's modulate over 1 (palette white x
+      `hurt_flash_gain`, easing back to white). Every generated body draws
+      through ONE shared material, `Assets/Shaders/hit_flash_material.tres`
+      (`hit_flash.gdshader`) on the body root, every node under it
+      `use_parent_material` (written by `tools/rig_builder.gd`): the shader
+      reads a modulate of (1 + f) on all three channels as a flash of f and
+      mixes the art toward white, a white silhouette instead of a brightened
+      one, while ordinary tints (a shield's blue, a rally's orange) pass
+      through. One shared material keeps a character in one draw and a
+      species' mobs batched together.
     - `EntityBase.visual_root()` is what effects move or tint (Ground Slam's
       hop): the rig once the scene has a body, else the AnimatedSprite2D.
     - LOD: a rig animates only while its entity's ScreenNotifier is on screen.
@@ -687,13 +697,56 @@ grade (they are not redrawn).
       and the heal staff with her weapon mode.
 - **Real-time Updates**: Health changes, cooldown tracking
 
-### Combat Visuals (Planned)
+### Combat Visuals (VfxManager)
 
-- Ability effect particles (slash lines, explosions)
-- Damage numbers
-- Screen shake on heavy hits
-- Evolution transformation effects
-- Death animations
+`VfxManager` (`Scripts/Vfx/vfx_manager.gd`) is the match's hit feedback: a
+`Vfx` node of `World.tscn` in group `vfx` (not an autoload, so it lives and
+dies with the match; `camera` wired to `MainCam` scene-side). Its only hook is
+`EventBus.damage_applied`, connected in `_ready` (an autoload cannot be the
+source of a scene `[connection]`). For every packet that lands in the camera
+view (grown by 64 px):
+
+- **Impact**: an outlined cartoon star (`fx_star.svg`, gold; red on the
+  player's side; bigger for a big hit) with two sparks, for 0.22 s at the
+  body's centre, never over the head.
+- **Damage number**: hand-lettered glyphs from `fx_digits.svg` (white with
+  the ink outline; gold and larger from `big_hit` = 30; red when the
+  player's side takes it), drawn at a fixed on-screen size (22 / 30 px) at
+  any zoom. It starts just above the target's HP bar, pops, floats up 18 px
+  and fades over 0.8 s. Hits on one target within 0.15 s add up in one
+  number; a target shows at most 3 numbers (side by side: centre, right,
+  left), and a hit past that adds up in its youngest.
+- **Kill**: on a killing blow, 4 puffs (`fx_puff.svg`) and a star.
+- **Hit flash**: the CharacterRig's hurt reaction rendered white by the
+  shared hit flash shader (see Character Rigs). VfxManager does not flash.
+- **Screen shake**: camera trauma (`GameCamera.add_trauma`): 0.6 when the
+  monster goes down, 0.35 for a hero, 0.12 for a big hit on a hero or the
+  monster. Trauma is capped at 0.8, decays 1.8/s, and the offset is
+  9 px x trauma², so only big moments move the view. Settings → Display →
+  "Screen shake" (`screen_shake`, on by default) and the camera's
+  `shake_enabled` export gate it; the offset uses the camera's private RNG.
+- **Ground telegraph**: `telegraph(pos, radius, windup, color)` shows where a
+  wound-up hit will land: a pooled `RingPulse` outline at the radius and a
+  ring growing from the centre that reaches it as the hit lands, both at 35%
+  alpha and 2 px wide at any radius. The rings are children of the Vfx node
+  at absolute z 0; the node sits right after the ground layers, so they draw
+  on the ground under the characters, while its sprites and numbers draw at
+  z 50 (above the characters and ability trails, under the fog at 100). The
+  monster abilities call it from Phase 7.
+
+Budget (the anim prototype measured 23 ms frames at p95): fixed pools of 64
+sprites (`FxSpriteBuffer`), 32 numbers and 4 telegraphs, where a full pool
+recycles its oldest entry; at most 8 hits a frame spawn sprites (the rest still
+count in the numbers) and 2 kills a frame spawn puffs; nothing is allocated
+per frame. Every random draw uses its private RNG and it never writes gameplay
+state, so `tools/sim_trace.sh` stays byte-identical. The F3 overlay shows the
+pools against their caps, the hits shown / culled / over budget and the
+node's script time. `EventBus.ability_event` (names in `FxEvents`) is the
+presentation channel for moments inside an ability; its emits and the
+per-ability effects (`AbilityFxRecipe`) land in Phase 7.
+
+Planned: per-ability effects (slashes, explosions, heals), evolution
+transformation effects, death animations.
 
 ---
 
@@ -1142,6 +1195,8 @@ res://
 │  │                    and <id>_body.tscn, <id>_motion.tres, <id>.svg portrait,
 │  │                    <id>_def.tres CharacterDef for playable characters)
 │  ├─ Fonts/ (LilitaOne-Regular.ttf display font + LilitaOne-OFL.txt licence)
+│  ├─ Shaders/ (ground_grade; hit_flash + hit_flash_material.tres on every rig body)
+│  ├─ Vfx/svg/ (fx_star, fx_spark, fx_puff, fx_digits: in-world effect sprites)
 │  └─ UI/ (generated Jungle Guild kit, DPITexture SVGs)
 │     ├─ Kit/ · Crests/ · Icons/{Abilities,Currency,Stats,Roles,Nav,UI}/
 │     ├─ Lobby/ (the lobby's campfire and lair backdrops, VS badge)
@@ -1186,6 +1241,7 @@ res://
 │  ├─ Progression/ (CharacterProgress: card level, XP pill, ready upgrades)
 │  ├─ Rig/ (CharacterRig, RigBody, RigProfile: SVG cut-out rigs)
 │  ├─ Roster/ (Roster, CharacterDef: the character registry)
+│  ├─ Vfx/ (VfxManager, FxSpriteBuffer, FxTex, FxEase, FxEvents: pooled hit feedback)
 │  └─ Systems/
 │     ├─ ability_system.gd
 │     └─ hero_exploration_controller.gd

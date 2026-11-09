@@ -4,6 +4,15 @@ class_name GameCamera
 ## GameCamera — follows a Node2D, with smooth target-switching, zoom, shake,
 ## and a hook for the debug overlay.
 ##
+## Screen shake is a trauma model: add_trauma() (the match's VfxManager calls
+## it for kills and heavy hits) raises a 0..1 trauma, capped at
+## shake_trauma_cap, that decays at shake_decay per second; the offset is
+## shake_max_offset x trauma² in a random direction each frame, so small hits
+## barely move the view and only stacked or big moments shake it. The
+## player's Settings toggle (SETTING_SHAKE) and the shake_enabled export both
+## gate it. The offset's randomness comes from a private RNG: the global one
+## drives gameplay (tools/sim_trace.sh).
+##
 ## Hero selection: click a HeroPanel in the bottom UI, or press 1-4 to focus
 ## a hero by index, or Tab to cycle. The camera then eases onto that hero's
 ## live position (it keeps moving during the switch) — no instant snap. At
@@ -51,6 +60,12 @@ class_name GameCamera
 
 @export_group("Screen Shake")
 @export var shake_enabled: bool = true
+## Offset (world px) at full trauma; the offset grows with trauma squared.
+@export var shake_max_offset: float = 9.0
+## Trauma never exceeds this, however many hits stack up.
+@export_range(0.0, 1.0) var shake_trauma_cap: float = 0.8
+## Trauma lost per second.
+@export var shake_decay: float = 1.8
 
 @export_group("Debug Overlay")
 ## The F3 overlay. Keep it a direct child of the camera (not under the
@@ -67,9 +82,12 @@ class_name GameCamera
 # State
 # ============================================
 
-var is_shaking: bool = false
-var shake_amount: float = 0.0
-var shake_duration: float = 0.0
+## PersistedData setting: the player's screen-shake toggle (Settings).
+const SETTING_SHAKE: StringName = &"screen_shake"
+
+## Current shake trauma (0..shake_trauma_cap).
+var trauma: float = 0.0
+var _shake_rng := RandomNumberGenerator.new()
 
 # Touch: active touch points (index -> screen position) for pinch + tap.
 var _touches: Dictionary = {}
@@ -120,7 +138,7 @@ func _process(delta: float) -> void:
 	elif not _switching:
 		_follow_target(delta)
 
-	if is_shaking:
+	if trauma > 0.0:
 		_update_shake(delta)
 
 	_handle_zoom_controls(delta)
@@ -370,24 +388,30 @@ func reset_zoom() -> void:
 	zoom = Vector2(default_zoom, default_zoom)
 
 
-func shake(amount: float, duration: float) -> void:
-	if not shake_enabled:
+## Adds shake trauma (0..1; kills and heavy hits). Capped at
+## shake_trauma_cap; a no-op while shake is off here or in Settings.
+func add_trauma(amount: float) -> void:
+	if amount <= 0.0 or not shake_enabled or not shake_setting_on():
 		return
-	shake_amount = amount
-	shake_duration = duration
-	is_shaking = true
+	trauma = minf(trauma + amount, shake_trauma_cap)
+
+
+## The player's Settings toggle (on by default).
+static func shake_setting_on() -> bool:
+	return bool(PersistedData.get_setting(SETTING_SHAKE, true))
+
+
+static func set_shake_setting(on: bool) -> void:
+	PersistedData.set_setting(SETTING_SHAKE, on)
 
 
 func _update_shake(delta: float) -> void:
-	if shake_duration > 0:
-		shake_duration -= delta
-		offset = Vector2(
-			randf_range(-shake_amount, shake_amount),
-			randf_range(-shake_amount, shake_amount)
-		)
-	else:
-		is_shaking = false
+	trauma = maxf(trauma - shake_decay * delta, 0.0)
+	if trauma <= 0.0:
 		offset = Vector2.ZERO
+		return
+	var reach: float = shake_max_offset * trauma * trauma
+	offset = Vector2(_shake_rng.randf_range(-reach, reach), _shake_rng.randf_range(-reach, reach))
 
 
 func center_on_position(pos: Vector2) -> void:

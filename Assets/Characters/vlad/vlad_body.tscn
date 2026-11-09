@@ -1,10 +1,12 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://Scripts/Rig/rig_body.gd" id="1_body"]
 [ext_resource type="Texture2D" path="res://Assets/Characters/vlad/vlad_sheet.svg" id="2_sheet"]
+[ext_resource type="Material" path="res://Assets/Shaders/hit_flash_material.tres" id="3_material"]
 
 [node name="VladBody" type="Node2D"]
 texture_filter = 4
+material = ExtResource("3_material")
 script = ExtResource("1_body")
 character_id = &"vlad"
 sheet_scale = 3.0
@@ -15,10 +17,12 @@ stage_parts = {}
 proxies = {"body__back": "body"}
 
 [node name="body__back" type="Node2D" parent="."]
+use_parent_material = true
 position = Vector2(0.0, -54.0)
 
 [node name="cape" type="Sprite2D" parent="body__back"]
 unique_name_in_owner = true
+use_parent_material = true
 show_behind_parent = true
 position = Vector2(0.0, -114.0)
 texture = ExtResource("2_sheet")
@@ -29,6 +33,7 @@ region_rect = Rect2(513.0, 0.0, 165.0, 174.0)
 
 [node name="arm_b" type="Sprite2D" parent="body__back"]
 unique_name_in_owner = true
+use_parent_material = true
 show_behind_parent = true
 position = Vector2(-45.0, -105.0)
 texture = ExtResource("2_sheet")
@@ -39,6 +44,7 @@ region_rect = Rect2(678.0, 0.0, 87.0, 111.0)
 
 [node name="leg_b" type="Sprite2D" parent="."]
 unique_name_in_owner = true
+use_parent_material = true
 position = Vector2(-24.0, -54.0)
 texture = ExtResource("2_sheet")
 centered = false
@@ -48,6 +54,7 @@ region_rect = Rect2(0.0, 333.0, 84.0, 90.0)
 
 [node name="leg_f" type="Sprite2D" parent="."]
 unique_name_in_owner = true
+use_parent_material = true
 position = Vector2(27.0, -54.0)
 texture = ExtResource("2_sheet")
 centered = false
@@ -57,6 +64,7 @@ region_rect = Rect2(84.0, 333.0, 84.0, 90.0)
 
 [node name="body" type="Sprite2D" parent="."]
 unique_name_in_owner = true
+use_parent_material = true
 position = Vector2(0.0, -54.0)
 texture = ExtResource("2_sheet")
 centered = false
@@ -66,6 +74,7 @@ region_rect = Rect2(354.0, 0.0, 159.0, 174.0)
 
 [node name="head" type="Sprite2D" parent="body"]
 unique_name_in_owner = true
+use_parent_material = true
 position = Vector2(0.0, -120.0)
 texture = ExtResource("2_sheet")
 centered = false
@@ -75,6 +84,7 @@ region_rect = Rect2(138.0, 0.0, 216.0, 210.0)
 
 [node name="arm_f" type="Sprite2D" parent="body"]
 unique_name_in_owner = true
+use_parent_material = true
 position = Vector2(42.0, -99.0)
 texture = ExtResource("2_sheet")
 centered = false

@@ -53,6 +53,8 @@ LANGUAGE,LANGUAGE,SPRACHE
 Reset Progress,Reset Progress,Fortschritt zurücksetzen
 Tap again to confirm,Tap again to confirm,Erneut tippen zum Bestätigen
 Progress Reset,Progress Reset,Fortschritt zurückgesetzt
+DISPLAY,DISPLAY,ANZEIGE
+Screen shake,Screen shake,Bildschirmwackeln
 Usage statistics,Usage statistics,Nutzungsstatistik
 Stored only on this device (user://analytics.jsonl). Nothing is uploaded.,Stored only on this device (user://analytics.jsonl). Nothing is uploaded.,Wird nur auf diesem Gerät gespeichert (user://analytics.jsonl). Nichts wird hochgeladen.
 Master,Master,Gesamt

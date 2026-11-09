@@ -19,7 +19,8 @@ extends Node
 ##      subscription that filtered `packet.target != self` cost ~150 callbacks
 ##      per hit.
 ##   5. damage_applied fires for TRUE global listeners only (TeamRegistry
-##      threat, audio, analytics). Do not subscribe per-entity.
+##      threat, audio, the match's VfxManager, analytics). Do not subscribe
+##      per-entity.
 
 # --- Damage pipeline ---
 signal damage_requested(packet: DamagePacket)   ## Emitted before the hit lands. Mutate the packet here.
@@ -29,6 +30,12 @@ signal damage_applied(packet: DamagePacket)     ## Emitted after the hit lands. 
 signal entity_died(entity: Node, killer: Node)
 signal monster_evolved(monster: Node, stage: int)
 signal ability_cast(caster: Node, ability: AbilityBase, target: Node)
+
+# --- Presentation ---
+## A moment INSIDE an ability (slam landed, dash ended, shield broke, cage
+## closed ...; names in FxEvents). Presentation only: emitted after the
+## gameplay state change, never read back by gameplay.
+signal ability_event(source: Node, ability: AbilityBase, event: StringName, pos: Vector2, value: float)
 
 
 ## Run an attack through the damage pipeline. Returns the final amount applied
@@ -90,3 +97,8 @@ func notify_ability_cast(caster: Node, ability: AbilityBase, target: Node) -> vo
 	var entity := caster as EntityBase
 	if entity:
 		entity.announce_cast(ability, target)
+
+
+## Called by ability scripts at moments the cast notifier cannot see (FxEvents).
+func notify_ability_event(source: Node, ability: AbilityBase, event: StringName, pos: Vector2, value: float = 0.0) -> void:
+	ability_event.emit(source, ability, event, pos, value)

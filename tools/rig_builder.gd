@@ -38,6 +38,10 @@ const PAD := 2
 const SHEET_WIDTH := 256
 const MEASURE_SCALE := 2.0
 const BODY_SCRIPT := "res://Scripts/Rig/rig_body.gd"
+## The body root's material; every node under it uses its parent's, so the
+## whole body draws through one shared material (one batch per character, and
+## per species across mobs): the hit flash (hit_flash.gdshader).
+const BODY_MATERIAL := "res://Assets/Shaders/hit_flash_material.tres"
 
 var id: String
 var dir: String
@@ -324,11 +328,12 @@ func _write_body(nodes: Array[Dictionary]) -> String:
 	for n in nodes:
 		if n.has("proxy"):
 			proxies.append('"%s": "%s"' % [n.name, n.proxy])
-	var t := '[gd_scene load_steps=3 format=3]\n\n'
+	var t := '[gd_scene load_steps=4 format=3]\n\n'
 	t += '[ext_resource type="Script" path="%s" id="1_body"]\n' % BODY_SCRIPT
-	t += '[ext_resource type="Texture2D" path="%s" id="2_sheet"]\n\n' % sheet_path()
+	t += '[ext_resource type="Texture2D" path="%s" id="2_sheet"]\n' % sheet_path()
+	t += '[ext_resource type="Material" path="%s" id="3_material"]\n\n' % BODY_MATERIAL
 	t += '[node name="%sBody" type="Node2D"]\n' % id.to_pascal_case()
-	t += "texture_filter = 4\nscript = ExtResource(\"1_body\")\n"
+	t += "texture_filter = 4\nmaterial = ExtResource(\"3_material\")\nscript = ExtResource(\"1_body\")\n"
 	t += 'character_id = &"%s"\nsheet_scale = %s\norigin = %s\n' % [id, _f(_scale), _v(_origin)]
 	t += "bounds = Rect2(%s, %s, %s, %s)\n" % [_f(bounds.position.x), _f(bounds.position.y), _f(bounds.size.x), _f(bounds.size.y)]
 	t += "part_order = PackedStringArray(%s)\n" % ", ".join(order)
@@ -339,6 +344,7 @@ func _write_body(nodes: Array[Dictionary]) -> String:
 		if n.has("proxy"):
 			var src: Dictionary = _by_name[n.proxy]
 			t += '[node name="%s" type="Node2D" parent="%s"]\n' % [n.name, n.path]
+			t += "use_parent_material = true\n"
 			t += "position = %s\n" % _v((Vector2(src.pivot) - _origin) * _scale)
 			continue
 		var p: Dictionary = n.part
@@ -346,6 +352,7 @@ func _write_body(nodes: Array[Dictionary]) -> String:
 		var cell: Vector2i = p.cell
 		t += '[node name="%s" type="Sprite2D" parent="%s"]\n' % [n.name, n.path]
 		t += "unique_name_in_owner = true\n"
+		t += "use_parent_material = true\n"
 		if n.behind:
 			t += "show_behind_parent = true\n"
 		var stages: Array = p.stages
