@@ -10,7 +10,9 @@ extends Node
 ## Hooks (autoloads cannot be scene [connection] targets):
 ##   PersistedData.data_loaded      → session_start
 ##   GameManager.match_ended        → match_ended
-##   MetaSkillManager.skill_unlocked → skill_unlocked
+##   MetaSkillManager.skill_unlocked → skill_unlocked (rank 1 of a node)
+##   MetaSkillManager.skill_ranked   → skill_ranked (ranks 2+; rank 1 is the
+##                                     skill_unlocked event above)
 ## Other call sites (tutorial) call track() directly.
 
 const LOG_PATH := "user://analytics.jsonl"
@@ -28,6 +30,7 @@ func _ready() -> void:
 	PersistedData.data_loaded.connect(_on_data_loaded)
 	GameManager.match_ended.connect(_on_match_ended)
 	MetaSkillManager.skill_unlocked.connect(_on_skill_unlocked)
+	MetaSkillManager.skill_ranked.connect(_on_skill_ranked)
 	if PersistedData.is_loaded():
 		_on_data_loaded()
 
@@ -133,3 +136,8 @@ func _on_match_ended(winner: String, duration: float) -> void:
 
 func _on_skill_unlocked(tree_id: StringName, node_id: StringName) -> void:
 	track(&"skill_unlocked", {"tree": String(tree_id), "node": String(node_id)})
+
+
+func _on_skill_ranked(tree_id: StringName, node_id: StringName, rank: int) -> void:
+	if rank >= 2:
+		track(&"skill_ranked", {"tree": String(tree_id), "node": String(node_id), "rank": rank})

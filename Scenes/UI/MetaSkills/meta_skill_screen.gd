@@ -122,9 +122,10 @@ func _build_tier_row(t: MetaSkillTree, tier: int) -> void:
 # ============================================
 
 func _on_unlock_requested(tree_id: StringName, node_id: StringName) -> void:
-	# MetaSkillManager handles the validate + spend + persist. We just
-	# refresh the visuals; the skills_changed signal also fires.
-	MetaSkillManager.unlock(tree_id, node_id)
+	# MetaSkillManager handles the validate + spend + persist of the next rank
+	# (rank 1 is the classic unlock). We just refresh the visuals; the
+	# skills_changed signal also fires.
+	MetaSkillManager.rank_up(tree_id, node_id)
 
 
 func _refresh_currency_and_nodes() -> void:

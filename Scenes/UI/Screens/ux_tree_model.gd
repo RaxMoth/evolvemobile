@@ -12,9 +12,9 @@ extends RefCounted
 ##
 ## from_meta_skills() maps today's trees (one rank per node, no named branches
 ## or prerequisites; a tier opens once a node of the tier below is owned) and
-## takes the gates from MetaSkillManager.node_state, so the screen and the shop
-## never disagree. The ranked trees add their own adapter that fills the same
-## fields (branch names, several ranks, requires, capstones).
+## takes the gates from MetaSkillManager.is_tier_open, so the screen and the
+## shop never disagree. The ranked trees add their own adapter that fills the
+## same fields (branch names, several ranks, requires, capstones).
 
 enum NodeState { LOCKED, AVAILABLE, OWNED, MAXED }
 
@@ -187,9 +187,9 @@ static func icon_for(stat_key: String, ability_name: String, ability_icons: Dict
 ## Live adapter over today's MetaSkillManager trees: one rank per node, column
 ## = the node's index inside its tier (no named branches), a lone node in the
 ## top tier of a multi-tier tree is the capstone. Tier gates and ownership come
-## from MetaSkillManager.node_state; prices from the nodes; the wallet from
-## PersistedData. `ability_icons` (ability_name -> icon) is the fallback icon
-## of ability nodes. Null when the tree does not exist.
+## from MetaSkillManager (is_tier_open, is_unlocked); prices from the nodes;
+## the wallet from PersistedData. `ability_icons` (ability_name -> icon) is the
+## fallback icon of ability nodes. Null when the tree does not exist.
 static func from_meta_skills(p_tree_id: StringName, ability_icons: Dictionary = {}) -> UxTreeModel:
 	var t: MetaSkillTree = MetaSkillManager.get_tree_def(p_tree_id)
 	if t == null:
@@ -201,13 +201,8 @@ static func from_meta_skills(p_tree_id: StringName, ability_icons: Dictionary = 
 	m.tiers = t.max_tier()
 	var cols := 1
 	for tier in range(1, m.tiers + 1):
-		var row := t.nodes_in_tier(tier)
-		cols = maxi(cols, row.size())
-		var open := false
-		for raw in row:
-			if MetaSkillManager.node_state(p_tree_id, raw.id) != MetaSkillManager.NodeState.TIER_GATED:
-				open = true
-		m.tier_open.append(open)
+		cols = maxi(cols, t.nodes_in_tier(tier).size())
+		m.tier_open.append(MetaSkillManager.is_tier_open(p_tree_id, tier))
 		m.tier_gate_text.append(TranslationServer.translate("Tier %d") % tier)
 		m.tier_block_reason.append(TranslationServer.translate("Learn a Tier %d skill first") % (tier - 1))
 	for i in cols:

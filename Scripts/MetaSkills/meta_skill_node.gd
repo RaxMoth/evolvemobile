@@ -1,25 +1,56 @@
 class_name MetaSkillNode
 extends Resource
 
-## MetaSkillNode — one unlock-able permanent upgrade.
+## MetaSkillNode — one permanent upgrade with one or more ranks.
 ##
 ## "Meta" distinguishes from the in-round SkillNode in /Scripts/Skilltree/
 ## (which uses per-match leveling). This one is persistent across all
 ## matches: bought with Steel / Leaves / Gold, applied to every hero or
 ## monster spawn from now on.
 ##
-## v1: each node has a SINGLE stat effect. If we need multi-effect nodes
-## later (e.g. "+5% HP AND +5% speed"), turn `effects` into an array of
-## sub-resources. For now the per-tier nodes in the README spec all map
-## cleanly to one-stat-each.
+## Each node has a SINGLE effect (a character stat, one ability property or a
+## behaviour key). Ranks deepen that one effect: owning rank r applies
+## value_at_rank(r) once, so every consumer makes one apply call per node.
+## max_rank 1 is the classic one-time unlock; an old save that owned a node
+## owns its rank 1, whose value is exactly stat_value.
 
 @export var id: StringName = &""
 @export var display_name: String = "Unnamed"
 @export var description: String = ""
-@export var tier: int = 1               ## 1-4 per README. Higher tiers gate on previous tier having at least one unlock.
-@export var cost: int = 100             ## Currency cost to unlock.
+@export var tier: int = 1               ## 1-4 per README. The tree's gate_kind decides when a tier opens.
+@export var cost: int = 100             ## Currency cost of rank 1.
 @export var currency: StringName = &"gold"  ## Matches PersistedData.STEEL / LEAVES / GOLD.
 @export var icon: Texture2D = null
+
+@export_group("Ranks")
+## 1 = the classic one-time unlock. Above 1 the node can be bought again, up to
+## this many times; owning rank r applies value_at_rank(r).
+@export_range(1, 10) var max_rank: int = 1
+## Explicit price per rank (index 0 = rank 1). Empty = cost x cost_growth^(r-1),
+## rounded to 5 (cost_of_rank).
+@export var rank_costs: Array[int] = []
+@export var cost_growth: float = 1.5
+## Explicit CUMULATIVE effect when owning rank r (index 0 = rank 1), in
+## stat_value's form: the full multiplier for a multiplicative node (1.14 =
+## +14 %, 0.8 = -20 %), the total delta for an additive one. Wins over the
+## linear rule of value_at_rank, so a design can give diminishing ranks
+## ([1.05, 1.08, 1.11, ...]). rank_values[0] must equal stat_value.
+@export var rank_values: Array[float] = []
+## Tier-4 reward of a branch (character trees only): several can be owned, but
+## only the tree's equipped capstone applies (MetaSkillManager.equipped_capstone).
+@export var capstone: bool = false
+
+@export_group("Layout")
+## Ids of nodes in the same tree that open this one (rank >= 1 owned). Empty =
+## only the tier gate applies. The tree view draws them as edges.
+@export var requires: Array[StringName] = []
+## false: owning any one of `requires` is enough (the design rule); true: all.
+@export var requires_all: bool = false
+## Branch (column group) in the tree view: 0 = offense, 1 = defense, 2 = utility
+## (MetaSkillTree.branches names them); -1 = none.
+@export var branch: int = -1
+## Column inside the tree view (0-based); -1 = auto (order within the tier).
+@export var column: int = -1
 
 @export_group("Ability Effect")
 ## When set, this node modifies ONE ability (matched by AbilityBase.ability_name)
@@ -85,3 +116,33 @@ static func make_ability(
 
 func is_ability_node() -> bool:
 	return not ability_name.is_empty()
+
+
+## Currency price of buying rank `rank` (1-based); 0 outside 1..max_rank.
+func cost_of_rank(rank: int) -> int:
+	if rank < 1 or rank > max_rank:
+		return 0
+	if rank_costs.size() >= rank:
+		return rank_costs[rank - 1]
+	if rank == 1:
+		return cost
+	return int(roundf(cost * pow(cost_growth, rank - 1) / 5.0)) * 5
+
+
+## The effect of owning `rank` ranks, in the form stat_value has for one rank,
+## so every consumer stays a single apply call per node. An explicit
+## rank_values entry wins; otherwise ranks are linear:
+##   multiplicative: 1 + (stat_value - 1) x rank (1.05 -> 1.10 -> 1.15);
+##   additive:       stat_value x rank.
+## Rank 1 is exactly stat_value either way. Rank 0 is the neutral value (1.0
+## or 0.0); ranks above max_rank count as max_rank. Different nodes on the
+## same key still multiply / add with each other.
+func value_at_rank(rank: int) -> float:
+	var r := clampi(rank, 0, max_rank)
+	if r == 0:
+		return 1.0 if stat_multiplicative else 0.0
+	if rank_values.size() >= r:
+		return rank_values[r - 1]
+	if stat_multiplicative:
+		return 1.0 + (stat_value - 1.0) * r
+	return stat_value * r

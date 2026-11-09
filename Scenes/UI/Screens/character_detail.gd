@@ -21,9 +21,10 @@ extends Control
 ## under the side's crest.
 ##
 ## UPGRADE only reports upgrade_requested(tree_id, node_id): MenuRoot buys the
-## node (MetaSkillManager.unlock) and calls refresh() once skills_changed or
-## currency_changed fired; the bought node then pops. Every connection inside
-## the screen is in CharacterDetail.tscn, and MenuRoot connects its signals.
+## node's next rank (MetaSkillManager.rank_up) and calls refresh() once
+## skills_changed or currency_changed fired; the bought node then pops. Every
+## connection inside the screen is in CharacterDetail.tscn, and MenuRoot
+## connects its signals.
 
 signal back_requested
 signal tab_selected(tab_id: StringName)

@@ -1200,7 +1200,8 @@ button until the Phase 8 screens retire it.
       detail is pushed over the screen that asked. Locked characters (the
       lair's teasers) open nothing yet.
     - Purchases: a detail's `upgrade_requested(tree_id, node_id)` →
-      `MetaSkillManager.unlock` (the shop decides: tier gate, price). On
+      `MetaSkillManager.rank_up` (the next rank; the shop decides: gates,
+      price). On
       `MetaSkillManager.skills_changed` and `PersistedData.currency_changed`
       (connected in code: autoloads) every roster and detail on the stack
       re-reads the save, once per frame at most.
@@ -1295,7 +1296,7 @@ button until the Phase 8 screens retire it.
   `can_buy()`, `buyable_count()`. `from_meta_skills(tree_id)` maps today's
   trees: one rank per node, column = index inside its tier, the lone node of
   the top tier is the capstone, tier gates read from
-  `MetaSkillManager.node_state` (so the screen and the shop never disagree),
+  `MetaSkillManager.is_tier_open` (so the screen and the shop never disagree),
   icons from the node, else the stat icon of its stat or ability property
   (`STAT_ICONS`), else the ability's icon. The ranked trees add their own
   adapter with the same fields. A snapshot: rebuilt after every change.
@@ -1416,6 +1417,50 @@ res://
 - Earn: 100 (win) + 50 (gold) + 400 (kills) + 40 (time) + 45 (survivors) = **635 Steel + 50 Gold**
 
 ### Skill Tree Structure
+
+#### Ranks, gates and capstones (the node model)
+
+Every tree (`MetaSkillTree`) is a grid of nodes (`MetaSkillNode`): tiers 1-4 as
+rows, branches as columns (`branch` 0 = offense, 1 = defense, 2 = utility;
+`MetaSkillTree.branches` names them). Each node has one effect: a character
+stat, one ability property, or a behaviour key.
+
+- **Ranks.** A node has 1..`max_rank` ranks (1 = a one-time unlock). Rank r
+  costs `rank_costs[r-1]` (or `cost` x `cost_growth`^(r-1), rounded to 5).
+  Owning rank r applies `value_at_rank(r)` once: the explicit cumulative
+  `rank_values[r-1]` (a multiplier such as 1.14, or a total delta), else the
+  linear rule (multiplicative 1 + (v-1)·r, additive v·r). Rank 1 is always
+  exactly `stat_value`, the node as it was before ranks.
+- **Tier gates** (`MetaSkillTree.gate_kind`, buying rank 1 only):
+  `TIER_BELOW` (a node of the tier below is owned; today's seeded trees),
+  `LEVEL` (the owner's permanent level from its XP reaches
+  `tier_gates[t-1]`; character trees use 1 / 3 / 5 / 8), `POINTS` (the
+  ranks owned in the tree reach `tier_gates[t-1]`; base trees use
+  0 / 4 / 10 / 18). `requires` lists parent nodes, any one of which must be
+  owned (`requires_all` = every one).
+- **Gates guard buying only.** Owned nodes are never revoked: a save that owns
+  a node above today's gate keeps it, it applies, and its next rank can be
+  bought.
+- **Capstones** (`capstone`, tier 4 of a character tree, one per branch): all
+  can be bought, but only the tree's equipped capstone applies. Buying the
+  first one equips it; `equip_capstone` swaps for free. A tree with no saved
+  choice equips its first owned capstone in branch order (old saves that own
+  Titan Form keep it).
+- **MetaSkillManager:** `node_state` (INVALID, UNLOCKED = maxed, TIER_GATED,
+  AVAILABLE, UNAFFORDABLE, LEVEL_GATED, REQUIRES_MISSING; an owned node below
+  its max shows its next rank), `rank_up` (`skill_unlocked` at rank 1, then
+  `skill_ranked`, then `skills_changed`; analytics log ranks 2+ as
+  `skill_ranked`), `unlock` (rank 1 only), `get_rank`, `is_maxed`,
+  `next_rank_cost`, `is_tier_open`, `points_spent`, `equipped_capstone`,
+  `equip_capstone`, `applied_ranks` (what a spawn applies) and
+  `card_progress(tree)` → `{owned_ranks, open_ranks, upgrade_ready}` for the
+  card pill. `ai_build_order` on the tree lists the ranks an AI side buys.
+- **Save v3** (`PersistedData`): `[skill_ranks] <tree_id> = {"node_id": rank}`
+  and `[capstones] <tree_id> = "node_id"`. Loading a v1/v2 save backs it up
+  (`save.cfg.v2.bak`), turns every id of the old `[skills]` lists into rank 1,
+  verbatim, even ids no tree defines any more, and drops `[skills]`;
+  `get_unlocked_skills` is its view now. The step is idempotent: an id that
+  already has a rank keeps it.
 
 #### Hero Base Tree (Costs Gold)
 

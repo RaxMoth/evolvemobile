@@ -16,7 +16,7 @@ extends Control
 ##   - autoloads: the tree unpaused on entry (a match result pauses it), the
 ##     menu music, the UI click on every button press, the first-run tutorial,
 ##     GameManager's chosen side (persisted), the background World load, the
-##     skill purchases (MetaSkillManager.unlock) and the refresh of the open
+##     skill purchases (MetaSkillManager.rank_up) and the refresh of the open
 ##     screens when skills or currencies change.
 ## The rosters (Heroes / Monsters and the lobby's plaques) open a character's
 ## detail; Growth opens the chosen side's account-wide tree in the detail
@@ -281,10 +281,10 @@ func _on_back_requested() -> void:
 	pop()
 
 
-## A skill node's UPGRADE: the shop decides (tier gate, price); the screens
-## refresh on the signals it fires.
+## A skill node's UPGRADE buys its next rank: the shop decides (gates, price);
+## the screens refresh on the signals it fires.
 func _on_upgrade_requested(tree_id: StringName, node_id: StringName) -> void:
-	MetaSkillManager.unlock(tree_id, node_id)
+	MetaSkillManager.rank_up(tree_id, node_id)
 
 
 func _on_tab_selected(tab_id: StringName) -> void:

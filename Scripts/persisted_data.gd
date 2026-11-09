@@ -6,8 +6,11 @@ extends Node
 ##   [meta]      total_matches, last_played_iso, save_version
 ##   [currency]  steel, leaves, gold
 ##   [hero_xp]   river, vlad, ted, irelia (per-character permanent XP)
-##   [skills]    <tree_id> = ["skill_id_1", "skill_id_2", ...]
+##   [skill_ranks] <tree_id> = {"skill_id_1": 1, "skill_id_2": 3, ...}  (v3+)
+##   [capstones] <tree_id> = "node_id"  (v3+; the tree's equipped capstone)
 ##   [settings]  music_volume, sfx_volume, etc.
+## ([skills] <tree_id> = ["skill_id", ...] was the v1/v2 layout: every listed id
+##  migrates to rank 1, so no purchase is lost or re-priced.)
 ##
 ## Loaded once at startup. Mutations go through helper methods so signals
 ## fire and so we never have stale reads. Save is explicit (call save_data()
@@ -36,7 +39,9 @@ const SAVE_PATH := "user://save.cfg"
 const TMP_SAVE_PATH := "user://save.cfg.tmp"
 ## v1: first shipped layout. v2: normalized types (ints for currency/XP,
 ## strings only in skill lists, volumes clamped) + [meta] created_unix.
-const CURRENT_SAVE_VERSION := 2
+## v3: ranked skill nodes: the [skills] id lists become [skill_ranks] id -> rank
+## (every owned id at rank 1); [capstones] holds each tree's equipped capstone.
+const CURRENT_SAVE_VERSION := 3
 
 # --- Permanent-level curve ---
 # Level starts at 1. The cost to advance from level L to L+1 is
@@ -55,7 +60,9 @@ const SECTION_META := "meta"
 const SECTION_CURRENCY := "currency"
 const SECTION_HERO_XP := "hero_xp"
 const SECTION_MONSTER_XP := "monster_xp"
-const SECTION_SKILLS := "skills"
+const SECTION_SKILLS := "skills"  ## v1/v2 only: read by the v2 -> v3 migration.
+const SECTION_SKILL_RANKS := "skill_ranks"
+const SECTION_CAPSTONES := "capstones"
 const SECTION_SETTINGS := "settings"
 
 var _config: ConfigFile = ConfigFile.new()
@@ -193,9 +200,12 @@ func _migrate(from_version: int) -> void:
 	if v < 2:
 		_migrate_v1_to_v2()
 		v = 2
-	# if v < 3:
-	# 	_migrate_v2_to_v3()
-	# 	v = 3
+	if v < 3:
+		_migrate_v2_to_v3()
+		v = 3
+	# if v < 4:
+	# 	_migrate_v3_to_v4()
+	# 	v = 4
 	_config.set_value(SECTION_META, "save_version", CURRENT_SAVE_VERSION)
 	_dirty = true
 
@@ -230,6 +240,32 @@ func _migrate_v1_to_v2() -> void:
 		_config.set_value(SECTION_META, "created_unix", _as_non_negative_int(first_seen))
 
 
+## v2 → v3: every unlocked id becomes rank 1 of its (now ranked) node, so the
+## save plays exactly as before (rank 1 has the old value). Ids are kept
+## verbatim, even ones no tree defines any more: a node renamed or removed later
+## must not silently eat the purchase (MetaSkillManager ignores unknown ids).
+## Idempotent: an id already in [skill_ranks] keeps its rank. The old [skills]
+## section is dropped; get_unlocked_skills() is its view now. No [capstones]
+## key is written: a tree without one equips its first owned capstone
+## (MetaSkillManager.equipped_capstone), so Titan Form owners keep it.
+func _migrate_v2_to_v3() -> void:
+	if not _config.has_section(SECTION_SKILLS):
+		return
+	for tree_id: String in _config.get_section_keys(SECTION_SKILLS):
+		var raw: Variant = _config.get_value(SECTION_SKILLS, tree_id, [])
+		var ranks: Dictionary = {}
+		var existing: Variant = _config.get_value(SECTION_SKILL_RANKS, tree_id, {})
+		if existing is Dictionary:
+			ranks = (existing as Dictionary).duplicate()
+		if raw is Array:
+			for entry: Variant in raw:
+				if (entry is String or entry is StringName) and not ranks.has(String(entry)):
+					ranks[String(entry)] = 1
+		if not ranks.is_empty():
+			_config.set_value(SECTION_SKILL_RANKS, tree_id, ranks)
+	_config.erase_section(SECTION_SKILLS)
+
+
 static func _as_non_negative_int(value: Variant) -> int:
 	if value is int:
 		return maxi(value, 0)
@@ -240,9 +276,10 @@ static func _as_non_negative_int(value: Variant) -> int:
 	return 0
 
 
-## Reset Progress: clears currency, XP, skills and match counters but KEEPS the
-## [settings] section (volumes, language, analytics opt-out, tutorial flag,
-## last match strategy) — those are device preferences, not progress.
+## Reset Progress: clears currency, XP, skill ranks, equipped capstones and
+## match counters but KEEPS the [settings] section (volumes, language,
+## analytics opt-out, tutorial flag, last match strategy) — those are device
+## preferences, not progress.
 ## `keep_settings = false` is the factory reset the tests use.
 func wipe_progress(keep_settings: bool = true) -> void:
 	var kept: Dictionary = {}
@@ -358,16 +395,72 @@ func level_progress(total_xp: int) -> Dictionary:
 
 
 # ============================================
-# Skill-tree unlocks
+# Skill-tree ranks (MetaSkillManager is the API)
 # ============================================
 
+## node id (String) -> rank (int >= 1) of every owned node of a tree. A copy:
+## write back with set_skill_rank.
+func get_skill_ranks(tree_id: StringName) -> Dictionary:
+	var raw: Variant = _config.get_value(SECTION_SKILL_RANKS, tree_id, {})
+	var out: Dictionary = {}
+	if raw is Dictionary:
+		var saved := raw as Dictionary
+		for id: Variant in saved:
+			var rank := int(saved[id])
+			if rank >= 1:
+				out[String(id)] = rank
+	return out
+
+
+## Ranks owned of one node; 0 = not owned.
+func get_skill_rank(tree_id: StringName, node_id: StringName) -> int:
+	var raw: Variant = _config.get_value(SECTION_SKILL_RANKS, tree_id, {})
+	if raw is Dictionary:
+		return maxi(int((raw as Dictionary).get(String(node_id), 0)), 0)
+	return 0
+
+
+## Rank 0 removes the node. Never saves by itself.
+func set_skill_rank(tree_id: StringName, node_id: StringName, rank: int) -> void:
+	var ranks := get_skill_ranks(tree_id)
+	if rank <= 0:
+		ranks.erase(String(node_id))
+	else:
+		ranks[String(node_id)] = rank
+	_config.set_value(SECTION_SKILL_RANKS, tree_id, ranks)
+	_dirty = true
+
+
+## The pre-rank view, for callers that only care about "owned": the ids owned
+## at rank >= 1 (Array of String).
 func get_unlocked_skills(tree_id: StringName) -> Array:
-	## Returns Array[String]; empty if no saved data.
-	return _config.get_value(SECTION_SKILLS, tree_id, []) as Array
+	return get_skill_ranks(tree_id).keys()
 
 
+## Own exactly `ids`: each at the rank already owned, else rank 1 (test
+## fixtures and old callers).
 func set_unlocked_skills(tree_id: StringName, ids: Array) -> void:
-	_config.set_value(SECTION_SKILLS, tree_id, ids)
+	var old := get_skill_ranks(tree_id)
+	var ranks: Dictionary = {}
+	for id: Variant in ids:
+		ranks[String(id)] = maxi(1, int(old.get(String(id), 0)))
+	_config.set_value(SECTION_SKILL_RANKS, tree_id, ranks)
+	_dirty = true
+
+
+## The capstone the player equipped in a tree, as saved; &"" when none was
+## (MetaSkillManager.equipped_capstone resolves that to the first owned one).
+func get_equipped_capstone(tree_id: StringName) -> StringName:
+	return StringName(String(_config.get_value(SECTION_CAPSTONES, tree_id, "")))
+
+
+## &"" clears the tree's choice. Never saves by itself.
+func set_equipped_capstone(tree_id: StringName, node_id: StringName) -> void:
+	if node_id == &"":
+		if _config.has_section_key(SECTION_CAPSTONES, tree_id):
+			_config.erase_section_key(SECTION_CAPSTONES, tree_id)
+	else:
+		_config.set_value(SECTION_CAPSTONES, tree_id, String(node_id))
 	_dirty = true
 
 
