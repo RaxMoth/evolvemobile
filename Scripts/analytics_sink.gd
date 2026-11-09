@@ -125,6 +125,7 @@ func _on_match_ended(winner: String, duration: float) -> void:
 		"winner": winner,
 		"duration_sec": int(duration),
 		"side": "heroes" if GameManager.chosen_side == MatchRewards.Side.HEROES else "monster",
+		"monster": String(GameManager.selected_monster_id),
 		"mob_kills": GameManager.get_mob_kills(),
 		"monster_stage": GameManager.monster_stage_reached,
 	})

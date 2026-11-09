@@ -3,6 +3,7 @@
 #
 #   tools/sim.sh [runs=24] [side=heroes|monster] [workers=6] [cap_seconds=660]
 #   OUT=/path/results.jsonl tools/sim.sh ...      # also keep the raw lines
+#   MONSTER=<id> tools/sim.sh ...                 # roster monster (default: the roster default)
 #
 # Works on temp copies of the project (one per worker, each with its own
 # isolated user:// via override.cfg), never on the real project directory.
@@ -30,7 +31,7 @@ done
 for ((w = 0; w < WORKERS; w++)); do
   (
     for ((s = w + 1; s <= RUNS; s += WORKERS)); do
-      "$GODOT" --headless --fixed-fps 60 --max-fps 0 --path "$TMP/w$w" -s res://tools/sim_match.gd -- "$s" "$SIDE" "$CAP" 2>&1 \
+      "$GODOT" --headless --fixed-fps 60 --max-fps 0 --path "$TMP/w$w" -s res://tools/sim_match.gd -- "$s" "$SIDE" "$CAP" ${MONSTER:+monster=$MONSTER} 2>&1 \
         | grep "^SIM_RESULT " | sed 's/^SIM_RESULT //' >> "$TMP/results_$w.jsonl"
     done
   ) &

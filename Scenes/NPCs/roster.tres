@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="Roster" load_steps=8 format=3]
+
+[ext_resource type="Script" uid="uid://cyega482viyxp" path="res://Scripts/Roster/roster.gd" id="1_roster"]
+[ext_resource type="Script" uid="uid://cgn88tt4e34c7" path="res://Scripts/Roster/character_def.gd" id="2_def"]
+[ext_resource type="Resource" path="res://Assets/Characters/irelia/irelia_def.tres" id="3_irelia"]
+[ext_resource type="Resource" path="res://Assets/Characters/vlad/vlad_def.tres" id="4_vlad"]
+[ext_resource type="Resource" path="res://Assets/Characters/ted/ted_def.tres" id="5_ted"]
+[ext_resource type="Resource" path="res://Assets/Characters/river/river_def.tres" id="6_river"]
+[ext_resource type="Resource" path="res://Assets/Characters/grount/grount_def.tres" id="7_grount"]
+
+[resource]
+script = ExtResource("1_roster")
+heroes = Array[ExtResource("2_def")]([ExtResource("3_irelia"), ExtResource("4_vlad"), ExtResource("5_ted"), ExtResource("6_river")])
+monsters = Array[ExtResource("2_def")]([ExtResource("7_grount")])
+default_monster_id = &"grount"

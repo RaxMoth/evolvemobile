@@ -25,7 +25,7 @@ evo2 = [e["t"] for r in rows for e in r["evolutions"] if e["stage"] == 2]
 evo3 = [e["t"] for r in rows for e in r["evolutions"] if e["stage"] == 3]
 final_stage = [r["monster_stage"] for r in rows]
 
-print(f"runs: {len(rows)}/{expected or len(rows)}   side: {rows[0]['side']}")
+print(f"runs: {len(rows)}/{expected or len(rows)}   side: {rows[0]['side']}   monster: {rows[0].get('monster', 'grount')}")
 print(f"winner: heroes {pct(heroes)}  monster {pct(monster)} (of which timeout {timeouts})  undecided(cap) {capped}")
 print(f"match length: median {med(lengths)}  p10 {q(lengths, .1)}  p90 {q(lengths, .9)}")
 print(f"first hero<->monster contact: median {med(contact)}  ({len(contact)} runs)")
@@ -40,7 +40,7 @@ killers = Counter()
 for r in rows:
     for d in r["hero_deaths"]:
         k = d["by"] or "?"
-        killers["monster" if "Grount" in k else ("mob:" + k.rstrip("0123456789@")) if k else "?"] += 1
+        killers["monster" if r.get("monster_name", "Grount") in k else ("mob:" + k.rstrip("0123456789@")) if k else "?"] += 1
 print("hero deaths by: " + ", ".join(f"{k} {v}" for k, v in killers.most_common()))
 deaths = [d for r in rows for d in r["hero_deaths"]]
 if deaths and "allies_500" in deaths[0]:

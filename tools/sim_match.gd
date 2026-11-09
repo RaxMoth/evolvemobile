@@ -7,7 +7,11 @@ extends SceneTree
 ## project directory with a newer editor binary.
 ##
 ##   godot --headless --fixed-fps 60 --max-fps 0 --path <copy> \
-##         -s res://tools/sim_match.gd -- <seed> [heroes|monster] [cap_seconds] [trace] [rigs_awake]
+##         -s res://tools/sim_match.gd -- <seed> [heroes|monster] [cap_seconds] [trace] [rigs_awake] [monster=<id>]
+##
+## "monster=<id>" picks the roster monster (GameManager.select_monster, not
+## persisted); without it the roster default plays, so old command lines replay
+## the same matches. The result JSON names it ("monster", "monster_name").
 ##
 ## "rigs_awake" makes every CharacterRig animate as if on screen (headless, no
 ## notifier ever fires): presentation must never feed gameplay, so the trace
@@ -28,6 +32,10 @@ var _seed: int = 1
 var _side: String = "heroes"
 var _cap_s: float = 660.0
 var _trace: bool = false
+## Roster id from "monster=<id>"; empty = the selection GameManager loaded.
+var _monster_id: String = ""
+## Node name of the spawned monster: the "by" of the hero deaths it caused.
+var _monster_name: String = ""
 var _frames: int = 0
 var _done: bool = false
 
@@ -55,6 +63,9 @@ func _initialize() -> void:
 		_cap_s = float(args[2])
 	if args.size() > 3:
 		_trace = String(args[3]) == "trace"
+	for arg: String in args:
+		if arg.begins_with("monster="):
+			_monster_id = arg.trim_prefix("monster=")
 	if args.has("rigs_awake"):
 		# By path: a -s script must not name project classes.
 		load("res://Scripts/Rig/character_rig.gd").set("force_awake", true)
@@ -67,6 +78,8 @@ func _start() -> void:
 	seed(_seed)
 	var gm := root.get_node("GameManager")
 	gm.set("chosen_side", 1 if _side == "monster" else 0)
+	if _monster_id != "":
+		gm.call("select_monster", StringName(_monster_id), false)
 	gm.connect("match_ended", _on_match_ended)
 	var bus := root.get_node("EventBus")
 	bus.connect("damage_applied", _on_damage_applied)
@@ -76,6 +89,8 @@ func _start() -> void:
 	var world := (load(WORLD) as PackedScene).instantiate()
 	root.add_child(world)
 	current_scene = world
+	var m := _monster()
+	_monster_name = String(m.name) if m else ""
 	process_frame.connect(_tick)
 
 
@@ -191,6 +206,8 @@ func _finish(reason: String, winner: String) -> void:
 	var out := {
 		"seed": _seed,
 		"side": _side,
+		"monster": String(gm.get("selected_monster_id")),
+		"monster_name": _monster_name,
 		"reason": reason,
 		"winner": winner,
 		"t": snappedf(_t(), 0.1),

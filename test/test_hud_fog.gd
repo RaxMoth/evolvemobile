@@ -84,7 +84,7 @@ func test_world_hero_vision_radii_in_both_play_modes() -> void:
 		for hero_name: String in HERO_VISION:
 			var vision := world.get_node("Heros/%s/VisionArea" % hero_name) as VisionArea
 			assert_near(vision.vision_radius, float(HERO_VISION[hero_name]), 0.01, "%s, %s" % [hero_name, mode])
-		var grount := world.get_node("Grount")
+		var grount := (world.get_node("MonsterSlot") as MonsterSlot).monster
 		if monster_side:
 			# The monster gets its vision once it stands at its match spawn.
 			for i in range(240):

@@ -5,6 +5,7 @@
 #   tools/sim_trace.sh [seeds="1 2 3"] [sides="heroes monster"] [cap_seconds=660] > trace.txt
 #   BASELINE=/path/parent.txt tools/sim_trace.sh > trace.txt   # also diff, exit 1 on any difference
 #   RIGS_AWAKE=1 tools/sim_trace.sh ...   # every CharacterRig animates, as on a device; must not change the trace
+#   MONSTER=<id> tools/sim_trace.sh ...   # roster monster (default: the roster default, the gate's baseline)
 #
 # Runs every seed x side as one full match (tools/sim_match.gd ... trace), all in
 # parallel, each on its own temp copy with a fresh user:// (override.cfg), never
@@ -37,7 +38,7 @@ for s in $SEEDS; do
     printf '[application]\nconfig/use_custom_user_dir=true\nconfig/custom_user_dir_name="evolvemobile_trace_%s_%d"\n\n[navigation]\nworld/map_use_async_iterations=false\nworld/region_use_async_iterations=false\n' "$$" "$run" > "$dir/override.cfg"
     rm -rf "${USER_DIRS}_$run"
     "$GODOT" --headless --fixed-fps 60 --max-fps 0 --path "$dir" \
-      -s res://tools/sim_match.gd -- "$s" "$side" "$CAP" trace ${RIGS_AWAKE:+rigs_awake} > "$dir.log" 2>&1 &
+      -s res://tools/sim_match.gd -- "$s" "$side" "$CAP" trace ${RIGS_AWAKE:+rigs_awake} ${MONSTER:+monster=$MONSTER} > "$dir.log" 2>&1 &
   done
 done
 wait

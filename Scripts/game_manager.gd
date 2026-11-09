@@ -53,8 +53,16 @@ var _monster_id: StringName = DEFAULT_MONSTER_ID
 
 # Substrings identifying each hero by node name (mirrors world.gd vision_map).
 const KNOWN_HERO_IDS: Array[StringName] = [&"river", &"vlad", &"ted", &"irelia"]
-# The single monster the build ships with; used as the persistent XP key.
+# Fallback persistent XP key before the census ran (the roster's default).
 const DEFAULT_MONSTER_ID: StringName = &"grount"
+## Every playable character (one CharacterDef each). World's MonsterSlot spawns
+## ROSTER.resolve_monster(selected_monster_id).
+const ROSTER: Roster = preload("res://Scenes/NPCs/roster.tres")
+const SETTING_SELECTED_MONSTER: StringName = &"selected_monster"
+## The monster of the NEXT match (played or opposed), always a roster id. Set
+## through select_monster() by the menus and the sim tools before World loads;
+## persisted as a setting.
+var selected_monster_id: StringName = DEFAULT_MONSTER_ID
 
 
 func _ready() -> void:
@@ -66,6 +74,8 @@ func _ready() -> void:
 	# ALWAYS so _process keeps running while the result screen pauses the tree;
 	# the clock itself only advances while unpaused (see _process).
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	var saved_monster: Variant = PersistedData.get_setting(SETTING_SELECTED_MONSTER, String(ROSTER.default_monster_id))
+	select_monster(StringName(str(saved_monster)), false)
 	EventBus.entity_died.connect(_on_entity_died)
 	# Record evolution as it happens: the old death-only update paid a monster
 	# that WON (or survived to the timeout) as stage 1.
@@ -73,6 +83,20 @@ func _ready() -> void:
 	# No match here: world.gd calls start_new_match() on every World load. The
 	# old unconditional call started the 10-minute clock in the main menu, which
 	# ended a phantom "match" (result screen + rewards) after 10 idle minutes.
+
+
+## Picks the next match's monster. An unknown or removed id falls back to the
+## roster default, so a stale save or sim argument never breaks a match.
+func select_monster(monster_id: StringName, persist: bool = true) -> void:
+	var def := ROSTER.resolve_monster(monster_id)
+	selected_monster_id = def.character_id() if def != null else DEFAULT_MONSTER_ID
+	if persist:
+		PersistedData.set_setting(SETTING_SELECTED_MONSTER, String(selected_monster_id))
+		PersistedData.save_data()
+
+
+func selected_monster_def() -> CharacterDef:
+	return ROSTER.resolve_monster(selected_monster_id)
 
 
 func start_new_match() -> void:

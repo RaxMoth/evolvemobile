@@ -826,19 +826,76 @@ The chart owns all state. Its active state is **stepped** by the `TickScheduler`
 - **HeroStatsComponent** (Node): Mutable runtime (current_health, level)
 - **AbilityBase** (Resource): Ability data and execute logic
 
+### Character Roster (Roster, CharacterDef, MonsterSlot)
+
+One registry describes every playable character for the menus, the match, the
+sim tools and the save, without instancing a character scene (instancing an
+entity registers it and draws from the global RNG).
+
+- **`Scenes/NPCs/roster.tres`** (`Roster`, `Scripts/Roster/roster.gd`) lists
+  the heroes (Irelia, Vlad, Ted, River) and the monsters (Grount) in menu
+  order, plus `default_monster_id` (`grount`). GameManager preloads it as
+  `GameManager.ROSTER`. `find(id)`, `hero_ids()`, `monster_ids()`, and
+  `resolve_monster(id)`, which falls back to the default and then to the first
+  monster, so a stale save or sim argument never breaks a match.
+- **`Assets/Characters/<id>/<id>_def.tres`** (`CharacterDef`) per character:
+  - identity: `side` (0 heroes, 1 monster), `scene_path` (a path, so loading
+    the roster loads no character scene; `scene()` loads it on first use and
+    keeps it for the session), and `stats`, which is the very HeroStats /
+    MonsterStats resource the scene uses.
+    `character_id()` (`hero_id` / `monster_id`) is the one save key: XP, the
+    `hero_<id>` / `monster_<id>` skill tree, analytics and sim results.
+  - presentation: `display_name` (empty = the stats' name, `get_display_name()`),
+    `role_text` ("Tank · Leader"), `role_filter` (filter key; its icon is
+    `Assets/UI/Icons/Roles/role_<key>.svg`, `role_icon()`), `accent_token` (a
+    UiPalette token), `tagline`, the rig (`rig_body`, `rig_profile`), the
+    `portrait` (DPITexture) and `head_region`, the head crop in portrait units
+    (128x160) that `head_texture()` turns into an AtlasTexture for HUD heads.
+  - monsters: `stage_names` (Grount: Bullcalf, Rampager, Alpha Bull),
+    `opponent_after_matches` (Heroes-side quarry pool), `unlock_requires_level`,
+    and `tip`, the counterplay hint for the heroes.
+  - progression: `unlocked_by_default`, `unlock_cost` (in `currency()`: Steel for
+    heroes, Leaves for monsters) and `skill_tree` (null while the trees are
+    seeded in code; `skill_tree_def()` then asks MetaSkillManager).
+  - abilities are never copied: `abilities()` reads the scene's own ability
+    `.tres` from its SceneState, in menu order (passive, basic, active,
+    ultimate; monsters passive, ability_1..3). Icons, names and descriptions
+    come from there.
+- **`Scenes/World/monster_slot.gd`** (`MonsterSlot`) stands where World.tscn
+  used to instance Grount, as World's last child after `Heros`. It spawns
+  `resolve_monster(GameManager.selected_monster_id)` in `_enter_tree`, so the
+  monster registers with EntityRegistry and TickScheduler (one global `randf()`)
+  at exactly the old point of the enter pass, before `Spawns._ready` shuffles the
+  camps. Spawning it from `World._ready` would change every match.
+  `test_roster` guards the index and the enter-pass spawn.
+- **Selection**: `GameManager.select_monster(id, persist = true)` (persisted as
+  the `selected_monster` setting) and `selected_monster_def()`. The old main
+  menu's monster tree button and level row follow the selection. The
+  `match_ended` analytics event carries `monster`.
+- **Tools**: `MONSTER=<id> tools/sim.sh ...` and `MONSTER=<id> tools/sim_trace.sh ...`
+  (`sim_match.gd ... monster=<id>`). Without it the roster default plays, so the
+  determinism baseline is unchanged. The SIM_RESULT JSON gains `monster` and
+  `monster_name`, and `sim_summary.py` prints the monster.
+- **Adding a monster**: a scene inheriting `monster_base_class.tscn` with its own
+  MonsterStats (`monster_id`), ability `.tres` and strategy; its
+  `Assets/Characters/<id>/` rig (`src/` + `tools/build_rigs.sh`); a
+  `<id>_def.tres` added to `roster.tres`; and its `monster_<id>` skill tree.
+
 ### File Structure
 
 ```
 res://
 ├─ Assets/
 │  ├─ Characters/<id>/ (src/ SVG parts + rig_src.json, generated <id>_sheet.svg
-│  │                    and <id>_body.tscn, <id>_motion.tres, <id>.svg portrait)
+│  │                    and <id>_body.tscn, <id>_motion.tres, <id>.svg portrait,
+│  │                    <id>_def.tres CharacterDef for playable characters)
 │  ├─ Fonts/ (LilitaOne-Regular.ttf display font + LilitaOne-OFL.txt licence)
 │  └─ UI/ (generated Jungle Guild kit, DPITexture SVGs)
 │     ├─ Kit/ · Crests/ · Icons/{Abilities,Currency,Stats,Roles,Nav,UI}/
 │     └─ Shaders/ (ability_cooldown, card_locked)
 ├─ Scenes/
 │  ├─ NPCs/
+│  │  ├─ roster.tres (Roster: every playable character, GameManager.ROSTER)
 │  │  ├─ Hero/
 │  │  │  ├─ Heros/
 │  │  │  │  ├─ DMG/Vlad/
@@ -856,6 +913,7 @@ res://
 │  │        ├─ grount.gd (evolution system)
 │  │        └─ abilities/
 │  ├─ World/
+│  │  ├─ monster_slot.gd (MonsterSlot: spawns the selected monster)
 │  │  ├─ FogOfWar/
 │  │  └─ MobSpawnArea/
 │  └─ UI/
@@ -867,6 +925,7 @@ res://
 │        └─ palette.tres (generated palette values)
 ├─ Scripts/
 │  ├─ Rig/ (CharacterRig, RigBody, RigProfile: SVG cut-out rigs)
+│  ├─ Roster/ (Roster, CharacterDef: the character registry)
 │  └─ Systems/
 │     ├─ ability_system.gd
 │     └─ hero_exploration_controller.gd

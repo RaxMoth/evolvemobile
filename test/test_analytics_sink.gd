@@ -72,3 +72,20 @@ func test_skill_unlock_is_tracked_through_the_manager_signal() -> void:
 	for line in _lines():
 		names.append((JSON.parse_string(line) as Dictionary).get("name"))
 	assert_true(names.has("skill_unlocked"))
+
+
+func test_match_ended_names_the_monster() -> void:
+	if not require_isolated():
+		return
+	var before := GameManager.selected_monster_id
+	GameManager.select_monster(GameManager.ROSTER.default_monster_id, false)
+	GameManager.match_ended.emit("Heroes", 61.0)
+	AnalyticsSink.flush()
+	var ended: Dictionary = {}
+	for line in _lines():
+		var event: Dictionary = JSON.parse_string(line)
+		if event.get("name") == "match_ended":
+			ended = event
+	assert_eq(ended.get("monster"), String(GameManager.ROSTER.default_monster_id), "match_ended carries the monster id")
+	assert_eq(ended.get("side"), "heroes")
+	GameManager.select_monster(before, false)

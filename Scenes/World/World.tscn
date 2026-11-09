@@ -1,9 +1,10 @@
-[gd_scene load_steps=22 format=4 uid="uid://bo3dhj3vnqkrr"]
+[gd_scene load_steps=23 format=4 uid="uid://bo3dhj3vnqkrr"]
 
 [ext_resource type="Texture2D" uid="uid://c8nbsaqetok8o" path="res://Scenes/World/Assets/tf_jungle_tileset.png" id="1_0nbjp"]
 [ext_resource type="Script" uid="uid://dp1dciyhok24n" path="res://Scenes/World/world.gd" id="1_hveh7"]
 [ext_resource type="PackedScene" uid="uid://cfox5ujt4kpt7" path="res://Scenes/NPCs/Hero/Heros/DMG/Vlad/Vlad.tscn" id="2_xf6vi"]
-[ext_resource type="PackedScene" uid="uid://cvit7v54q45mk" path="res://Scenes/NPCs/Monster/Grount/Grount.tscn" id="3_ouhkt"]
+[ext_resource type="Script" uid="uid://bx8a5irli0w53" path="res://Scenes/World/monster_slot.gd" id="3_mslot"]
+[ext_resource type="Resource" path="res://Scenes/NPCs/roster.tres" id="3_roster"]
 [ext_resource type="PackedScene" uid="uid://dgkgy56ym0l0x" path="res://Scenes/World/MobSpawnArea/MobSpawnArea.tscn" id="4_5jr8x"]
 [ext_resource type="Script" uid="uid://owhi0grvfobr" path="res://Scenes/World/spawns.gd" id="4_ng1ea"]
 [ext_resource type="PackedScene" uid="uid://w7djnpi3ju8u" path="res://Scenes/NPCs/Mob/Mobs/Bat/Bat.tscn" id="5_27jhl"]
@@ -898,7 +899,9 @@ position = Vector2(93, 199)
 [node name="Ted" parent="Heros" instance=ExtResource("8_kuxid")]
 position = Vector2(70, 78)
 
-[node name="Grount" parent="." instance=ExtResource("3_ouhkt")]
-position = Vector2(4509, 1794)
+[node name="MonsterSlot" type="Node" parent="."]
+script = ExtResource("3_mslot")
+roster = ExtResource("3_roster")
+spawn_position = Vector2(4509, 1794)
 
 [connection signal="monster_placed" from="." to="MainCam" method="snap_to_target"]

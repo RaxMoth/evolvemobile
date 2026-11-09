@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="CharacterDef" load_steps=6 format=3]
+
+[ext_resource type="Script" uid="uid://cgn88tt4e34c7" path="res://Scripts/Roster/character_def.gd" id="1_def"]
+[ext_resource type="Resource" uid="uid://dee3mmsm1t3fr" path="res://Scenes/NPCs/Hero/Heros/Support/Irelia/irelia_stats.tres" id="2_stats"]
+[ext_resource type="PackedScene" path="res://Assets/Characters/irelia/irelia_body.tscn" id="3_body"]
+[ext_resource type="Resource" path="res://Assets/Characters/irelia/irelia_motion.tres" id="4_motion"]
+[ext_resource type="Texture2D" uid="uid://btw3b3n7e3ji0" path="res://Assets/Characters/irelia/irelia.svg" id="5_portrait"]
+
+[resource]
+script = ExtResource("1_def")
+side = 0
+scene_path = "res://Scenes/NPCs/Hero/Heros/Support/Irelia/Irelia.tscn"
+stats = ExtResource("2_stats")
+role_text = "Tank · Leader"
+role_filter = &"tank"
+accent_token = &"irelia"
+tagline = "Shield up, spear out. Holds the line so the others can swing."
+rig_body = ExtResource("3_body")
+rig_profile = ExtResource("4_motion")
+portrait = ExtResource("5_portrait")
+head_region = Rect2(32, 34, 64, 64)
