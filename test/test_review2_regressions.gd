@@ -17,19 +17,19 @@ func test_pet_respawns_only_after_the_timer() -> void:
 	var passive := TedPassivePet.new()
 	passive.pet_scene = load(PET)
 	passive.on_passive_update(vlad, 0.1)
-	var first: Node = passive.pet_instance
+	var first: Node = passive.pets[0]
 	assert_true(is_instance_valid(first), "first spawn is immediate")
 	await wait_physics_frames(2)
 	EventBus.deal_damage(vlad, first, 9999.0)  # the pet dies and emits `died`
 	await wait_frames(2)
 	assert_false(is_instance_valid(first))
 	passive.on_passive_update(vlad, 0.1)
-	assert_true(passive.pet_instance == null, "no instant respawn after death")
-	passive.on_passive_update(vlad, TedPassivePet.RESPAWN_TIME - 0.5)
-	assert_true(passive.pet_instance == null, "still waiting")
+	assert_true(passive.pets[0] == null, "no instant respawn after death")
+	passive.on_passive_update(vlad, passive.respawn_time - 0.5)
+	assert_true(passive.pets[0] == null, "still waiting")
 	passive.on_passive_update(vlad, 1.0)
-	assert_true(is_instance_valid(passive.pet_instance), "respawned after RESPAWN_TIME")
-	passive.pet_instance.queue_free()
+	assert_true(is_instance_valid(passive.pets[0]), "respawned after respawn_time")
+	passive.pets[0].queue_free()
 	vlad.queue_free()
 
 

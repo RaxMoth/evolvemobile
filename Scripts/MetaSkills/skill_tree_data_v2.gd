@@ -224,7 +224,7 @@ static func ted() -> Array:
 		_n(&"td_petvit", "Loyal Bond", "Pet max HP +{v}%", 1, 1, [1.20, 1.40, 1.60], "T1x3", "ability", "pet_health_mult", true, pet, [], false, "TedPassivePet: pet_health_mult export applied to the spawned pet"),
 		_n(&"td_petdmg", "Sharp Fangs", "Pet damage +{v}%", 2, 1, [1.20, 1.40, 1.60], "T2x3", "ability", "pet_damage_mult", true, pet, [&"td_petvit"], false, "TedPassivePet: pet_damage_mult export applied to the spawned pet"),
 		_n(&"td_respawn", "Never Alone", "Pet respawns {v}% faster", 3, 1, [0.70, 0.50, 0.35], "T3x3", "ability", "respawn_time", true, pet, [&"td_petdmg"], false, "TedPassivePet: RESPAWN_TIME const -> respawn_time export"),
-		_n(&"td_twin", "Pack of Two", "Ted keeps {v} pets", 4, 1, [2.0], "CAP", "flag", "pet_count", false, pet, [&"td_respawn"], true, "TedPassivePet: pet_count export, pets in an array (one respawn timer each)"),
+		_n(&"td_twin", "Pack of Two", "Ted keeps {v} pets", 4, 1, [2.0], "CAP", "flag", "pet_count", true, pet, [&"td_respawn"], true, "TedPassivePet: pet_count export, pets in an array (one respawn timer each)"),
 		# Trapper
 		_n(&"t1_range", "Long Leash", "+{v}% attack range", 1, 2, [1.05, 1.08, 1.11, 1.14, 1.17], "S5", "stat", "attack_range"),
 		_n(&"t1_speed", "Tracker's Pace", "+{v}% move speed", 1, 2, [1.05, 1.07, 1.09], "T1x3", "stat", "move_speed"),

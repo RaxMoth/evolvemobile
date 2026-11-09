@@ -143,6 +143,9 @@ Power Level
 - **Ultimate**: Trap Cage (150 radius, traps enemies for 6s)
 - **Scaling**: +5 HP, +1.6 dmg per level
 - **Combined DPS** (Ted + Pet): ~15.0 DPS
+- **Capstones** (one equipped): War Cry (Rally Cry also hastes heroes within
+  300 px), Pack of Two (two pets), Spiked Cage (6 damage per second inside the
+  cage)
 
 #### Irelia (Tank/Support)
 
@@ -1533,6 +1536,17 @@ own ability copy (`AbilitySystem.make_abilities_unique`), never on the shared
 | vl_execute CAP | `execute_threshold` 0.25, `execute_mult` 2 (Blood Strike, `BasicStrike`) | a target below 25% HP takes x2 (its HP fraction read before the hit) |
 | vl_leech CAP | `lifesteal_pct` 0.2 (Blood Strike; `AbilityBase`) | `AbilityBase.deal()` (every `BasicStrike` hit goes through it) heals the caster for 20% of the damage that landed (`HeroBase.heal_self`, never a dead hero) |
 | vl_cluster CAP | `mine_count` 3, `mine_spacing` 40 (Land Mine) | three full mines per cast on a triangle around Vlad, 40 px between neighbours (a count node is multiplicative: 1 x 3) |
+| td_warcry CAP | `aura_radius` 300 (Rally Cry) | every other living hero within 300 px of Ted gets Rally Cry's x1.5 attack speed for 5 s too |
+| td_petvit | `pet_health_mult` 1.2/1.4/1.6 (Loyal Companion) | each pet spawns with that much max HP |
+| td_petdmg | `pet_damage_mult` 1.2/1.4/1.6 (Loyal Companion) | each pet's bite damage |
+| td_respawn | `respawn_time` 10 s x0.7/0.5/0.35 (Loyal Companion) | a dead pet is back sooner (was the const RESPAWN_TIME) |
+| td_twin CAP | `pet_count` 2 (Loyal Companion) | Ted keeps two pets (`pets`, one per slot, on opposite sides of him), each slot with its own respawn timer (`respawn_timers`); Rally Cry boosts every living pet (`Ted.get_pets`) |
+| td_spikes CAP | `cage_dps` 6 (Trap Cage) | once a second (`TrapCage.SPIKE_INTERVAL`) every valid enemy overlapping the cage takes 6 damage through the ability's `deal()`, credited to Ted |
+
+Trap Cage takes its `duration` before it enters the tree (its `_ready` starts
+the expiry timer), so Sturdy Cage lengthens it; `ted_ultimate.tres` now says
+6 s, the cage's own default that every cage used while the ability's 2 s
+arrived too late.
 
 Haste rule (`HeroBase.apply_attack_speed_boost`, Rally Cry and the
 capstones above): a weaker boost never replaces a stronger one that is still
@@ -1623,16 +1637,14 @@ code yet (5.4: hero behaviours; 6.6: monster behaviours):
 - **hero_ted** (Brawler / Beastmaster / Trapper):
   - Brawler: T1 Trail Rations +5/8/11/14/17% max HP; T2 Sharpened Snares
     +10/14/18% damage; T2 Rapid Traps +10/14/18% attack speed; T3 Pack Leader
-    +15/20/25% max HP; T4 CAP War Cry (Rally Cry hastes heroes within 300 px)
-    **[hidden]**.
-  - Beastmaster, all **[hidden]** until the pet exports land: T1 Loyal Bond pet
-    HP +20/40/60%; T2 Sharp Fangs pet damage +20/40/60%; T3 Never Alone pet
-    respawns 30/50/65% faster; T4 CAP Pack of Two (2 pets).
+    +15/20/25% max HP; T4 CAP War Cry (Rally Cry hastes heroes within 300 px).
+  - Beastmaster: T1 Loyal Bond pet HP +20/40/60%; T2 Sharp Fangs pet damage
+    +20/40/60%; T3 Never Alone pet respawns 30/50/65% faster; T4 CAP Pack of
+    Two (2 pets).
   - Trapper: T1 Long Leash +5/8/11/14/17% range; T1 Tracker's Pace +5/7/9%
     speed; T2 Fast Traps Trap Cage cooldown -20/28/35%; T3 Sturdy Cage Trap
-    Cage duration +50/75/100% (on the ability; the cage scene takes it once 5.4
-    passes it through); T3 Far Whistle +15/20/25% range; T4 CAP Spiked Cage
-    (6 damage per second inside) **[hidden]**.
+    Cage duration +50/75/100% (6 s -> 9/10.5/12 s); T3 Far Whistle +15/20/25%
+    range; T4 CAP Spiked Cage (6 damage per second inside).
 - **hero_river** (Marksman / Field Medic / Scout):
   - Marksman: T1 Long Scope +8/11/14/17/20% range; T2 Hollow Points +10/15/20%
     damage; T2 Triple Shot (sniper shots hit 2 more enemies); T3 Sniper's Nest
@@ -1871,7 +1883,15 @@ Max out hero trees → Unlock new heroes → Compete on leaderboards
 
 **Bugs**:
 
-- [ ] Pet sometimes doesn't respawn if Ted dies during respawn timer
+- [x] Pet sometimes didn't respawn if Ted died during the respawn timer — closed: every pet slot
+      has its own respawn timer on Ted's own copy of the passive (`TedPassivePet.pets` /
+      `respawn_timers`), so nothing is shared between Teds or matches; heroes do not respawn, so a
+      dead Ted's pets end with him
+- [ ] Trap Cage traps (almost) nothing: `TrapCage._ready` scans for enemies before
+      `TedUltimateTrapCage` moves it onto the target (it scans at the world origin, by the heroes'
+      start) and before `cage_radius` arrives (`area_of_effect` is 2 in `ted_ultimate.tres`, the
+      scene says 150); setting position and radius before `add_child` changes default gameplay, so
+      it waits for a balance pass. The spikes of Spiked Cage use the cage's 150 px shape where it lands
 - [x] Fog of war flickered at the screen edge — fixed: the fog quad is static and world-covering
       (it chased the camera a frame late), the world size snaps to whole tiles, and outside the map
       is always fogged

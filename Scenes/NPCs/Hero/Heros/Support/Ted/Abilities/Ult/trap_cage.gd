@@ -3,6 +3,15 @@ class_name TrapCage
 
 @export var duration: float = 6.0
 @export var cage_radius: float = 150.0
+## Spiked Cage (TedUltimateTrapCage.cage_dps): every SPIKE_INTERVAL the
+## enemies overlapping the cage take cage_dps x SPIKE_INTERVAL. 0 = no spikes.
+@export var cage_dps: float = 0.0
+const SPIKE_INTERVAL: float = 1.0
+
+## The caster and ability the spikes deal for (set before _ready).
+var source: Node2D = null
+var source_ability: AbilityBase = null
+var _spike_timer: float = 0.0
 
 var trapped_enemies: Array[Node2D] = []  # Already typed correctly
 var cage_active: bool = true
@@ -45,9 +54,14 @@ func _draw() -> void:
 	draw_arc(Vector2.ZERO, cage_radius, 0, TAU, 64, Color.RED, 2.0)
 	draw_arc(Vector2.ZERO, cage_radius - 10, 0, TAU, 64, Color(1, 0.5, 0.5, 0.5), 1.0)
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	if not cage_active:
 		return
+	if cage_dps > 0.0:
+		_spike_timer += delta
+		while _spike_timer >= SPIKE_INTERVAL:
+			_spike_timer -= SPIKE_INTERVAL
+			_spike()
 	
 	# Force trapped enemies to stay inside
 	for enemy in trapped_enemies:
@@ -61,6 +75,21 @@ func _process(_delta: float) -> void:
 			var push_pos = global_position + dir * (cage_radius - 20)
 			# Never through a wall (the push teleports).
 			enemy.global_position = GameUtils.clamp_to_nav_segment(get_world_2d(), enemy.global_position, push_pos)
+
+## One Spiked Cage tick: every valid enemy whose body overlaps the cage, once.
+func _spike() -> void:
+	var src: Node2D = source if is_instance_valid(source) else null
+	var hit: Dictionary[Node2D, bool] = {}
+	for area in get_overlapping_areas():
+		var entity := _get_entity(area) as EntityBase
+		if entity == null or hit.has(entity) or not _is_valid_target(entity):
+			continue
+		hit[entity] = true
+		var amount: float = cage_dps * SPIKE_INTERVAL
+		if source_ability:
+			source_ability.deal(src, entity, amount)
+		else:
+			EventBus.deal_damage(src, entity, amount)
 
 func _scan_for_enemies() -> void:
 	# Runs once, from _ready: entities_in_circle returns each entity once.

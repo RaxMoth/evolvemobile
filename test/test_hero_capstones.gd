@@ -8,9 +8,11 @@ extends TestCase
 const IRELIA := "res://Scenes/NPCs/Hero/Heros/Support/Irelia/Irelia.tscn"
 const VLAD := "res://Scenes/NPCs/Hero/Heros/DMG/Vlad/Vlad.tscn"
 const RIVER := "res://Scenes/NPCs/Hero/Heros/Healer/River/River.tscn"
+const TED := "res://Scenes/NPCs/Hero/Heros/Support/Ted/Ted.tscn"
 const HOG := "res://Scenes/NPCs/Mob/Mobs/Hog/Hog.tscn"
 const IRELIA_TREE := &"hero_irelia"
 const VLAD_TREE := &"hero_vlad"
+const TED_TREE := &"hero_ted"
 
 ## [tree, node, ability, export, the export's off value] of every node that
 ## reaches a hero's ability through an export of its own.
@@ -21,6 +23,12 @@ const NODES: Array = [
 	[&"hero_vlad", &"vl_execute", "Blood Strike", "execute_threshold", 0.0],
 	[&"hero_vlad", &"vl_leech", "Blood Strike", "lifesteal_pct", 0.0],
 	[&"hero_vlad", &"vl_cluster", "Land Mine", "mine_count", 1],
+	[&"hero_ted", &"td_warcry", "Rally Cry", "aura_radius", 0.0],
+	[&"hero_ted", &"td_petvit", "Loyal Companion", "pet_health_mult", 1.0],
+	[&"hero_ted", &"td_petdmg", "Loyal Companion", "pet_damage_mult", 1.0],
+	[&"hero_ted", &"td_respawn", "Loyal Companion", "respawn_time", 10.0],
+	[&"hero_ted", &"td_twin", "Loyal Companion", "pet_count", 1],
+	[&"hero_ted", &"td_spikes", "Trap Cage", "cage_dps", 0.0],
 ]
 
 
@@ -59,6 +67,18 @@ func _new_mines(before: Array[Node]) -> Array[Mine]:
 		if n is Mine and not before.has(n):
 			out.append(n as Mine)
 	return out
+
+
+## The TrapCage a cast added under the test (Ted's parent), or null.
+func _new_cage(before: Array[Node]) -> TrapCage:
+	for n in get_children():
+		if n is TrapCage and not before.has(n):
+			return n as TrapCage
+	return null
+
+
+func _pet_passive(ted: Node) -> TedPassivePet:
+	return _abilities(ted).passive_ability as TedPassivePet
 
 
 func _free(nodes: Array) -> void:
@@ -329,3 +349,176 @@ func test_cluster_mines_places_three_mines_40_px_apart() -> void:
 		assert_true(centre.distance_to(vlad.global_position) < 0.01, "around Vlad")
 	_free(mines)
 	_free([vlad])
+
+
+# ---------------------------------------------------------------- Ted
+
+## A fresh save: one stock pet back after 10 s, Rally Cry hastes only Ted
+## and his pet, the cage lasts the ability's 6 s and has no spikes.
+func test_teds_exports_are_off_on_a_fresh_save() -> void:
+	if not require_isolated():
+		return
+	var ted := await _hero(TED, Vector2.ZERO)
+	var vlad := await _hero(VLAD, Vector2(200, 0))
+	var passive := _pet_passive(ted)
+	assert_eq(passive.pet_count, 1)
+	assert_eq(passive.respawn_time, 10.0)
+	assert_eq(passive.pets.size(), 1)
+	var pets := (ted as Ted).get_pets()
+	assert_eq(pets.size(), 1, "one pet")
+	if pets.size() == 1:
+		assert_eq(pets[0].max_health, 50.0)
+		assert_eq(pets[0].attack_damage, 9.0)
+	assert_eq(passive.pet_offset(0), Vector2(30, 0), "where the one pet always appeared")
+	var kit := _abilities(ted)
+	kit.active_ability.execute(ted)
+	assert_near(ted.get_attack_speed_boost(), 1.5, 0.0001)
+	if pets.size() == 1:
+		assert_near(pets[0]._boost_mult, 1.5, 0.0001, "and his pet")
+	assert_eq(vlad.get_attack_speed_boost(), 1.0, "nobody else")
+	var ult := kit.ultimate_ability as TedUltimateTrapCage
+	assert_eq(ult.duration, 6.0, "the cage's own 6 s, now in the data")
+	assert_eq(ult.cage_dps, 0.0)
+	var before: Array[Node] = get_children()
+	ult.execute(ted, vlad)
+	var cage := _new_cage(before)
+	assert_true(cage != null)
+	if cage != null:
+		assert_eq(cage.duration, 6.0)
+		assert_eq(cage.cage_dps, 0.0)
+	_free([ted, vlad, cage])
+
+
+## War Cry: Rally Cry hastes every other hero within 300 px too.
+func test_war_cry_hastes_the_heroes_around_ted() -> void:
+	if not require_isolated():
+		return
+	_own(TED_TREE, &"td_warcry")
+	var ted := await _hero(TED, Vector2.ZERO)
+	var vlad := await _hero(VLAD, Vector2(250, 0))
+	var river := await _hero(RIVER, Vector2(0, 400))
+	var rally := _abilities(ted).active_ability as TedActiveRally
+	assert_eq(rally.aura_radius, 300.0)
+	rally.execute(ted)
+	assert_near(ted.get_attack_speed_boost(), 1.5, 0.0001)
+	assert_near(vlad.get_attack_speed_boost(), 1.5, 0.0001, "250 px away")
+	assert_eq(river.get_attack_speed_boost(), 1.0, "400 px away")
+	await wait_seconds(rally.boost_duration + 0.1)
+	assert_eq(vlad.get_attack_speed_boost(), 1.0, "for Rally Cry's 5 s")
+	_free([ted, vlad, river])
+
+
+## Loyal Bond, Sharp Fangs and Never Alone scale the pet Ted spawns (on his
+## own passive copy) and its respawn.
+func test_beastmaster_nodes_scale_the_pet() -> void:
+	if not require_isolated():
+		return
+	_own(TED_TREE, &"td_petvit", 3)
+	_own(TED_TREE, &"td_petdmg", 2)
+	_own(TED_TREE, &"td_respawn", 1)
+	var ted := await _hero(TED, Vector2.ZERO)
+	var passive := _pet_passive(ted)
+	assert_near(passive.pet_health_mult, 1.6, 0.0001)
+	assert_near(passive.pet_damage_mult, 1.4, 0.0001)
+	assert_near(passive.respawn_time, 7.0, 0.0001, "30% faster")
+	var shared := load("res://Scenes/NPCs/Hero/Heros/Support/Ted/Abilities/Passive/ted_passive.tres") as TedPassivePet
+	assert_eq(shared.respawn_time, 10.0, "the shared resource is untouched")
+	var pets := (ted as Ted).get_pets()
+	assert_eq(pets.size(), 1)
+	if pets.size() == 1:
+		assert_near(pets[0].max_health, 80.0, 0.0001)
+		assert_near(pets[0].current_health, 80.0, 0.0001, "spawns at full HP")
+		assert_near(pets[0].attack_damage, 12.6, 0.0001)
+		EventBus.deal_damage(null, pets[0], 9999.0)
+	await wait_frames(1)
+	assert_near(passive.respawn_timers[0], 7.0, 0.05, "back in 7 s")
+	_free([ted])
+
+
+## Pack of Two: two pets on opposite sides of Ted; each slot has its own
+## respawn timer, so one death leaves the other pet alone.
+func test_pack_of_two_keeps_two_pets_with_a_timer_each() -> void:
+	if not require_isolated():
+		return
+	_own(TED_TREE, &"td_twin")
+	_own(TED_TREE, &"td_respawn", 3)
+	var ted := await _hero(TED, Vector2.ZERO)
+	var passive := _pet_passive(ted)
+	assert_eq(passive.pet_count, 2, "1 x 2")
+	assert_eq(passive.pets.size(), 2)
+	assert_eq((ted as Ted).get_pets().size(), 2, "both spawned at once")
+	assert_true(passive.pet_offset(1).is_equal_approx(Vector2(-30, 0)), "the second on Ted's other side")
+	var first: TedPassivePet.PetScript = passive.pets[0]
+	var second: TedPassivePet.PetScript = passive.pets[1]
+	EventBus.deal_damage(null, first, 9999.0)
+	await wait_frames(2)
+	assert_false(is_instance_valid(first))
+	assert_true(passive.pets[0] == null, "slot 0 waits")
+	assert_true(is_instance_valid(second) and passive.pets[1] == second, "slot 1 keeps its pet")
+	assert_true(passive.respawn_timers[0] > 0.0)
+	assert_true(passive.respawn_timers[1] <= 0.0, "only the dead pet's timer runs")
+	assert_true(passive.debug_line().contains("pets 1/2"), passive.debug_line())
+	await wait_seconds(passive.respawn_time + 0.2)
+	assert_eq((ted as Ted).get_pets().size(), 2, "back after respawn_time")
+	assert_true(passive.pets[1] == second, "the same second pet")
+	_free([ted])
+	for pet in passive.pets:
+		_free([pet])
+
+
+## Spiked Cage: once a second every enemy inside the cage takes 6 damage
+## from Ted's Trap Cage; heroes inside are left alone.
+func test_spiked_cage_hurts_the_enemies_inside() -> void:
+	if not require_isolated():
+		return
+	_own(TED_TREE, &"td_spikes")
+	var ted := await _hero(TED, Vector2.ZERO)
+	var hog := await _hog(Vector2(2000, 0))
+	var vlad := await _hero(VLAD, Vector2(2040, 0))
+	var ult := _abilities(ted).ultimate_ability as TedUltimateTrapCage
+	assert_eq(ult.cage_dps, 6.0)
+	var spikes: Array[DamagePacket] = []
+	var listener := func(p: DamagePacket) -> void:
+		if p.ability == ult:
+			spikes.append(p)
+	EventBus.damage_applied.connect(listener)
+	var before: Array[Node] = get_children()
+	ult.execute(ted, hog)
+	var cage := _new_cage(before)
+	assert_true(cage != null and cage.cage_dps == 6.0 and cage.source == ted)
+	await wait_seconds(0.9)
+	assert_eq(spikes.size(), 0, "the first tick comes after 1 s")
+	await wait_seconds(0.2)
+	assert_eq(spikes.size(), 1, "one tick")
+	await wait_seconds(1.0)
+	EventBus.damage_applied.disconnect(listener)
+	assert_eq(spikes.size(), 2, "one a second")
+	for p in spikes:
+		assert_eq(p.target, hog, "only the enemy")
+		assert_eq(p.amount, 6.0)
+		assert_eq(p.source, ted)
+	_free([ted, hog, vlad, cage])
+
+
+## Sturdy Cage: the cage takes the ability's longer duration (it reaches the
+## cage before its _ready starts the timer).
+func test_sturdy_cage_makes_the_cage_last_longer() -> void:
+	if not require_isolated():
+		return
+	_own(TED_TREE, &"t3_trapdur", 1)
+	var ted := await _hero(TED, Vector2.ZERO)
+	var ult := _abilities(ted).ultimate_ability as TedUltimateTrapCage
+	assert_near(ult.duration, 9.0, 0.0001, "6 s x 1.5")
+	var before: Array[Node] = get_children()
+	ult.execute(ted, null)
+	var cage := _new_cage(before)
+	assert_true(cage != null)
+	if cage == null:
+		_free([ted])
+		return
+	assert_near(cage.duration, 9.0, 0.0001)
+	await wait_seconds(6.5)
+	assert_true(is_instance_valid(cage) and cage.cage_active, "still closed after the stock 6 s")
+	await wait_seconds(2.8)
+	assert_false(is_instance_valid(cage) and cage.cage_active, "open after 9 s")
+	_free([ted, cage])
