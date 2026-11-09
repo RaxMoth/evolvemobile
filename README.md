@@ -916,9 +916,9 @@ Max out hero trees → Unlock new heroes → Compete on leaderboards
 - [x] Fog of war flickered at the screen edge — fixed: the fog quad is static and world-covering
       (it chased the camera a frame late), the world size snaps to whole tiles, and outside the map
       is always fogged
-- [ ] Monster stuck in corners — code side fixed (dashes and slam leaps stop at walls, idle re-picks
-      an unreachable goal, fleeing slides along walls); the map still has 39 isolated one-tile
-      navigation islands to repaint in `World.tscn`
+- [x] Monster / heroes stuck in corners — fixed: dashes, leaps, strafes and pushes stop at walls;
+      exploration only targets reachable waypoints; the nav bake drops the sealed one-tile islands
+      (`tools/bake_nav.gd`)
 - [x] Heroes parked at the map edge for minutes (off-map fog counted as unexplored) and agents
       stranded far behind their group (paths cut off at the engine's 4096-polygon search budget on
       the per-tile navigation map) — fixed

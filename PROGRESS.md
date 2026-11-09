@@ -1,6 +1,6 @@
 # Progress Tracker
 
-Last loop run: 2026-11-03 (baked navigation mesh, monster AI fixes, Grount behaviour nodes, code cleanup in progress)
+Last loop run: 2026-11-09 (code cleanup done: 54 batches; wall/corner fixes; feature overhaul designed, next)
 Stack: godot
 
 Spec source: `README.md` + `Docs/INSTRUCTOR.md` (roadmap, "Current Status & Roadmap",
@@ -143,6 +143,26 @@ A bugfix may change the trace only where the fix explains it; then also run `too
 - [x] Legacy in-round `Scripts/Skilltree/` removed (zero references outside the folder).
 
 ## Changelog
+### 2026-11-09 — code cleanup (54 batches), walls/corner fixes, Godot 4.7, unneeded scenes removed
+- **Cleanup**: a 6-area audit (111 verified findings) became 59 batches; 54 landed one commit each
+  (`2f8207d`..`141924e`), every one behind lint + 167 tests + the determinism trace (above); 5 skipped
+  (17 already done; 46/48/55/59 superseded by the UI overhaul or held back). Highlights: dead code and
+  warnings out, shared helpers (GameUtils.entities_in_circle, RingPulse, BasicStrike, flash_line), one
+  cached faction per entity drives targeting, typed damage/threat/heal/cooldown paths, scene-side wiring,
+  frame-rate-independent camera, pause-safe Ram Dash/Slam, atomic saves, background World load, pre-warmed
+  mob pool, audio culling; tools: sim_trace.sh, bench LOD counts + on-screen mode, fixed-fps tests,
+  per-run user:// dirs (concurrent runs no longer clobber saves).
+- **Walls / corners** (`6730670`): fight strafing, River's heal approach, the mob leash and the Trap Cage
+  push stop at the navigation mesh; exploration picks only reachable waypoints, a 24 px jitter-tolerant
+  stuck check, detours formation keeps, formation slots pulled out of walls, 44 sealed one-tile islands
+  dropped from the bake. Stall probe (24 matches): stuck time 2,971 s → 64 s, stalls ≥ 10 s 189 → 0.
+- **Godot 4.7** (`6e9f747`, `004919b`): the editor migration, tracked .uid files, .DS_Store ignored;
+  `main.tscn` wrapper and the DEBUGWORLD test world removed, MainMenu.tscn is the main scene (`0d0524f`).
+- **Performance** (tools/bench.sh 3 2 900 300, 232 mobs, headless): frame mean 30.6 → 1.43 ms, p99
+  185 → 3.2 ms, worst frame 675 → 3.5 ms, CPU 33.5 → 3.1 s (start vs now; the nav bake is most of it).
+- **Balance** (24 seeds): heroes 25% (5–10/24 range since the stuck/farming fixes) → Grount retune is
+  part of the feature overhaul (phase 6).
+
 ### 2026-11-03 — perf(nav): one baked navigation region; monster AI fixes; Grount behaviour nodes
 Commits `81fa426` resting monster fights back · `ed7bf1a` + `b8dc8ba` Grount behaviour nodes (workflow:
 design, critique, implement, 3-lens review, 5 confirmed findings fixed) · `3d4060a` `tools/bench.sh` ·
