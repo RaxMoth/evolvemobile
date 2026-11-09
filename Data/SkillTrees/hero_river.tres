@@ -1,0 +1,254 @@
+[gd_resource type="Resource" script_class="MetaSkillTree" format=3]
+
+[ext_resource type="Script" path="res://Scripts/MetaSkills/meta_skill_node.gd" id="1_iutra"]
+[ext_resource type="Script" path="res://Scripts/MetaSkills/meta_skill_tree.gd" id="2_l0s7l"]
+
+[sub_resource type="Resource" id="r1_range"]
+script = ExtResource("1_iutra")
+id = &"r1_range"
+display_name = "Long Scope"
+description = "+{v}% attack range"
+cost = 40
+currency = &"steel"
+max_rank = 5
+rank_costs = Array[int]([40, 60, 100, 150, 240])
+rank_values = Array[float]([1.08, 1.11, 1.14, 1.17, 1.2])
+branch = 0
+stat_name = "attack_range"
+stat_value = 1.08
+
+[sub_resource type="Resource" id="r2_dmg"]
+script = ExtResource("1_iutra")
+id = &"r2_dmg"
+display_name = "Hollow Points"
+description = "+{v}% attack damage"
+tier = 2
+cost = 120
+currency = &"steel"
+max_rank = 3
+rank_costs = Array[int]([120, 200, 330])
+rank_values = Array[float]([1.1, 1.15, 1.2])
+requires = Array[StringName]([&"r1_range"])
+branch = 0
+stat_name = "attack_damage"
+stat_value = 1.1
+
+[sub_resource type="Resource" id="r2_triple"]
+script = ExtResource("1_iutra")
+id = &"r2_triple"
+display_name = "Triple Shot"
+description = "Sniper shots also hit {v} enemies near the target"
+tier = 2
+cost = 450
+currency = &"steel"
+requires = Array[StringName]([&"r1_range"])
+branch = 0
+ability_name = "Adaptive Weapon"
+stat_name = "extra_targets"
+stat_value = 2.0
+stat_multiplicative = false
+
+[sub_resource type="Resource" id="r3_range"]
+script = ExtResource("1_iutra")
+id = &"r3_range"
+display_name = "Sniper's Nest"
+description = "+{v}% attack range"
+tier = 3
+cost = 240
+currency = &"steel"
+max_rank = 3
+rank_costs = Array[int]([240, 400, 600])
+rank_values = Array[float]([1.15, 1.2, 1.25])
+requires = Array[StringName]([&"r2_dmg", &"r2_triple"])
+branch = 0
+stat_name = "attack_range"
+stat_value = 1.15
+
+[sub_resource type="Resource" id="rv_deadeye"]
+script = ExtResource("1_iutra")
+id = &"rv_deadeye"
+display_name = "Deadeye"
+description = "Every {v}th sniper shot deals 2.5x damage"
+tier = 4
+cost = 1500
+currency = &"steel"
+capstone = true
+requires = Array[StringName]([&"r3_range"])
+branch = 0
+hidden = true
+ability_name = "Adaptive Weapon"
+stat_name = "crit_every"
+stat_value = 4.0
+stat_multiplicative = false
+
+[sub_resource type="Resource" id="r1_hp"]
+script = ExtResource("1_iutra")
+id = &"r1_hp"
+display_name = "Field Dressing"
+description = "+{v}% max HP"
+cost = 40
+currency = &"steel"
+max_rank = 5
+rank_costs = Array[int]([40, 60, 100, 150, 240])
+rank_values = Array[float]([1.05, 1.08, 1.11, 1.14, 1.17])
+branch = 1
+stat_name = "max_health"
+stat_value = 1.05
+
+[sub_resource type="Resource" id="r2_dropcd"]
+script = ExtResource("1_iutra")
+id = &"r2_dropcd"
+display_name = "Fast Resupply"
+description = "Supply Drop cooldown -{v}%"
+tier = 2
+cost = 120
+currency = &"steel"
+max_rank = 3
+rank_costs = Array[int]([120, 200, 330])
+rank_values = Array[float]([0.8, 0.72, 0.65])
+requires = Array[StringName]([&"r1_hp"])
+branch = 1
+ability_name = "Emergency Supply Drop"
+stat_name = "cooldown"
+stat_value = 0.8
+
+[sub_resource type="Resource" id="rv_heal"]
+script = ExtResource("1_iutra")
+id = &"rv_heal"
+display_name = "Steady Hands"
+description = "+{v}% heal per staff shot"
+tier = 2
+cost = 120
+currency = &"steel"
+max_rank = 3
+rank_costs = Array[int]([120, 200, 330])
+rank_values = Array[float]([1.15, 1.3, 1.45])
+requires = Array[StringName]([&"r1_hp"])
+branch = 1
+ability_name = "Adaptive Weapon"
+stat_name = "heal_amount"
+stat_value = 1.15
+
+[sub_resource type="Resource" id="r3_dropheal"]
+script = ExtResource("1_iutra")
+id = &"r3_dropheal"
+display_name = "Field Hospital"
+description = "Supply Drop heals +{v}%"
+tier = 3
+cost = 240
+currency = &"steel"
+max_rank = 3
+rank_costs = Array[int]([240, 400, 600])
+rank_values = Array[float]([1.5, 1.75, 2.0])
+requires = Array[StringName]([&"r2_dropcd"])
+branch = 1
+ability_name = "Emergency Supply Drop"
+stat_name = "heal_amount"
+stat_value = 1.5
+
+[sub_resource type="Resource" id="r3_hp"]
+script = ExtResource("1_iutra")
+id = &"r3_hp"
+display_name = "Veteran Scout"
+description = "+{v}% max HP"
+tier = 3
+cost = 240
+currency = &"steel"
+max_rank = 3
+rank_costs = Array[int]([240, 400, 600])
+rank_values = Array[float]([1.15, 1.2, 1.25])
+requires = Array[StringName]([&"rv_heal", &"r2_dropcd"])
+branch = 1
+stat_name = "max_health"
+stat_value = 1.15
+
+[sub_resource type="Resource" id="rv_chain"]
+script = ExtResource("1_iutra")
+id = &"rv_chain"
+display_name = "Chain Heal"
+description = "Staff heals also heal the most hurt ally within 160 px of the target"
+tier = 4
+cost = 1500
+currency = &"steel"
+capstone = true
+requires = Array[StringName]([&"r3_dropheal", &"r3_hp"])
+branch = 1
+hidden = true
+ability_name = "Adaptive Weapon"
+stat_name = "extra_heal_targets"
+stat_multiplicative = false
+
+[sub_resource type="Resource" id="r1_speed"]
+script = ExtResource("1_iutra")
+id = &"r1_speed"
+display_name = "Light Boots"
+description = "+{v}% move speed"
+cost = 40
+currency = &"steel"
+max_rank = 5
+rank_costs = Array[int]([40, 60, 100, 150, 240])
+rank_values = Array[float]([1.05, 1.07, 1.09, 1.11, 1.13])
+branch = 2
+stat_name = "move_speed"
+stat_value = 1.05
+
+[sub_resource type="Resource" id="r2_atkspd"]
+script = ExtResource("1_iutra")
+id = &"r2_atkspd"
+display_name = "Quick Hands"
+description = "+{v}% attack speed"
+tier = 2
+cost = 120
+currency = &"steel"
+max_rank = 3
+rank_costs = Array[int]([120, 200, 330])
+rank_values = Array[float]([1.1, 1.14, 1.18])
+requires = Array[StringName]([&"r1_speed"])
+branch = 2
+stat_name = "attack_speed"
+stat_value = 1.1
+
+[sub_resource type="Resource" id="rv_adrenal"]
+script = ExtResource("1_iutra")
+id = &"rv_adrenal"
+display_name = "Adrenaline"
+description = "Adaptive Movement boost lasts +{v}%"
+tier = 3
+cost = 240
+currency = &"steel"
+max_rank = 3
+rank_costs = Array[int]([240, 400, 600])
+rank_values = Array[float]([1.5, 1.8, 2.1])
+requires = Array[StringName]([&"r2_atkspd"])
+branch = 2
+ability_name = "Adaptive Movement"
+stat_name = "boost_duration"
+stat_value = 1.5
+
+[sub_resource type="Resource" id="rv_pathfinder"]
+script = ExtResource("1_iutra")
+id = &"rv_pathfinder"
+display_name = "Pathfinder"
+description = "While River lives, every hero moves +12% faster"
+tier = 4
+cost = 1500
+currency = &"steel"
+capstone = true
+requires = Array[StringName]([&"rv_adrenal"])
+branch = 2
+hidden = true
+ability_name = "Adaptive Movement"
+stat_name = "team_speed_aura"
+stat_value = 1.12
+
+[resource]
+script = ExtResource("2_l0s7l")
+id = &"hero_river"
+display_name = "River — Scout's Edge"
+description = "River's personal upgrades. Bought with Steel."
+nodes = Array[ExtResource("1_iutra")]([SubResource("r1_range"), SubResource("r2_dmg"), SubResource("r2_triple"), SubResource("r3_range"), SubResource("rv_deadeye"), SubResource("r1_hp"), SubResource("r2_dropcd"), SubResource("rv_heal"), SubResource("r3_dropheal"), SubResource("r3_hp"), SubResource("rv_chain"), SubResource("r1_speed"), SubResource("r2_atkspd"), SubResource("rv_adrenal"), SubResource("rv_pathfinder")])
+branches = PackedStringArray("Marksman", "Field Medic", "Scout")
+gate_kind = 1
+tier_gates = Array[int]([1, 3, 5, 8])
+owner_id = &"river"
+ai_build_order = Array[StringName]([&"r1_range", &"r1_hp", &"r1_range", &"r2_dmg", &"rv_heal", &"r2_triple", &"r1_hp", &"r2_dropcd", &"r3_range", &"r3_dropheal", &"r3_hp", &"rv_deadeye"])

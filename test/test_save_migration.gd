@@ -242,7 +242,10 @@ func test_v2_skill_lists_become_rank_one() -> void:
 	assert_eq(PersistedData.get_skill_rank(&"monster_grount", &"g9_retired_node"), 1, "unknown ids are kept, not dropped")
 	assert_true(MetaSkillManager.is_unlocked(&"hero_base", &"t2_dmg"), "old unlocks stay valid")
 	assert_eq(MetaSkillManager.get_rank(&"hero_base", &"t1_hp"), 1)
-	assert_eq(MetaSkillManager.node_state(&"hero_base", &"t1_hp"), MetaSkillManager.NodeState.UNLOCKED, "a 1-rank node: owned = maxed")
+	assert_eq(MetaSkillManager.node_state(&"hero_base", &"t1_hp"), MetaSkillManager.NodeState.UNAFFORDABLE,
+		"owned at rank 1 of 3: rank 2 is for sale (70 Gold, 40 owned)")
+	assert_eq(MetaSkillManager.node_state(&"monster_grount", &"g9_retired_node"), MetaSkillManager.NodeState.UNLOCKED,
+		"an owned id the tree does not have stays owned")
 	assert_eq(PersistedData.get_unlocked_skills(&"monster_grount"), ["g1_dmg", "g9_retired_node"], "the old list, as a view")
 	assert_eq(PersistedData.get_currency(PersistedData.GOLD), 40, "no refund, no charge")
 	assert_eq(PersistedData.get_currency(PersistedData.LEAVES), 7)

@@ -132,3 +132,25 @@ Heroes slain  %d / %d,Heroes slain  %d / %d,Helden erlegt  %d / %d
 Mobs devoured  %d,Mobs devoured  %d,Mobs verschlungen  %d
 %s EVOLVED · STAGE %s,%s EVOLVED · STAGE %s,%s ENTWICKELT · STUFE %s
 %s HAS FALLEN,%s HAS FALLEN,%s IST GEFALLEN
+Blood Strike,Blood Strike,Blutschlag
+Bloodlust,Bloodlust,Blutrausch
+Land Mine,Land Mine,Landmine
+Blood Bomb,Blood Bomb,Blutbombe
+Adaptive Weapon,Adaptive Weapon,Adaptive Waffe
+Adaptive Movement,Adaptive Movement,Adaptive Bewegung
+Weapon Swap,Weapon Swap,Waffenwechsel
+Emergency Supply Drop,Emergency Supply Drop,Notfall-Nachschub
+Shield Bash,Shield Bash,Schildstoß
+Regeneration,Regeneration,Regeneration
+Divine Shield,Divine Shield,Göttlicher Schild
+Monster Taunt,Monster Taunt,Monster-Provokation
+Claw Swipe,Claw Swipe,Klauenhieb
+Loyal Companion,Loyal Companion,Treuer Gefährte
+Rally Cry,Rally Cry,Sammelruf
+Trap Cage,Trap Cage,Fallenkäfig
+Front Cleave,Front Cleave,Frontalhieb
+Ram Dash,Ram Dash,Rammsturm
+Ground Slam,Ground Slam,Bodenschlag
+Needs Lv %d,Needs Lv %d,Benötigt Lv %d
+%d pts,%d pts,%d Pkt.
+Needs %d points in this tree,Needs %d points in this tree,Benötigt %d Punkte in diesem Baum

@@ -1,9 +1,9 @@
 extends TestCase
 
 ## Grount's behaviour nodes (README "Grount Tree" T3/T4): Gravity Slam, Enrage,
-## Second Wind and Titan Form, plus the 2000-Leaf 4th tier. Every one of them
-## is off on a fresh save. AIs are frozen (TickScheduler.unregister) and driven
-## by hand.
+## Second Wind and Titan Form, the Hide branch's capstone behind the Lv 8 gate.
+## Every one of them is off on a fresh save. AIs are frozen
+## (TickScheduler.unregister) and driven by hand.
 
 const GROUNT := "res://Scenes/NPCs/Monster/Grount/Grount.tscn"
 const VLAD := "res://Scenes/NPCs/Hero/Heros/DMG/Vlad/Vlad.tscn"
@@ -12,8 +12,16 @@ const PET := "res://Scenes/NPCs/Hero/Heros/Support/Ted/Abilities/Passive/TedsPet
 const AREA := "res://Scenes/World/MobSpawnArea/MobSpawnArea.tscn"
 const SCREEN := "res://Scenes/UI/Screens/CharacterDetail.tscn"
 
-## Second Wind is not seeded yet (MetaSkillManager.GROUNT_SECOND_WIND_SPEC):
-## the test that needs it adds it to the Grount tree and after_each removes it.
+## Grount "Second Wind" (README "Stage 2 Evolution Heal +200 HP"): wired
+## (MonsterBase._apply_evolution_bonus_heal) and tested here, but in no shipped
+## tree: evolution refills HP (MonsterBase.heal_to_full_on_evolution), so +200
+## capped at max would be a no-op purchase. Add it to monster_grount.tres once
+## evolution heals by the README rule (new max HP - old max HP) for every
+## monster: switching to that rule only while the node is owned would make the
+## purchase a net loss (README heal + 200 never beats a refill), and switching
+## it for everyone retunes the balance. test_grount_tree_lists_its_shipped_nodes
+## pins the tree's contents until that is decided. The test that needs the node
+## adds it to the tree and after_each removes it.
 var _added_second_wind: MetaSkillNode = null
 
 
@@ -45,8 +53,8 @@ func _add_second_wind() -> void:
 	var t: MetaSkillTree = MetaSkillManager.get_tree_def(_tree())
 	if t.find_node(&"g3_evoheal") != null:
 		return
-	_added_second_wind = MetaSkillManager._node_from_spec(MetaSkillManager.GROUNT_SECOND_WIND_SPEC,
-		MetaSkillManager.MONSTER_TIER_COSTS, PersistedData.LEAVES)
+	_added_second_wind = MetaSkillNode.make(&"g3_evoheal", "Second Wind", "Stage 2 evolution heals +200 HP",
+		3, 750, PersistedData.LEAVES, "monster_stage_2_evo_heal", 200.0, false)
 	t.nodes.append(_added_second_wind)
 
 
@@ -86,24 +94,29 @@ func _slam_of(g: MonsterBase, dmg: float) -> BullGroundSlam:
 
 # ---------- tree data ----------
 
-func test_grount_tree_has_a_2000_leaf_tier_4() -> void:
+func test_grount_tree_ends_in_the_titan_form_capstone() -> void:
 	var t: MetaSkillTree = MetaSkillManager.get_tree_def(_tree())
 	assert_eq(t.max_tier(), 4)
-	assert_eq(MetaSkillManager.MONSTER_TIER_COSTS.size(), 4)
+	assert_eq(t.gate_kind, MetaSkillTree.GateKind.LEVEL)
+	assert_eq(t.tier_gates, [1, 3, 5, 8] as Array[int])
+	assert_eq(t.owner_id, &"grount")
 	var titan: MetaSkillNode = t.find_node(&"g4_titan")
 	assert_true(titan != null, "Titan Form exists")
 	if titan != null:
 		assert_eq(titan.tier, 4)
-		assert_eq(titan.cost, 2000)
+		assert_eq(titan.cost, 1500)
+		assert_true(titan.capstone, "the Hide branch's capstone")
+		assert_eq(titan.branch, 1)
 		assert_eq(titan.currency, PersistedData.LEAVES)
 		assert_false(titan.is_ability_node())
 		assert_eq(titan.stat_name, "monster_titan_form")
 		assert_false(titan.stat_multiplicative, "behaviour flags are additive")
+	assert_eq(t.capstones(), [titan] as Array[MetaSkillNode], "Rampage and Trample stay hidden until their code lands")
 	var pull: MetaSkillNode = t.find_node(&"g3_pull")
 	assert_true(pull != null, "Gravity Slam exists")
 	if pull != null:
 		assert_eq(pull.tier, 3)
-		assert_eq(pull.cost, 1000)
+		assert_eq(pull.cost, 750)
 		assert_eq(pull.ability_name, "Ground Slam")
 		assert_eq(pull.stat_name, "pull_radius")
 		assert_near(pull.stat_value, 200.0)
@@ -112,28 +125,17 @@ func test_grount_tree_has_a_2000_leaf_tier_4() -> void:
 	assert_true(enrage != null, "Enrage exists")
 	if enrage != null:
 		assert_eq(enrage.tier, 3)
-		assert_eq(enrage.cost, 1000)
+		assert_eq(enrage.cost, 750)
 		assert_false(enrage.is_ability_node())
 		assert_eq(enrage.stat_name, "monster_enrage")
 		assert_false(enrage.stat_multiplicative)
-	# The held-back Second Wind spec builds an additive tier-3 stat node.
-	var sw: MetaSkillNode = MetaSkillManager._node_from_spec(MetaSkillManager.GROUNT_SECOND_WIND_SPEC,
-		MetaSkillManager.MONSTER_TIER_COSTS, PersistedData.LEAVES)
-	assert_eq(sw.id, &"g3_evoheal")
-	assert_eq(sw.tier, 3)
-	assert_eq(sw.cost, 1000)
-	assert_false(sw.is_ability_node(), "\"\" as the ability name keeps it a stat node")
-	assert_eq(sw.stat_name, "monster_stage_2_evo_heal")
-	assert_near(sw.stat_value, 200.0)
-	assert_false(sw.stat_multiplicative)
-	# The 6-element specs are still multiplicative stat nodes.
 	var hp: MetaSkillNode = t.find_node(&"g2_hp")
 	assert_true(hp != null and hp.stat_multiplicative and not hp.is_ability_node())
 
 
-## What a player can buy, read from the seeded tree itself (no test inserts).
-## Second Wind is deliberately absent until the evolution heal is decided
-## (MetaSkillManager.GROUNT_SECOND_WIND_SPEC): flip this when it is seeded.
+## What a player can buy, read from the shipped tree itself (no test inserts).
+## Second Wind is deliberately absent until the evolution heal is decided (see
+## _added_second_wind): flip this when it ships.
 func test_grount_tree_lists_its_shipped_nodes() -> void:
 	var t: MetaSkillTree = MetaSkillManager.get_tree_def(_tree())
 	var expected: Dictionary = {
@@ -149,25 +151,37 @@ func test_grount_tree_lists_its_shipped_nodes() -> void:
 			ids.append(String(n.id))
 		ids.sort()
 		assert_eq(ids, expected[tier], "tier %d" % tier)
+	for id: StringName in [&"g1_hide", &"g4_rampage", &"g4_stampede"]:
+		var n := t.find_node(id)
+		assert_true(n != null and n.hidden, "%s is in the data, hidden until its code lands" % id)
 	assert_true(t.find_node(&"g3_evoheal") == null, "Second Wind is not in the shipped tree yet")
 	if is_isolated():
 		PersistedData.add_currency(PersistedData.LEAVES, 5000)
+		PersistedData.add_monster_xp(&"grount", 2800)
 		_grant(["g1_dmg", "g2_hp"])
 		assert_false(MetaSkillManager.unlock(_tree(), &"g3_evoheal"), "so it cannot be bought")
+		assert_false(MetaSkillManager.unlock(_tree(), &"g1_hide"), "nor can a hidden node")
+		assert_eq(MetaSkillManager.node_state(_tree(), &"g1_hide"), MetaSkillManager.NodeState.INVALID)
 
 
-func test_tier_4_is_gated_until_a_tier_3_node_is_unlocked() -> void:
+## Character trees open tiers by the character's permanent level (1/3/5/8).
+## Gravity Slam's Hide branch starts at the hidden Thick Hide: a hidden parent
+## neither opens nor blocks, so Scar Tissue needs only its tier.
+func test_tier_4_opens_at_grount_level_8() -> void:
 	if not require_isolated():
 		return
-	PersistedData.add_currency(PersistedData.LEAVES, 100 + 500 + 1000 + 2000)
+	PersistedData.add_currency(PersistedData.LEAVES, 40 + 120 + 1500)
 	assert_true(MetaSkillManager.unlock(_tree(), &"g1_dmg"))
-	assert_true(MetaSkillManager.unlock(_tree(), &"g2_hp"))
-	assert_false(MetaSkillManager.is_node_available(_tree(), &"g4_titan"))
-	assert_false(MetaSkillManager.unlock(_tree(), &"g4_titan"), "tier 4 needs a tier-3 node first")
-	assert_true(MetaSkillManager.unlock(_tree(), &"g3_enrage"))
-	assert_true(MetaSkillManager.is_node_available(_tree(), &"g4_titan"))
+	assert_eq(MetaSkillManager.node_state(_tree(), &"g2_hp"), MetaSkillManager.NodeState.LEVEL_GATED, "Lv 1")
+	PersistedData.add_monster_xp(&"grount", 1000)  # Lv 5: tiers 2 and 3
+	assert_true(MetaSkillManager.unlock(_tree(), &"g2_hp"), "its only parent, Thick Hide, is hidden")
+	assert_eq(MetaSkillManager.node_state(_tree(), &"g4_titan"), MetaSkillManager.NodeState.LEVEL_GATED)
+	assert_false(MetaSkillManager.unlock(_tree(), &"g4_titan"), "tier 4 needs Lv 8")
+	PersistedData.add_monster_xp(&"grount", 1800)  # 2800 XP: Lv 8
+	assert_true(MetaSkillManager.is_node_available(_tree(), &"g4_titan"), "Scar Tissue is one of its parents")
 	assert_true(MetaSkillManager.unlock(_tree(), &"g4_titan"))
-	assert_eq(PersistedData.get_currency(PersistedData.LEAVES), 0, "2000 Leaves for tier 4")
+	assert_eq(PersistedData.get_currency(PersistedData.LEAVES), 0, "1500 Leaves for a capstone")
+	assert_eq(MetaSkillManager.equipped_capstone(_tree()), &"g4_titan", "the first capstone bought is equipped")
 
 
 func test_additive_keys_sum_from_zero_and_multiplicative_keys_are_unchanged() -> void:
@@ -737,9 +751,11 @@ func test_skill_screen_renders_and_gates_tier_4() -> void:
 	var t: MetaSkillTree = MetaSkillManager.get_tree_def(_tree())
 	var view := screen.tree_view()
 	assert_eq(screen.tree_id, _tree())
-	assert_eq(view.buttons().size(), t.nodes.size(), "every shipped node is on the screen")
+	var shown := t.shown_nodes()
+	assert_eq(view.buttons().size(), shown.size(), "every shown node is on the screen")
+	assert_true(view.button(&"g4_rampage") == null, "a hidden node is not")
 	var rows: Dictionary[int, Array] = {}
-	for n in t.nodes:
+	for n in shown:
 		var b := view.button(n.id)
 		assert_true(b != null, "%s is shown" % n.id)
 		if b == null:
@@ -759,23 +775,24 @@ func test_skill_screen_renders_and_gates_tier_4() -> void:
 		assert_near(b.position.y, (t3[0] as SkillNodeButton).position.y, 0.5, "all of tier 3 on one row")
 	assert_true((rows[4][0] as SkillNodeButton).position.y > (t3[0] as SkillNodeButton).position.y, "tier 4 below tier 3")
 	var titan := view.button(&"g4_titan")
-	assert_eq(titan.state, UxTreeModel.NodeState.LOCKED, "tier-gated")
+	assert_eq(titan.state, UxTreeModel.NodeState.LOCKED, "level-gated")
 	assert_true(screen.model.find(&"g4_titan").capstone, "the capstone frame")
 	view.select(&"g4_titan")
 	var upgrade := screen.get_node("%Upgrade") as Button
 	assert_true(upgrade.disabled)
-	assert_true(upgrade.text.contains("Learn a Tier 3 skill first"), upgrade.text)
+	assert_true(upgrade.text.contains("Needs Lv 8"), upgrade.text)
 	_grant(["g1_dmg", "g2_hp", "g3_dmg"])
-	PersistedData.add_currency(PersistedData.LEAVES, 2000)
+	PersistedData.add_monster_xp(&"grount", 2800)
+	PersistedData.add_currency(PersistedData.LEAVES, 1500)
 	screen.refresh()
 	titan = view.button(&"g4_titan")
-	assert_eq(titan.state, UxTreeModel.NodeState.AVAILABLE, "open once a tier-3 node is owned")
+	assert_eq(titan.state, UxTreeModel.NodeState.AVAILABLE, "open at Lv 8 with a parent owned")
 	assert_true(titan.buyable)
 	assert_false(upgrade.disabled, "buyable")
 	screen.upgrade_requested.connect(MetaSkillManager.unlock)
 	upgrade.pressed.emit()
 	assert_true(MetaSkillManager.is_unlocked(_tree(), &"g4_titan"), "bought through upgrade_requested")
-	assert_eq(PersistedData.get_currency(PersistedData.LEAVES), 0, "2000 Leaves for tier 4")
+	assert_eq(PersistedData.get_currency(PersistedData.LEAVES), 0, "1500 Leaves for a capstone")
 	screen.refresh()
 	assert_eq(view.button(&"g4_titan").state, UxTreeModel.NodeState.MAXED)
 	portrait.queue_free()

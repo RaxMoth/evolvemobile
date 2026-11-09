@@ -1,0 +1,222 @@
+[gd_resource type="Resource" script_class="MetaSkillTree" format=3]
+
+[ext_resource type="Script" path="res://Scripts/MetaSkills/meta_skill_node.gd" id="1_vuvkj"]
+[ext_resource type="Script" path="res://Scripts/MetaSkills/meta_skill_tree.gd" id="2_j1l6n"]
+
+[sub_resource type="Resource" id="t1_dmg"]
+script = ExtResource("1_vuvkj")
+id = &"t1_dmg"
+display_name = "Sharp Edge"
+description = "+{v}% attack damage"
+cost = 40
+max_rank = 3
+rank_costs = Array[int]([40, 70, 110])
+rank_values = Array[float]([1.05, 1.08, 1.1])
+branch = 0
+stat_name = "attack_damage"
+stat_value = 1.05
+
+[sub_resource type="Resource" id="t2_dmg"]
+script = ExtResource("1_vuvkj")
+id = &"t2_dmg"
+display_name = "Forged Steel"
+description = "+{v}% attack damage"
+tier = 2
+max_rank = 3
+rank_costs = Array[int]([100, 160, 250])
+rank_values = Array[float]([1.1, 1.13, 1.15])
+requires = Array[StringName]([&"t1_dmg"])
+branch = 0
+stat_name = "attack_damage"
+stat_value = 1.1
+
+[sub_resource type="Resource" id="t3_atkspd"]
+script = ExtResource("1_vuvkj")
+id = &"t3_atkspd"
+display_name = "Battle Rhythm"
+description = "+{v}% attack speed"
+tier = 3
+cost = 200
+max_rank = 2
+rank_costs = Array[int]([200, 320])
+rank_values = Array[float]([1.15, 1.2])
+requires = Array[StringName]([&"t2_dmg"])
+branch = 0
+stat_name = "attack_speed"
+stat_value = 1.15
+
+[sub_resource type="Resource" id="t4_dmg"]
+script = ExtResource("1_vuvkj")
+id = &"t4_dmg"
+display_name = "Berserker"
+description = "+{v}% attack damage"
+tier = 4
+cost = 600
+requires = Array[StringName]([&"t3_atkspd"])
+branch = 0
+stat_name = "attack_damage"
+stat_value = 1.2
+
+[sub_resource type="Resource" id="t1_hp"]
+script = ExtResource("1_vuvkj")
+id = &"t1_hp"
+display_name = "Iron Skin"
+description = "+{v}% max HP"
+cost = 40
+max_rank = 3
+rank_costs = Array[int]([40, 70, 110])
+rank_values = Array[float]([1.05, 1.08, 1.1])
+branch = 1
+stat_name = "max_health"
+stat_value = 1.05
+
+[sub_resource type="Resource" id="t2_hp"]
+script = ExtResource("1_vuvkj")
+id = &"t2_hp"
+display_name = "Hardened"
+description = "+{v}% max HP"
+tier = 2
+max_rank = 3
+rank_costs = Array[int]([100, 160, 250])
+rank_values = Array[float]([1.1, 1.13, 1.15])
+requires = Array[StringName]([&"t1_hp"])
+branch = 1
+stat_name = "max_health"
+stat_value = 1.1
+
+[sub_resource type="Resource" id="hb_armor"]
+script = ExtResource("1_vuvkj")
+id = &"hb_armor"
+display_name = "Tempered Mail"
+description = "-{v}% damage taken"
+tier = 2
+max_rank = 3
+rank_costs = Array[int]([100, 160, 250])
+rank_values = Array[float]([0.96, 0.93, 0.9])
+requires = Array[StringName]([&"t1_hp"])
+branch = 1
+hidden = true
+stat_name = "damage_taken_mult"
+stat_value = 0.96
+
+[sub_resource type="Resource" id="t3_hp"]
+script = ExtResource("1_vuvkj")
+id = &"t3_hp"
+display_name = "Veteran Plate"
+description = "+{v}% max HP"
+tier = 3
+cost = 200
+max_rank = 2
+rank_costs = Array[int]([200, 320])
+rank_values = Array[float]([1.15, 1.2])
+requires = Array[StringName]([&"t2_hp", &"hb_armor"])
+branch = 1
+stat_name = "max_health"
+stat_value = 1.15
+
+[sub_resource type="Resource" id="t4_hp"]
+script = ExtResource("1_vuvkj")
+id = &"t4_hp"
+display_name = "Titan"
+description = "+{v}% max HP"
+tier = 4
+cost = 600
+requires = Array[StringName]([&"t3_hp"])
+branch = 1
+stat_name = "max_health"
+stat_value = 1.25
+
+[sub_resource type="Resource" id="t1_speed"]
+script = ExtResource("1_vuvkj")
+id = &"t1_speed"
+display_name = "Light Step"
+description = "+{v}% move speed"
+cost = 40
+max_rank = 3
+rank_costs = Array[int]([40, 70, 110])
+rank_values = Array[float]([1.05, 1.07, 1.09])
+branch = 2
+stat_name = "move_speed"
+stat_value = 1.05
+
+[sub_resource type="Resource" id="t2_atkspd"]
+script = ExtResource("1_vuvkj")
+id = &"t2_atkspd"
+display_name = "Quick Strike"
+description = "+{v}% attack speed"
+tier = 2
+max_rank = 3
+rank_costs = Array[int]([100, 160, 250])
+rank_values = Array[float]([1.1, 1.13, 1.15])
+requires = Array[StringName]([&"t1_speed"])
+branch = 2
+stat_name = "attack_speed"
+stat_value = 1.1
+
+[sub_resource type="Resource" id="t3_speed"]
+script = ExtResource("1_vuvkj")
+id = &"t3_speed"
+display_name = "Swift Runner"
+description = "+{v}% move speed"
+tier = 3
+cost = 200
+max_rank = 2
+rank_costs = Array[int]([200, 320])
+rank_values = Array[float]([1.15, 1.18])
+requires = Array[StringName]([&"t2_atkspd"])
+branch = 2
+stat_name = "move_speed"
+stat_value = 1.15
+
+[sub_resource type="Resource" id="hb_cdr"]
+script = ExtResource("1_vuvkj")
+id = &"hb_cdr"
+display_name = "Battle Drills"
+description = "-{v}% active & ultimate cooldowns"
+tier = 3
+cost = 200
+max_rank = 2
+rank_costs = Array[int]([200, 320])
+rank_values = Array[float]([0.92, 0.85])
+requires = Array[StringName]([&"t2_atkspd"])
+branch = 2
+hidden = true
+stat_name = "cooldown_mult"
+stat_value = 0.92
+
+[sub_resource type="Resource" id="t4_atkspd"]
+script = ExtResource("1_vuvkj")
+id = &"t4_atkspd"
+display_name = "Storm Blades"
+description = "+{v}% attack speed"
+tier = 4
+cost = 600
+requires = Array[StringName]([&"t3_speed", &"hb_cdr"])
+branch = 2
+stat_name = "attack_speed"
+stat_value = 1.25
+
+[sub_resource type="Resource" id="hb_startlvl"]
+script = ExtResource("1_vuvkj")
+id = &"hb_startlvl"
+display_name = "Veteran Squad"
+description = "Heroes start each match at level {v}"
+tier = 4
+cost = 900
+requires = Array[StringName]([&"t3_speed", &"hb_cdr"])
+branch = 2
+hidden = true
+stat_name = "start_level"
+stat_value = 2.0
+stat_multiplicative = false
+
+[resource]
+script = ExtResource("2_j1l6n")
+id = &"hero_base"
+display_name = "Hero Base Upgrades"
+description = "Bonuses applied to every hero on spawn. Bought with Gold."
+nodes = Array[ExtResource("1_vuvkj")]([SubResource("t1_dmg"), SubResource("t2_dmg"), SubResource("t3_atkspd"), SubResource("t4_dmg"), SubResource("t1_hp"), SubResource("t2_hp"), SubResource("hb_armor"), SubResource("t3_hp"), SubResource("t4_hp"), SubResource("t1_speed"), SubResource("t2_atkspd"), SubResource("t3_speed"), SubResource("hb_cdr"), SubResource("t4_atkspd"), SubResource("hb_startlvl")])
+branches = PackedStringArray("Might", "Vitality", "Tactics")
+gate_kind = 2
+tier_gates = Array[int]([0, 4, 10, 18])
+ai_build_order = Array[StringName]([&"t1_hp", &"t1_dmg", &"t1_speed", &"t1_hp", &"t1_dmg", &"t2_hp", &"t2_dmg", &"hb_armor", &"t2_atkspd", &"t2_hp", &"t2_dmg", &"t3_hp", &"t3_atkspd", &"t3_speed", &"hb_cdr", &"t4_hp", &"t4_dmg", &"t4_atkspd"])

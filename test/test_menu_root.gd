@@ -374,7 +374,7 @@ func test_the_detail_opens_buys_and_goes_back() -> void:
 	assert_eq(root.detail.character, card.character)
 	assert_eq(root._stack.size(), 3, "over the roster")
 	await _settle()
-	PersistedData.add_currency(PersistedData.LEAVES, 100)
+	PersistedData.add_currency(PersistedData.LEAVES, 40)  # Heavy Horns, rank 1
 	await wait_frames(1)
 	assert_true(card.upgrades > 0, "the roster under the detail refreshed on the currency change")
 	root.detail.set_mode(CharacterDetail.Mode.TREE)
@@ -383,7 +383,7 @@ func test_the_detail_opens_buys_and_goes_back() -> void:
 	assert_true(MetaSkillManager.is_unlocked(tree_id, &"g1_dmg"), "MenuRoot buys the node")
 	assert_eq(PersistedData.get_currency(PersistedData.LEAVES), 0)
 	await wait_frames(1)
-	assert_eq(root.detail.tree_view().button(&"g1_dmg").state, UxTreeModel.NodeState.MAXED, "the detail refreshed")
+	assert_eq(root.detail.tree_view().button(&"g1_dmg").state, UxTreeModel.NodeState.OWNED, "the detail refreshed (rank 1 of 5)")
 	assert_eq(card.upgrades, 0, "and the card")
 	root.detail.back_requested.emit()
 	assert_eq(root.top(), root.monster_roster, "back to the roster")

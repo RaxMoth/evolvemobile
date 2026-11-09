@@ -65,16 +65,20 @@ func refresh() -> void:
 	# Background color (modulate the whole button) and the status line under
 	# name / description: "Rank r/max", then the next rank's price or the gate.
 	var status_line: String = ""
+	var t := MetaSkillManager.get_tree_def(tree_id)
 	match state:
 		MetaSkillManager.NodeState.UNLOCKED:
 			modulate = COLOR_UNLOCKED
 			status_line = "[color=#063]%s[/color]" % tr("Maxed")
 		MetaSkillManager.NodeState.TIER_GATED:
 			modulate = COLOR_TIER_GATED
-			status_line = "[color=#777]Reach Tier %d first[/color]" % (node_def.tier - 1)
+			if t != null and t.gate_kind == MetaSkillTree.GateKind.POINTS:
+				status_line = "[color=#777]%s[/color]" % (tr("Needs %d points in this tree") % t.gate_for_tier(node_def.tier))
+			else:
+				status_line = "[color=#777]Reach Tier %d first[/color]" % (node_def.tier - 1)
 		MetaSkillManager.NodeState.LEVEL_GATED:
 			modulate = COLOR_TIER_GATED
-			status_line = "[color=#777]Level the character up first[/color]"
+			status_line = "[color=#777]%s[/color]" % (tr("Needs Lv %d") % t.gate_for_tier(node_def.tier))
 		MetaSkillManager.NodeState.REQUIRES_MISSING:
 			modulate = COLOR_TIER_GATED
 			status_line = "[color=#777]Learn a linked skill first[/color]"
@@ -86,11 +90,13 @@ func refresh() -> void:
 			var color_tag := "#063" if available else "#933"
 			var price := MetaSkillManager.next_rank_cost(tree_id, node_def.id)
 			status_line = "[color=%s]%d / %d %s[/color]" % [color_tag, have, price, tr(String(node_def.currency).capitalize())]
-	var rank_line := "Rank %d/%d" % [MetaSkillManager.get_rank(tree_id, node_def.id), node_def.max_rank]
+	var rank := MetaSkillManager.get_rank(tree_id, node_def.id)
+	var rank_line := "Rank %d/%d" % [rank, node_def.max_rank]
 
 	# The rank and the status share one small line so the 90 px card holds it.
+	# The effect is the owned rank's (rank 1's before the first purchase).
 	_label.text = "[b]%s[/b]\n[font_size=11]%s[/font_size]\n[font_size=12]%s · %s[/font_size]" % [
-		node_def.display_name, node_def.description, rank_line, status_line]
+		node_def.display_name, node_def.effect_text(maxi(rank, 1)), rank_line, status_line]
 
 
 func _on_pressed() -> void:

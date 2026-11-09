@@ -5,9 +5,18 @@ extends Resource
 ## together (e.g. all the "Hero Base" upgrades). The tree's id is also
 ## the key used in PersistedData (`get_skill_ranks(tree_id)`).
 ##
+## The shipped trees are resources, one per tree: Data/SkillTrees/<id>.tres,
+## its nodes as sub-resources (generated once by tools/build_skill_trees.gd,
+## edited in the inspector since). MetaSkillManager registers the two base
+## trees and each roster character's CharacterDef.skill_tree.
+##
 ## Layout: nodes sit in tiers (rows, 1..4) and branches (columns, `branches`
 ## names them). When a tier opens is the tree's gate_kind; MetaSkillManager
 ## applies it to buying rank 1 only, so owned nodes are never revoked.
+##
+## Hidden nodes (MetaSkillNode.hidden: no code yet) are data only: find_node
+## and `nodes` still have them, but shown_nodes, nodes_in_tier, max_tier and
+## capstones (the tree as the game uses it) leave them out.
 
 ## How a tier opens (tier 1 is always open):
 ##   TIER_BELOW: one node of the tier below is owned (the pre-rank trees).
@@ -50,18 +59,28 @@ func find_node(node_id: StringName) -> MetaSkillNode:
 	return null
 
 
-func nodes_in_tier(tier: int) -> Array[MetaSkillNode]:
+## The nodes the game uses, in tree order: every node but the hidden ones.
+func shown_nodes() -> Array[MetaSkillNode]:
 	var out: Array[MetaSkillNode] = []
 	for n in nodes:
-		if n.tier == tier:
+		if not n.hidden:
 			out.append(n)
 	return out
 
 
+func nodes_in_tier(tier: int) -> Array[MetaSkillNode]:
+	var out: Array[MetaSkillNode] = []
+	for n in nodes:
+		if n.tier == tier and not n.hidden:
+			out.append(n)
+	return out
+
+
+## The highest tier holding a shown node.
 func max_tier() -> int:
 	var t: int = 0
 	for n in nodes:
-		if n.tier > t:
+		if n.tier > t and not n.hidden:
 			t = n.tier
 	return t
 
@@ -73,11 +92,11 @@ func gate_for_tier(tier: int) -> int:
 	return tier_gates[mini(tier, tier_gates.size()) - 1]
 
 
-## The capstone nodes in branch order (then tree order within a branch).
+## The shown capstone nodes in branch order (then tree order within a branch).
 func capstones() -> Array[MetaSkillNode]:
 	var out: Array[MetaSkillNode] = []
 	for n in nodes:
-		if n.capstone:
+		if n.capstone and not n.hidden:
 			out.append(n)
 	out.sort_custom(func(a: MetaSkillNode, b: MetaSkillNode) -> bool:
 		return a.branch < b.branch or (a.branch == b.branch and nodes.find(a) < nodes.find(b)))

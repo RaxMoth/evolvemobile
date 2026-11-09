@@ -1046,8 +1046,10 @@ entity registers it and draws from the global RNG).
     `opponent_after_matches` (Heroes-side quarry pool), `unlock_requires_level`,
     and `tip`, the counterplay hint for the heroes.
   - progression: `unlocked_by_default`, `unlock_cost` (in `currency()`: Steel for
-    heroes, Leaves for monsters) and `skill_tree` (null while the trees are
-    seeded in code; `skill_tree_def()` then asks MetaSkillManager).
+    heroes, Leaves for monsters) and `skill_tree`, the character's
+    `Data/SkillTrees/<side>_<id>.tres` (its id is `skill_tree_id()`).
+    MetaSkillManager registers the tree of every roster def at startup, so a
+    character's tree is live exactly while its def is in the roster.
   - abilities are never copied: `abilities()` reads the scene's own ability
     `.tres` from its SceneState, in menu order (passive, basic, active,
     ultimate; monsters passive, ability_1..3). Icons, names and descriptions
@@ -1072,7 +1074,9 @@ entity registers it and draws from the global RNG).
 - **Adding a monster**: a scene inheriting `monster_base_class.tscn` with its own
   MonsterStats (`monster_id`), ability `.tres` and strategy; its
   `Assets/Characters/<id>/` rig (`src/` + `tools/build_rigs.sh`); a
-  `<id>_def.tres` added to `roster.tres`; and its `monster_<id>` skill tree.
+  `<id>_def.tres` added to `roster.tres`; and its `Data/SkillTrees/monster_<id>.tres`
+  linked from the def's `skill_tree` (Nyxa's and Gorrak's are generated and wait
+  for their defs).
 
 ### Menu Component Kit (cards, rigs, top bar, nav bar)
 
@@ -1293,13 +1297,16 @@ button until the Phase 8 screens retire it.
   `rank_costs`, `rank_texts`, `requires` (any one owned opens a node),
   `capstone` and an icon, plus the currency and the wallet. `state_of()`
   (LOCKED, AVAILABLE, OWNED, MAXED), `block_reason()`, `affordable()`,
-  `can_buy()`, `buyable_count()`. `from_meta_skills(tree_id)` maps today's
-  trees: one rank per node, column = index inside its tier, the lone node of
-  the top tier is the capstone, tier gates read from
-  `MetaSkillManager.is_tier_open` (so the screen and the shop never disagree),
-  icons from the node, else the stat icon of its stat or ability property
-  (`STAT_ICONS`), else the ability's icon. The ranked trees add their own
-  adapter with the same fields. A snapshot: rebuilt after every change.
+  `can_buy()`, `buyable_count()`. `from_meta_skills(tree_id)` maps the ranked
+  trees: the tree's branches as columns, every shown node (hidden ones left
+  out) with its owned rank, each rank's price (`cost_of_rank`) and effect text
+  (`effect_text`), its capstone flag and its `requires` (hidden parents
+  dropped). Tier gates read from `MetaSkillManager.is_tier_open` (so the screen
+  and the shop never disagree), with the chip and block reason of the gate kind:
+  "Lv 3" / "Needs Lv 3" (character trees), "4 pts" / "Needs 4 points in this
+  tree" (base trees). Icons from the node, else the stat icon of its stat or
+  ability property (`STAT_ICONS`), else the ability's icon. A snapshot: rebuilt
+  after every change.
 - Strings (OVERVIEW, SKILL TREE, ABILITIES, the slot kinds, stat captions, the
   sheet's texts and block reasons) are in `Assets/Locale/strings.csv` with
   German.
@@ -1310,8 +1317,8 @@ button until the Phase 8 screens retire it.
   wiring), `test_character_detail` (stat rows, overview, level / XP / badge,
   tree mode and sheet, every tree fits 720x1280, Growth, wiring), and
   `test_grount_behaviour_nodes` checks the Grount tree on this screen (every
-  node shown, tier 4 gated until a tier-3 node is owned, bought through
-  `upgrade_requested`).
+  shown node on it, hidden ones not, Titan Form gated until Grount Lv 8, bought
+  through `upgrade_requested`).
 
 ### File Structure
 
@@ -1328,6 +1335,8 @@ res://
 │     ├─ Kit/ · Crests/ · Icons/{Abilities,Currency,Stats,Roles,Nav,UI}/
 │     ├─ Lobby/ (the lobby's campfire and lair backdrops, VS badge)
 │     └─ Shaders/ (ability_cooldown, card_locked, ready_glow)
+├─ Data/
+│  └─ SkillTrees/ (the nine skill trees, <tree_id>.tres: MetaSkillTree + node sub-resources)
 ├─ Scenes/
 │  ├─ NPCs/
 │  │  ├─ roster.tres (Roster: every playable character, GameManager.ROSTER)
@@ -1368,6 +1377,7 @@ res://
 │        ├─ ui_palette.gd (UiPalette)
 │        └─ palette.tres (generated palette values)
 ├─ Scripts/
+│  ├─ MetaSkills/ (MetaSkillManager, MetaSkillTree, MetaSkillNode; skill_tree_data_v2.gd: the trees' seed data)
 │  ├─ Progression/ (CharacterProgress: card level, XP pill, ready upgrades)
 │  ├─ Rig/ (CharacterRig, RigBody, RigProfile: SVG cut-out rigs)
 │  ├─ Roster/ (Roster, CharacterDef: the character registry)
@@ -1380,6 +1390,7 @@ res://
 └─ tools/
    ├─ art/ (Python art pipeline: palette.py, build.py, make_theme.py, ...)
    ├─ rig_builder.gd · build_rigs.gd · build_rigs.sh (SVG parts → rig sheet + body)
+   ├─ build_skill_trees.gd · build_skill_trees.sh (one-off: seed data → Data/SkillTrees)
    └─ preview/ (ThemeMockup, ThemeScreens, PaletteSheet, RigGallery, CardGrid,
                 SlotStrip proof scenes, not shipped)
 ```
@@ -1432,7 +1443,7 @@ stat, one ability property, or a behaviour key.
   linear rule (multiplicative 1 + (v-1)·r, additive v·r). Rank 1 is always
   exactly `stat_value`, the node as it was before ranks.
 - **Tier gates** (`MetaSkillTree.gate_kind`, buying rank 1 only):
-  `TIER_BELOW` (a node of the tier below is owned; today's seeded trees),
+  `TIER_BELOW` (a node of the tier below is owned; no shipped tree uses it),
   `LEVEL` (the owner's permanent level from its XP reaches
   `tier_gates[t-1]`; character trees use 1 / 3 / 5 / 8), `POINTS` (the
   ranks owned in the tree reach `tier_gates[t-1]`; base trees use
@@ -1441,6 +1452,16 @@ stat, one ability property, or a behaviour key.
 - **Gates guard buying only.** Owned nodes are never revoked: a save that owns
   a node above today's gate keeps it, it applies, and its next rank can be
   bought.
+- **Effect text.** `description` writes the effect with "{v}" for the rank's
+  value; `effect_text(rank)` fills it in: next to "%" a multiplier shows its
+  distance from 1 (1.08 -> "8", 0.8 -> "20") and an additive value is a
+  fraction (0.2 -> "20"); anywhere else the plain number ("{v}x" 1.5 -> "1.5x").
+- **Hidden** (`hidden`): a node whose effect has no code yet. It is data only:
+  not shown (`shown_nodes`, `nodes_in_tier`, `max_tier`, `capstones` leave it
+  out), not buyable (`node_state` INVALID, or UNLOCKED if a save owns it), never
+  applied, left out of `card_progress`. As a parent it neither opens nor blocks:
+  a node whose `requires` lists only hidden ids needs just its tier. The batch
+  that writes the code clears the flag in the tree's `.tres`.
 - **Capstones** (`capstone`, tier 4 of a character tree, one per branch): all
   can be bought, but only the tree's equipped capstone applies. Buying the
   first one equips it; `equip_capstone` swaps for free. A tree with no saved
@@ -1462,134 +1483,136 @@ stat, one ability property, or a behaviour key.
   `get_unlocked_skills` is its view now. The step is idempotent: an id that
   already has a rank keeps it.
 
-#### Hero Base Tree (Costs Gold)
+#### Tree content v2 (Data/SkillTrees)
 
-**Universal upgrades for ALL heroes**:
+Nine trees, one `MetaSkillTree` resource each with its nodes as sub-resources:
+`Data/SkillTrees/<tree_id>.tres`. They were generated once by
+`tools/build_skill_trees.sh` (runs `tools/build_skill_trees.gd` on a temp copy)
+from the design's seed data, `Scripts/MetaSkills/skill_tree_data_v2.gd`
+(`SkillTreeDataV2`); since then the `.tres` files ARE the trees and are edited
+in the inspector (the tool keeps an existing file unless `--force`).
+`MetaSkillManager._ready` registers `hero_base` and `monster_base`
+(`HERO_BASE_TREE`, `MONSTER_BASE_TREE`) and every roster def's `skill_tree`;
+`monster_nyxa` and `monster_gorrak` are generated but wait for their defs.
 
-**Tier 1** (0-500 Gold):
+- **Shape:** 3 branches (offense / defense / utility) x 4 tiers. Tier-1 stat
+  nodes have 5 ranks, most others 3, behaviour nodes and capstones 1. Values
+  are cumulative per rank (`rank_values`) and diminishing.
+- **Currencies and gates:** `hero_base` / `monster_base` cost Gold and open
+  tiers by ranks owned in the tree (0 / 4 / 10 / 18); `hero_<id>` cost Steel,
+  `monster_<id>` Leaves, and open tiers at the character's permanent level
+  1 / 3 / 5 / 8 (`owner_id`).
+- **Cost rows** (price of rank 1..N): S5 40/60/100/150/240, T1x3 50/90/150,
+  T1x1 200, T2x3 120/200/330, T2x1 450, T3x3 240/400/600, T3x1 750, CAP 1500;
+  base trees G1x3 40/70/110, G2x3 100/160/250, G3x2 200/320, G4x1 600,
+  G4x1b 900.
+- **Save compatibility:** all 71 v1 node ids are kept and their rank 1 is the
+  v1 effect (same key, same value), so a migrated save owns rank 1 of what it
+  bought (`test_skill_trees_v2` checks it against a frozen copy of the v1
+  seeds). Four v1 nodes never did anything and work now: `t2_trapcd` /
+  `t3_trapdur` named "Trap Cage", which Ted's ultimate was called "TED ULt"
+  until it was renamed; `i2_rallycd` (was "Rally Cry", Ted's) and `i3_dashcd`
+  (was "Dash", no such ability) are retargeted at Irelia's Divine Shield and
+  Monster Taunt cooldowns. Irelia's basic attack is named "Shield Bash"
+  (was "Unnamed Ability"). Every ability name has an EN/DE entry in
+  `strings.csv`. The F3 overlay lists the followed hero's ability copies with
+  their cooldown and tree modifiers ("Trap Cage  cd 4.00 s  tree cooldown x0.80").
+- **AI build orders** (`ai_build_order`, 12 ranks per character tree, capstone
+  last) wait for the Opponent Threat rule.
 
-- +5% Max HP
-- +5% Move Speed
-- +5% Vision Range
+Nodes, "branch: tier node (ranks)", `<-` = requires any; **[hidden]** = no
+code yet (5.3: new stat keys; 5.4: hero behaviours; 6.6: monster behaviours):
 
-**Tier 2** (500-1500 Gold):
+- **hero_base** (Might / Vitality / Tactics):
+  - Might: T1 Sharp Edge +5/8/10% damage; T2 Forged Steel +10/13/15% <- Sharp
+    Edge; T3 Battle Rhythm +15/20% attack speed; T4 Berserker +20% damage.
+  - Vitality: T1 Iron Skin +5/8/10% max HP; T2 Hardened +10/13/15%; T2 Tempered
+    Mail -4/7/10% damage taken **[hidden]**; T3 Veteran Plate +15/20%; T4 Titan
+    +25%.
+  - Tactics: T1 Light Step +5/7/9% move speed; T2 Quick Strike +10/13/15% attack
+    speed; T3 Swift Runner +15/18%; T3 Battle Drills -8/15% active and ultimate
+    cooldowns **[hidden]**; T4 Storm Blades +25% attack speed; T4 Veteran Squad
+    heroes start at level 2 **[hidden]**.
+- **monster_base** (Ferocity / Hide / Instinct):
+  - Ferocity: T1 Sharpened Claws +3/5/7% damage; T2 Brutal Strikes +15/18/20%;
+    T3 Long Reach +10/15% ability range; T4 Apex Predator +15% damage at
+    Stage 3 **[hidden]**.
+  - Hide: T1 Thicker Hide +10/13/15% max HP; T2 Scarred Hide -4/7/10% damage
+    taken **[hidden]**; T3 Apex Body +20/25%; T4 Primal Regeneration resting
+    regen x2 **[hidden]**.
+  - Instinct: T1 Faster Hunt +5/7/9% speed; T1 Bloodhound +10/15/20% XP; T2
+    Quick Evolution -10/13/15% stage XP; T3 Primal Rhythm -5/10% cooldowns
+    **[hidden]**; T4 Head Start 60 XP at the start **[hidden]**.
+- **hero_irelia** (Bulwark / Oathkeeper / Vanguard):
+  - Bulwark: T1 Reinforced Plate +8/11/14/17/20% max HP; T2 Unbreakable
+    +12/16/20%; T2 Plated -5/9/12% damage taken **[hidden]**; T3 Bulwark
+    +20/25/30%; T4 CAP Last Stand (a lethal hit once leaves 1 HP, 2 s
+    invulnerable) **[hidden]**.
+  - Oathkeeper: T1 Second Breath Regeneration heals 1.5/2/2.5x; T2 Shield
+    Cadence Divine Shield cooldown -20/28/35%; T3 Aegis Divine Shield absorbs
+    +30/60/90%; T4 CAP Guardian Angel (the shield breaks stuns) **[hidden]**.
+  - Vanguard: T1 Shield Bash +5/8/11/14/17% damage; T1 Marching Order +5/7/9%
+    speed; T2 Riposte +10/14/18% attack speed; T3 Vanguard +10/15/20% damage;
+    T3 Relentless Monster Taunt cooldown -30/38/45%; T4 CAP Rallying Taunt
+    (+25% attack speed to heroes within 250 px) **[hidden]**.
+- **hero_vlad** (Butcher / Blood / Demolition):
+  - Butcher: T1 Keen Blade +5/8/11/14/17% damage; T1 Eager Swings +5/8/11%
+    attack speed; T2 Bloodthirst +10/14/18%; T3 Executioner +20/25/30%; T4 CAP
+    Executioner's Mark (Blood Strike x2 below 25% HP) **[hidden]**.
+  - Blood: T1 Thick Blood +5/8/11/14/17% max HP; T2 Iron Heart +10/14/18%; T2
+    Deeper Thirst Bloodlust 5/10/15% HP sooner; T3 Frenzy +15/20/25% attack
+    speed; T4 CAP Sanguine Feast (Blood Strike heals 20% of its damage)
+    **[hidden]**.
+  - Demolition: T1 Black Powder Land Mine damage +20/40/60%; T2 Bigger Bomb
+    Blood Bomb radius +25/35/45%; T3 Quick Mines Land Mine cooldown -25/35/45%;
+    T4 CAP Cluster Mines (3 mines) **[hidden]**.
+- **hero_ted** (Brawler / Beastmaster / Trapper):
+  - Brawler: T1 Trail Rations +5/8/11/14/17% max HP; T2 Sharpened Snares
+    +10/14/18% damage; T2 Rapid Traps +10/14/18% attack speed; T3 Pack Leader
+    +15/20/25% max HP; T4 CAP War Cry (Rally Cry hastes heroes within 300 px)
+    **[hidden]**.
+  - Beastmaster, all **[hidden]** until the pet exports land: T1 Loyal Bond pet
+    HP +20/40/60%; T2 Sharp Fangs pet damage +20/40/60%; T3 Never Alone pet
+    respawns 30/50/65% faster; T4 CAP Pack of Two (2 pets).
+  - Trapper: T1 Long Leash +5/8/11/14/17% range; T1 Tracker's Pace +5/7/9%
+    speed; T2 Fast Traps Trap Cage cooldown -20/28/35%; T3 Sturdy Cage Trap
+    Cage duration +50/75/100% (on the ability; the cage scene takes it once 5.4
+    passes it through); T3 Far Whistle +15/20/25% range; T4 CAP Spiked Cage
+    (6 damage per second inside) **[hidden]**.
+- **hero_river** (Marksman / Field Medic / Scout):
+  - Marksman: T1 Long Scope +8/11/14/17/20% range; T2 Hollow Points +10/15/20%
+    damage; T2 Triple Shot (sniper shots hit 2 more enemies); T3 Sniper's Nest
+    +15/20/25% range; T4 CAP Deadeye (every 4th shot x2.5) **[hidden]**.
+  - Field Medic: T1 Field Dressing +5/8/11/14/17% max HP; T2 Fast Resupply
+    Supply Drop cooldown -20/28/35%; T2 Steady Hands staff heals +15/30/45%; T3
+    Field Hospital Supply Drop heals +50/75/100%; T3 Veteran Scout +15/20/25%
+    max HP; T4 CAP Chain Heal **[hidden]**.
+  - Scout: T1 Light Boots +5/7/9/11/13% speed; T2 Quick Hands +10/14/18% attack
+    speed; T3 Adrenaline Adaptive Movement boost +50/80/110%; T4 CAP Pathfinder
+    (+12% move speed for every hero) **[hidden]**.
+- **monster_grount** (Horns / Hide / Charge):
+  - Horns: T1 Heavy Horns +10/14/17/20/22% damage; T1 Wide Sweep +10/14/18%
+    ability range; T2 Quick Cleave Front Cleave cooldown -15/20/25%; T3 Titan's
+    Wrath +20/25/30%; T3 **Enrage** (below 20% HP: +30% speed and +50% on every
+    cast; ends once HP is back at 20%, by rest regen or the evolution heal); T4
+    CAP Rampage (a hero kill resets the cooldowns, heals 15%) **[hidden]**.
+  - Hide: T1 Thick Hide -3/5/7/9/10% damage taken **[hidden]**; T2 Scar Tissue
+    +15/20/25% max HP; T2 Early Slam (Ground Slam at Stage 1); T3 Wider Slam
+    Ground Slam radius +20/30/40%; T3 **Gravity Slam** (at impact, living
+    heroes, Ted's pet and mobs within 200 px are dragged to 80 px from it along
+    the nav mesh, walls stop them, then the damage lands); T4 CAP **Titan
+    Form** (Stage 3: x1.5 scale on top of the stage scale with the aggro radius
+    unchanged, +500 max HP healed on reaching Stage 3, +20 attack range, Front
+    Cleave reach and Fight leave distance).
+  - Charge: T1 Stampede +5/7/9/11/13% speed; T1 Stunning Charge (Ram Dash stuns
+    0.5 s); T2 Ravenous -10/13/15% stage XP; T3 Long Charge Ram Dash distance
+    +33/45/55%; T3 Apex Charge +15/18/21% speed; T4 CAP Trample **[hidden]**.
+- **monster_nyxa** (Hunger / Shadow / Brood) and **monster_gorrak** (Tusks /
+  Bristles / Warband): generated with the gamedesign values, registered with
+  their defs in Phase 6.
 
-- +10% Damage
-- +10% Cooldown Reduction
-- Unlock: Team XP Share (20% of nearby hero XP)
-
-**Tier 3** (1500-3000 Gold):
-
-- +15% Max HP
-- +10% Attack Speed
-- Unlock: Rally Point (Can set waypoint during round)
-
-**Tier 4** (3000+ Gold):
-
-- +20% Damage
-- Start Level 2 (skip Level 1)
-- Unlock: Retreat Command (Heroes flee when low HP)
-
-#### Individual Hero Trees (Costs Steel)
-
-**Each hero has unique tree**:
-
-**River Tree** (Example):
-
-**Tier 1**:
-
-- +50 Sniper Range (300 → 350)
-- +2 Heal Amount (9 → 11)
-- -1s Trap Cooldown
-
-**Tier 2**:
-
-- Unlock: Triple Shot (Basic attack hits 3 targets)
-- +1 Arrow in Barrage (8 → 9 arrows)
-- Trap Slows Enemies (-30% speed for 3s)
-
-**Tier 3**:
-
-- Auto-Switch Mode (swaps to heal if ally <50% HP)
-- Barrage Applies Slow (-50% speed for 2s)
-- +100% Trap Damage (15 → 30)
-
-**Tier 4**:
-
-- Ultimate: Sniper's Nest (River gains +100 range, +50% dmg when stationary)
-- Unlock: Second Passive (Choose new passive ability)
-
-**Permanent XP** (Per Hero):
-
-- Earn XP for that hero every round played
-- Unlock tree nodes at XP milestones
-- Encourages hero specialization
-
-#### Monster Base Tree (Costs Gold)
-
-**Universal for ALL monsters**:
-
-**Tier 1** (0-500 Gold):
-
-- +10% Max HP (all stages)
-- +5% Move Speed
-- +10% XP Gain from Mobs
-
-**Tier 2** (500-1500 Gold):
-
-- -10% Stage Evolution Requirements (150/400 → 135/360)
-- +15% Damage (all stages)
-- Unlock: Scent Tracking (See hero positions every 30s)
-
-**Tier 3** (1500-3000 Gold):
-
-- +20% Max HP
-- +10% Ability Range
-- Unlock: Strategic Retreat (Can flee combat at <30% HP)
-
-**Tier 4** (3000+ Gold):
-
-- Stage 4 Unlocked (Godlike final form)
-- Start Stage 2 (skip Stage 1)
-- Unlock: Mob Command (Nearby mobs fight for you)
-
-#### Individual Monster Trees (Costs Leaves)
-
-**Grount Tree** (Example):
-
-**Tier 1**:
-
-- +100 HP per Stage (800/1400/2200 → 900/1500/2300)
-- -0.5s Cleave Cooldown
-- Ram Dash Stuns (0.5s stun on hit)
-
-**Tier 2**:
-
-- Ground Slam Unlocks at Stage 1
-- +10° Cleave Cone Angle
-- Ram Dash Distance +100 (300 → 400)
-
-**Tier 3**:
-
-- Stage 2 Evolution Heal +200 HP — *wired as "Second Wind", not in the tree yet: evolution currently
-  refills HP, so +200 would heal nothing (see Evolution Mechanics)*
-- Ground Slam Pulls Enemies (200 radius pull) — **Gravity Slam**: at impact, living heroes, Ted's pet
-  and mobs within 200 px are dragged to 80 px from the impact along the nav mesh (walls stop them),
-  then the slam damage lands
-- Enrage at <20% HP (+30% speed, +50% dmg) — **Enrage**: move speed and every cast; ends as soon as
-  HP is back at 20% of max (rest regen, evolution heal)
-
-**Tier 4**:
-
-- Ultimate: Titan Form (Stage 3: +50% size, +500 HP, +20 range) — **Titan Form** (2000 Leaves): x1.5
-  scale on top of the stage-3 scale (aggro radius unchanged), +500 flat max HP (healed on reaching
-  Stage 3), +20 flat attack range, Front Cleave reach and Fight leave distance
-- Unlock: Second Ultimate Ability
-
-**Permanent XP** (Per Monster):
-
-- Separate XP per monster type
-- Specialization encouraged
+**Permanent XP** (per hero and per monster) opens a character tree's tiers:
+Lv 3, 5 and 8 take about 2, 7 and 19 matches with that character.
 
 ### Monetization (Future)
 
@@ -1708,6 +1731,7 @@ Max out hero trees → Unlock new heroes → Compete on leaderboards
 - [x] Side-aware fog/vision (playing the monster reveals for the monster)
 - [x] Performance pass: faction collision layers, EntityRegistry, TickScheduler AI LOD, HpBar2D, mob pooling
 - [x] Per-hero (Steel) and per-monster (Leaves) skill trees — stat nodes and ability-modifying nodes, applied on spawn
+- [x] Skill trees v2 as resources (`Data/SkillTrees`): 3 branches x 4 tiers, ranks, capstones, level / points gates; nodes without code yet are hidden
 - [x] First-run tutorial overlay + "How to play" button
 - [x] Versioned save file with automatic backup + migration
 - [x] Audio manager on the Master/Music/SFX buses (generated placeholder tones until real assets land in `Assets/Audio/`)
@@ -1830,8 +1854,9 @@ Max out hero trees → Unlock new heroes → Compete on leaderboards
 - [ ] Hero composition is fixed (can't choose which 4 heroes yet)
 - [ ] Monster spawn location is random within Zone 3 (should it become a strategic choice?)
 - [ ] Evolution refills the monster's HP, while this README says "new max HP - old max HP": decide
-      which rule ships (`MonsterBase.heal_to_full_on_evolution`), then seed Grount's "Second Wind"
-      (`MetaSkillManager.GROUNT_SECOND_WIND_SPEC`)
+      which rule ships (`MonsterBase.heal_to_full_on_evolution`), then add Grount's "Second Wind"
+      (`monster_stage_2_evo_heal` +200, wired and tested in `test_grount_behaviour_nodes`) to
+      `Data/SkillTrees/monster_grount.tres`
 
 ---
 

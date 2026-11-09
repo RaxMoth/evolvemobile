@@ -1,10 +1,11 @@
-[gd_resource type="Resource" script_class="CharacterDef" load_steps=6 format=3]
+[gd_resource type="Resource" script_class="CharacterDef" load_steps=7 format=3]
 
 [ext_resource type="Script" uid="uid://cgn88tt4e34c7" path="res://Scripts/Roster/character_def.gd" id="1_def"]
 [ext_resource type="Resource" uid="uid://dee3mmsm1t3fr" path="res://Scenes/NPCs/Hero/Heros/Support/Irelia/irelia_stats.tres" id="2_stats"]
 [ext_resource type="PackedScene" path="res://Assets/Characters/irelia/irelia_body.tscn" id="3_body"]
 [ext_resource type="Resource" path="res://Assets/Characters/irelia/irelia_motion.tres" id="4_motion"]
 [ext_resource type="Texture2D" uid="uid://btw3b3n7e3ji0" path="res://Assets/Characters/irelia/irelia.svg" id="5_portrait"]
+[ext_resource type="Resource" path="res://Data/SkillTrees/hero_irelia.tres" id="6_tree"]
 
 [resource]
 script = ExtResource("1_def")
@@ -19,3 +20,4 @@ rig_body = ExtResource("3_body")
 rig_profile = ExtResource("4_motion")
 portrait = ExtResource("5_portrait")
 head_region = Rect2(32, 34, 64, 64)
+skill_tree = ExtResource("6_tree")

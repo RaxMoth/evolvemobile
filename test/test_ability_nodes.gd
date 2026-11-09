@@ -21,9 +21,8 @@ func after_each() -> void:
 func test_hero_ability_node_modifies_only_that_heros_copy() -> void:
 	if not require_isolated():
 		return
-	PersistedData.add_currency(PersistedData.STEEL, 1000)
-	assert_true(MetaSkillManager.unlock(MetaSkillManager.hero_tree_id(&"vlad"), &"v1_dmg"))
-	assert_true(MetaSkillManager.unlock(MetaSkillManager.hero_tree_id(&"vlad"), &"v2_bombaoe"))
+	# Owned outright (buying through the gates is test_skill_trees_v2's job).
+	PersistedData.set_unlocked_skills(MetaSkillManager.hero_tree_id(&"vlad"), ["v1_dmg", "v2_bombaoe"])
 	var vlad := await spawn_entity(VLAD, Vector2(0, 0))
 	var abilities := vlad.get_node("AbilitySystem") as AbilitySystem
 	var ult: AbilityBase = abilities.ultimate_ability
@@ -43,11 +42,8 @@ func test_hero_ability_node_modifies_only_that_heros_copy() -> void:
 func test_monster_ability_nodes_survive_evolution() -> void:
 	if not require_isolated():
 		return
-	PersistedData.add_currency(PersistedData.LEAVES, 2000)
 	var tree := MetaSkillManager.monster_tree_id(&"grount")
-	assert_true(MetaSkillManager.unlock(tree, &"g1_dmg"))
-	assert_true(MetaSkillManager.unlock(tree, &"g2_cleavecd"))
-	assert_true(MetaSkillManager.unlock(tree, &"g3_dash"))
+	PersistedData.set_unlocked_skills(tree, ["g1_dmg", "g2_cleavecd", "g3_dash"])
 	var grount := await spawn_entity(GROUNT, Vector2(3000, 0))
 	var cleave: AbilityBase = grount.ability_1
 	var dash: AbilityBase = grount.ability_2
@@ -92,10 +88,8 @@ func test_early_slam_unlocks_ground_slam_at_stage_1() -> void:
 	assert_false(locked._slam_ready())
 	assert_false(locked._cast("ability_3", locked.ability_3, null), "a locked ability never casts")
 	locked.queue_free()
-	PersistedData.add_currency(PersistedData.LEAVES, 2000)
 	var tree := MetaSkillManager.monster_tree_id(&"grount")
-	assert_true(MetaSkillManager.unlock(tree, &"g1_stun"))
-	assert_true(MetaSkillManager.unlock(tree, &"g2_earlyslam"))
+	PersistedData.set_unlocked_skills(tree, ["g1_stun", "g2_earlyslam"])
 	var g := await spawn_frozen(GROUNT, Vector2(3000, 0))
 	var slam: AbilityBase = g.ability_3
 	assert_eq(g.current_stage, 1)
@@ -131,9 +125,10 @@ func test_triple_shot_hits_two_more_enemies_near_the_target() -> void:
 	if not require_isolated():
 		return
 	PersistedData.add_currency(PersistedData.STEEL, 1000)
+	PersistedData.add_hero_xp(&"river", 300)  # Lv 3 opens tier 2
 	var tree := MetaSkillManager.hero_tree_id(&"river")
 	assert_true(MetaSkillManager.unlock(tree, &"r1_range"))
-	assert_true(MetaSkillManager.unlock(tree, &"r2_triple"))
+	assert_true(MetaSkillManager.unlock(tree, &"r2_triple"), "tier 2, after its parent Long Scope")
 	var river := await spawn_frozen(RIVER, Vector2(0, 0))
 	var main := await spawn_frozen(BAT, Vector2(200, 0))
 	var near_a := await spawn_frozen(BAT, Vector2(260, 0))

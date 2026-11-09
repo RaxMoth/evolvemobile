@@ -1,0 +1,259 @@
+[gd_resource type="Resource" script_class="MetaSkillTree" format=3]
+
+[ext_resource type="Script" path="res://Scripts/MetaSkills/meta_skill_node.gd" id="1_y3w8h"]
+[ext_resource type="Script" path="res://Scripts/MetaSkills/meta_skill_tree.gd" id="2_7o5e4"]
+
+[sub_resource type="Resource" id="t1_hp"]
+script = ExtResource("1_y3w8h")
+id = &"t1_hp"
+display_name = "Trail Rations"
+description = "+{v}% max HP"
+cost = 40
+currency = &"steel"
+max_rank = 5
+rank_costs = Array[int]([40, 60, 100, 150, 240])
+rank_values = Array[float]([1.05, 1.08, 1.11, 1.14, 1.17])
+branch = 0
+stat_name = "max_health"
+stat_value = 1.05
+
+[sub_resource type="Resource" id="t2_dmg"]
+script = ExtResource("1_y3w8h")
+id = &"t2_dmg"
+display_name = "Sharpened Snares"
+description = "+{v}% attack damage"
+tier = 2
+cost = 120
+currency = &"steel"
+max_rank = 3
+rank_costs = Array[int]([120, 200, 330])
+rank_values = Array[float]([1.1, 1.14, 1.18])
+requires = Array[StringName]([&"t1_hp"])
+branch = 0
+stat_name = "attack_damage"
+stat_value = 1.1
+
+[sub_resource type="Resource" id="t2_atkspd"]
+script = ExtResource("1_y3w8h")
+id = &"t2_atkspd"
+display_name = "Rapid Traps"
+description = "+{v}% attack speed"
+tier = 2
+cost = 120
+currency = &"steel"
+max_rank = 3
+rank_costs = Array[int]([120, 200, 330])
+rank_values = Array[float]([1.1, 1.14, 1.18])
+requires = Array[StringName]([&"t1_hp"])
+branch = 0
+stat_name = "attack_speed"
+stat_value = 1.1
+
+[sub_resource type="Resource" id="t3_hp"]
+script = ExtResource("1_y3w8h")
+id = &"t3_hp"
+display_name = "Pack Leader"
+description = "+{v}% max HP"
+tier = 3
+cost = 240
+currency = &"steel"
+max_rank = 3
+rank_costs = Array[int]([240, 400, 600])
+rank_values = Array[float]([1.15, 1.2, 1.25])
+requires = Array[StringName]([&"t2_dmg", &"t2_atkspd"])
+branch = 0
+stat_name = "max_health"
+stat_value = 1.15
+
+[sub_resource type="Resource" id="td_warcry"]
+script = ExtResource("1_y3w8h")
+id = &"td_warcry"
+display_name = "War Cry"
+description = "Rally Cry also hastes every hero within 300 px"
+tier = 4
+cost = 1500
+currency = &"steel"
+capstone = true
+requires = Array[StringName]([&"t3_hp"])
+branch = 0
+hidden = true
+ability_name = "Rally Cry"
+stat_name = "aura_radius"
+stat_value = 300.0
+stat_multiplicative = false
+
+[sub_resource type="Resource" id="td_petvit"]
+script = ExtResource("1_y3w8h")
+id = &"td_petvit"
+display_name = "Loyal Bond"
+description = "Pet max HP +{v}%"
+cost = 50
+currency = &"steel"
+max_rank = 3
+rank_costs = Array[int]([50, 90, 150])
+rank_values = Array[float]([1.2, 1.4, 1.6])
+branch = 1
+hidden = true
+ability_name = "Loyal Companion"
+stat_name = "pet_health_mult"
+stat_value = 1.2
+
+[sub_resource type="Resource" id="td_petdmg"]
+script = ExtResource("1_y3w8h")
+id = &"td_petdmg"
+display_name = "Sharp Fangs"
+description = "Pet damage +{v}%"
+tier = 2
+cost = 120
+currency = &"steel"
+max_rank = 3
+rank_costs = Array[int]([120, 200, 330])
+rank_values = Array[float]([1.2, 1.4, 1.6])
+requires = Array[StringName]([&"td_petvit"])
+branch = 1
+hidden = true
+ability_name = "Loyal Companion"
+stat_name = "pet_damage_mult"
+stat_value = 1.2
+
+[sub_resource type="Resource" id="td_respawn"]
+script = ExtResource("1_y3w8h")
+id = &"td_respawn"
+display_name = "Never Alone"
+description = "Pet respawns {v}% faster"
+tier = 3
+cost = 240
+currency = &"steel"
+max_rank = 3
+rank_costs = Array[int]([240, 400, 600])
+rank_values = Array[float]([0.7, 0.5, 0.35])
+requires = Array[StringName]([&"td_petdmg"])
+branch = 1
+hidden = true
+ability_name = "Loyal Companion"
+stat_name = "respawn_time"
+stat_value = 0.7
+
+[sub_resource type="Resource" id="td_twin"]
+script = ExtResource("1_y3w8h")
+id = &"td_twin"
+display_name = "Pack of Two"
+description = "Ted keeps {v} pets"
+tier = 4
+cost = 1500
+currency = &"steel"
+capstone = true
+requires = Array[StringName]([&"td_respawn"])
+branch = 1
+hidden = true
+ability_name = "Loyal Companion"
+stat_name = "pet_count"
+stat_value = 2.0
+stat_multiplicative = false
+
+[sub_resource type="Resource" id="t1_range"]
+script = ExtResource("1_y3w8h")
+id = &"t1_range"
+display_name = "Long Leash"
+description = "+{v}% attack range"
+cost = 40
+currency = &"steel"
+max_rank = 5
+rank_costs = Array[int]([40, 60, 100, 150, 240])
+rank_values = Array[float]([1.05, 1.08, 1.11, 1.14, 1.17])
+branch = 2
+stat_name = "attack_range"
+stat_value = 1.05
+
+[sub_resource type="Resource" id="t1_speed"]
+script = ExtResource("1_y3w8h")
+id = &"t1_speed"
+display_name = "Tracker's Pace"
+description = "+{v}% move speed"
+cost = 50
+currency = &"steel"
+max_rank = 3
+rank_costs = Array[int]([50, 90, 150])
+rank_values = Array[float]([1.05, 1.07, 1.09])
+branch = 2
+stat_name = "move_speed"
+stat_value = 1.05
+
+[sub_resource type="Resource" id="t2_trapcd"]
+script = ExtResource("1_y3w8h")
+id = &"t2_trapcd"
+display_name = "Fast Traps"
+description = "Trap Cage cooldown -{v}%"
+tier = 2
+cost = 120
+currency = &"steel"
+max_rank = 3
+rank_costs = Array[int]([120, 200, 330])
+rank_values = Array[float]([0.8, 0.72, 0.65])
+requires = Array[StringName]([&"t1_range", &"t1_speed"])
+branch = 2
+ability_name = "Trap Cage"
+stat_name = "cooldown"
+stat_value = 0.8
+
+[sub_resource type="Resource" id="t3_trapdur"]
+script = ExtResource("1_y3w8h")
+id = &"t3_trapdur"
+display_name = "Sturdy Cage"
+description = "Trap Cage lasts +{v}%"
+tier = 3
+cost = 240
+currency = &"steel"
+max_rank = 3
+rank_costs = Array[int]([240, 400, 600])
+rank_values = Array[float]([1.5, 1.75, 2.0])
+requires = Array[StringName]([&"t2_trapcd"])
+branch = 2
+ability_name = "Trap Cage"
+stat_name = "duration"
+stat_value = 1.5
+
+[sub_resource type="Resource" id="t3_range"]
+script = ExtResource("1_y3w8h")
+id = &"t3_range"
+display_name = "Far Whistle"
+description = "+{v}% attack range"
+tier = 3
+cost = 240
+currency = &"steel"
+max_rank = 3
+rank_costs = Array[int]([240, 400, 600])
+rank_values = Array[float]([1.15, 1.2, 1.25])
+requires = Array[StringName]([&"t2_trapcd"])
+branch = 2
+stat_name = "attack_range"
+stat_value = 1.15
+
+[sub_resource type="Resource" id="td_spikes"]
+script = ExtResource("1_y3w8h")
+id = &"td_spikes"
+display_name = "Spiked Cage"
+description = "Enemies inside the cage take {v} damage per second"
+tier = 4
+cost = 1500
+currency = &"steel"
+capstone = true
+requires = Array[StringName]([&"t3_trapdur", &"t3_range"])
+branch = 2
+hidden = true
+ability_name = "Trap Cage"
+stat_name = "cage_dps"
+stat_value = 6.0
+stat_multiplicative = false
+
+[resource]
+script = ExtResource("2_7o5e4")
+id = &"hero_ted"
+display_name = "Ted — Beast Bond"
+description = "Ted's personal upgrades. Bought with Steel."
+nodes = Array[ExtResource("1_y3w8h")]([SubResource("t1_hp"), SubResource("t2_dmg"), SubResource("t2_atkspd"), SubResource("t3_hp"), SubResource("td_warcry"), SubResource("td_petvit"), SubResource("td_petdmg"), SubResource("td_respawn"), SubResource("td_twin"), SubResource("t1_range"), SubResource("t1_speed"), SubResource("t2_trapcd"), SubResource("t3_trapdur"), SubResource("t3_range"), SubResource("td_spikes")])
+branches = PackedStringArray("Brawler", "Beastmaster", "Trapper")
+gate_kind = 1
+tier_gates = Array[int]([1, 3, 5, 8])
+owner_id = &"ted"
+ai_build_order = Array[StringName]([&"t1_hp", &"td_petvit", &"t1_hp", &"t2_dmg", &"td_petdmg", &"t2_atkspd", &"t1_range", &"t2_trapcd", &"t3_hp", &"td_respawn", &"t3_trapdur", &"td_twin"])

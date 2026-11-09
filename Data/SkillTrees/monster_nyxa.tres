@@ -1,0 +1,242 @@
+[gd_resource type="Resource" script_class="MetaSkillTree" format=3]
+
+[ext_resource type="Script" path="res://Scripts/MetaSkills/meta_skill_node.gd" id="1_5h4ep"]
+[ext_resource type="Script" path="res://Scripts/MetaSkills/meta_skill_tree.gd" id="2_u6vsc"]
+
+[sub_resource type="Resource" id="ny_hp"]
+script = ExtResource("1_5h4ep")
+id = &"ny_hp"
+display_name = "Dusk Hide"
+description = "+{v}% max HP all stages"
+cost = 40
+currency = &"leaves"
+max_rank = 5
+rank_costs = Array[int]([40, 60, 100, 150, 240])
+rank_values = Array[float]([1.05, 1.08, 1.11, 1.14, 1.17])
+branch = 0
+stat_name = "monster_health_mult"
+stat_value = 1.05
+
+[sub_resource type="Resource" id="ny_leech"]
+script = ExtResource("1_5h4ep")
+id = &"ny_leech"
+display_name = "Thirst"
+description = "Sonic Screech lifesteal +{v}%"
+tier = 2
+cost = 120
+currency = &"leaves"
+max_rank = 3
+rank_costs = Array[int]([120, 200, 330])
+rank_values = Array[float]([0.1, 0.15, 0.2])
+requires = Array[StringName]([&"ny_hp"])
+branch = 0
+ability_name = "Sonic Screech"
+stat_name = "lifesteal_pct"
+stat_value = 0.1
+stat_multiplicative = false
+
+[sub_resource type="Resource" id="ny_regen"]
+script = ExtResource("1_5h4ep")
+id = &"ny_regen"
+display_name = "Night Recovery"
+description = "Resting regenerates {v}x as fast"
+tier = 3
+cost = 240
+currency = &"leaves"
+max_rank = 3
+rank_costs = Array[int]([240, 400, 600])
+rank_values = Array[float]([1.5, 2.0, 2.5])
+requires = Array[StringName]([&"ny_leech"])
+branch = 0
+hidden = true
+stat_name = "monster_regen_mult"
+stat_value = 1.5
+
+[sub_resource type="Resource" id="ny_rebirth"]
+script = ExtResource("1_5h4ep")
+id = &"ny_rebirth"
+display_name = "Vampiric Rebirth"
+description = "Once per match: at 0 HP she scatters into bats for 3 s and returns with 30% HP"
+tier = 4
+cost = 1500
+currency = &"leaves"
+capstone = true
+requires = Array[StringName]([&"ny_regen"])
+branch = 0
+hidden = true
+stat_name = "monster_rebirth"
+stat_multiplicative = false
+
+[sub_resource type="Resource" id="ny_speed"]
+script = ExtResource("1_5h4ep")
+id = &"ny_speed"
+display_name = "Silent Wings"
+description = "+{v}% move speed"
+cost = 40
+currency = &"leaves"
+max_rank = 5
+rank_costs = Array[int]([40, 60, 100, 150, 240])
+rank_values = Array[float]([1.04, 1.07, 1.1, 1.12, 1.14])
+branch = 1
+stat_name = "monster_speed_mult"
+stat_value = 1.04
+
+[sub_resource type="Resource" id="ny_swoopcd"]
+script = ExtResource("1_5h4ep")
+id = &"ny_swoopcd"
+display_name = "Swift Hunter"
+description = "Shadow Swoop cooldown -{v}%"
+tier = 2
+cost = 120
+currency = &"leaves"
+max_rank = 3
+rank_costs = Array[int]([120, 200, 330])
+rank_values = Array[float]([0.85, 0.77, 0.7])
+requires = Array[StringName]([&"ny_speed"])
+branch = 1
+ability_name = "Shadow Swoop"
+stat_name = "cooldown"
+stat_value = 0.85
+
+[sub_resource type="Resource" id="ny_swoopstun"]
+script = ExtResource("1_5h4ep")
+id = &"ny_swoopstun"
+display_name = "Disorienting Dive"
+description = "Shadow Swoop stuns for {v} s"
+tier = 2
+cost = 450
+currency = &"leaves"
+requires = Array[StringName]([&"ny_speed"])
+branch = 1
+ability_name = "Shadow Swoop"
+stat_name = "stun_duration"
+stat_value = 0.4
+stat_multiplicative = false
+
+[sub_resource type="Resource" id="ny_evo"]
+script = ExtResource("1_5h4ep")
+id = &"ny_evo"
+display_name = "Fast Maturity"
+description = "-{v}% stage XP requirements"
+tier = 3
+cost = 240
+currency = &"leaves"
+max_rank = 3
+rank_costs = Array[int]([240, 400, 600])
+rank_values = Array[float]([0.92, 0.88, 0.85])
+requires = Array[StringName]([&"ny_swoopcd", &"ny_swoopstun"])
+branch = 1
+stat_name = "monster_evo_threshold"
+stat_value = 0.92
+
+[sub_resource type="Resource" id="ny_echo"]
+script = ExtResource("1_5h4ep")
+id = &"ny_echo"
+display_name = "Echo Strike"
+description = "Shadow Swoop turns and passes through its target a second time"
+tier = 4
+cost = 1500
+currency = &"leaves"
+capstone = true
+requires = Array[StringName]([&"ny_evo"])
+branch = 1
+hidden = true
+ability_name = "Shadow Swoop"
+stat_name = "double_pass"
+stat_multiplicative = false
+
+[sub_resource type="Resource" id="ny_dmg"]
+script = ExtResource("1_5h4ep")
+id = &"ny_dmg"
+display_name = "Piercing Shriek"
+description = "+{v}% damage"
+cost = 40
+currency = &"leaves"
+max_rank = 5
+rank_costs = Array[int]([40, 60, 100, 150, 240])
+rank_values = Array[float]([1.04, 1.07, 1.1, 1.13, 1.15])
+branch = 2
+stat_name = "monster_damage_mult"
+stat_value = 1.04
+
+[sub_resource type="Resource" id="ny_cone"]
+script = ExtResource("1_5h4ep")
+id = &"ny_cone"
+display_name = "Wide Shriek"
+description = "Sonic Screech cone +{v} degrees"
+tier = 2
+cost = 120
+currency = &"leaves"
+max_rank = 3
+rank_costs = Array[int]([120, 200, 330])
+rank_values = Array[float]([8.0, 14.0, 20.0])
+requires = Array[StringName]([&"ny_dmg"])
+branch = 2
+hidden = true
+ability_name = "Sonic Screech"
+stat_name = "cone_angle"
+stat_value = 8.0
+stat_multiplicative = false
+
+[sub_resource type="Resource" id="ny_swarm"]
+script = ExtResource("1_5h4ep")
+id = &"ny_swarm"
+display_name = "Thicker Swarm"
+description = "Night Swarm radius +{v}%"
+tier = 3
+cost = 240
+currency = &"leaves"
+max_rank = 3
+rank_costs = Array[int]([240, 400, 600])
+rank_values = Array[float]([1.15, 1.25, 1.35])
+requires = Array[StringName]([&"ny_cone"])
+branch = 2
+ability_name = "Night Swarm"
+stat_name = "area_of_effect"
+stat_value = 1.15
+
+[sub_resource type="Resource" id="ny_swarmdur"]
+script = ExtResource("1_5h4ep")
+id = &"ny_swarmdur"
+display_name = "Endless Night"
+description = "Night Swarm lasts +{v}%"
+tier = 3
+cost = 240
+currency = &"leaves"
+max_rank = 3
+rank_costs = Array[int]([240, 400, 600])
+rank_values = Array[float]([1.3, 1.5, 1.7])
+requires = Array[StringName]([&"ny_cone"])
+branch = 2
+ability_name = "Night Swarm"
+stat_name = "duration"
+stat_value = 1.3
+
+[sub_resource type="Resource" id="ny_brood"]
+script = ExtResource("1_5h4ep")
+id = &"ny_brood"
+display_name = "Brood Mother"
+description = "At Stage 3 the Night Swarm never ends"
+tier = 4
+cost = 1500
+currency = &"leaves"
+capstone = true
+requires = Array[StringName]([&"ny_swarm", &"ny_swarmdur"])
+branch = 2
+hidden = true
+ability_name = "Night Swarm"
+stat_name = "permanent_from_stage"
+stat_value = 3.0
+stat_multiplicative = false
+
+[resource]
+script = ExtResource("2_u6vsc")
+id = &"monster_nyxa"
+display_name = "Nyxa — Dusk Matriarch"
+description = "Nyxa's personal upgrades. Bought with Leaves."
+nodes = Array[ExtResource("1_5h4ep")]([SubResource("ny_hp"), SubResource("ny_leech"), SubResource("ny_regen"), SubResource("ny_rebirth"), SubResource("ny_speed"), SubResource("ny_swoopcd"), SubResource("ny_swoopstun"), SubResource("ny_evo"), SubResource("ny_echo"), SubResource("ny_dmg"), SubResource("ny_cone"), SubResource("ny_swarm"), SubResource("ny_swarmdur"), SubResource("ny_brood")])
+branches = PackedStringArray("Hunger", "Shadow", "Brood")
+gate_kind = 1
+tier_gates = Array[int]([1, 3, 5, 8])
+owner_id = &"nyxa"
+ai_build_order = Array[StringName]([&"ny_hp", &"ny_dmg", &"ny_speed", &"ny_hp", &"ny_leech", &"ny_swoopcd", &"ny_cone", &"ny_evo", &"ny_swarm", &"ny_regen", &"ny_swarmdur", &"ny_brood"])

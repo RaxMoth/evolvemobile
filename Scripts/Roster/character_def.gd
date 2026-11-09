@@ -66,8 +66,9 @@ const MONSTER_ABILITY_SLOTS: Array[StringName] = [&"passive_ability", &"ability_
 ## Heroes-side quarry pool: the monster can be met once this many matches have
 ## been played (0 = from the first match). Monsters only.
 @export var opponent_after_matches: int = 0
-## The character's skill tree. Null while the trees are still seeded in code:
-## skill_tree_def() then asks MetaSkillManager for skill_tree_id().
+## The character's skill tree, Data/SkillTrees/<side>_<id>.tres; its id must be
+## skill_tree_id(). MetaSkillManager registers the tree of every roster def at
+## startup, so a character's tree is live exactly while its def is in the roster.
 @export var skill_tree: MetaSkillTree
 ## Counterplay hint for the other side (pre-round threat box).
 @export_multiline var tip: String = ""
@@ -118,9 +119,7 @@ func skill_tree_id() -> StringName:
 
 
 func skill_tree_def() -> MetaSkillTree:
-	if skill_tree != null:
-		return skill_tree
-	return MetaSkillManager.get_tree_def(skill_tree_id())
+	return skill_tree
 
 
 ## Name of evolution stage `stage` (1-based), or "" when the def has none.

@@ -17,7 +17,9 @@ func test_every_character_has_a_tree_with_the_right_currency() -> void:
 		assert_true(t != null, "tree for %s" % hero_id)
 		if t == null:
 			continue
-		assert_eq(t.max_tier(), 3)
+		assert_eq(t.max_tier(), 3, "%s: tier 4 holds only capstones, all hidden until their code lands" % hero_id)
+		assert_eq(t.owner_id, hero_id)
+		assert_eq(t.gate_kind, MetaSkillTree.GateKind.LEVEL)
 		for n in t.nodes:
 			assert_eq(n.currency, PersistedData.STEEL, "%s/%s costs Steel" % [hero_id, n.id])
 			assert_false(n.stat_name.begins_with("monster_"))
@@ -37,7 +39,7 @@ func test_hero_tree_applies_only_to_that_hero() -> void:
 		return
 	PersistedData.add_currency(PersistedData.STEEL, 1000)
 	assert_true(MetaSkillManager.unlock(MetaSkillManager.hero_tree_id(&"river"), &"r1_range"))
-	assert_eq(PersistedData.get_currency(PersistedData.STEEL), 900)
+	assert_eq(PersistedData.get_currency(PersistedData.STEEL), 960, "rank 1 costs 40")
 	var river := await spawn_entity(RIVER, Vector2(0, 0))
 	var vlad := await spawn_entity(VLAD, Vector2(3000, 0))
 	assert_eq(MetaSkillManager.hero_id_of(river), &"river")
@@ -61,5 +63,5 @@ func test_monster_tree_merges_with_base_tree() -> void:
 	var merged: Dictionary = MetaSkillManager.collect_monster_modifiers(&"grount")
 	assert_near(float(merged.get("monster_damage_mult", 1.0)), 1.10)
 	assert_near(float(merged.get("monster_speed_mult", 1.0)), 1.05)
-	assert_eq(PersistedData.get_currency(PersistedData.LEAVES), 400)
-	assert_eq(PersistedData.get_currency(PersistedData.GOLD), 400)
+	assert_eq(PersistedData.get_currency(PersistedData.LEAVES), 460, "Heavy Horns rank 1: 40 Leaves")
+	assert_eq(PersistedData.get_currency(PersistedData.GOLD), 460, "Faster Hunt rank 1: 40 Gold")

@@ -9,6 +9,7 @@ class_name DebugOverlay
 ##   • Each entity's HP bar mini-icon (red/green) above the head
 ##   • Each entity's name + state-chart state label
 ##   • Top-3 threat sources for each ally on the heroes team
+##   • The followed hero's abilities: cooldown and skill-tree modifiers
 ##
 ## Designed to be cheap when off: when invisible, _draw and _process bail
 ## immediately. When active, redraws at a throttled rate (default 10 Hz)
@@ -326,4 +327,10 @@ func _update_hud_label(active_hero: Node, heroes_team: TeamBlackboard, enemies_t
 			var t: Variant = (active_hero as EntityBase).target_entity
 			if is_instance_valid(t):
 				lines.append("  → targeting: %s" % t.name)
+		# Its own ability copies: the cooldown each starts and the skill-tree
+		# modifiers applied at spawn (MetaSkillManager).
+		var abilities := active_hero.get_node_or_null("AbilitySystem") as AbilitySystem
+		if abilities:
+			for a in abilities.all_abilities():
+				lines.append("  " + a.debug_line())
 	_hud_label.text = "\n".join(lines)

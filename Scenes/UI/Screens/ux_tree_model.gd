@@ -10,11 +10,9 @@ extends RefCounted
 ## A snapshot: rebuild it after MetaSkillManager.skills_changed or
 ## PersistedData.currency_changed (MenuRoot does, through CharacterDetail).
 ##
-## from_meta_skills() maps today's trees (one rank per node, no named branches
-## or prerequisites; a tier opens once a node of the tier below is owned) and
-## takes the gates from MetaSkillManager.is_tier_open, so the screen and the
-## shop never disagree. The ranked trees add their own adapter that fills the
-## same fields (branch names, several ranks, requires, capstones).
+## from_meta_skills() maps MetaSkillManager's ranked trees (named branches,
+## ranks, prerequisites, capstones; hidden nodes left out) and takes the gates
+## and ranks from MetaSkillManager, so the screen and the shop never disagree.
 
 enum NodeState { LOCKED, AVAILABLE, OWNED, MAXED }
 
@@ -38,6 +36,23 @@ const STAT_ICONS: Dictionary[String, String] = {
 	"monster_evo_threshold": "stat_xp", "monster_xp_mult": "stat_xp",
 	"monster_enrage": "stat_threat",
 	"unlock_stage": "stat_level",
+	# Skill trees v2 (several still hidden until their code lands).
+	"cooldown_mult": "stat_cooldown", "monster_cooldown_mult": "stat_cooldown", "respawn_time": "stat_cooldown",
+	"start_level": "stat_level", "pet_count": "stat_level",
+	"monster_start_xp": "stat_xp",
+	"monster_damage_taken_mult": "stat_armor", "cleanse_stuns": "stat_armor", "monster_cc_immune": "stat_armor",
+	"monster_regen_mult": "stat_regen", "monster_rebirth": "stat_regen",
+	"monster_s3_damage_mult": "stat_damage", "execute_threshold": "stat_damage", "crit_every": "stat_damage",
+	"pet_damage_mult": "stat_damage", "cage_dps": "stat_damage",
+	"last_stand": "stat_hp", "pet_health_mult": "stat_hp",
+	"health_threshold": "stat_threat", "monster_rampage": "stat_threat", "recruit_radius": "stat_threat",
+	"lifesteal_pct": "stat_lifesteal",
+	"extra_heal_targets": "stat_heal",
+	"boost_duration": "stat_duration", "permanent_from_stage": "stat_duration",
+	"team_speed_aura": "stat_speed",
+	"rally_radius": "stat_attack_speed", "aura_radius": "stat_attack_speed",
+	"mine_count": "stat_aoe", "trample": "stat_aoe", "cone_angle": "stat_aoe", "full_circle_from_stage": "stat_aoe",
+	"double_pass": "stat_range",
 }
 const FALLBACK_ICON := "stat_level"
 
@@ -184,12 +199,15 @@ static func icon_for(stat_key: String, ability_name: String, ability_icons: Dict
 	return load(STAT_ICON_PATH % FALLBACK_ICON) as Texture2D
 
 
-## Live adapter over today's MetaSkillManager trees: one rank per node, column
-## = the node's index inside its tier (no named branches), a lone node in the
-## top tier of a multi-tier tree is the capstone. Tier gates and ownership come
-## from MetaSkillManager (is_tier_open, is_unlocked); prices from the nodes;
-## the wallet from PersistedData. `ability_icons` (ability_name -> icon) is the
-## fallback icon of ability nodes. Null when the tree does not exist.
+## Live adapter over MetaSkillManager's trees. Columns are the tree's branches
+## (a node without one takes its index inside its tier); every shown node with
+## its owned rank, the price and effect text of each rank (cost_of_rank,
+## effect_text), its capstone flag and its prerequisites (hidden parents
+## dropped: MetaSkillManager ignores them too). Tier gates come from
+## MetaSkillManager.is_tier_open with a chip and a block reason per gate kind
+## (Lv 3 / 4 pts / Tier 2); the wallet from PersistedData. Hidden nodes are left
+## out. `ability_icons` (ability_name -> icon) is the fallback icon of ability
+## nodes. Null when the tree does not exist.
 static func from_meta_skills(p_tree_id: StringName, ability_icons: Dictionary = {}) -> UxTreeModel:
 	var t: MetaSkillTree = MetaSkillManager.get_tree_def(p_tree_id)
 	if t == null:
@@ -199,27 +217,42 @@ static func from_meta_skills(p_tree_id: StringName, ability_icons: Dictionary = 
 	m.title = t.display_name
 	m.description = t.description
 	m.tiers = t.max_tier()
-	var cols := 1
 	for tier in range(1, m.tiers + 1):
-		cols = maxi(cols, t.nodes_in_tier(tier).size())
+		# gate_for_tier says 0 (open) for tier 1; its chip shows the data's value.
+		var gate := t.gate_for_tier(tier) if tier > 1 or t.tier_gates.is_empty() else t.tier_gates[0]
 		m.tier_open.append(MetaSkillManager.is_tier_open(p_tree_id, tier))
-		m.tier_gate_text.append(TranslationServer.translate("Tier %d") % tier)
-		m.tier_block_reason.append(TranslationServer.translate("Learn a Tier %d skill first") % (tier - 1))
-	for i in cols:
-		m.branches.append("")
-	for raw in t.nodes:
-		var row := t.nodes_in_tier(raw.tier)
+		match t.gate_kind:
+			MetaSkillTree.GateKind.LEVEL:
+				m.tier_gate_text.append(TranslationServer.translate("Lv %d") % gate)
+				m.tier_block_reason.append(TranslationServer.translate("Needs Lv %d") % gate)
+			MetaSkillTree.GateKind.POINTS:
+				m.tier_gate_text.append(TranslationServer.translate("%d pts") % gate)
+				m.tier_block_reason.append(TranslationServer.translate("Needs %d points in this tree") % gate)
+			_:
+				m.tier_gate_text.append(TranslationServer.translate("Tier %d") % tier)
+				m.tier_block_reason.append(TranslationServer.translate("Learn a Tier %d skill first") % (tier - 1))
+	var cols := t.branches.size()
+	for raw in t.shown_nodes():
 		var n := TreeNodeData.new()
 		n.id = raw.id
 		n.name = raw.display_name
 		n.tier = raw.tier
-		n.branch = row.find(raw)
-		n.capstone = m.tiers > 1 and raw.tier == m.tiers and row.size() == 1
-		n.rank = 1 if MetaSkillManager.is_unlocked(p_tree_id, raw.id) else 0
-		n.rank_costs.assign([raw.cost])
-		n.rank_texts = PackedStringArray([raw.description])
+		n.branch = raw.branch if raw.branch >= 0 else t.nodes_in_tier(raw.tier).find(raw)
+		cols = maxi(cols, n.branch + 1)
+		n.capstone = raw.capstone
+		n.rank = mini(MetaSkillManager.get_rank(p_tree_id, raw.id), raw.max_rank)
+		for r in range(1, raw.max_rank + 1):
+			n.rank_costs.append(raw.cost_of_rank(r))
+			n.rank_texts.append(raw.effect_text(r))
+		for req in raw.requires:
+			var parent := t.find_node(req)
+			if parent != null and not parent.hidden:
+				n.requires.append(req)
 		n.icon = raw.icon if raw.icon != null else icon_for(raw.stat_name, raw.ability_name, ability_icons)
 		m.currency = raw.currency
 		m.add_node(n)
+	m.branches = t.branches.duplicate()
+	while m.branches.size() < cols:
+		m.branches.append("")
 	m.wallet = PersistedData.get_currency(m.currency)
 	return m

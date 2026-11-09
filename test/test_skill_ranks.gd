@@ -108,7 +108,8 @@ func test_a_rank_one_save_applies_the_pre_rank_values() -> void:
 	for tree_id: StringName in [MetaSkillManager.TREE_MONSTER_BASE, MetaSkillManager.monster_tree_id(&"grount")]:
 		var t: MetaSkillTree = MetaSkillManager.get_tree_def(tree_id)
 		var ids: Array = []
-		for n in t.nodes:
+		# Hidden nodes never apply; Titan Form is Grount's only shown capstone.
+		for n in t.shown_nodes():
 			ids.append(String(n.id))
 			if n.stat_name.is_empty() or n.is_ability_node():
 				continue
@@ -184,14 +185,11 @@ func test_signals_fire_per_rank() -> void:
 func test_ranked_stat_node_applies_to_a_spawned_hero() -> void:
 	if not require_isolated():
 		return
-	var n: MetaSkillNode = MetaSkillManager.get_tree_def(MetaSkillManager.TREE_HERO_BASE).find_node(&"t1_hp")
-	var old_max := n.max_rank
-	n.max_rank = 3
+	# Iron Skin: 3 ranks, cumulative +5 / +8 / +10 % max HP (rank_values).
 	PersistedData.set_skill_rank(MetaSkillManager.TREE_HERO_BASE, &"t1_hp", 3)
 	var vlad := await spawn_entity(VLAD, Vector2(0, 0))
 	var stats := vlad.get_node("HeroStats") as HeroStatsComponent
-	assert_near(stats.get_max_health(), stats.base_stats.base_max_health * 1.15, 0.01, "3 ranks of +5% = +15%")
-	n.max_rank = old_max
+	assert_near(stats.get_max_health(), stats.base_stats.base_max_health * 1.10, 0.01, "rank 3 applies its cumulative +10% once")
 	vlad.queue_free()
 
 

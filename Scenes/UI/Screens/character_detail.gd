@@ -305,7 +305,7 @@ func _show_ability(index: int) -> void:
 		_ability_name.text = ""
 		_ability_desc.text = ""
 		return
-	_ability_name.text = "%s  ·  %s" % [ability.ability_name, tr(SLOT_KINDS[index]).capitalize()]
+	_ability_name.text = "%s  ·  %s" % [tr(ability.ability_name), tr(SLOT_KINDS[index]).capitalize()]
 	_ability_desc.text = ability.description
 
 

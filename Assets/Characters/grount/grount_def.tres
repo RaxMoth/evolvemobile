@@ -1,10 +1,11 @@
-[gd_resource type="Resource" script_class="CharacterDef" load_steps=6 format=3]
+[gd_resource type="Resource" script_class="CharacterDef" load_steps=7 format=3]
 
 [ext_resource type="Script" uid="uid://cgn88tt4e34c7" path="res://Scripts/Roster/character_def.gd" id="1_def"]
 [ext_resource type="Resource" uid="uid://beh8ck0yckyl5" path="res://Scenes/NPCs/Monster/Grount/grount_stats.tres" id="2_stats"]
 [ext_resource type="PackedScene" path="res://Assets/Characters/grount/grount_body.tscn" id="3_body"]
 [ext_resource type="Resource" path="res://Assets/Characters/grount/grount_motion.tres" id="4_motion"]
 [ext_resource type="Texture2D" uid="uid://cbyfikert83sd" path="res://Assets/Characters/grount/grount.svg" id="5_portrait"]
+[ext_resource type="Resource" path="res://Data/SkillTrees/monster_grount.tres" id="6_tree"]
 
 [resource]
 script = ExtResource("1_def")
@@ -20,4 +21,5 @@ rig_profile = ExtResource("4_motion")
 portrait = ExtResource("5_portrait")
 head_region = Rect2(52, 37, 68, 68)
 stage_names = PackedStringArray("Bullcalf", "Rampager", "Alpha Bull")
+skill_tree = ExtResource("6_tree")
 tip = "Spread out against his Ground Slam and kite the Ram Dash. Strike before he reaches Stage 3."

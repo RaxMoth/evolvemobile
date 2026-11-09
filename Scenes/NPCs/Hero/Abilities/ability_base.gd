@@ -88,6 +88,20 @@ func _modified(prop: String, base_value: float) -> float:
 	return (base_value + float(meta_adds.get(prop, 0.0))) * float(meta_mults.get(prop, 1.0))
 
 
+## One F3 overlay line: the name, the cooldown this instance starts and the
+## skill-tree modifiers it carries ("Trap Cage  cd 4.00 s  tree cooldown x0.80").
+func debug_line() -> String:
+	var line := "%s  cd %.2f s" % [ability_name, cooldown]
+	var mods := PackedStringArray()
+	for prop: String in meta_mults:
+		mods.append("%s x%.2f" % [prop, float(meta_mults[prop])])
+	for prop: String in meta_adds:
+		mods.append("%s %+.2f" % [prop, float(meta_adds[prop])])
+	if not mods.is_empty():
+		line += "  tree " + ", ".join(mods)
+	return line
+
+
 ## Range a range-checked attack should accept: the larger of the ability's own
 ## range and the caster's effective attack range (HeroStats + skill nodes).
 ## Keeps the Fight gate (EntityBase.attack_range) and the hit check in step.

@@ -3,11 +3,12 @@ extends TestCase
 ## UxTreeModel, the one thing the skill-tree view and the detail sheet read:
 ## node states (LOCKED, AVAILABLE, OWNED, MAXED), the block reasons (closed
 ## tier, missing prerequisite, maxed), prices against the wallet, on a
-## hand-built ranked tree; and the live adapter over today's MetaSkillManager
-## trees (columns, tiers, the capstone, icons, currency), which must agree with
-## MetaSkillManager.node_state on every node of every tree, on a fresh save
-## and on a seeded one. Tests that write the save run only in the isolated
-## test user dir.
+## hand-built ranked tree; and the live adapter over MetaSkillManager's ranked
+## trees (branches, tiers and their gates, ranks, prices, effect texts,
+## prerequisites, the capstone, icons, currency; hidden nodes left out), which
+## must agree with MetaSkillManager.node_state on every node of every tree, on a
+## fresh save and on a seeded one. Tests that write the save run only in the
+## isolated test user dir.
 
 func before_each() -> void:
 	if is_isolated():
@@ -121,21 +122,26 @@ func test_live_grount_tree() -> void:
 		return
 	assert_eq(m.tree_id, tree_id)
 	assert_eq(m.title, t.display_name)
-	assert_eq(m.nodes.size(), t.nodes.size(), "every node")
+	assert_eq(m.nodes.size(), t.shown_nodes().size(), "every shown node")
+	assert_true(m.find(&"g1_hide") == null, "a hidden node is left out")
 	assert_eq(m.tiers, 4)
-	assert_eq(m.columns(), 6, "tier 3 holds six nodes")
-	assert_eq(m.branches, PackedStringArray(["", "", "", "", "", ""]), "no named branches yet")
+	assert_eq(m.columns(), 3)
+	assert_eq(m.branches, PackedStringArray(["Horns", "Hide", "Charge"]), "the tree's branches")
 	assert_eq(m.currency, PersistedData.LEAVES)
 	assert_eq(m.wallet, 0)
 	assert_eq(str(m.tier_open), str([true, false, false, false]), "a fresh save opens tier 1 only")
-	assert_eq(m.tier_gate_text[1], "Tier 2")
+	assert_eq(m.tier_gate_text, PackedStringArray(["Lv 1", "Lv 3", "Lv 5", "Lv 8"]), "Grount's level gates")
 	var capstones: Array[StringName] = []
 	for n in m.nodes:
-		assert_eq(n.max_rank(), 1, "%s: one rank" % n.id)
-		assert_eq(n.rank_costs[0], t.find_node(n.id).cost, "%s: the shop's price" % n.id)
-		assert_eq(n.effect_at(1), t.find_node(n.id).description)
+		var raw := t.find_node(n.id)
+		assert_eq(n.max_rank(), raw.max_rank, "%s: its ranks" % n.id)
+		for r in range(1, raw.max_rank + 1):
+			assert_eq(n.rank_costs[r - 1], raw.cost_of_rank(r), "%s: the shop's price of rank %d" % [n.id, r])
+			assert_eq(n.effect_at(r), raw.effect_text(r))
+		assert_false(n.effect_at(1).contains("{v}"), "%s: the value is filled in" % n.id)
 		assert_true(n.icon != null, "%s has an icon" % n.id)
-		assert_eq(n.branch, t.nodes_in_tier(n.tier).find(t.find_node(n.id)), "%s: column = index in its tier" % n.id)
+		assert_eq(n.branch, raw.branch, "%s: column = its branch" % n.id)
+		assert_eq(n.capstone, raw.capstone)
 		if n.capstone:
 			capstones.append(n.id)
 		if n.tier == 1:
@@ -144,8 +150,11 @@ func test_live_grount_tree() -> void:
 			assert_false(m.can_buy(n), "no Leaves yet")
 		else:
 			assert_eq(m.state_of(n), UxTreeModel.NodeState.LOCKED, "%s is gated" % n.id)
-			assert_eq(m.block_reason(n), "Learn a Tier %d skill first" % (n.tier - 1))
-	assert_eq(str(capstones), str([&"g4_titan"]), "the lone top node is the capstone")
+			assert_eq(m.block_reason(n), "Needs Lv %d" % t.gate_for_tier(n.tier))
+	assert_eq(str(capstones), str([&"g4_titan"]), "the only shown capstone")
+	assert_eq(m.find(&"g2_hp").requires, [] as Array[StringName], "its only parent, Thick Hide, is hidden")
+	assert_eq(m.find(&"g4_titan").requires, [&"g3_slam", &"g3_pull", &"g2_hp"] as Array[StringName])
+	assert_eq(m.find(&"g1_dmg").effect_at(2), "+14% damage")
 	assert_eq(m.find(&"g1_dmg").icon.resource_path, "res://Assets/UI/Icons/Stats/stat_damage.svg")
 	assert_eq(m.find(&"g2_cleavecd").icon.resource_path, "res://Assets/UI/Icons/Stats/stat_cooldown.svg",
 			"an ability node shows what it changes")
@@ -160,7 +169,9 @@ func test_icon_fallbacks() -> void:
 	assert_eq(UxTreeModel.icon_for("whirl", "", {}).resource_path, "res://Assets/UI/Icons/Stats/stat_level.svg")
 	for key: String in UxTreeModel.STAT_ICONS:
 		assert_true(ResourceLoader.exists(UxTreeModel.STAT_ICON_PATH % UxTreeModel.STAT_ICONS[key]), key)
-	for t: MetaSkillTree in MetaSkillManager.trees.values():
+	# Every node of the nine trees, hidden ones included.
+	for file in DirAccess.get_files_at("res://Data/SkillTrees"):
+		var t := load("res://Data/SkillTrees/" + file.trim_suffix(".remap")) as MetaSkillTree
 		for n in t.nodes:
 			assert_true(UxTreeModel.STAT_ICONS.has(n.stat_name), "%s/%s (%s) has a stat icon" % [t.id, n.id, n.stat_name])
 
@@ -174,6 +185,10 @@ func test_live_states_agree_with_the_shop() -> void:
 	PersistedData.set_unlocked_skills(MetaSkillManager.monster_tree_id(&"grount"), ["g1_dmg", "g1_speed", "g2_hp", "g3_enrage"])
 	PersistedData.set_unlocked_skills(MetaSkillManager.hero_tree_id(&"irelia"), ["i1_hp"])
 	PersistedData.set_unlocked_skills(MetaSkillManager.TREE_HERO_BASE, ["t1_hp", "t2_dmg"])
+	PersistedData.set_skill_rank(MetaSkillManager.TREE_HERO_BASE, &"t1_dmg", 3)
+	PersistedData.set_skill_rank(MetaSkillManager.TREE_HERO_BASE, &"t1_speed", 3)
+	PersistedData.add_hero_xp(&"irelia", 300)
+	PersistedData.add_monster_xp(&"grount", 1000)
 	PersistedData.add_currency(PersistedData.LEAVES, 1000)
 	PersistedData.add_currency(PersistedData.STEEL, 300)
 	PersistedData.add_currency(PersistedData.GOLD, 100)
@@ -188,18 +203,22 @@ func _assert_agree(label: String) -> void:
 			var expected: int = MetaSkillManager.node_state(tree_id, n.id)
 			var state := m.state_of(n)
 			var tag := "%s %s/%s" % [label, tree_id, n.id]
+			assert_eq(n.rank, MetaSkillManager.get_rank(tree_id, n.id), tag)
+			# An owned node below its max sells its next rank: OWNED on the screen.
+			var open_state := UxTreeModel.NodeState.OWNED if n.rank > 0 else UxTreeModel.NodeState.AVAILABLE
 			if expected == MetaSkillManager.NodeState.UNLOCKED:
 				assert_eq(state, UxTreeModel.NodeState.MAXED, tag)
-			elif expected == MetaSkillManager.NodeState.TIER_GATED:
+			elif expected in [MetaSkillManager.NodeState.TIER_GATED, MetaSkillManager.NodeState.LEVEL_GATED,
+					MetaSkillManager.NodeState.REQUIRES_MISSING]:
 				assert_eq(state, UxTreeModel.NodeState.LOCKED, tag)
 				assert_false(m.block_reason(n).is_empty(), tag)
 			elif expected == MetaSkillManager.NodeState.AVAILABLE:
-				assert_eq(state, UxTreeModel.NodeState.AVAILABLE, tag)
+				assert_eq(state, open_state, tag)
 				assert_true(m.can_buy(n), tag)
 				available += 1
 			else:
 				assert_eq(expected, MetaSkillManager.NodeState.UNAFFORDABLE, tag)
-				assert_eq(state, UxTreeModel.NodeState.AVAILABLE, tag)
+				assert_eq(state, open_state, tag)
 				assert_false(m.can_buy(n), tag)
 		assert_eq(m.buyable_count(), available, "%s %s: buyable count" % [label, tree_id])
 	for def in GameManager.ROSTER.all():

@@ -16,6 +16,8 @@ extends Resource
 
 @export var id: StringName = &""
 @export var display_name: String = "Unnamed"
+## What the node gives; "{v}" stands for the value of the rank shown
+## (effect_text): "+{v}% max HP" reads "+8% max HP" at rank 1.
 @export var description: String = ""
 @export var tier: int = 1               ## 1-4 per README. The tree's gate_kind decides when a tier opens.
 @export var cost: int = 100             ## Currency cost of rank 1.
@@ -51,6 +53,10 @@ extends Resource
 @export var branch: int = -1
 ## Column inside the tree view (0-based); -1 = auto (order within the tier).
 @export var column: int = -1
+## Not part of the game yet: its effect has no code. A hidden node is not shown,
+## cannot be bought and never applies (MetaSkillManager treats it like an id
+## the tree does not have); the batch that writes its code clears the flag.
+@export var hidden: bool = false
 
 @export_group("Ability Effect")
 ## When set, this node modifies ONE ability (matched by AbilityBase.ability_name)
@@ -82,8 +88,8 @@ static func make(
 	p_value: float,
 	p_mult: bool = true
 ) -> MetaSkillNode:
-	## Convenience builder so we can define trees in code without hand-
-	## constructing each resource. Used by MetaSkillManager._seed_*.
+	## Convenience builder for a node defined in code (tests). The shipped
+	## trees are resources: Data/SkillTrees/<tree_id>.tres.
 	var n: MetaSkillNode = MetaSkillNode.new()
 	n.id = p_id
 	n.display_name = p_name
@@ -94,23 +100,6 @@ static func make(
 	n.stat_name = p_stat
 	n.stat_value = p_value
 	n.stat_multiplicative = p_mult
-	return n
-
-
-static func make_ability(
-	p_id: StringName,
-	p_name: String,
-	p_desc: String,
-	p_tier: int,
-	p_cost: int,
-	p_currency: StringName,
-	p_ability: String,
-	p_prop: String,
-	p_value: float,
-	p_mult: bool = true
-) -> MetaSkillNode:
-	var n := make(p_id, p_name, p_desc, p_tier, p_cost, p_currency, p_prop, p_value, p_mult)
-	n.ability_name = p_ability
 	return n
 
 
@@ -146,3 +135,19 @@ func value_at_rank(rank: int) -> float:
 	if stat_multiplicative:
 		return 1.0 + (stat_value - 1.0) * r
 	return stat_value * r
+
+
+## The description at `rank` (1-based; clamped to 1..max_rank) with "{v}"
+## filled in as the screens show it. Next to "%" the value is a percentage: a
+## multiplier shows its distance from 1 (1.08 -> "8", 0.8 -> "20"), an additive
+## value is a fraction (0.2 -> "20"). Anywhere else it is the plain number
+## ("{v}x" 1.5 -> "1.5x", "{v} s" 0.5 -> "0.5 s", "{v} px" 200 -> "200 px").
+func effect_text(rank: int) -> String:
+	if not description.contains("{v}"):
+		return description
+	var v := value_at_rank(clampi(rank, 1, max_rank))
+	var shown := v
+	if description.contains("{v}%"):
+		shown = absf(v - 1.0) * 100.0 if stat_multiplicative else absf(v) * 100.0
+	# String.num keeps one zero after the point ("10.0"): whole numbers drop it.
+	return description.replace("{v}", String.num(shown, 2).trim_suffix(".0"))

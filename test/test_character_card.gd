@@ -14,9 +14,10 @@ const STAGE_CHARACTER := preload("res://Scenes/UI/Components/StageCharacter.tscn
 const NAV_BAR := preload("res://Scenes/UI/Components/NavBar.tscn")
 const TOP_BAR := preload("res://Scenes/UI/Components/TopBar.tscn")
 const LOCKED_SHADER := preload("res://Assets/UI/Shaders/card_locked.gdshader")
-## Irelia's tree: three tier-1 nodes at 100 Steel, three tier-2 nodes at 300.
-const HERO_TIER_1 := 3
-const HERO_TIER_2 := 3
+## Irelia's tree: four tier-1 nodes, rank 1 at 40 or 50 Steel (so 50 Steel
+## buys any one of them); tier 2 opens at Lv 3.
+const HERO_TIER_1 := 4
+const TIER_1_STEEL := 50
 
 
 func before_each() -> void:
@@ -97,14 +98,17 @@ func test_upgrades_ready_counts_buyable_nodes() -> void:
 	var irelia := _irelia()
 	var tree := irelia.skill_tree_id()
 	assert_eq(CharacterProgress.upgrades_ready(irelia), 0, "nothing affordable without Steel")
-	PersistedData.add_currency(PersistedData.STEEL, 100)
+	PersistedData.add_currency(PersistedData.STEEL, TIER_1_STEEL)
 	assert_eq(CharacterProgress.upgrades_ready(irelia), HERO_TIER_1, "every tier-1 node is affordable, tier 2 is gated")
 	assert_eq(CharacterProgress.upgrades_ready(_grount()), 0, "Steel buys nothing in a Leaves tree")
 	assert_true(MetaSkillManager.unlock(tree, &"i1_hp"))
-	assert_eq(CharacterProgress.upgrades_ready(irelia), 0, "the Steel is spent")
-	PersistedData.add_currency(PersistedData.STEEL, 300)
-	assert_eq(CharacterProgress.upgrades_ready(irelia), HERO_TIER_1 - 1 + HERO_TIER_2,
-			"owned nodes do not count, the opened tier 2 does")
+	assert_eq(CharacterProgress.upgrades_ready(irelia), 0, "the Steel is spent (10 left)")
+	PersistedData.add_currency(PersistedData.STEEL, 500)
+	PersistedData.add_hero_xp(&"irelia", 300)
+	# Tier 1: all four (Reinforced Plate's rank 2 included); tier 2 (Lv 3): only
+	# Unbreakable, the one whose parent (Reinforced Plate) is owned.
+	assert_eq(CharacterProgress.upgrades_ready(irelia), HERO_TIER_1 + 1,
+			"an owned node's next rank counts, and so does the opened tier 2 where its parent is owned")
 	assert_eq(CharacterProgress.upgrades_ready(_locked_def(100)), 0, "a locked character has none")
 
 
@@ -151,7 +155,7 @@ func test_normal_card_shows_level_and_xp() -> void:
 func test_upgrade_ready_card_turns_red() -> void:
 	if not require_isolated():
 		return
-	PersistedData.add_currency(PersistedData.STEEL, 100)
+	PersistedData.add_currency(PersistedData.STEEL, TIER_1_STEEL)
 	var card := _card(_irelia(), false)
 	assert_eq(card.upgrades, HERO_TIER_1)
 	assert_eq(_text(card, "PillLabel"), str(HERO_TIER_1), "the up arrow and N")

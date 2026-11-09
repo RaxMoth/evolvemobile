@@ -1,0 +1,240 @@
+[gd_resource type="Resource" script_class="MetaSkillTree" format=3]
+
+[ext_resource type="Script" path="res://Scripts/MetaSkills/meta_skill_node.gd" id="1_47ynb"]
+[ext_resource type="Script" path="res://Scripts/MetaSkills/meta_skill_tree.gd" id="2_5qcyo"]
+
+[sub_resource type="Resource" id="v1_dmg"]
+script = ExtResource("1_47ynb")
+id = &"v1_dmg"
+display_name = "Keen Blade"
+description = "+{v}% attack damage"
+cost = 40
+currency = &"steel"
+max_rank = 5
+rank_costs = Array[int]([40, 60, 100, 150, 240])
+rank_values = Array[float]([1.05, 1.08, 1.11, 1.14, 1.17])
+branch = 0
+stat_name = "attack_damage"
+stat_value = 1.05
+
+[sub_resource type="Resource" id="v1_atkspd"]
+script = ExtResource("1_47ynb")
+id = &"v1_atkspd"
+display_name = "Eager Swings"
+description = "+{v}% attack speed"
+cost = 50
+currency = &"steel"
+max_rank = 3
+rank_costs = Array[int]([50, 90, 150])
+rank_values = Array[float]([1.05, 1.08, 1.11])
+branch = 0
+stat_name = "attack_speed"
+stat_value = 1.05
+
+[sub_resource type="Resource" id="v2_dmg"]
+script = ExtResource("1_47ynb")
+id = &"v2_dmg"
+display_name = "Bloodthirst"
+description = "+{v}% attack damage"
+tier = 2
+cost = 120
+currency = &"steel"
+max_rank = 3
+rank_costs = Array[int]([120, 200, 330])
+rank_values = Array[float]([1.1, 1.14, 1.18])
+requires = Array[StringName]([&"v1_dmg", &"v1_atkspd"])
+branch = 0
+stat_name = "attack_damage"
+stat_value = 1.1
+
+[sub_resource type="Resource" id="v3_dmg"]
+script = ExtResource("1_47ynb")
+id = &"v3_dmg"
+display_name = "Executioner"
+description = "+{v}% attack damage"
+tier = 3
+cost = 240
+currency = &"steel"
+max_rank = 3
+rank_costs = Array[int]([240, 400, 600])
+rank_values = Array[float]([1.2, 1.25, 1.3])
+requires = Array[StringName]([&"v2_dmg"])
+branch = 0
+stat_name = "attack_damage"
+stat_value = 1.2
+
+[sub_resource type="Resource" id="vl_execute"]
+script = ExtResource("1_47ynb")
+id = &"vl_execute"
+display_name = "Executioner's Mark"
+description = "Blood Strike deals 2x damage to targets below 25% HP"
+tier = 4
+cost = 1500
+currency = &"steel"
+capstone = true
+requires = Array[StringName]([&"v3_dmg"])
+branch = 0
+hidden = true
+ability_name = "Blood Strike"
+stat_name = "execute_threshold"
+stat_value = 0.25
+stat_multiplicative = false
+
+[sub_resource type="Resource" id="v1_hp"]
+script = ExtResource("1_47ynb")
+id = &"v1_hp"
+display_name = "Thick Blood"
+description = "+{v}% max HP"
+cost = 40
+currency = &"steel"
+max_rank = 5
+rank_costs = Array[int]([40, 60, 100, 150, 240])
+rank_values = Array[float]([1.05, 1.08, 1.11, 1.14, 1.17])
+branch = 1
+stat_name = "max_health"
+stat_value = 1.05
+
+[sub_resource type="Resource" id="v2_hp"]
+script = ExtResource("1_47ynb")
+id = &"v2_hp"
+display_name = "Iron Heart"
+description = "+{v}% max HP"
+tier = 2
+cost = 120
+currency = &"steel"
+max_rank = 3
+rank_costs = Array[int]([120, 200, 330])
+rank_values = Array[float]([1.1, 1.14, 1.18])
+requires = Array[StringName]([&"v1_hp"])
+branch = 1
+stat_name = "max_health"
+stat_value = 1.1
+
+[sub_resource type="Resource" id="vl_lust"]
+script = ExtResource("1_47ynb")
+id = &"vl_lust"
+display_name = "Deeper Thirst"
+description = "Bloodlust kicks in {v}% HP sooner (base: below 30%)"
+tier = 2
+cost = 120
+currency = &"steel"
+max_rank = 3
+rank_costs = Array[int]([120, 200, 330])
+rank_values = Array[float]([0.05, 0.1, 0.15])
+requires = Array[StringName]([&"v1_hp"])
+branch = 1
+ability_name = "Bloodlust"
+stat_name = "health_threshold"
+stat_value = 0.05
+stat_multiplicative = false
+
+[sub_resource type="Resource" id="v3_atkspd"]
+script = ExtResource("1_47ynb")
+id = &"v3_atkspd"
+display_name = "Frenzy"
+description = "+{v}% attack speed"
+tier = 3
+cost = 240
+currency = &"steel"
+max_rank = 3
+rank_costs = Array[int]([240, 400, 600])
+rank_values = Array[float]([1.15, 1.2, 1.25])
+requires = Array[StringName]([&"v2_hp", &"vl_lust"])
+branch = 1
+stat_name = "attack_speed"
+stat_value = 1.15
+
+[sub_resource type="Resource" id="vl_leech"]
+script = ExtResource("1_47ynb")
+id = &"vl_leech"
+display_name = "Sanguine Feast"
+description = "Blood Strike heals Vlad for {v}% of its damage"
+tier = 4
+cost = 1500
+currency = &"steel"
+capstone = true
+requires = Array[StringName]([&"v3_atkspd"])
+branch = 1
+hidden = true
+ability_name = "Blood Strike"
+stat_name = "lifesteal_pct"
+stat_value = 0.2
+stat_multiplicative = false
+
+[sub_resource type="Resource" id="vl_minedmg"]
+script = ExtResource("1_47ynb")
+id = &"vl_minedmg"
+display_name = "Black Powder"
+description = "Land Mine damage +{v}%"
+cost = 50
+currency = &"steel"
+max_rank = 3
+rank_costs = Array[int]([50, 90, 150])
+rank_values = Array[float]([1.2, 1.4, 1.6])
+branch = 2
+ability_name = "Land Mine"
+stat_name = "damage"
+stat_value = 1.2
+
+[sub_resource type="Resource" id="v2_bombaoe"]
+script = ExtResource("1_47ynb")
+id = &"v2_bombaoe"
+display_name = "Bigger Bomb"
+description = "Blood Bomb radius +{v}%"
+tier = 2
+cost = 120
+currency = &"steel"
+max_rank = 3
+rank_costs = Array[int]([120, 200, 330])
+rank_values = Array[float]([1.25, 1.35, 1.45])
+requires = Array[StringName]([&"vl_minedmg"])
+branch = 2
+ability_name = "Blood Bomb"
+stat_name = "area_of_effect"
+stat_value = 1.25
+
+[sub_resource type="Resource" id="v3_minecd"]
+script = ExtResource("1_47ynb")
+id = &"v3_minecd"
+display_name = "Quick Mines"
+description = "Land Mine cooldown -{v}%"
+tier = 3
+cost = 240
+currency = &"steel"
+max_rank = 3
+rank_costs = Array[int]([240, 400, 600])
+rank_values = Array[float]([0.75, 0.65, 0.55])
+requires = Array[StringName]([&"v2_bombaoe"])
+branch = 2
+ability_name = "Land Mine"
+stat_name = "cooldown"
+stat_value = 0.75
+
+[sub_resource type="Resource" id="vl_cluster"]
+script = ExtResource("1_47ynb")
+id = &"vl_cluster"
+display_name = "Cluster Mines"
+description = "Land Mine places {v} mines in a triangle"
+tier = 4
+cost = 1500
+currency = &"steel"
+capstone = true
+requires = Array[StringName]([&"v3_minecd"])
+branch = 2
+hidden = true
+ability_name = "Land Mine"
+stat_name = "mine_count"
+stat_value = 3.0
+stat_multiplicative = false
+
+[resource]
+script = ExtResource("2_5qcyo")
+id = &"hero_vlad"
+display_name = "Vlad — Blood Rites"
+description = "Vlad's personal upgrades. Bought with Steel."
+nodes = Array[ExtResource("1_47ynb")]([SubResource("v1_dmg"), SubResource("v1_atkspd"), SubResource("v2_dmg"), SubResource("v3_dmg"), SubResource("vl_execute"), SubResource("v1_hp"), SubResource("v2_hp"), SubResource("vl_lust"), SubResource("v3_atkspd"), SubResource("vl_leech"), SubResource("vl_minedmg"), SubResource("v2_bombaoe"), SubResource("v3_minecd"), SubResource("vl_cluster")])
+branches = PackedStringArray("Butcher", "Blood", "Demolition")
+gate_kind = 1
+tier_gates = Array[int]([1, 3, 5, 8])
+owner_id = &"vlad"
+ai_build_order = Array[StringName]([&"v1_dmg", &"v1_hp", &"v1_dmg", &"v2_dmg", &"v2_hp", &"vl_lust", &"v1_hp", &"v3_dmg", &"v3_atkspd", &"vl_minedmg", &"v2_bombaoe", &"vl_leech"])

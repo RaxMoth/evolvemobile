@@ -1,0 +1,289 @@
+[gd_resource type="Resource" script_class="MetaSkillTree" format=3]
+
+[ext_resource type="Script" path="res://Scripts/MetaSkills/meta_skill_node.gd" id="1_2tthd"]
+[ext_resource type="Script" path="res://Scripts/MetaSkills/meta_skill_tree.gd" id="2_jj880"]
+
+[sub_resource type="Resource" id="g1_dmg"]
+script = ExtResource("1_2tthd")
+id = &"g1_dmg"
+display_name = "Heavy Horns"
+description = "+{v}% damage"
+cost = 40
+currency = &"leaves"
+max_rank = 5
+rank_costs = Array[int]([40, 60, 100, 150, 240])
+rank_values = Array[float]([1.1, 1.14, 1.17, 1.2, 1.22])
+branch = 0
+stat_name = "monster_damage_mult"
+stat_value = 1.1
+
+[sub_resource type="Resource" id="g1_range"]
+script = ExtResource("1_2tthd")
+id = &"g1_range"
+display_name = "Wide Sweep"
+description = "+{v}% ability range"
+cost = 50
+currency = &"leaves"
+max_rank = 3
+rank_costs = Array[int]([50, 90, 150])
+rank_values = Array[float]([1.1, 1.14, 1.18])
+branch = 0
+stat_name = "monster_range_mult"
+stat_value = 1.1
+
+[sub_resource type="Resource" id="g2_cleavecd"]
+script = ExtResource("1_2tthd")
+id = &"g2_cleavecd"
+display_name = "Quick Cleave"
+description = "Front Cleave cooldown -{v}%"
+tier = 2
+cost = 120
+currency = &"leaves"
+max_rank = 3
+rank_costs = Array[int]([120, 200, 330])
+rank_values = Array[float]([0.85, 0.8, 0.75])
+requires = Array[StringName]([&"g1_dmg", &"g1_range"])
+branch = 0
+ability_name = "Front Cleave"
+stat_name = "cooldown"
+stat_value = 0.85
+
+[sub_resource type="Resource" id="g3_dmg"]
+script = ExtResource("1_2tthd")
+id = &"g3_dmg"
+display_name = "Titan's Wrath"
+description = "+{v}% damage"
+tier = 3
+cost = 240
+currency = &"leaves"
+max_rank = 3
+rank_costs = Array[int]([240, 400, 600])
+rank_values = Array[float]([1.2, 1.25, 1.3])
+requires = Array[StringName]([&"g2_cleavecd"])
+branch = 0
+stat_name = "monster_damage_mult"
+stat_value = 1.2
+
+[sub_resource type="Resource" id="g3_enrage"]
+script = ExtResource("1_2tthd")
+id = &"g3_enrage"
+display_name = "Enrage"
+description = "Below 20% HP: +30% speed, +50% damage"
+tier = 3
+cost = 750
+currency = &"leaves"
+requires = Array[StringName]([&"g2_cleavecd"])
+branch = 0
+stat_name = "monster_enrage"
+stat_multiplicative = false
+
+[sub_resource type="Resource" id="g4_rampage"]
+script = ExtResource("1_2tthd")
+id = &"g4_rampage"
+display_name = "Rampage"
+description = "Killing a hero resets every cooldown and heals 15% max HP"
+tier = 4
+cost = 1500
+currency = &"leaves"
+capstone = true
+requires = Array[StringName]([&"g3_dmg", &"g3_enrage"])
+branch = 0
+hidden = true
+stat_name = "monster_rampage"
+stat_multiplicative = false
+
+[sub_resource type="Resource" id="g1_hide"]
+script = ExtResource("1_2tthd")
+id = &"g1_hide"
+display_name = "Thick Hide"
+description = "-{v}% damage taken"
+cost = 40
+currency = &"leaves"
+max_rank = 5
+rank_costs = Array[int]([40, 60, 100, 150, 240])
+rank_values = Array[float]([0.97, 0.95, 0.93, 0.91, 0.9])
+branch = 1
+hidden = true
+stat_name = "monster_damage_taken_mult"
+stat_value = 0.97
+
+[sub_resource type="Resource" id="g2_hp"]
+script = ExtResource("1_2tthd")
+id = &"g2_hp"
+display_name = "Scar Tissue"
+description = "+{v}% max HP all stages"
+tier = 2
+cost = 120
+currency = &"leaves"
+max_rank = 3
+rank_costs = Array[int]([120, 200, 330])
+rank_values = Array[float]([1.15, 1.2, 1.25])
+requires = Array[StringName]([&"g1_hide"])
+branch = 1
+stat_name = "monster_health_mult"
+stat_value = 1.15
+
+[sub_resource type="Resource" id="g2_earlyslam"]
+script = ExtResource("1_2tthd")
+id = &"g2_earlyslam"
+display_name = "Early Slam"
+description = "Ground Slam unlocks at Stage 1"
+tier = 2
+cost = 450
+currency = &"leaves"
+requires = Array[StringName]([&"g1_hide"])
+branch = 1
+ability_name = "Ground Slam"
+stat_name = "unlock_stage"
+stat_value = -1.0
+stat_multiplicative = false
+
+[sub_resource type="Resource" id="g3_slam"]
+script = ExtResource("1_2tthd")
+id = &"g3_slam"
+display_name = "Wider Slam"
+description = "Ground Slam radius +{v}%"
+tier = 3
+cost = 240
+currency = &"leaves"
+max_rank = 3
+rank_costs = Array[int]([240, 400, 600])
+rank_values = Array[float]([1.2, 1.3, 1.4])
+requires = Array[StringName]([&"g2_hp", &"g2_earlyslam"])
+branch = 1
+ability_name = "Ground Slam"
+stat_name = "slam_radius"
+stat_value = 1.2
+
+[sub_resource type="Resource" id="g3_pull"]
+script = ExtResource("1_2tthd")
+id = &"g3_pull"
+display_name = "Gravity Slam"
+description = "Ground Slam pulls enemies within {v} px to the impact"
+tier = 3
+cost = 750
+currency = &"leaves"
+requires = Array[StringName]([&"g2_earlyslam"])
+branch = 1
+ability_name = "Ground Slam"
+stat_name = "pull_radius"
+stat_value = 200.0
+stat_multiplicative = false
+
+[sub_resource type="Resource" id="g4_titan"]
+script = ExtResource("1_2tthd")
+id = &"g4_titan"
+display_name = "Titan Form"
+description = "Stage 3: +50% size, +500 HP, +20 range"
+tier = 4
+cost = 1500
+currency = &"leaves"
+capstone = true
+requires = Array[StringName]([&"g3_slam", &"g3_pull", &"g2_hp"])
+branch = 1
+stat_name = "monster_titan_form"
+stat_multiplicative = false
+
+[sub_resource type="Resource" id="g1_speed"]
+script = ExtResource("1_2tthd")
+id = &"g1_speed"
+display_name = "Stampede"
+description = "+{v}% move speed"
+cost = 40
+currency = &"leaves"
+max_rank = 5
+rank_costs = Array[int]([40, 60, 100, 150, 240])
+rank_values = Array[float]([1.05, 1.07, 1.09, 1.11, 1.13])
+branch = 2
+stat_name = "monster_speed_mult"
+stat_value = 1.05
+
+[sub_resource type="Resource" id="g1_stun"]
+script = ExtResource("1_2tthd")
+id = &"g1_stun"
+display_name = "Stunning Charge"
+description = "Ram Dash stuns for {v} s"
+cost = 200
+currency = &"leaves"
+branch = 2
+ability_name = "Ram Dash"
+stat_name = "stun_duration"
+stat_value = 0.5
+stat_multiplicative = false
+
+[sub_resource type="Resource" id="g2_evo"]
+script = ExtResource("1_2tthd")
+id = &"g2_evo"
+display_name = "Ravenous"
+description = "-{v}% stage XP requirements"
+tier = 2
+cost = 120
+currency = &"leaves"
+max_rank = 3
+rank_costs = Array[int]([120, 200, 330])
+rank_values = Array[float]([0.9, 0.87, 0.85])
+requires = Array[StringName]([&"g1_speed"])
+branch = 2
+stat_name = "monster_evo_threshold"
+stat_value = 0.9
+
+[sub_resource type="Resource" id="g3_dash"]
+script = ExtResource("1_2tthd")
+id = &"g3_dash"
+display_name = "Long Charge"
+description = "Ram Dash distance +{v}%"
+tier = 3
+cost = 240
+currency = &"leaves"
+max_rank = 3
+rank_costs = Array[int]([240, 400, 600])
+rank_values = Array[float]([1.33, 1.45, 1.55])
+requires = Array[StringName]([&"g1_stun", &"g2_evo"])
+branch = 2
+ability_name = "Ram Dash"
+stat_name = "dash_distance"
+stat_value = 1.33
+
+[sub_resource type="Resource" id="g3_speed"]
+script = ExtResource("1_2tthd")
+id = &"g3_speed"
+display_name = "Apex Charge"
+description = "+{v}% move speed"
+tier = 3
+cost = 240
+currency = &"leaves"
+max_rank = 3
+rank_costs = Array[int]([240, 400, 600])
+rank_values = Array[float]([1.15, 1.18, 1.21])
+requires = Array[StringName]([&"g2_evo"])
+branch = 2
+stat_name = "monster_speed_mult"
+stat_value = 1.15
+
+[sub_resource type="Resource" id="g4_stampede"]
+script = ExtResource("1_2tthd")
+id = &"g4_stampede"
+display_name = "Trample"
+description = "Ram Dash hits a 70 px wide lane and recharges twice as fast at Stage 3"
+tier = 4
+cost = 1500
+currency = &"leaves"
+capstone = true
+requires = Array[StringName]([&"g3_dash", &"g3_speed"])
+branch = 2
+hidden = true
+ability_name = "Ram Dash"
+stat_name = "trample"
+stat_multiplicative = false
+
+[resource]
+script = ExtResource("2_jj880")
+id = &"monster_grount"
+display_name = "Grount — Alpha Bull"
+description = "Grount's personal upgrades. Bought with Leaves."
+nodes = Array[ExtResource("1_2tthd")]([SubResource("g1_dmg"), SubResource("g1_range"), SubResource("g2_cleavecd"), SubResource("g3_dmg"), SubResource("g3_enrage"), SubResource("g4_rampage"), SubResource("g1_hide"), SubResource("g2_hp"), SubResource("g2_earlyslam"), SubResource("g3_slam"), SubResource("g3_pull"), SubResource("g4_titan"), SubResource("g1_speed"), SubResource("g1_stun"), SubResource("g2_evo"), SubResource("g3_dash"), SubResource("g3_speed"), SubResource("g4_stampede")])
+branches = PackedStringArray("Horns", "Hide", "Charge")
+gate_kind = 1
+tier_gates = Array[int]([1, 3, 5, 8])
+owner_id = &"grount"
+ai_build_order = Array[StringName]([&"g1_dmg", &"g1_hide", &"g1_speed", &"g1_dmg", &"g2_hp", &"g2_evo", &"g1_stun", &"g2_cleavecd", &"g3_dmg", &"g3_slam", &"g3_dash", &"g4_titan"])
