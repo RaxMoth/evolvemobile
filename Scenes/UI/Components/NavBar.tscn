@@ -1,0 +1,80 @@
+[gd_scene format=3 uid="uid://ca1qscc0pbili"]
+
+[ext_resource type="Script" uid="uid://dnfti3v4wu4r" path="res://Scenes/UI/Components/nav_bar.gd" id="1_script"]
+[ext_resource type="PackedScene" uid="uid://cbmedp78hp68w" path="res://Scenes/UI/Components/NavTab.tscn" id="2_tab"]
+[ext_resource type="PackedScene" uid="uid://dums87w2y4ag8" path="res://Scenes/UI/Components/NavArch.tscn" id="3_arch"]
+[ext_resource type="Texture2D" uid="uid://chbesl68kxox7" path="res://Assets/UI/Icons/Nav/nav_heroes.svg" id="4_heroes"]
+[ext_resource type="Texture2D" uid="uid://lje53m72ajqc" path="res://Assets/UI/Icons/Nav/nav_growth.svg" id="5_growth"]
+[ext_resource type="Texture2D" uid="uid://b1py02lvn56ai" path="res://Assets/UI/Icons/Nav/nav_codex.svg" id="6_codex"]
+[ext_resource type="Texture2D" uid="uid://bgk5hk8b80cvs" path="res://Assets/UI/Icons/Nav/nav_monsters.svg" id="7_monsters"]
+
+[node name="NavBar" type="Control"]
+custom_minimum_size = Vector2(0, 166)
+layout_mode = 3
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = -166.0
+grow_horizontal = 2
+grow_vertical = 0
+mouse_filter = 2
+script = ExtResource("1_script")
+
+[node name="Bar" type="PanelContainer" parent="."]
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = -124.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_type_variation = &"NavBar"
+
+[node name="Tabs" type="HBoxContainer" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_bottom = -6.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_constants/separation = 4
+alignment = 1
+
+[node name="TabHeroes" parent="Tabs" instance=ExtResource("2_tab")]
+layout_mode = 2
+text = "Heroes"
+icon = ExtResource("4_heroes")
+tab_id = &"heroes"
+
+[node name="TabGrowth" parent="Tabs" instance=ExtResource("2_tab")]
+layout_mode = 2
+text = "Growth"
+icon = ExtResource("5_growth")
+tab_id = &"growth"
+
+[node name="Arch" parent="Tabs" instance=ExtResource("3_arch")]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="TabCodex" parent="Tabs" instance=ExtResource("2_tab")]
+layout_mode = 2
+text = "Codex"
+icon = ExtResource("6_codex")
+tab_id = &"codex"
+
+[node name="TabMonsters" parent="Tabs" instance=ExtResource("2_tab")]
+layout_mode = 2
+text = "Monsters"
+icon = ExtResource("7_monsters")
+tab_id = &"monsters"
+
+[connection signal="chosen" from="Tabs/TabHeroes" to="." method="_on_tab_chosen"]
+[connection signal="chosen" from="Tabs/TabGrowth" to="." method="_on_tab_chosen"]
+[connection signal="chosen" from="Tabs/Arch" to="." method="_on_tab_chosen"]
+[connection signal="chosen" from="Tabs/TabCodex" to="." method="_on_tab_chosen"]
+[connection signal="chosen" from="Tabs/TabMonsters" to="." method="_on_tab_chosen"]

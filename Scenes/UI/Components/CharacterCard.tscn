@@ -1,0 +1,200 @@
+[gd_scene format=3 uid="uid://uylv5kodvef1"]
+
+[ext_resource type="Script" uid="uid://bwy67ejkviiud" path="res://Scenes/UI/Components/character_card.gd" id="1_script"]
+[ext_resource type="Script" uid="uid://wq6shkpfj8or" path="res://Scenes/UI/Widgets/rig_view.gd" id="2_rig"]
+[ext_resource type="Texture2D" uid="uid://b250ke07i0yes" path="res://Assets/UI/Kit/padlock.svg" id="3_lock"]
+[ext_resource type="Texture2D" uid="uid://684mufur33bv" path="res://Assets/UI/Icons/UI/ui_level_up.svg" id="4_up"]
+[ext_resource type="Texture2D" uid="uid://b5uxakr60rax8" path="res://Assets/UI/Icons/Currency/currency_leaves.svg" id="5_leaves"]
+[ext_resource type="Texture2D" uid="uid://dsq10cywejcyi" path="res://Assets/UI/Kit/dot_notify.svg" id="6_dot"]
+
+[node name="CharacterCard" type="Button"]
+custom_minimum_size = Vector2(160, 262)
+offset_right = 160.0
+offset_bottom = 262.0
+theme_type_variation = &"FlatButton"
+script = ExtResource("1_script")
+
+[node name="Frame" type="PanelContainer" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_type_variation = &"CharacterCard"
+
+[node name="Column" type="VBoxContainer" parent="Frame"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 3
+
+[node name="Inner" type="PanelContainer" parent="Frame/Column"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+mouse_filter = 2
+theme_type_variation = &"CardInnerHero"
+
+[node name="Portrait" type="TextureRect" parent="Frame/Column/Inner"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Rig" type="Control" parent="Frame/Column/Inner"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+script = ExtResource("2_rig")
+padding = 0.06
+
+[node name="Lock" type="TextureRect" parent="Frame/Column/Inner"]
+unique_name_in_owner = true
+visible = false
+custom_minimum_size = Vector2(54, 64)
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 4
+mouse_filter = 2
+texture = ExtResource("3_lock")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="RumourBox" type="VBoxContainer" parent="Frame/Column/Inner"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+mouse_filter = 2
+alignment = 1
+
+[node name="RumourMark" type="Label" parent="Frame/Column/Inner/RumourBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"HeaderLarge"
+theme_override_font_sizes/font_size = 72
+text = "?"
+horizontal_alignment = 1
+
+[node name="RumourText" type="Label" parent="Frame/Column/Inner/RumourBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"Caption"
+text = "Rumours in the deep jungle"
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="Level" type="Label" parent="Frame/Column/Inner"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 0
+size_flags_vertical = 8
+theme_type_variation = &"CardLevel"
+text = "Lv.1"
+
+[node name="Name" type="Label" parent="Frame/Column"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"CardName"
+text = "Name"
+horizontal_alignment = 1
+text_overrun_behavior = 3
+
+[node name="Bottom" type="MarginContainer" parent="Frame/Column"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 30)
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/margin_left = 6
+theme_override_constants/margin_top = 0
+theme_override_constants/margin_right = 6
+theme_override_constants/margin_bottom = 2
+
+[node name="Pill" type="ProgressBar" parent="Frame/Column/Bottom"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 30)
+layout_mode = 2
+mouse_filter = 2
+theme_type_variation = &"PillProgress"
+step = 1.0
+show_percentage = false
+
+[node name="PillRow" type="HBoxContainer" parent="Frame/Column/Bottom/Pill"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_constants/separation = 2
+alignment = 1
+
+[node name="UpIcon" type="TextureRect" parent="Frame/Column/Bottom/Pill/PillRow"]
+unique_name_in_owner = true
+visible = false
+custom_minimum_size = Vector2(20, 20)
+layout_mode = 2
+size_flags_vertical = 4
+mouse_filter = 2
+texture = ExtResource("4_up")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="PillLabel" type="Label" parent="Frame/Column/Bottom/Pill/PillRow"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"PillText"
+theme_override_font_sizes/font_size = 18
+text = "0/100"
+vertical_alignment = 1
+
+[node name="Price" type="PanelContainer" parent="Frame/Column/Bottom"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+mouse_filter = 2
+theme_type_variation = &"Pill"
+
+[node name="PriceRow" type="HBoxContainer" parent="Frame/Column/Bottom/Price"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 4
+alignment = 1
+
+[node name="PriceIcon" type="TextureRect" parent="Frame/Column/Bottom/Price/PriceRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(24, 24)
+layout_mode = 2
+size_flags_vertical = 4
+mouse_filter = 2
+texture = ExtResource("5_leaves")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="PriceLabel" type="Label" parent="Frame/Column/Bottom/Price/PriceRow"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"Counter"
+text = "0"
+vertical_alignment = 1
+
+[node name="Dot" type="TextureRect" parent="."]
+unique_name_in_owner = true
+visible = false
+custom_minimum_size = Vector2(26, 26)
+layout_mode = 0
+offset_left = 142.0
+offset_top = -8.0
+offset_right = 168.0
+offset_bottom = 18.0
+mouse_filter = 2
+texture = ExtResource("6_dot")
+expand_mode = 1
+stretch_mode = 5
+
+[connection signal="button_down" from="." to="." method="_on_button_down"]
+[connection signal="button_up" from="." to="." method="_on_button_up"]
+[connection signal="pressed" from="." to="." method="_on_pressed"]

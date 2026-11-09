@@ -1,0 +1,151 @@
+[gd_scene format=3 uid="uid://dums87w2y4ag8"]
+
+[ext_resource type="Script" uid="uid://bsysru07hwe2y" path="res://Scenes/UI/Components/nav_arch.gd" id="1_script"]
+[ext_resource type="Texture2D" uid="uid://b6mtftrjmd783" path="res://Assets/UI/Icons/Nav/nav_hunt.svg" id="2_hunt"]
+[ext_resource type="Texture2D" uid="uid://dsq10cywejcyi" path="res://Assets/UI/Kit/dot_notify.svg" id="3_dot"]
+
+[sub_resource type="Gradient" id="glow_gradient"]
+offsets = PackedFloat32Array(0, 0.55, 1)
+colors = PackedColorArray(1, 1, 1, 0.9, 1, 1, 1, 0.35, 1, 1, 1, 0)
+
+[sub_resource type="GradientTexture2D" id="glow_texture"]
+gradient = SubResource("glow_gradient")
+width = 128
+height = 128
+fill = 1
+fill_from = Vector2(0.5, 0.5)
+fill_to = Vector2(0.5, 0)
+
+[sub_resource type="CanvasItemMaterial" id="glow_add"]
+blend_mode = 1
+
+[sub_resource type="Animation" id="Animation_reset"]
+length = 0.001
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Glow:self_modulate")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Color(1, 1, 1, 0.75)]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("Icon:scale")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Vector2(1, 1)]
+}
+
+[sub_resource type="Animation" id="Animation_idle"]
+resource_name = "idle"
+length = 1.8
+loop_mode = 1
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Glow:self_modulate")
+tracks/0/interp = 2
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.9, 1.8),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 0,
+"values": [Color(1, 1, 1, 0.55), Color(1, 1, 1, 1), Color(1, 1, 1, 0.55)]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("Icon:scale")
+tracks/1/interp = 2
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0, 0.9, 1.8),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 0,
+"values": [Vector2(1, 1), Vector2(1.06, 1.06), Vector2(1, 1)]
+}
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_arch"]
+_data = {
+&"RESET": SubResource("Animation_reset"),
+&"idle": SubResource("Animation_idle")
+}
+
+[node name="NavArch" type="Button"]
+custom_minimum_size = Vector2(156, 160)
+offset_right = 156.0
+offset_bottom = 160.0
+size_flags_vertical = 8
+theme_type_variation = &"NavArch"
+toggle_mode = true
+script = ExtResource("1_script")
+tab_id = &"hunt"
+
+[node name="Glow" type="TextureRect" parent="."]
+unique_name_in_owner = true
+self_modulate = Color(1, 1, 1, 0.75)
+material = SubResource("glow_add")
+layout_mode = 0
+offset_left = 30.0
+offset_top = 36.0
+offset_right = 126.0
+offset_bottom = 140.0
+mouse_filter = 2
+texture = SubResource("glow_texture")
+expand_mode = 1
+
+[node name="Icon" type="TextureRect" parent="."]
+layout_mode = 0
+offset_left = 46.0
+offset_top = 42.0
+offset_right = 110.0
+offset_bottom = 106.0
+pivot_offset = Vector2(32, 32)
+mouse_filter = 2
+texture = ExtResource("2_hunt")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Caption" type="Label" parent="."]
+layout_mode = 0
+offset_left = 16.0
+offset_top = 104.0
+offset_right = 140.0
+offset_bottom = 142.0
+theme_type_variation = &"NavLabel"
+theme_override_font_sizes/font_size = 22
+text = "HUNT"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Dot" type="TextureRect" parent="."]
+visible = false
+layout_mode = 0
+offset_left = 118.0
+offset_top = 6.0
+offset_right = 142.0
+offset_bottom = 30.0
+mouse_filter = 2
+texture = ExtResource("3_dot")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="."]
+libraries = {
+&"": SubResource("AnimationLibrary_arch")
+}
+autoplay = &"idle"
+
+[connection signal="button_down" from="." to="." method="_on_button_down"]
+[connection signal="button_up" from="." to="." method="_on_button_up"]
+[connection signal="pressed" from="." to="." method="_on_pressed"]

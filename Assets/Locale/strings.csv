@@ -78,3 +78,9 @@ Start Match,Start Match,Partie starten
 Individual hero upgrades (Steel),Individual hero upgrades (Steel),Individuelle Helden-Verbesserungen (Stahl)
 Individual monster upgrades (Leaves),Individual monster upgrades (Leaves),Individuelle Monster-Verbesserungen (Blätter)
 "Ultimates fire at %d+ enemies or when an ally drops below %d%% HP. Mob camps weigh %d vs. 100 for the monster. New targets every %.1f s, scanning %d px ahead, %d px apart.","Ultimates fire at %d+ enemies or when an ally drops below %d%% HP. Mob camps weigh %d vs. 100 for the monster. New targets every %.1f s, scanning %d px ahead, %d px apart.","Ultimates ab %d+ Gegnern oder wenn ein Verbündeter unter %d%% LP fällt. Mob-Lager zählen %d gegenüber 100 für das Monster. Neue Ziele alle %.1f s, %d px voraus gescannt, %d px Abstand."
+Heroes,Heroes,Helden
+Growth,Growth,Wachstum
+HUNT,HUNT,JAGD
+Codex,Codex,Kodex
+Monsters,Monsters,Monster
+Rumours in the deep jungle,Rumours in the deep jungle,Gerüchte aus dem tiefen Dschungel

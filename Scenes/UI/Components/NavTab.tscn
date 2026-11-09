@@ -1,0 +1,36 @@
+[gd_scene format=3 uid="uid://cbmedp78hp68w"]
+
+[ext_resource type="Script" uid="uid://dvgvslloc8d3y" path="res://Scenes/UI/Components/nav_tab.gd" id="1_script"]
+[ext_resource type="Texture2D" uid="uid://dsq10cywejcyi" path="res://Assets/UI/Kit/dot_notify.svg" id="2_dot"]
+
+[node name="NavTab" type="Button"]
+custom_minimum_size = Vector2(124, 112)
+offset_right = 124.0
+offset_bottom = 112.0
+size_flags_vertical = 8
+theme_type_variation = &"NavPlaque"
+toggle_mode = true
+icon_alignment = 1
+vertical_icon_alignment = 0
+expand_icon = true
+script = ExtResource("1_script")
+
+[node name="Dot" type="TextureRect" parent="."]
+visible = false
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -22.0
+offset_top = -6.0
+offset_right = 2.0
+offset_bottom = 18.0
+grow_horizontal = 0
+mouse_filter = 2
+texture = ExtResource("2_dot")
+expand_mode = 1
+stretch_mode = 5
+
+[connection signal="button_down" from="." to="." method="_on_button_down"]
+[connection signal="button_up" from="." to="." method="_on_button_up"]
+[connection signal="pressed" from="." to="." method="_on_pressed"]

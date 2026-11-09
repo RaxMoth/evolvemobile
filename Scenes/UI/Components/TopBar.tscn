@@ -1,0 +1,55 @@
+[gd_scene format=3 uid="uid://da4ubvm6y0cvg"]
+
+[ext_resource type="Script" uid="uid://ddmnhfo8c1ba3" path="res://Scenes/UI/Components/top_bar.gd" id="1_script"]
+[ext_resource type="Texture2D" uid="uid://copfu63v7j3qw" path="res://Assets/UI/Icons/UI/ui_back.svg" id="2_back"]
+[ext_resource type="PackedScene" uid="uid://ctafef2d3thl" path="res://Scenes/UI/Components/CurrencyChip.tscn" id="3_chip"]
+
+[node name="TopBar" type="MarginContainer"]
+custom_minimum_size = Vector2(0, 92)
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 92.0
+grow_horizontal = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 8
+script = ExtResource("1_script")
+
+[node name="Row" type="HBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Left" type="Button" parent="Row"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(64, 68)
+layout_mode = 2
+size_flags_vertical = 4
+theme_type_variation = &"ButtonRound"
+icon = ExtResource("2_back")
+icon_alignment = 1
+expand_icon = true
+
+[node name="Title" type="Label" parent="Row"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"HeaderSmall"
+vertical_alignment = 1
+text_overrun_behavior = 3
+
+[node name="Gold" parent="Row" instance=ExtResource("3_chip")]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="Steel" parent="Row" instance=ExtResource("3_chip")]
+unique_name_in_owner = true
+layout_mode = 2
+currency = "steel"
+
+[node name="Leaves" parent="Row" instance=ExtResource("3_chip")]
+unique_name_in_owner = true
+layout_mode = 2
+currency = "leaves"
+
+[connection signal="pressed" from="Row/Left" to="." method="_on_left_pressed"]

@@ -881,6 +881,77 @@ entity registers it and draws from the global RNG).
   `Assets/Characters/<id>/` rig (`src/` + `tools/build_rigs.sh`); a
   `<id>_def.tres` added to `roster.tres`; and its `monster_<id>` skill tree.
 
+### Menu Component Kit (cards, rigs, top bar, nav bar)
+
+The building blocks of the Phase 3 menu screens (lobby, roster, character
+detail). They read the roster and the save, never write them, and take every
+colour from the theme or `UiPalette`. Signals are wired scene-side; the only
+code connections are to autoloads (`PersistedData.currency_changed`).
+
+- **`CharacterProgress`** (`Scripts/Progression/character_progress.gd`, static
+  helpers over a `CharacterDef`): `xp`, `progress` / `level` / `xp_into` /
+  `xp_needed` on the one XP curve of `PersistedData.level_progress` (levels
+  come from XP alone, nothing buys them), `upgrades_ready` (nodes of the
+  character's own tree that `MetaSkillManager` reports AVAILABLE: tier open and
+  affordable now) and `is_unlocked` (`unlocked_by_default` until the monster
+  unlock flow adds bought characters).
+- **`CharacterCard.tscn`** (`CharacterCard`, a Button): the collection card.
+  Size presets S 150x238 (pickers, the pre-round squad), M 160x262 (the
+  4-column grid) and L 280x446 (the quarry card) scale layout and type from
+  the M design. Frame `CharacterCard` (heroes), `CharacterCardMonster`,
+  `CharacterCardSelected` (`selected`, pickers) or `CharacterCardLocked`; inner
+  panel `CardInnerHero` / `CardInnerMonster` / `CardInnerLocked`. The art is the
+  live rig (`RigView`) or, with `animated = false` for big grids, the static
+  portrait. "Lv.N" (CardLevel) sits on the panel's bottom-left, the name under
+  it, then the pill:
+    - `PillProgress` "into/needed": XP toward the next level;
+    - `PillProgressReady` with the up arrow and N, plus the red notify dot:
+      N skill ranks can be bought now;
+    - locked: the portrait through `card_locked.gdshader`, the padlock, the name
+      "???", no level or pill, and a price chip in the currency's colour when
+      `unlock_cost` > 0;
+    - `rumour`: the one "???" slot each side ends with ("Rumours in the deep
+      jungle", no character).
+  `refresh()` re-reads the save (screens call it on currency or skill
+  changes); `apply_progress()` shows given numbers (previews, tests).
+  `card_pressed(character)` (null for the rumour card).
+- **`RigView`** (`Scenes/UI/Widgets/rig_view.gd`): a character's `CharacterRig`
+  in puppet mode inside a Control (always awake, facing right): the body's
+  bounds, raised by a flyer's hover or a walker's bounce, fitted and centred
+  with `padding`, feet on the bottom edge, plus the match's contact shadow.
+  `stage`, `flip`, `walk_speed`, `play_move()`, `play_hurt()`, `silhouette`
+  (multiplied down to `locked_fill`) and `animated = false` (posed once, never
+  processed). Its taps go to the parent.
+- **`StageCharacter.tscn`**: a tappable RigView standing on a menu stage with a
+  squash-and-bob idle on top of the rig's breathing and `cheer(delay)` (a hop
+  with a bounce landing). Period (`bob_period` x 0.85-1.2) and phase come from
+  a private RandomNumberGenerator seeded by `hash(name) ^ hash(path)`, so a
+  stage looks the same every launch and the global RNG is never touched.
+  Locked characters stand as a silhouette under a padlock.
+  `character_pressed(character)`.
+- **`TopBar.tscn`**: a round left button (`left_icon`, `left_pressed`), the
+  title, and the `CurrencyChip`s the screen's side shows (`show_gold`,
+  `show_steel`, `show_leaves`; `chip(currency)`).
+- **`CurrencyChip.tscn`**: currency icon and amount ("1,840",
+  `format_amount`), live from `PersistedData.currency_changed` with a pop;
+  `preview_amount` pins a sample.
+- **`NavBar.tscn`**: Heroes | Growth | HUNT | Codex | Monsters. Carved
+  `NavPlaque` plaques (`NavTab.tscn`) and the mossy-stone `NavArch`
+  (`NavArch.tscn`, the lobby), toggle buttons in one ButtonGroup per bar.
+  `active_tab`, `tab_selected(tab_id)`, `notify_tabs` / `set_notify()` (red
+  dots) and `monster_side`: the arch's additive glow is `amber` on the hero
+  side and `monster` crimson on the monster side, pulsing through the scene's
+  AnimationPlayer.
+- **Press feedback** (`PressFeedback`): cards, stage characters and nav tabs
+  shrink to 0.95 while held and spring back with a 0.09 s TRANS_BACK tween.
+- `test/test_character_card.gd` covers the progress numbers, the card states
+  (normal, upgrade-ready, locked-purchasable, rumour, monster, selected) with
+  their pill text and variations, the size presets, the RigView fit, flip and
+  silhouette, the stage idle and cheer, the global RNG left untouched, the nav
+  bar's group and notify API, and the chips. `tools/preview/CardGrid.tscn`
+  renders the grid and nav (default page) and the L / S cards and stage
+  characters (`-- --page=sizes`) from sample numbers, never the save.
+
 ### File Structure
 
 ```
@@ -919,11 +990,15 @@ res://
 │  └─ UI/
 │     ├─ MainMenu.tscn
 │     ├─ HeroContainer/
+│     ├─ Components/ (menu kit: CharacterCard, StageCharacter, TopBar,
+│     │               CurrencyChip, NavBar, NavTab, NavArch, PressFeedback)
+│     ├─ Widgets/ (rig_view.gd: RigView, a puppet rig inside a Control)
 │     └─ Theme/
 │        ├─ ui_theme.tres (generated project Theme, gui/theme/custom)
 │        ├─ ui_palette.gd (UiPalette)
 │        └─ palette.tres (generated palette values)
 ├─ Scripts/
+│  ├─ Progression/ (CharacterProgress: card level, XP pill, ready upgrades)
 │  ├─ Rig/ (CharacterRig, RigBody, RigProfile: SVG cut-out rigs)
 │  ├─ Roster/ (Roster, CharacterDef: the character registry)
 │  └─ Systems/
@@ -933,7 +1008,8 @@ res://
 └─ tools/
    ├─ art/ (Python art pipeline: palette.py, build.py, make_theme.py, ...)
    ├─ rig_builder.gd · build_rigs.gd · build_rigs.sh (SVG parts → rig sheet + body)
-   └─ preview/ (ThemeMockup, ThemeScreens, PaletteSheet, RigGallery proof scenes, not shipped)
+   └─ preview/ (ThemeMockup, ThemeScreens, PaletteSheet, RigGallery, CardGrid
+                proof scenes, not shipped)
 ```
 
 ---

@@ -1,0 +1,59 @@
+[gd_scene format=3 uid="uid://b4wggremdqavp"]
+
+[ext_resource type="Script" uid="uid://13tfljd5va1j" path="res://Scenes/UI/Components/stage_character.gd" id="1_script"]
+[ext_resource type="Script" uid="uid://wq6shkpfj8or" path="res://Scenes/UI/Widgets/rig_view.gd" id="2_rig"]
+[ext_resource type="Texture2D" uid="uid://b250ke07i0yes" path="res://Assets/UI/Kit/padlock.svg" id="3_lock"]
+
+[node name="StageCharacter" type="Button"]
+custom_minimum_size = Vector2(120, 160)
+offset_right = 190.0
+offset_bottom = 250.0
+theme_type_variation = &"FlatButton"
+script = ExtResource("1_script")
+
+[node name="Hop" type="Control" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Rig" type="Control" parent="Hop"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("2_rig")
+padding = 0.04
+
+[node name="Lock" type="TextureRect" parent="Hop"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.5
+anchor_top = 0.55
+anchor_right = 0.5
+anchor_bottom = 0.55
+offset_left = -30.0
+offset_top = -36.0
+offset_right = 30.0
+offset_bottom = 36.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+texture = ExtResource("3_lock")
+expand_mode = 1
+stretch_mode = 5
+
+[connection signal="button_down" from="." to="." method="_on_button_down"]
+[connection signal="button_up" from="." to="." method="_on_button_up"]
+[connection signal="pressed" from="." to="." method="_on_pressed"]
+[connection signal="resized" from="Hop/Rig" to="." method="_on_rig_resized"]
