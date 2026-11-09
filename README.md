@@ -1554,6 +1554,16 @@ the expiry timer), so Sturdy Cage lengthens it; `ted_ultimate.tres` now says
 6 s, the cage's own default that every cage used while the ability's 2 s
 arrived too late.
 
+Balance check (`SAVE=<save.cfg> tools/sim.sh 24 heroes 6`: every match starts
+from that save; 5.4, against a fresh-save Grount). A fresh save: heroes win 33%.
+Only the four capstones of one branch, equipped: branch 0 (Last Stand,
+Executioner's Mark, War Cry, Deadeye) 50%, branch 1 (Guardian Angel, Sanguine
+Feast, Pack of Two, Chain Heal) 71%, branch 2 (Rallying Taunt, Cluster Mines,
+Spiked Cage, Pathfinder) 42%; Pathfinder brings the first hero-monster contact
+from about 400 s to 81 s. All four hero trees fully ranked: 92% with any
+branch's capstones and 92% without one. The trees, not the capstones, decide
+that matchup until the AI monster gets its build from Opponent Threat (6.8).
+
 Haste rule (`HeroBase.apply_attack_speed_boost`, Rally Cry and the
 capstones above): a weaker boost never replaces a stronger one that is still
 running; an equal or stronger one restarts it. The F3 overlay's ability lines
