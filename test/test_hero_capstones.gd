@@ -13,6 +13,7 @@ const HOG := "res://Scenes/NPCs/Mob/Mobs/Hog/Hog.tscn"
 const IRELIA_TREE := &"hero_irelia"
 const VLAD_TREE := &"hero_vlad"
 const TED_TREE := &"hero_ted"
+const RIVER_TREE := &"hero_river"
 
 ## [tree, node, ability, export, the export's off value] of every node that
 ## reaches a hero's ability through an export of its own.
@@ -29,6 +30,9 @@ const NODES: Array = [
 	[&"hero_ted", &"td_respawn", "Loyal Companion", "respawn_time", 10.0],
 	[&"hero_ted", &"td_twin", "Loyal Companion", "pet_count", 1],
 	[&"hero_ted", &"td_spikes", "Trap Cage", "cage_dps", 0.0],
+	[&"hero_river", &"rv_deadeye", "Adaptive Weapon", "crit_every", 0],
+	[&"hero_river", &"rv_chain", "Adaptive Weapon", "extra_heal_targets", 0],
+	[&"hero_river", &"rv_pathfinder", "Adaptive Movement", "team_speed_aura", 1.0],
 ]
 
 
@@ -522,3 +526,126 @@ func test_sturdy_cage_makes_the_cage_last_longer() -> void:
 	await wait_seconds(2.8)
 	assert_false(is_instance_valid(cage) and cage.cage_active, "open after 9 s")
 	_free([ted, cage])
+
+
+# ---------------------------------------------------------------- River
+
+func _river_kit(river: Node) -> RiverBasicAttack:
+	return _abilities(river).basic_attack as RiverBasicAttack
+
+
+## Sets `hero` to `fraction` of its max HP.
+func _hurt_to(hero: HeroBase, fraction: float) -> void:
+	hero.stats.take_damage(hero.get_health() - hero.get_max_health() * fraction)
+
+
+## A fresh save: every sniper shot alike, a staff heal heals one hero, and
+## River changes nobody's move speed.
+func test_rivers_exports_are_off_on_a_fresh_save() -> void:
+	if not require_isolated():
+		return
+	var river := await _hero(RIVER, Vector2.ZERO)
+	var vlad := await _hero(VLAD, Vector2(100, 0))
+	var irelia := await _hero(IRELIA, Vector2(200, 0))
+	var hog := await _hog(Vector2(0, 200))
+	var shot := _river_kit(river)
+	assert_eq(shot.crit_every, 0)
+	assert_eq(shot.extra_heal_targets, 0)
+	assert_eq((_abilities(river).passive_ability as RiverPassiveAdaptive).team_speed_aura, 1.0)
+	assert_eq(vlad.move_speed, vlad.stats.get_move_speed(), "no aura")
+	assert_eq(vlad.team_move_speed_aura(), 1.0)
+	var hits: Array[float] = []
+	var listener := func(p: DamagePacket) -> void:
+		if p.source == river:
+			hits.append(p.amount)
+	EventBus.damage_applied.connect(listener)
+	for i in 4:
+		shot.execute(river, hog)
+	EventBus.damage_applied.disconnect(listener)
+	assert_eq(hits, [12.0, 12.0, 12.0, 12.0] as Array[float], "no Deadeye")
+	_hurt_to(vlad, 0.5)
+	_hurt_to(irelia, 0.3)
+	var irelia_hp: float = irelia.get_health()
+	_abilities(river).active_ability.execute(river)
+	shot.execute(river, vlad)
+	assert_near(vlad.get_health(), vlad.get_max_health() * 0.5 + shot.heal_amount, 0.0001, "the staff heals Vlad")
+	assert_near(irelia.get_health(), irelia_hp, 0.05, "and nobody else (only her own regen)")
+	_free([river, vlad, irelia, hog])
+
+
+## Deadeye: every 4th sniper shot deals x2.5, Triple Shot's extra targets
+## included; the count lives on River's own copy.
+func test_deadeye_makes_every_4th_sniper_shot_deal_2_5x() -> void:
+	if not require_isolated():
+		return
+	_own(RIVER_TREE, &"rv_deadeye")
+	var river := await _hero(RIVER, Vector2.ZERO)
+	var hog := await _hog(Vector2(0, 200))
+	var shot := _river_kit(river)
+	assert_eq(shot.crit_every, 4)
+	var hits: Array[float] = []
+	var listener := func(p: DamagePacket) -> void:
+		if p.source == river:
+			hits.append(p.amount)
+	EventBus.damage_applied.connect(listener)
+	for i in 5:
+		shot.execute(river, hog)
+	EventBus.damage_applied.disconnect(listener)
+	assert_eq(hits, [12.0, 12.0, 12.0, 30.0, 12.0] as Array[float])
+	assert_true(shot.debug_line().ends_with("deadeye 1/4"), shot.debug_line())
+	_free([river, hog])
+
+
+## Chain Heal: a staff heal also heals the most hurt other hero within
+## 160 px of the healed one; never River, never one further out.
+func test_chain_heal_also_heals_the_most_hurt_ally_nearby() -> void:
+	if not require_isolated():
+		return
+	_own(RIVER_TREE, &"rv_chain")
+	var river := await _hero(RIVER, Vector2.ZERO)
+	var vlad := await _hero(VLAD, Vector2(100, 0))
+	var irelia := await _hero(IRELIA, Vector2(200, 0))
+	var ted := await _hero(TED, Vector2(100, 120))
+	var far := await _hero(VLAD, Vector2(100, 400))
+	var shot := _river_kit(river)
+	assert_eq(shot.extra_heal_targets, 1)
+	_hurt_to(river, 0.2)
+	_hurt_to(vlad, 0.5)
+	_hurt_to(irelia, 0.3)
+	_hurt_to(ted, 0.8)
+	_hurt_to(far, 0.1)
+	var before: Dictionary = {}
+	for h: HeroBase in [river, irelia, ted, far]:
+		before[h] = h.get_health()
+	_abilities(river).active_ability.execute(river)
+	shot.execute(river, vlad)
+	var heal: float = shot.heal_amount
+	assert_near(vlad.get_health(), vlad.get_max_health() * 0.5 + heal, 0.0001, "the target")
+	assert_near(irelia.get_health(), float(before[irelia]) + heal, 0.05, "the most hurt ally within 160 px")
+	assert_near(ted.get_health(), float(before[ted]), 0.0001, "less hurt: not chained")
+	assert_near(far.get_health(), float(before[far]), 0.0001, "300 px away")
+	assert_near(river.get_health(), float(before[river]), 0.0001, "never River herself")
+	_free([river, vlad, irelia, ted, far])
+
+
+## Pathfinder: while River lives every hero moves 12% faster (River too);
+## it ends when she dies.
+func test_pathfinder_speeds_up_every_hero_while_river_lives() -> void:
+	if not require_isolated():
+		return
+	_own(RIVER_TREE, &"rv_pathfinder")
+	var river := await _hero(RIVER, Vector2.ZERO)
+	var vlad := await _hero(VLAD, Vector2(3000, 0))
+	var adaptive := _abilities(river).passive_ability as RiverPassiveAdaptive
+	assert_near(adaptive.team_speed_aura, 1.12, 0.0001)
+	assert_near(vlad.team_move_speed_aura(), 1.12, 0.0001, "far away too: the whole team")
+	assert_near(vlad.move_speed, vlad.stats.get_move_speed() * 1.12, 0.0001)
+	assert_near(river.move_speed, river.stats.get_move_speed() * 1.12, 0.0001, "River herself")
+	assert_true(vlad.debug_keys_line().contains("team speed x1.12"), vlad.debug_keys_line())
+	EventBus.deal_damage(null, river, 9999.0)
+	assert_false(river.is_alive())
+	assert_eq(vlad.team_move_speed_aura(), 1.0, "a dead River's aura is gone at once")
+	await wait_frames(2)
+	assert_false(is_instance_valid(river))
+	assert_eq(vlad.move_speed, vlad.stats.get_move_speed())
+	_free([vlad])

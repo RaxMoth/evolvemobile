@@ -74,7 +74,8 @@ func _apply_start_level() -> void:
 
 
 ## One F3 HUD line for the followed hero: the tree keys without a stat of their
-## own it carries ("cd" = active and ultimate; "-" on a fresh save).
+## own it carries ("cd" = active and ultimate; "team speed" = River's
+## Pathfinder aura on every hero; "-" on a fresh save).
 func debug_keys_line() -> String:
 	var tags: Array[String] = []
 	if stats.get_damage_taken_multiplier() != 1.0:
@@ -83,6 +84,8 @@ func debug_keys_line() -> String:
 		tags.append("cd x%.2f" % stats.get_cooldown_multiplier())
 	if stats.get_start_level() > 1:
 		tags.append("start Lv %d" % stats.get_start_level())
+	if team_move_speed_aura() != 1.0:
+		tags.append("team speed x%.2f" % team_move_speed_aura())
 	return "tree keys: " + (" ".join(tags) if not tags.is_empty() else "-")
 
 func _process(delta: float) -> void:
@@ -240,7 +243,13 @@ func _on_level_changed(new_level: int) -> void:
 		lv_label.text = str(new_level)
 
 func _get_move_speed() -> float:
-	return stats.get_move_speed() if stats else 80.0
+	var speed: float = stats.get_move_speed() if stats else 80.0
+	return speed * team_move_speed_aura()
+
+## The hero team's move-speed aura (River's Pathfinder); x1.0 without one.
+func team_move_speed_aura() -> float:
+	var team := TeamRegistry.get_team(TeamRegistry.HEROES)
+	return team.move_speed_aura() if team else 1.0
 
 func _get_attack_range() -> float:
 	return stats.get_attack_range() if stats else 50.0

@@ -14,6 +14,18 @@ class_name RiverBasicAttack
 ## enemies within extra_target_radius of the main target (0 = single target).
 @export var extra_targets: int = 0
 @export var extra_target_radius: float = 160.0
+## River capstone "Deadeye": every crit_every-th sniper shot deals crit_mult x
+## its damage (to every target it hits). 0 = off.
+@export var crit_every: int = 0
+@export var crit_mult: float = 2.5
+## River capstone "Chain Heal": each staff heal also heals this many of the
+## most hurt other heroes within chain_heal_radius of the healed one (never
+## River herself). 0 = off.
+@export var extra_heal_targets: int = 0
+@export var chain_heal_radius: float = 160.0
+
+## Sniper shots fired by this copy (Deadeye's count).
+var _sniper_shots: int = 0
 
 func can_use(caster: Node2D) -> bool:
 	return caster is EntityBase and (caster as EntityBase).is_alive()
@@ -55,6 +67,9 @@ func _execute_sniper(caster: Node2D, target: Node2D) -> void:
 			damage_mult = ability_system.get_damage_multiplier()
 
 		var final_damage: float = damage * damage_mult
+		_sniper_shots += 1
+		if is_crit_shot():
+			final_damage *= crit_mult
 		EventBus.deal_damage(caster, target, final_damage, self)
 
 		# Visual feedback
@@ -66,6 +81,10 @@ func _execute_sniper(caster: Node2D, target: Node2D) -> void:
 
 		# Update cooldown to sniper speed
 		cooldown = sniper_cooldown
+
+## Deadeye: the last sniper shot was a crit_every-th one.
+func is_crit_shot() -> bool:
+	return crit_every > 0 and _sniper_shots > 0 and _sniper_shots % crit_every == 0
 
 ## The `extra_targets` closest living enemies around the main target.
 func _extra_targets_near(caster: Node2D, primary: Node2D) -> Array[Node2D]:
@@ -93,12 +112,44 @@ func _execute_heal(caster: Node2D, target: Node2D) -> void:
 		# Ted's pet (group Hero, not a HeroBase) gets the swing but no HP.
 		if target is HeroBase:
 			(target as HeroBase).heal(heal_amount)
+			if extra_heal_targets > 0:
+				_chain_heal(caster, target as HeroBase)
 
 		# Visual feedback
 		_create_heal_effect(caster, target)
 		
 		# Update cooldown to heal speed
 		cooldown = heal_cooldown
+
+## Chain Heal: the `extra_heal_targets` most hurt living heroes (lowest HP
+## fraction, below full) within chain_heal_radius of `healed`, other than it
+## and River, get the same heal.
+func _chain_heal(caster: Node2D, healed: HeroBase) -> void:
+	var team := TeamRegistry.get_team(TeamRegistry.HEROES)
+	if team == null:
+		return
+	var r_sq: float = chain_heal_radius * chain_heal_radius
+	var hurt: Array[HeroBase] = []
+	for ally in team.members:
+		var hero := ally as HeroBase
+		if hero == null or hero == healed or hero == caster or not hero.is_alive() \
+				or hero.get_max_health() <= 0.0 or hero.get_health() >= hero.get_max_health() \
+				or hero.global_position.distance_squared_to(healed.global_position) > r_sq:
+			continue
+		hurt.append(hero)
+	hurt.sort_custom(func(a: HeroBase, b: HeroBase) -> bool:
+		return a.get_health() / a.get_max_health() < b.get_health() / b.get_max_health())
+	var tint: Color = UiPalette.get_default().river_light
+	for hero in hurt.slice(0, extra_heal_targets):
+		hero.heal(heal_amount)
+		GameUtils.flash_line(caster.get_parent(), healed.global_position, hero.global_position, tint, 2.0, 0.4)
+
+## F3: Deadeye's count toward the next crit.
+func debug_line() -> String:
+	var line := super.debug_line()
+	if crit_every > 0:
+		line += "  deadeye %d/%d" % [_sniper_shots % crit_every, crit_every]
+	return line
 
 func _create_sniper_effect(caster: Node2D, target: Node2D) -> void:
 	GameUtils.flash_line(caster.get_parent(), caster.global_position, target.global_position, Color.ORANGE, 2.0, 0.3)

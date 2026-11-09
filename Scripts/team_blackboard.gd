@@ -17,6 +17,10 @@ var members: Array[EntityBase] = []
 # Bumped on EventBus.damage_applied via TeamRegistry; decays over time.
 var threat: Dictionary = {}
 
+# Move-speed auras on the whole team: source member -> multiplier (River's
+# Pathfinder). Only a living source counts; leaving the team drops it.
+var _move_speed_auras: Dictionary = {}
+
 
 # ============================================
 # Membership
@@ -40,6 +44,31 @@ func forget_attacker(entity: Node) -> void:
 func remove_member(entity: EntityBase) -> void:
 	members.erase(entity)
 	threat.erase(entity)
+	_move_speed_auras.erase(entity)
+
+# ============================================
+# Team auras
+# ============================================
+
+## `source` speeds up every member's movement by `mult` while it lives (1.0
+## removes it). Several sources multiply.
+func set_move_speed_aura(source: EntityBase, mult: float) -> void:
+	if source == null:
+		return
+	if mult == 1.0:
+		_move_speed_auras.erase(source)
+	else:
+		_move_speed_auras[source] = mult
+
+## The product of the living sources' auras; 1.0 without any.
+func move_speed_aura() -> float:
+	if _move_speed_auras.is_empty():
+		return 1.0
+	var mult: float = 1.0
+	for source: Variant in _move_speed_auras:
+		if is_instance_valid(source) and (source as EntityBase).is_alive():
+			mult *= float(_move_speed_auras[source])
+	return mult
 
 # ============================================
 # Threat

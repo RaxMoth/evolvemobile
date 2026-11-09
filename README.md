@@ -120,6 +120,9 @@ Power Level
     - Healer Mode: 9 heal at 150 range / 1.4s
 - **Ultimate**: Arrow Barrage (40 dmg, 200 AoE)
 - **Scaling**: +5 HP, +1.8 dmg per level
+- **Capstones** (one equipped): Deadeye (every 4th sniper shot x2.5), Chain
+  Heal (staff heals also heal the most hurt ally within 160 px), Pathfinder
+  (every hero +12% move speed while River lives)
 
 #### Vlad (DPS/Berserker)
 
@@ -1542,6 +1545,9 @@ own ability copy (`AbilitySystem.make_abilities_unique`), never on the shared
 | td_respawn | `respawn_time` 10 s x0.7/0.5/0.35 (Loyal Companion) | a dead pet is back sooner (was the const RESPAWN_TIME) |
 | td_twin CAP | `pet_count` 2 (Loyal Companion) | Ted keeps two pets (`pets`, one per slot, on opposite sides of him), each slot with its own respawn timer (`respawn_timers`); Rally Cry boosts every living pet (`Ted.get_pets`) |
 | td_spikes CAP | `cage_dps` 6 (Trap Cage) | once a second (`TrapCage.SPIKE_INTERVAL`) every valid enemy overlapping the cage takes 6 damage through the ability's `deal()`, credited to Ted |
+| rv_deadeye CAP | `crit_every` 4, `crit_mult` 2.5 (Adaptive Weapon) | every 4th sniper shot of River's copy deals x2.5, Triple Shot's extra targets included |
+| rv_chain CAP | `extra_heal_targets` 1, `chain_heal_radius` 160 (Adaptive Weapon) | a staff heal also heals the most hurt other hero (lowest HP fraction, below full) within 160 px of the healed one, never River herself |
+| rv_pathfinder CAP | `team_speed_aura` 1.12 (Adaptive Movement) | River's copy posts it once on the heroes' `TeamBlackboard` (`set_move_speed_aura`); `HeroBase._get_move_speed` multiplies by `move_speed_aura()`, the product of the living sources, so it ends the moment River dies (and leaves with her from the team). F3 "tree keys:" shows "team speed x1.12" |
 
 Trap Cage takes its `duration` before it enters the tree (its `_ready` starts
 the expiry timer), so Sturdy Cage lengthens it; `ted_ultimate.tres` now says
@@ -1592,7 +1598,7 @@ in the inspector (the tool keeps an existing file unless `--force`).
   last) wait for the Opponent Threat rule.
 
 Nodes, "branch: tier node (ranks)", `<-` = requires any; **[hidden]** = no
-code yet (5.4: hero behaviours; 6.6: monster behaviours):
+code yet (every hero node has its code since 5.4; 6.6: monster behaviours):
 
 - **hero_base** (Might / Vitality / Tactics):
   - Might: T1 Sharp Edge +5/8/10% damage; T2 Forged Steel +10/13/15% <- Sharp
@@ -1648,14 +1654,15 @@ code yet (5.4: hero behaviours; 6.6: monster behaviours):
 - **hero_river** (Marksman / Field Medic / Scout):
   - Marksman: T1 Long Scope +8/11/14/17/20% range; T2 Hollow Points +10/15/20%
     damage; T2 Triple Shot (sniper shots hit 2 more enemies); T3 Sniper's Nest
-    +15/20/25% range; T4 CAP Deadeye (every 4th shot x2.5) **[hidden]**.
+    +15/20/25% range; T4 CAP Deadeye (every 4th shot x2.5).
   - Field Medic: T1 Field Dressing +5/8/11/14/17% max HP; T2 Fast Resupply
     Supply Drop cooldown -20/28/35%; T2 Steady Hands staff heals +15/30/45%; T3
     Field Hospital Supply Drop heals +50/75/100%; T3 Veteran Scout +15/20/25%
-    max HP; T4 CAP Chain Heal **[hidden]**.
+    max HP; T4 CAP Chain Heal (staff heals also heal the most hurt ally within
+    160 px).
   - Scout: T1 Light Boots +5/7/9/11/13% speed; T2 Quick Hands +10/14/18% attack
     speed; T3 Adrenaline Adaptive Movement boost +50/80/110%; T4 CAP Pathfinder
-    (+12% move speed for every hero) **[hidden]**.
+    (+12% move speed for every hero while River lives).
 - **monster_grount** (Horns / Hide / Charge):
   - Horns: T1 Heavy Horns +10/14/17/20/22% damage; T1 Wide Sweep +10/14/18%
     ability range; T2 Quick Cleave Front Cleave cooldown -15/20/25%; T3 Titan's

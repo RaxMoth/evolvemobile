@@ -3,14 +3,25 @@ class_name RiverPassiveAdaptive
 
 @export var speed_boost_multiplier: float = 1.5
 @export var boost_duration: float = 3.0
+## River capstone "Pathfinder": while River lives every hero's move speed is
+## x this (TeamBlackboard.set_move_speed_aura; HeroBase._get_move_speed reads
+## it). 1.0 = off.
+@export var team_speed_aura: float = 1.0
 
 var is_boosted: bool = false
 var boost_timer: float = 0.0
 var last_health: float = 0.0
+## The aura is on the heroes' blackboard (written once; it leaves with River).
+var _aura_posted: bool = false
 
 func on_passive_update(caster: Node2D, delta: float) -> void:
 	if not (caster is EntityBase):
 		return
+	if team_speed_aura != 1.0 and not _aura_posted:
+		var team := TeamRegistry.team_of(caster)
+		if team:
+			team.set_move_speed_aura(caster as EntityBase, team_speed_aura)
+			_aura_posted = true
 	
 	var current_health: float = (caster as EntityBase).get_health()
 	
