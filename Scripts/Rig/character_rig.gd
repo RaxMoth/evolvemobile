@@ -40,6 +40,8 @@ extends Node2D
 enum Tier { FULL, BUDGETED }
 
 const BUDGET := 48
+## The shadow blob's full width over its dense core's (shadow_radius x 2).
+const SHADOW_SPREAD := 1.5
 ## A frame step longer than this is a teleport, not a walk.
 const MAX_STEP := 64.0
 
@@ -52,10 +54,17 @@ const MAX_STEP := 64.0
 ## ".." in TedsPet.tscn). Empty: the parent if it is an EntityBase, else puppet
 ## mode.
 @export var mover: Node2D
-## Ground shadow radius in world px (0 = none), drawn once under the body in
-## the palette's ink at shadow_alpha.
+## The ground contact shadow: a Sprite2D child drawn before the body (the
+## "Shadow" of NPCBaseClass.tscn, wired scene-side) holding the white blob
+## Assets/Characters/shadow_blob.svg. _ready tints it with the palette's ink at
+## shadow_alpha and sizes it to shadow_radius once; it stays on the ground
+## while the body bounces or hovers. Hidden while the rig is inert.
+@export var shadow: Sprite2D
+## Half the width of the shadow's dense core in world px (0 = no shadow); the
+## soft rim reaches SHADOW_SPREAD times further.
 @export var shadow_radius: float = 14.0
-@export_range(0.0, 1.0) var shadow_alpha: float = 0.28
+## The ink's alpha at the shadow's core.
+@export_range(0.0, 1.0) var shadow_alpha: float = 0.55
 ## Hit flash: the body's modulate at the start of a hurt reaction is the
 ## palette's white times this gain (an over-bright modulate).
 @export var hurt_flash_gain: float = 2.1
@@ -87,7 +96,6 @@ var _hurt := 0.0
 var _act := 0.0
 var _flashing := false
 var _flash_color := Color.WHITE
-var _shadow_color := Color.TRANSPARENT
 
 var _torso: Node2D
 var _head: Node2D
@@ -119,6 +127,8 @@ func _ready() -> void:
 				body = c
 				break
 	_active = body != null and profile != null
+	if shadow:
+		shadow.visible = _active and shadow_radius > 0.0
 	if not _active:
 		# NOTIFICATION_READY switched processing on (the script has a _process).
 		set_process(false)
@@ -126,7 +136,9 @@ func _ready() -> void:
 	var palette := UiPalette.get_default()
 	_flash_color = palette.white * hurt_flash_gain
 	_flash_color.a = 1.0
-	_shadow_color = Color(palette.ink, shadow_alpha)
+	if shadow and shadow.texture:
+		shadow.modulate = Color(palette.ink, shadow_alpha)
+		shadow.scale = Vector2.ONE * (2.0 * shadow_radius * SHADOW_SPREAD / shadow.texture.get_width())
 	# Individuality: phase, breathing rate and a +-4 % size, from a private RNG
 	# (the global one drives gameplay).
 	var rng := RandomNumberGenerator.new()
@@ -147,7 +159,6 @@ func _ready() -> void:
 	else:
 		set_on_screen(true)
 	_pose()
-	queue_redraw()
 
 
 ## A pooled mob re-enters the tree without a new _ready: under the tools'
@@ -175,13 +186,6 @@ func _exit_tree() -> void:
 	if _flashing:
 		body.modulate = Color.WHITE
 		_flashing = false
-
-
-func _draw() -> void:
-	if not _active or shadow_radius <= 0.0:
-		return
-	draw_set_transform(Vector2.ZERO, 0.0, Vector2(1.0, 0.36))
-	draw_circle(Vector2.ZERO, shadow_radius, _shadow_color)
 
 
 func _cache_parts() -> void:

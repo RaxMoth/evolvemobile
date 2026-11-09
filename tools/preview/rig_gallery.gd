@@ -21,6 +21,8 @@ const FEET_MARGIN := 8.0
 const HEAD_ROOM := 4.0
 ## Every this many frames the attack and hurt cells replay their reaction.
 const REPLAY_FRAMES := 30
+## The ground contact shadow every rig in the match has (NPCBaseClass.tscn).
+const SHADOW_BLOB := preload("res://Assets/Characters/shadow_blob.svg")
 
 var _attackers: Array[CharacterRig] = []
 var _hurting: Array[CharacterRig] = []
@@ -164,6 +166,11 @@ func _cell(parent: Control, body_scene: PackedScene, profile: RigProfile, cell_s
 	var rig := CharacterRig.new()
 	rig.profile = profile
 	rig.tier = CharacterRig.Tier.FULL
+	var shadow := Sprite2D.new()
+	shadow.texture = SHADOW_BLOB
+	shadow.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	rig.add_child(shadow)
+	rig.shadow = shadow
 	var body := body_scene.instantiate() as RigBody
 	rig.add_child(body)
 	rig.body = body

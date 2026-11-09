@@ -6,11 +6,11 @@ extends TestCase
 ## monster, BUDGETED for mobs; the pixel AnimatedSprite2D is hidden with its
 ## dead SpriteFrames gone while the facing carrier stays; the HP bar sits just
 ## above the rig's art and clears its tallest pose (at every monster stage);
-## the screen notifier covers the drawn body; and in a match the rig walks (or
-## flies), faces and flinches with its character, Grount's shows its stage's
-## parts, mob rigs go half rate over the budget and a pooled mob's rig starts
-## its next life clean. test_rig_pipeline covers the runtime itself on the
-## fixture.
+## the screen notifier covers the drawn body; every rig stands on an ink
+## contact shadow; and in a match the rig walks (or flies), faces and flinches
+## with its character, Grount's shows its stage's parts, mob rigs go half rate
+## over the budget and a pooled mob's rig starts its next life clean.
+## test_rig_pipeline covers the runtime itself on the fixture.
 
 const ROOT := "res://Assets/Characters"
 const HEROES: Dictionary[String, String] = {
@@ -38,6 +38,7 @@ const SLAM_HOP := 1.2
 const HP_BAR_GAP := 6.0
 ## CharacterRig's private per-instance size spread (+-4 %).
 const MAX_SIZE := 1.04
+const SHADOW_BLOB := "res://Assets/Characters/shadow_blob.svg"
 
 
 func after_each() -> void:
@@ -188,6 +189,51 @@ func test_monster_hp_bar_clears_the_head_at_every_stage() -> void:
 		monster.free()
 
 
+## Every rig stands on one contact shadow: the scene's "Shadow" Sprite2D
+## (wired to `shadow`) is the Rig's first child, so it draws under the body,
+## and holds the white blob, mipmapped and linear like the rig art. In the
+## tree it shows in the palette's ink at shadow_alpha, SHADOW_SPREAD x 2 x
+## shadow_radius wide, at the feet. Grount's is the biggest, the bat's and the
+## fox's the smallest.
+func test_rigs_stand_on_an_ink_contact_shadow() -> void:
+	var ink := UiPalette.get_default().ink
+	var paths: Dictionary[String, String] = {PET_ID: PET}
+	paths.merge(_entities())
+	var widths: Dictionary[String, float] = {}
+	for id in paths:
+		var inst := _instance(paths[id])
+		var rig := _rig(inst)
+		var shadow := rig.shadow
+		assert_true(shadow != null and shadow.get_parent() == rig, "%s: Rig.shadow is the Rig's own Shadow" % id)
+		if shadow == null:
+			inst.free()
+			continue
+		assert_eq(String(shadow.name), "Shadow", "%s: the scene's Shadow node" % id)
+		assert_eq(shadow.get_index(), 0, "%s: drawn first, under the body" % id)
+		assert_true(shadow.texture != null and shadow.texture.resource_path == SHADOW_BLOB, "%s: the shadow blob" % id)
+		assert_eq(shadow.texture_filter, CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS, "%s: mipmapped like the rig art" % id)
+		assert_eq(shadow.position, Vector2.ZERO, "%s: at the feet" % id)
+		# The rig alone in the tree (puppet mode): its _ready sets the shadow up
+		# from the scene's exports without the entity's AI.
+		rig.owner = null
+		inst.remove_child(rig)
+		rig.mover = null
+		add_child(rig)
+		assert_true(shadow.visible, "%s: shown once the rig is live" % id)
+		assert_eq(shadow.modulate, Color(ink, rig.shadow_alpha), "%s: the palette's ink at shadow_alpha" % id)
+		var width := shadow.texture.get_width() * shadow.scale.x
+		assert_near(width, 2.0 * rig.shadow_radius * CharacterRig.SHADOW_SPREAD, 0.01, "%s: sized to shadow_radius" % id)
+		assert_eq(shadow.scale.x, shadow.scale.y, "%s: the blob keeps its ground ellipse" % id)
+		widths[id] = width
+		rig.free()
+		inst.free()
+	assert_eq(widths.size(), paths.size(), "every rig has its shadow")
+	if widths.size() != paths.size():
+		return
+	assert_true(widths["grount"] > widths["vlad"] and widths["vlad"] > widths["bat"] and widths["vlad"] > widths[PET_ID],
+			"Grount's shadow is the biggest, the bat's and the fox's the smallest: %s" % widths)
+
+
 ## The rig sleeps while its notifier is off screen, so the notifier must cover
 ## everything the rig can draw (it scales with the entity, like the rig).
 func test_screen_notifier_covers_the_drawn_body() -> void:
@@ -254,6 +300,10 @@ func test_monster_and_mob_rigs_move_face_and_flinch() -> void:
 			await wait_frames(1)
 			swing = maxf(swing, absf(body.part(limb).rotation - body.rest_of(limb).get_rotation()))
 		assert_true(swing > 0.1, "%s: %s swings (%.3f)" % [id, limb, swing])
+		if rig.profile.body_plan == RigProfile.BodyPlan.FLYER:
+			assert_true(body.position.y < 0.0, "%s hovers (%.1f)" % [id, body.position.y])
+		assert_true(rig.shadow.visible and rig.shadow.global_position.is_equal_approx(e.global_position),
+				"%s: its shadow stays on the ground at its feet" % id)
 		assert_true(body.scale.x > 0.0, "%s faces right" % id)
 		facing.rotation = PI
 		await wait_frames(2)

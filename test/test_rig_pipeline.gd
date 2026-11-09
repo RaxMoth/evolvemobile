@@ -274,12 +274,14 @@ func test_entity_rig_reads_but_never_writes() -> void:
 
 
 ## Every entity carries a Rig; until its scene adds a body it stays inert:
-## never awake, nothing drawn, events ignored, VFX keep the AnimatedSprite2D.
+## never awake, nothing drawn (not even its ground shadow), events ignored,
+## VFX keep the AnimatedSprite2D.
 func test_rig_without_body_stays_inert() -> void:
 	var awake_before := CharacterRig.awake_count()
 	var mob := await spawn_frozen(UNMIGRATED, Vector2(200, 200)) as EntityBase
 	var rig := mob.get_node(^"Rig") as CharacterRig
 	assert_true(rig.body == null, "no body under the Rig")
+	assert_true(rig.shadow != null and not rig.shadow.visible, "its ground shadow stays hidden")
 	assert_eq(mob.visual_root(), mob.get_node(^"AnimatedSprite2D"), "VFX fall back to the sprite")
 	rig.set_on_screen(true)
 	CharacterRig.force_awake = true

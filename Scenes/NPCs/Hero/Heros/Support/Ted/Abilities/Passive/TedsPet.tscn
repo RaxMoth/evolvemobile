@@ -1,9 +1,10 @@
-[gd_scene load_steps=7 format=3 uid="uid://dmwsr7r1rglla"]
+[gd_scene load_steps=8 format=3 uid="uid://dmwsr7r1rglla"]
 
 [ext_resource type="Script" uid="uid://bqnd1nwlvm5hc" path="res://Scenes/NPCs/Hero/Heros/Support/Ted/Abilities/Passive/teds_pet.gd" id="1_pet"]
 [ext_resource type="Script" uid="uid://bqdiydcp3yanu" path="res://Scripts/Rig/character_rig.gd" id="2_rig"]
 [ext_resource type="PackedScene" path="res://Assets/Characters/pet/pet_body.tscn" id="3_body"]
 [ext_resource type="Resource" path="res://Assets/Characters/pet/pet_motion.tres" id="4_motion"]
+[ext_resource type="Texture2D" uid="uid://cygm1ijrf37j7" path="res://Assets/Characters/shadow_blob.svg" id="5_shadow"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_pet"]
 radius = 14.035668
@@ -33,13 +34,19 @@ visible = false
 unique_name_in_owner = true
 rect = Rect2(-24, -40, 48, 44)
 
-[node name="Rig" type="Node2D" parent="." node_paths=PackedStringArray("body", "mover")]
+[node name="Rig" type="Node2D" parent="." node_paths=PackedStringArray("body", "mover", "shadow")]
 script = ExtResource("2_rig")
 body = NodePath("PetBody")
 profile = ExtResource("4_motion")
 tier = 0
 mover = NodePath("..")
+shadow = NodePath("Shadow")
 shadow_radius = 10.0
+
+[node name="Shadow" type="Sprite2D" parent="Rig"]
+visible = false
+texture_filter = 4
+texture = ExtResource("5_shadow")
 
 [node name="PetBody" parent="Rig" instance=ExtResource("3_body")]
 

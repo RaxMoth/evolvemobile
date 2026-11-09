@@ -1,4 +1,4 @@
-[gd_scene load_steps=11 format=3 uid="uid://cnmv786k3qi1c"]
+[gd_scene load_steps=12 format=3 uid="uid://cnmv786k3qi1c"]
 
 [ext_resource type="Script" uid="uid://blo8rclfc3t6r" path="res://Scenes/NPCs/npc_base_class.gd" id="1_517tc"]
 [ext_resource type="Texture2D" uid="uid://b8hlhq44dx3qv" path="res://Assets/icon.svg" id="2_okm3t"]
@@ -8,6 +8,7 @@
 [ext_resource type="Script" uid="uid://cf1nsco3w0mf6" path="res://addons/godot_state_charts/transition.gd" id="6_1wtkv"]
 [ext_resource type="Script" path="res://Scripts/hp_bar_2d.gd" id="7_hpbar"]
 [ext_resource type="Script" path="res://Scripts/Rig/character_rig.gd" id="8_rig"]
+[ext_resource type="Texture2D" uid="uid://cygm1ijrf37j7" path="res://Assets/Characters/shadow_blob.svg" id="9_shadow"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_50nec"]
 resource_local_to_scene = true
@@ -132,8 +133,14 @@ delay_in_seconds = "0.0"
 unique_name_in_owner = true
 rect = Rect2(-48, -64, 96, 112)
 
-[node name="Rig" type="Node2D" parent="."]
+[node name="Rig" type="Node2D" parent="." node_paths=PackedStringArray("shadow")]
 script = ExtResource("8_rig")
+shadow = NodePath("Shadow")
+
+[node name="Shadow" type="Sprite2D" parent="Rig"]
+visible = false
+texture_filter = 4
+texture = ExtResource("9_shadow")
 
 [connection signal="area_entered" from="DetectionArea" to="." method="_on_detection_area_area_entered"]
 [connection signal="area_exited" from="DetectionArea" to="." method="_on_detection_area_area_exited"]

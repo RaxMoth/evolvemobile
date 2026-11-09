@@ -504,6 +504,17 @@ Nyxa have their art but no scene yet.
       leaving the tree sleeps and drops its hurt flash, attack swing and
       walk, so the next life starts clean; on re-entry the notifier wakes it
       (or, under the tools' `force_awake`, the rig itself).
+    - Contact shadow: every Rig's first child is a `Shadow` Sprite2D
+      (NPCBaseClass.tscn, and TedsPet.tscn; wired to `shadow` scene-side)
+      holding `Assets/Characters/shadow_blob.svg`, a white 128x48 ellipse with
+      a dense core and a soft rim (CompressedTexture2D with mipmaps, drawn
+      LINEAR_WITH_MIPMAPS like the rig art). `_ready` tints it with the
+      palette's `ink` at `shadow_alpha` (0.55) and sizes it once to
+      2 x `shadow_radius` x `SHADOW_SPREAD` (1.5) world px: radius 14 for the
+      heroes and the Hog, 24 for Grount, 10 for the fox, 9 for the Bat. Being
+      drawn first, it sits under the body; it stays on the ground at the feet
+      while the body bounces or a flyer hovers, and it is hidden while the rig
+      is inert. It is not the hurt flash's target (that is the body).
     - Evolution (`set_stage`): the stage's parts, and on screen the
       evolution flash (an evolution off screen leaves no flash pending). The
       stage SIZE stays the monster's root scale (gameplay: collision and
@@ -518,7 +529,8 @@ Nyxa have their art but no scene yet.
   the export resolves at instantiation), `profile` and `tier` (FULL for the
   heroes, the fox and Grount; the mobs keep the default BUDGETED), with
   `<Id>Body` (the instanced `<id>_body.tscn`) under it. No existing node is
-  reordered and World.tscn is untouched, so the match and its trace are
+  reordered and World.tscn's node order and y-sort are untouched (it only
+  gained the ground grade, see Ground Style), so the match and its trace are
   unchanged. Grount keeps `grount_visual.tres` for its stage ring pulse.
     - The rig's origin is the character's feet at the entity's position (the
       old sprites were centred on it), so the entity's y-sort now orders by
@@ -549,21 +561,53 @@ Nyxa have their art but no scene yet.
 - **Checks**: `test/test_rig_pipeline.gd` runs on the fixture character
   `test/fixtures/rig_fixture/` (generated files fresh for every character,
   z order, stages, broken art refused, no global RNG, no entity writes,
-  asleep off screen, inert without a body, the budget rule).
+  asleep off screen, inert without a body and its shadow hidden, the budget
+  rule).
   `test/test_character_art.gd` checks the real art: the ten characters, their
   sheets' svg/scale and mipmaps, DPITexture portraits, body plans, world
   scales and the no-slide stride. `test/test_rigged_scenes.gd` checks the
   migrated scenes: their own body, profile and tier, the hidden sprite without
   frames, the HP bar rule (at every Grount stage), the notifier covering the
-  drawn body, real heroes, the fox, Grount and the mobs walking (the bat
-  flapping), facing and flinching in a match (the fox through `mover`),
-  Grount's parts and flash through stages 1 to 3, the mob half rate over the
+  drawn body, the ink contact shadow (wiring, tint, size, under the body, on
+  the ground while the bat hovers), real heroes, the fox, Grount and the mobs
+  walking (the bat flapping), facing and flinching in a match (the fox
+  through `mover`), Grount's parts and flash through stages 1 to 3, the mob half rate over the
   budget, a pooled mob's rig starting its next life clean, and the F3 line. `RIGS_AWAKE=1 tools/sim_trace.sh`
   animates every rig and must match the parent trace byte for byte;
   `tools/bench.sh <runs> <mult> <frames> <warmup> <onscreen> 1` wakes every
   rig and reports `rigs_awake_mean`. `tools/preview/RigGallery.tscn` shows
   three large puppets, then every character in idle / walk / run / attack /
   hurt / stage 2 poses, all rows at one scale so the world sizes compare.
+
+### Ground Style (pixel tiles under the chibi palette)
+
+The match keeps the 16 px pixel jungle tiles (no SVG ground redraw) and grades
+them so they sit under the muted chibi palette: darker and calmer, the dirt
+still brown and the grass still green, so the ink-outlined rigs are the
+brightest thing on screen. The trees and props are tiles too and get the same
+grade (they are not redrawn).
+
+- **`Assets/Shaders/ground_grade.gdshader`** is the material of World.tscn's
+  two TileMapLayers, `Ground` and `Deko` (one shared ShaderMaterial; it
+  replaces their default fragment, no extra pass). It desaturates toward the
+  luma (`saturation` 0.72), pulls the tileset's electric greens toward deep
+  moss (`green_target`, `green_pull` 0.45; only pixels whose green leads), keeps
+  `contrast` 1.0, then a slight warm lift (black maps to `shadow_lift`
+  (0.03, 0.02, 0), white to the cream `highlight_tint` (1, 0.97, 0.9)) times
+  `value` 0.85. The look is the third panel of the characters area's
+  `grade_variants.png` with more contrast.
+- Nothing else is graded: no CanvasModulate (it would dim the rigs and the
+  HUD too).
+- Both tile layers draw with **nearest** filtering (`texture_filter` 1):
+  crisp texels and no atlas bleed at the tile seams (the project default,
+  linear, blurred them and drew faint grid lines). The camera keeps its
+  integer default zoom (2) for pixel-perfect tiles; the rigs and their
+  shadows stay LINEAR_WITH_MIPMAPS.
+- Every rig stands on an ink contact shadow (see Character Rigs above).
+- **Checks**: `test/test_ground_style.gd` (the two layers share the grade and
+  draw nearest, no CanvasModulate, nothing else graded, the shader's defaults
+  are the spec, and a CPU copy of its maths makes the dirt and the grass
+  darker and calmer while they stay brown and green, far apart in hue).
 
 ### Fog of War System
 
