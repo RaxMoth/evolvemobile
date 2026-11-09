@@ -1,0 +1,51 @@
+{
+ "name": "bat",
+ "canvas": [
+  128,
+  160
+ ],
+ "baseline": 150,
+ "sheet_scale": 2,
+ "parts": [
+  {
+   "name": "wing_b",
+   "z": 0,
+   "pivot": [
+    52,
+    96
+   ],
+   "parent": "body",
+   "stages": null
+  },
+  {
+   "name": "wing_f",
+   "z": 1,
+   "pivot": [
+    76,
+    96
+   ],
+   "parent": "body",
+   "stages": null
+  },
+  {
+   "name": "legs",
+   "z": 2,
+   "pivot": [
+    64,
+    114
+   ],
+   "parent": "body",
+   "stages": null
+  },
+  {
+   "name": "body",
+   "z": 3,
+   "pivot": [
+    64,
+    112
+   ],
+   "parent": "",
+   "stages": null
+  }
+ ]
+}

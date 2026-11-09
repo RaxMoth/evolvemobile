@@ -1,0 +1,80 @@
+{
+ "name": "vlad",
+ "canvas": [
+  128,
+  160
+ ],
+ "baseline": 150,
+ "parts": [
+  {
+   "name": "cape",
+   "z": 0,
+   "pivot": [
+    64,
+    94
+   ],
+   "parent": "body",
+   "stages": null
+  },
+  {
+   "name": "arm_b",
+   "z": 1,
+   "pivot": [
+    49,
+    97
+   ],
+   "parent": "body",
+   "stages": null
+  },
+  {
+   "name": "leg_b",
+   "z": 2,
+   "pivot": [
+    56,
+    132
+   ],
+   "parent": "",
+   "stages": null
+  },
+  {
+   "name": "leg_f",
+   "z": 3,
+   "pivot": [
+    73,
+    132
+   ],
+   "parent": "",
+   "stages": null
+  },
+  {
+   "name": "body",
+   "z": 4,
+   "pivot": [
+    64,
+    132
+   ],
+   "parent": "",
+   "stages": null
+  },
+  {
+   "name": "head",
+   "z": 5,
+   "pivot": [
+    64,
+    92
+   ],
+   "parent": "body",
+   "stages": null
+  },
+  {
+   "name": "arm_f",
+   "z": 6,
+   "pivot": [
+    78,
+    99
+   ],
+   "parent": "body",
+   "stages": null
+  }
+ ]
+}

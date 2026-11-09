@@ -1,0 +1,70 @@
+{
+ "name": "nyxa",
+ "canvas": [
+  128,
+  160
+ ],
+ "baseline": 150,
+ "parts": [
+  {
+   "name": "wing_b",
+   "z": 0,
+   "pivot": [
+    56,
+    82
+   ],
+   "parent": "body",
+   "stages": null
+  },
+  {
+   "name": "wing_f",
+   "z": 1,
+   "pivot": [
+    72,
+    82
+   ],
+   "parent": "body",
+   "stages": null
+  },
+  {
+   "name": "legs",
+   "z": 2,
+   "pivot": [
+    64,
+    116
+   ],
+   "parent": "body",
+   "stages": null
+  },
+  {
+   "name": "body",
+   "z": 3,
+   "pivot": [
+    64,
+    110
+   ],
+   "parent": "",
+   "stages": null
+  },
+  {
+   "name": "head",
+   "z": 4,
+   "pivot": [
+    64,
+    78
+   ],
+   "parent": "body",
+   "stages": null
+  },
+  {
+   "name": "arm_f",
+   "z": 5,
+   "pivot": [
+    80,
+    92
+   ],
+   "parent": "body",
+   "stages": null
+  }
+ ]
+}

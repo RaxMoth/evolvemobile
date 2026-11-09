@@ -426,14 +426,36 @@ dangerous (`monster` #C2334A, `monster_purple` #7B3F95).
 ### Character Rigs (SVG cut-out runtime)
 
 Characters are moving from the pixel `AnimatedSprite2D` frames to chunky chibi
-SVG cut-out rigs. The runtime and the builder are in place; no character scene
-uses a body yet (the art and the scene migrations follow), so every match still
-draws the sprites.
+SVG cut-out rigs. The runtime, the builder and the art of all ten characters
+are in place; no character scene uses a body yet (the scene migrations follow),
+so every match still draws the sprites.
 
 - **Source** (`Assets/Characters/<id>/src/`, ignored by Godot through
   `.gdignore`): `rig_src.json` (canvas 128x160, baseline 150, optional
   `sheet_scale`, and the parts: name, z, pivot, parent, stages) and
   `parts/<part>.svg`, each part alone on the full canvas.
+- **Art**: the characters area's chibis are the one character art (world,
+  cards, lobby, HUD heads). Ten characters, each `Assets/Characters/<id>/`
+  with its `src/`, the generated sheet and body, `<id>_motion.tres` and the
+  composite portrait `<id>.svg` (the whole chibi on the 128x160 canvas,
+  imported as a **DPITexture** for UI; Grount also has `grount_s2.svg` and
+  `grount_s3.svg` for its later stages):
+
+  | id | who | parts | body plan | world_scale | sheet svg/scale | full_speed / stride |
+  |---|---|---|---|---|---|---|
+  | irelia, vlad, ted, river | heroes | 7 | HUMANOID | 0.4 | 3 | 75 / 80 / 85 / 85, stride 18.1 |
+  | grount | monster (3 stages: horns, eyes, spikes, cracks, chain) | 16 | QUADRUPED | 0.6 | 3 | 60, 24.3 |
+  | gorrak | monster | 7 | QUADRUPED | 0.6 | 3 | 56, 25.1 |
+  | nyxa | monster | 6 | FLYER | 0.6 | 3 | 85 (no legs) |
+  | hog | mob | 5 | QUADRUPED | 0.38 | 2 | 70, 19.1 |
+  | bat | mob | 4 | FLYER | 0.32 | 2 | 150 (no legs) |
+  | pet | Ted's fox | 5 | QUADRUPED | 0.3 | 2 | 120, 20.1 |
+
+  The small ones' sheets rasterise at 2 px per art unit (VRAM); the rest at 3,
+  which stays crisp up to about camera zoom x7.5 for heroes. `full_speed` is
+  the character's move speed (stage 1 for monsters), so its usual walk swings
+  the legs fully, and `stride` = 4 x leg (hip pivot to sole) x
+  sin(`leg_swing`) x `world_scale`, so a planted foot does not slide.
 - **Builder**: `tools/build_rigs.sh [id ...]` runs `tools/rig_builder.gd`
   (`RigBuilder`) on a temp copy and copies back, per character:
     - `<id>_sheet.svg`: every part cropped to its alpha box and shelf-packed
@@ -472,13 +494,17 @@ draws the sprites.
       While more than 48 rigs are awake, mob rigs (tier BUDGETED) animate
       every other frame, staggered; heroes and the monster use tier FULL.
 - **Checks**: `test/test_rig_pipeline.gd` runs on the fixture character
-  `test/fixtures/rig_fixture/` (generated files fresh, z order, stages,
-  broken art refused, no global RNG, no entity writes, asleep off screen,
-  inert without a body, the budget rule). `RIGS_AWAKE=1 tools/sim_trace.sh`
+  `test/fixtures/rig_fixture/` (generated files fresh for every character,
+  z order, stages, broken art refused, no global RNG, no entity writes,
+  asleep off screen, inert without a body, the budget rule).
+  `test/test_character_art.gd` checks the real art: the ten characters, their
+  sheets' svg/scale and mipmaps, DPITexture portraits, body plans, world
+  scales and the no-slide stride. `RIGS_AWAKE=1 tools/sim_trace.sh`
   animates every rig and must match the parent trace byte for byte;
   `tools/bench.sh <runs> <mult> <frames> <warmup> <onscreen> 1` wakes every
   rig and reports `rigs_awake_mean`. `tools/preview/RigGallery.tscn` shows
-  every built character in idle / walk / run / attack / hurt / stage poses.
+  three large puppets, then every character in idle / walk / run / attack /
+  hurt / stage 2 poses, all rows at one scale so the world sizes compare.
 
 ### Fog of War System
 
@@ -652,6 +678,8 @@ The chart owns all state. Its active state is **stepped** by the `TickScheduler`
 ```
 res://
 ├─ Assets/
+│  ├─ Characters/<id>/ (src/ SVG parts + rig_src.json, generated <id>_sheet.svg
+│  │                    and <id>_body.tscn, <id>_motion.tres, <id>.svg portrait)
 │  └─ UI/ (generated Jungle Guild kit, DPITexture SVGs)
 │     ├─ Kit/ · Crests/ · Icons/{Abilities,Currency,Stats,Roles,Nav,UI}/
 │     ├─ Theme/jungle_theme.tres

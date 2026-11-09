@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="RigProfile" format=3]
+
+[ext_resource type="Script" path="res://Scripts/Rig/rig_profile.gd" id="1_profile"]
+
+[resource]
+script = ExtResource("1_profile")
+body_plan = 1
+world_scale = 0.6
+breathe_hz = 0.6
+breathe_amount = 0.03
+full_speed = 60.0
+stride = 24.3
+bounce = 2.0
+leg_swing = 0.4
+lean = 0.06
+attack_time = 0.4

@@ -1,0 +1,190 @@
+{
+ "name": "grount",
+ "canvas": [
+  128,
+  160
+ ],
+ "baseline": 150,
+ "parts": [
+  {
+   "name": "spikes_s2",
+   "z": 0,
+   "pivot": [
+    56,
+    90
+   ],
+   "parent": "body",
+   "stages": [
+    2
+   ]
+  },
+  {
+   "name": "spikes_s3",
+   "z": 0,
+   "pivot": [
+    56,
+    90
+   ],
+   "parent": "body",
+   "stages": [
+    3
+   ]
+  },
+  {
+   "name": "arm_b",
+   "z": 1,
+   "pivot": [
+    46,
+    90
+   ],
+   "parent": "body",
+   "stages": null
+  },
+  {
+   "name": "leg_b",
+   "z": 2,
+   "pivot": [
+    54,
+    126
+   ],
+   "parent": "",
+   "stages": null
+  },
+  {
+   "name": "leg_f",
+   "z": 3,
+   "pivot": [
+    76,
+    126
+   ],
+   "parent": "",
+   "stages": null
+  },
+  {
+   "name": "body",
+   "z": 4,
+   "pivot": [
+    64,
+    126
+   ],
+   "parent": "",
+   "stages": null
+  },
+  {
+   "name": "cracks_s3",
+   "z": 5,
+   "pivot": [
+    64,
+    126
+   ],
+   "parent": "body",
+   "stages": [
+    3
+   ]
+  },
+  {
+   "name": "horns_s1",
+   "z": 5,
+   "pivot": [
+    86,
+    62
+   ],
+   "parent": "head",
+   "stages": [
+    1
+   ]
+  },
+  {
+   "name": "horns_s2",
+   "z": 5,
+   "pivot": [
+    86,
+    62
+   ],
+   "parent": "head",
+   "stages": [
+    2
+   ]
+  },
+  {
+   "name": "horns_s3",
+   "z": 5,
+   "pivot": [
+    86,
+    62
+   ],
+   "parent": "head",
+   "stages": [
+    3
+   ]
+  },
+  {
+   "name": "head",
+   "z": 6,
+   "pivot": [
+    78,
+    84
+   ],
+   "parent": "body",
+   "stages": null
+  },
+  {
+   "name": "eyes_s1",
+   "z": 7,
+   "pivot": [
+    78,
+    84
+   ],
+   "parent": "head",
+   "stages": [
+    1
+   ]
+  },
+  {
+   "name": "eyes_s2",
+   "z": 7,
+   "pivot": [
+    78,
+    84
+   ],
+   "parent": "head",
+   "stages": [
+    2
+   ]
+  },
+  {
+   "name": "eyes_s3",
+   "z": 7,
+   "pivot": [
+    78,
+    84
+   ],
+   "parent": "head",
+   "stages": [
+    3
+   ]
+  },
+  {
+   "name": "arm_f",
+   "z": 8,
+   "pivot": [
+    86,
+    96
+   ],
+   "parent": "body",
+   "stages": null
+  },
+  {
+   "name": "chain_s3",
+   "z": 9,
+   "pivot": [
+    86,
+    96
+   ],
+   "parent": "arm_f",
+   "stages": [
+    3
+   ]
+  }
+ ]
+}

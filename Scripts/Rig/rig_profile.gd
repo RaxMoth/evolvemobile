@@ -18,9 +18,11 @@ enum BodyPlan { HUMANOID, QUADRUPED, FLYER }
 @export var head_bob: float = 1.2
 
 @export_group("Locomotion")
-## World px/s that counts as a full walk (walk blend 1.0).
+## World px/s that counts as a full walk (walk blend 1.0): the character's
+## move speed, so its usual walk swings the legs fully.
 @export var full_speed: float = 120.0
-## World px travelled per full step cycle (feet do not slide).
+## World px travelled per full step cycle. Feet do not slide when it is
+## 4 x leg length (hip pivot to sole, art units) x sin(leg_swing) x world_scale.
 @export var stride: float = 34.0
 @export var bounce: float = 3.0
 @export var leg_swing: float = 0.45

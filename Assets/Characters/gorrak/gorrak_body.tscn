@@ -1,0 +1,83 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://Scripts/Rig/rig_body.gd" id="1_body"]
+[ext_resource type="Texture2D" path="res://Assets/Characters/gorrak/gorrak_sheet.svg" id="2_sheet"]
+
+[node name="GorrakBody" type="Node2D"]
+texture_filter = 4
+script = ExtResource("1_body")
+character_id = &"gorrak"
+sheet_scale = 3.0
+origin = Vector2(64.0, 150.0)
+bounds = Rect2(-43.0, -126.0, 109.0, 130.0)
+part_order = PackedStringArray("cape", "arm_b", "leg_b", "leg_f", "body", "head", "arm_f")
+stage_parts = {}
+proxies = {"body__back": "body"}
+
+[node name="body__back" type="Node2D" parent="."]
+position = Vector2(0.0, -66.0)
+
+[node name="cape" type="Sprite2D" parent="body__back"]
+unique_name_in_owner = true
+show_behind_parent = true
+position = Vector2(-48.0, -144.0)
+texture = ExtResource("2_sheet")
+centered = false
+offset = Vector2(-60.0, -78.0)
+region_enabled = true
+region_rect = Rect2(411.0, 0.0, 117.0, 234.0)
+
+[node name="arm_b" type="Sprite2D" parent="body__back"]
+unique_name_in_owner = true
+show_behind_parent = true
+position = Vector2(-66.0, -102.0)
+texture = ExtResource("2_sheet")
+centered = false
+offset = Vector2(-63.0, -24.0)
+region_enabled = true
+region_rect = Rect2(0.0, 288.0, 93.0, 141.0)
+
+[node name="leg_b" type="Sprite2D" parent="."]
+unique_name_in_owner = true
+position = Vector2(-36.0, -66.0)
+texture = ExtResource("2_sheet")
+centered = false
+offset = Vector2(-48.0, -24.0)
+region_enabled = true
+region_rect = Rect2(93.0, 288.0, 96.0, 102.0)
+
+[node name="leg_f" type="Sprite2D" parent="."]
+unique_name_in_owner = true
+position = Vector2(42.0, -66.0)
+texture = ExtResource("2_sheet")
+centered = false
+offset = Vector2(-48.0, -24.0)
+region_enabled = true
+region_rect = Rect2(189.0, 288.0, 96.0, 102.0)
+
+[node name="body" type="Sprite2D" parent="."]
+unique_name_in_owner = true
+position = Vector2(0.0, -66.0)
+texture = ExtResource("2_sheet")
+centered = false
+offset = Vector2(-111.0, -195.0)
+region_enabled = true
+region_rect = Rect2(162.0, 0.0, 249.0, 246.0)
+
+[node name="head" type="Sprite2D" parent="body"]
+unique_name_in_owner = true
+position = Vector2(36.0, -132.0)
+texture = ExtResource("2_sheet")
+centered = false
+offset = Vector2(-84.0, -180.0)
+region_enabled = true
+region_rect = Rect2(528.0, 0.0, 231.0, 198.0)
+
+[node name="arm_f" type="Sprite2D" parent="body"]
+unique_name_in_owner = true
+position = Vector2(66.0, -102.0)
+texture = ExtResource("2_sheet")
+centered = false
+offset = Vector2(-30.0, -174.0)
+region_enabled = true
+region_rect = Rect2(0.0, 0.0, 162.0, 288.0)
