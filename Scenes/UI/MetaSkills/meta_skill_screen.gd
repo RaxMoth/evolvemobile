@@ -13,6 +13,10 @@ class_name MetaSkillScreen
 @onready var currency_label: Label = %CurrencyLabel
 @onready var close_button: Button = %CloseButton
 
+## Tree shown on open (set before adding the screen). Empty or unknown = the
+## first registered tree.
+@export var initial_tree_id: StringName = &""
+
 # Currently-displayed tree.
 var active_tree_id: StringName = &""
 
@@ -46,8 +50,9 @@ func _populate_tree_picker() -> void:
 		tree_picker.add_item(t.display_name)
 		_tree_ids.append(tree_id)
 	if _tree_ids.size() > 0:
-		tree_picker.select(0)
-		_show_tree(_tree_ids[0])
+		var first := maxi(0, _tree_ids.find(initial_tree_id))
+		tree_picker.select(first)
+		_show_tree(_tree_ids[first])
 
 
 func _on_tree_picker_selected(idx: int) -> void:
@@ -155,6 +160,7 @@ func _refresh_currency_label() -> void:
 # ============================================
 
 func _on_close_pressed() -> void:
-	# This screen lives as a child of MainMenu, so just free ourselves.
+	# This screen lives as an overlay of a menu (MenuRoot, the old MainMenu),
+	# so just free ourselves.
 	# (When it ships as a standalone scene, swap for change_scene_to_packed.)
 	queue_free()

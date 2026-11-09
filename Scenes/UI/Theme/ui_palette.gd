@@ -23,6 +23,10 @@ const DEFAULT_PATH := "res://Scenes/UI/Theme/palette.tres"
 const COOLDOWN_VEIL_ALPHA := 0.70
 ## self_modulate of a locked character portrait (near-black silhouette).
 const LOCKED_MODULATE := Color(0.16, 0.145, 0.14, 1.0)
+## modulate of the lobby stage whose side is not chosen (dimmed, a touch warm).
+const UNCHOSEN_SIDE_MODULATE := Color(0.5, 0.47, 0.47, 1.0)
+## modulate of a menu screen while the next one slides over it (MenuRoot).
+const COVERED_SCREEN_MODULATE := Color(0.6, 0.6, 0.6, 1.0)
 ## Character id -> its signature token (signature()). nyxa and gorrak use the
 ## provisional monster2 / monster3 colours until the monster roster is final.
 const SIGNATURE_TOKENS: Dictionary[String, StringName] = {

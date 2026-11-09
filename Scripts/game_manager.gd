@@ -19,14 +19,19 @@ const DEFAULT_MAX_DURATION_SEC: float = 600.0  # 10 minutes
 # State
 # ============================================
 
-# Side currently being played. Set by MainMenu before the scene change;
-# reads as HEROES by default if the player launched directly into the World.
+# Side currently being played (MatchRewards.Side). The lobby chooses it
+# through choose_side(), which persists it, so the next launch opens on the
+# same side; reads as HEROES on a fresh save. The sim tools set it directly.
 var chosen_side: int = MatchRewards.Side.HEROES
+const SETTING_CHOSEN_SIDE: StringName = &"chosen_side"
 
-## World.tscn once MainMenu has loaded it (in the background, see
-## main_menu.gd). Held here for the whole session so later menu visits and
-## Play Again (reload_current_scene) reuse the cached scene instead of loading
-## it again.
+## Not preloaded: a preload would load the whole match at boot (GameManager ->
+## World). The menus call request_world_load() on entry and collect it with
+## get_world_scene().
+const WORLD_PATH := "res://Scenes/World/World.tscn"
+## World.tscn once a menu has loaded it (in the background). Held here for the
+## whole session so later menu visits and Play Again (reload_current_scene)
+## reuse the cached scene instead of loading it again.
 var world_scene: PackedScene = null
 
 var max_match_duration: float = DEFAULT_MAX_DURATION_SEC
@@ -76,6 +81,8 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	var saved_monster: Variant = PersistedData.get_setting(SETTING_SELECTED_MONSTER, String(ROSTER.default_monster_id))
 	select_monster(StringName(str(saved_monster)), false)
+	var saved_side: Variant = PersistedData.get_setting(SETTING_CHOSEN_SIDE, MatchRewards.Side.HEROES)
+	choose_side(int(saved_side), false)
 	EventBus.entity_died.connect(_on_entity_died)
 	# Record evolution as it happens: the old death-only update paid a monster
 	# that WON (or survived to the timeout) as stage 1.
@@ -97,6 +104,37 @@ func select_monster(monster_id: StringName, persist: bool = true) -> void:
 
 func selected_monster_def() -> CharacterDef:
 	return ROSTER.resolve_monster(selected_monster_id)
+
+
+## The side the player plays next (the lobby's choice). Anything but MONSTER
+## reads as HEROES, so a corrupt setting never breaks the menu.
+func choose_side(side: int, persist: bool = true) -> void:
+	chosen_side = MatchRewards.Side.MONSTER if side == MatchRewards.Side.MONSTER else MatchRewards.Side.HEROES
+	if persist:
+		PersistedData.set_setting(SETTING_CHOSEN_SIDE, chosen_side)
+		PersistedData.save_data()
+
+
+## Starts loading World.tscn on a worker thread while the player is in the
+## menu (first visit of the session only; get_world_scene() collects it).
+func request_world_load() -> void:
+	if world_scene == null and ResourceLoader.load_threaded_get_status(WORLD_PATH) == ResourceLoader.THREAD_LOAD_INVALID_RESOURCE:
+		ResourceLoader.load_threaded_request(WORLD_PATH)
+
+
+## The World scene, from the session cache or else from the background load
+## request_world_load() started (blocks until it finishes). Collects that load
+## at most once: a second load_threaded_get for the same request returns null.
+## Falls back to a plain load if no request is pending or it failed.
+func get_world_scene() -> PackedScene:
+	if world_scene == null:
+		var scene: PackedScene = null
+		if ResourceLoader.load_threaded_get_status(WORLD_PATH) != ResourceLoader.THREAD_LOAD_INVALID_RESOURCE:
+			scene = ResourceLoader.load_threaded_get(WORLD_PATH) as PackedScene
+		if scene == null:
+			scene = load(WORLD_PATH) as PackedScene
+		world_scene = scene
+	return world_scene
 
 
 func start_new_match() -> void:

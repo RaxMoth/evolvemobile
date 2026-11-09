@@ -1,0 +1,36 @@
+[gd_scene format=3 uid="uid://bgd53mrw6xd5k"]
+
+[ext_resource type="Script" uid="uid://b153jamihxj8m" path="res://Scenes/UI/Screens/menu_root.gd" id="1_script"]
+[ext_resource type="Theme" uid="uid://eroe1xxhr5fc" path="res://Scenes/UI/Theme/ui_theme.tres" id="2_theme"]
+[ext_resource type="PackedScene" uid="uid://cle50s1lcs20c" path="res://Scenes/UI/Screens/LobbyScreen.tscn" id="3_lobby"]
+
+[node name="MenuRoot" type="Control" node_paths=PackedStringArray("lobby")]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme = ExtResource("2_theme")
+script = ExtResource("1_script")
+lobby = NodePath("Screens/LobbyScreen")
+
+[node name="Screens" type="Control" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="LobbyScreen" parent="Screens" instance=ExtResource("3_lobby")]
+layout_mode = 1
+
+[connection signal="side_chosen" from="Screens/LobbyScreen" to="." method="_on_side_chosen"]
+[connection signal="hunt_requested" from="Screens/LobbyScreen" to="." method="_on_hunt_requested"]
+[connection signal="roster_requested" from="Screens/LobbyScreen" to="." method="_on_roster_requested"]
+[connection signal="character_requested" from="Screens/LobbyScreen" to="." method="_on_character_requested"]
+[connection signal="tab_selected" from="Screens/LobbyScreen" to="." method="_on_tab_selected"]
+[connection signal="settings_requested" from="Screens/LobbyScreen" to="." method="_on_settings_requested"]

@@ -1,16 +1,17 @@
 extends Node2D
 
-## MainMenu — entry screen.
+## MainMenu — the old entry screen. The main scene is now MenuRoot
+## (Scenes/UI/Screens); this one stays reachable from the match result's Main
+## Menu button until the Phase 8 screens retire it.
 ##
 ## Layout + styling now live in MainMenu.tscn (theme = ui_theme.tres). This
 ## script handles: button wiring, live currency labels, and a few bits of
 ## juice (card hover lift, title intro) that are awkward to express purely
 ## in the scene.
 
-# Not preloaded: a preload here would load the whole match (the boot chain
-# GameManager -> MatchResult -> MainMenu) before the menu could draw. _ready
-# starts a background load instead; _world_scene() collects it.
-const WORLD_PATH := "res://Scenes/World/World.tscn"
+# The match is not preloaded (the boot chain GameManager -> MatchResult ->
+# MainMenu would load it before the menu could draw): _ready starts
+# GameManager's background load, the play buttons collect it.
 const META_SKILL_SCREEN: PackedScene = preload("res://Scenes/UI/MetaSkills/MetaSkillScreen.tscn")
 const TUTORIAL_SCENE: PackedScene = preload("res://Scenes/UI/Tutorial/TutorialOverlay.tscn")
 const PRE_ROUND_SCENE: PackedScene = preload("res://Scenes/UI/PreRoundSetup/PreRoundSetup.tscn")
@@ -50,8 +51,7 @@ func _ready() -> void:
 
 	# Load the match while the player looks at the menu (first visit only:
 	# GameManager keeps the loaded scene for the session).
-	if GameManager.world_scene == null:
-		ResourceLoader.load_threaded_request(WORLD_PATH)
+	GameManager.request_world_load()
 
 	_wire_play_buttons()
 	_wire_skill_buttons()
@@ -166,16 +166,11 @@ func _wire_skill_buttons() -> void:
 
 func _open_meta_skills(preselect_tree_id: StringName) -> void:
 	var screen: MetaSkillScreen = META_SKILL_SCREEN.instantiate() as MetaSkillScreen
+	screen.initial_tree_id = preselect_tree_id
 	# Overlays go under the menu's Root Control (canvas layer 1): a sibling of
 	# the CanvasLayers would sit on layer 0, BELOW Root's full-screen STOP area,
 	# and never receive a tap.
 	%Root.add_child(screen)
-	await get_tree().process_frame
-	for i in screen._tree_ids.size():
-		if screen._tree_ids[i] == preselect_tree_id:
-			screen.tree_picker.select(i)
-			screen._show_tree(preselect_tree_id)
-			break
 
 
 func _wire_ui_clicks() -> void:
@@ -214,27 +209,12 @@ func _on_play_as_hero() -> void:
 
 
 func _start_hero_match(_config: MatchConfig) -> void:
-	get_tree().change_scene_to_packed.call_deferred(_world_scene())
+	get_tree().change_scene_to_packed.call_deferred(GameManager.get_world_scene())
 
 
 func _on_play_as_monster() -> void:
 	GameManager.chosen_side = MatchRewards.Side.MONSTER
-	get_tree().change_scene_to_packed.call_deferred(_world_scene())
-
-
-## The World scene, from GameManager's session cache or else from the
-## background load _ready started (blocks until it finishes). Collects that
-## load at most once: a second load_threaded_get for the same request returns
-## null. Falls back to a plain load if no request is pending or it failed.
-func _world_scene() -> PackedScene:
-	if GameManager.world_scene == null:
-		var scene: PackedScene = null
-		if ResourceLoader.load_threaded_get_status(WORLD_PATH) != ResourceLoader.THREAD_LOAD_INVALID_RESOURCE:
-			scene = ResourceLoader.load_threaded_get(WORLD_PATH) as PackedScene
-		if scene == null:
-			scene = load(WORLD_PATH) as PackedScene
-		GameManager.world_scene = scene
-	return GameManager.world_scene
+	get_tree().change_scene_to_packed.call_deferred(GameManager.get_world_scene())
 
 
 # ============================================

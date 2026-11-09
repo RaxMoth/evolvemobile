@@ -1,0 +1,388 @@
+[gd_scene format=3 uid="uid://cle50s1lcs20c"]
+
+[ext_resource type="Script" uid="uid://d0fn5tm6agmy3" path="res://Scenes/UI/Screens/lobby_screen.gd" id="1_script"]
+[ext_resource type="Theme" uid="uid://eroe1xxhr5fc" path="res://Scenes/UI/Theme/ui_theme.tres" id="2_theme"]
+[ext_resource type="Texture2D" uid="uid://d0us42nwu36it" path="res://Assets/UI/Kit/bg_texture.svg" id="3_bg"]
+[ext_resource type="Texture2D" uid="uid://cjop3dgsmtqp4" path="res://Assets/UI/Lobby/lobby_heroes.svg" id="4_heroes_bg"]
+[ext_resource type="Texture2D" uid="uid://bmmw4ap0wc7ld" path="res://Assets/UI/Lobby/lobby_monsters.svg" id="5_monsters_bg"]
+[ext_resource type="Texture2D" uid="uid://bp4jbniu0122i" path="res://Assets/UI/Lobby/vs_badge.svg" id="6_vs"]
+[ext_resource type="PackedScene" uid="uid://b4wggremdqavp" path="res://Scenes/UI/Components/StageCharacter.tscn" id="7_stage_character"]
+[ext_resource type="PackedScene" uid="uid://da4ubvm6y0cvg" path="res://Scenes/UI/Components/TopBar.tscn" id="8_top_bar"]
+[ext_resource type="PackedScene" uid="uid://ca1qscc0pbili" path="res://Scenes/UI/Components/NavBar.tscn" id="9_nav_bar"]
+[ext_resource type="Texture2D" uid="uid://bmoyt2fs5h48h" path="res://Assets/UI/Icons/UI/ui_settings.svg" id="10_settings"]
+[ext_resource type="Texture2D" uid="uid://ylcevyvuqtlq" path="res://Assets/UI/Icons/UI/ui_play.svg" id="11_play"]
+[ext_resource type="Texture2D" uid="uid://chbesl68kxox7" path="res://Assets/UI/Icons/Nav/nav_heroes.svg" id="12_heroes_icon"]
+[ext_resource type="Texture2D" uid="uid://bgk5hk8b80cvs" path="res://Assets/UI/Icons/Nav/nav_monsters.svg" id="13_monsters_icon"]
+[ext_resource type="Resource" path="res://Assets/Characters/river/river_def.tres" id="14_river"]
+[ext_resource type="Resource" path="res://Assets/Characters/vlad/vlad_def.tres" id="15_vlad"]
+[ext_resource type="Resource" path="res://Assets/Characters/irelia/irelia_def.tres" id="16_irelia"]
+[ext_resource type="Resource" path="res://Assets/Characters/ted/ted_def.tres" id="17_ted"]
+[ext_resource type="Resource" path="res://Assets/Characters/grount/grount_def.tres" id="18_grount"]
+[ext_resource type="Script" uid="uid://cgn88tt4e34c7" path="res://Scripts/Roster/character_def.gd" id="19_def"]
+[ext_resource type="PackedScene" path="res://Assets/Characters/nyxa/nyxa_body.tscn" id="20_nyxa_body"]
+[ext_resource type="Resource" path="res://Assets/Characters/nyxa/nyxa_motion.tres" id="21_nyxa_motion"]
+[ext_resource type="Texture2D" uid="uid://rcfv15a8i8vo" path="res://Assets/Characters/nyxa/nyxa.svg" id="22_nyxa_portrait"]
+[ext_resource type="PackedScene" path="res://Assets/Characters/gorrak/gorrak_body.tscn" id="23_gorrak_body"]
+[ext_resource type="Resource" path="res://Assets/Characters/gorrak/gorrak_motion.tres" id="24_gorrak_motion"]
+[ext_resource type="Texture2D" uid="uid://cyhlcw3tbsx38" path="res://Assets/Characters/gorrak/gorrak.svg" id="25_gorrak_portrait"]
+
+[sub_resource type="Resource" id="Resource_nyxa_teaser"]
+script = ExtResource("19_def")
+side = 1
+display_name = "Nyxa"
+rig_body = ExtResource("20_nyxa_body")
+rig_profile = ExtResource("21_nyxa_motion")
+portrait = ExtResource("22_nyxa_portrait")
+unlocked_by_default = false
+
+[sub_resource type="Resource" id="Resource_gorrak_teaser"]
+script = ExtResource("19_def")
+side = 1
+display_name = "Gorrak"
+rig_body = ExtResource("23_gorrak_body")
+rig_profile = ExtResource("24_gorrak_motion")
+portrait = ExtResource("25_gorrak_portrait")
+unlocked_by_default = false
+
+[node name="LobbyScreen" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme = ExtResource("2_theme")
+script = ExtResource("1_script")
+
+[node name="Background" type="TextureRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+texture = ExtResource("3_bg")
+stretch_mode = 1
+
+[node name="MonsterStage" type="Button" parent="."]
+unique_name_in_owner = true
+clip_contents = true
+layout_mode = 1
+anchors_preset = -1
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = 616.0
+offset_bottom = -124.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_type_variation = &"FlatButton"
+
+[node name="Backdrop" type="TextureRect" parent="MonsterStage"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+texture = ExtResource("5_monsters_bg")
+expand_mode = 1
+stretch_mode = 6
+
+[node name="Nyxa" parent="MonsterStage" instance=ExtResource("7_stage_character")]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -354.0
+offset_top = -70.0
+offset_right = -154.0
+offset_bottom = 190.0
+grow_horizontal = 2
+grow_vertical = 2
+character = SubResource("Resource_nyxa_teaser")
+
+[node name="Gorrak" parent="MonsterStage" instance=ExtResource("7_stage_character")]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = 154.0
+offset_top = -84.0
+offset_right = 354.0
+offset_bottom = 176.0
+grow_horizontal = 2
+grow_vertical = 2
+character = SubResource("Resource_gorrak_teaser")
+flip = true
+
+[node name="Grount" parent="MonsterStage" instance=ExtResource("7_stage_character")]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -144.0
+offset_top = -158.0
+offset_right = 144.0
+offset_bottom = 216.0
+grow_horizontal = 2
+grow_vertical = 2
+character = ExtResource("18_grount")
+
+[node name="MonsterFrame" type="Panel" parent="MonsterStage"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 4.0
+offset_top = 6.0
+offset_right = -4.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_type_variation = &"FrameMonster"
+
+[node name="HeroStage" type="Button" parent="."]
+unique_name_in_owner = true
+clip_contents = true
+layout_mode = 1
+anchors_preset = -1
+anchor_right = 1.0
+offset_top = 84.0
+offset_bottom = 624.0
+grow_horizontal = 2
+theme_type_variation = &"FlatButton"
+
+[node name="Backdrop" type="TextureRect" parent="HeroStage"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+texture = ExtResource("4_heroes_bg")
+expand_mode = 1
+stretch_mode = 6
+
+[node name="Title" type="PanelContainer" parent="HeroStage"]
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -200.0
+offset_top = 10.0
+offset_right = 200.0
+offset_bottom = 104.0
+grow_horizontal = 2
+mouse_filter = 2
+theme_type_variation = &"Banner"
+
+[node name="TitleText" type="Label" parent="HeroStage/Title"]
+layout_mode = 2
+theme_type_variation = &"HeaderLarge"
+theme_override_font_sizes/font_size = 44
+text = "BETTER HUNT"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="River" parent="HeroStage" instance=ExtResource("7_stage_character")]
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -346.0
+offset_top = 214.0
+offset_right = -176.0
+offset_bottom = 435.0
+grow_horizontal = 2
+character = ExtResource("14_river")
+
+[node name="Ted" parent="HeroStage" instance=ExtResource("7_stage_character")]
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = 170.0
+offset_top = 196.0
+offset_right = 360.0
+offset_bottom = 443.0
+grow_horizontal = 2
+character = ExtResource("17_ted")
+flip = true
+
+[node name="Vlad" parent="HeroStage" instance=ExtResource("7_stage_character")]
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -226.0
+offset_top = 196.0
+offset_right = -36.0
+offset_bottom = 443.0
+grow_horizontal = 2
+character = ExtResource("15_vlad")
+
+[node name="Irelia" parent="HeroStage" instance=ExtResource("7_stage_character")]
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = 12.0
+offset_top = 200.0
+offset_right = 212.0
+offset_bottom = 460.0
+grow_horizontal = 2
+character = ExtResource("16_irelia")
+flip = true
+
+[node name="HeroFrame" type="Panel" parent="HeroStage"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 4.0
+offset_top = 4.0
+offset_right = -4.0
+offset_bottom = -6.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_type_variation = &"FrameHero"
+
+[node name="HeroRow" type="Control" parent="."]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_top = 548.0
+offset_bottom = 610.0
+grow_horizontal = 2
+mouse_filter = 2
+
+[node name="HeroRoster" type="Button" parent="HeroRow"]
+layout_mode = 0
+offset_left = 14.0
+offset_right = 268.0
+offset_bottom = 62.0
+theme_override_font_sizes/font_size = 30
+text = "HEROES"
+icon = ExtResource("12_heroes_icon")
+expand_icon = true
+
+[node name="HeroHunt" type="Button" parent="HeroRow"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -268.0
+offset_right = -14.0
+offset_bottom = 62.0
+grow_horizontal = 0
+theme_type_variation = &"ButtonPrimary"
+theme_override_font_sizes/font_size = 30
+text = "HUNT"
+icon = ExtResource("11_play")
+icon_alignment = 2
+expand_icon = true
+
+[node name="MonsterRow" type="Control" parent="."]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_top = 634.0
+offset_bottom = 696.0
+grow_horizontal = 2
+mouse_filter = 2
+
+[node name="MonsterHunt" type="Button" parent="MonsterRow"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 0
+offset_left = 14.0
+offset_right = 268.0
+offset_bottom = 62.0
+theme_type_variation = &"ButtonMonster"
+theme_override_font_sizes/font_size = 30
+text = "HUNT"
+icon = ExtResource("11_play")
+icon_alignment = 2
+expand_icon = true
+
+[node name="MonsterRoster" type="Button" parent="MonsterRow"]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -288.0
+offset_right = -14.0
+offset_bottom = 62.0
+grow_horizontal = 0
+theme_override_font_sizes/font_size = 30
+text = "MONSTERS"
+icon = ExtResource("13_monsters_icon")
+icon_alignment = 2
+expand_icon = true
+
+[node name="Vs" type="TextureRect" parent="."]
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -60.0
+offset_top = 560.0
+offset_right = 60.0
+offset_bottom = 680.0
+grow_horizontal = 2
+mouse_filter = 2
+texture = ExtResource("6_vs")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="VsText" type="Label" parent="Vs"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_type_variation = &"HeaderLarge"
+theme_override_font_sizes/font_size = 40
+text = "VS"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="TopBar" parent="." instance=ExtResource("8_top_bar")]
+unique_name_in_owner = true
+layout_mode = 1
+left_icon = ExtResource("10_settings")
+
+[node name="NavBar" parent="." instance=ExtResource("9_nav_bar")]
+unique_name_in_owner = true
+layout_mode = 1
+
+[connection signal="pressed" from="MonsterStage" to="." method="_on_monster_stage_pressed"]
+[connection signal="character_pressed" from="MonsterStage/Nyxa" to="." method="_on_character_pressed"]
+[connection signal="character_pressed" from="MonsterStage/Gorrak" to="." method="_on_character_pressed"]
+[connection signal="character_pressed" from="MonsterStage/Grount" to="." method="_on_character_pressed"]
+[connection signal="pressed" from="HeroStage" to="." method="_on_hero_stage_pressed"]
+[connection signal="character_pressed" from="HeroStage/River" to="." method="_on_character_pressed"]
+[connection signal="character_pressed" from="HeroStage/Ted" to="." method="_on_character_pressed"]
+[connection signal="character_pressed" from="HeroStage/Vlad" to="." method="_on_character_pressed"]
+[connection signal="character_pressed" from="HeroStage/Irelia" to="." method="_on_character_pressed"]
+[connection signal="pressed" from="HeroRow/HeroRoster" to="." method="_on_hero_roster_pressed"]
+[connection signal="pressed" from="HeroRow/HeroHunt" to="." method="_on_hunt_pressed"]
+[connection signal="pressed" from="MonsterRow/MonsterHunt" to="." method="_on_hunt_pressed"]
+[connection signal="pressed" from="MonsterRow/MonsterRoster" to="." method="_on_monster_roster_pressed"]
+[connection signal="left_pressed" from="TopBar" to="." method="_on_top_bar_left_pressed"]
+[connection signal="tab_selected" from="NavBar" to="." method="_on_nav_bar_tab_selected"]

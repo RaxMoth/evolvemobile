@@ -15,7 +15,7 @@ compatibility/default_parent_skeleton_in_mesh_instance_3d=true
 [application]
 
 config/name="EvolveMobile"
-run/main_scene="uid://cg6pdl50qcrj7"
+run/main_scene="uid://bgd53mrw6xd5k"
 config/features=PackedStringArray("4.7", "GL Compatibility")
 run/max_fps=60
 config/icon="uid://0vlvy3mej50h"

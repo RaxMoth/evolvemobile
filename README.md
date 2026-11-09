@@ -952,6 +952,68 @@ code connections are to autoloads (`PersistedData.currency_changed`).
   renders the grid and nav (default page) and the L / S cards and stage
   characters (`-- --page=sizes`) from sample numbers, never the save.
 
+### Menu Root and Lobby (the main scene)
+
+The game boots into `Scenes/UI/Screens/MenuRoot.tscn` (`application/run/main_scene`).
+The old `MainMenu.tscn` stays reachable from the match result's Main Menu
+button until the Phase 8 screens retire it.
+
+- **`MenuRoot`** (`menu_root.gd`): every meta screen is a hidden child of
+  `%Screens`, and every screen signal is connected in `MenuRoot.tscn`. The
+  script only moves between screens and holds the hooks a scene connection
+  cannot reach (autoloads cannot be `[connection]` targets):
+    - `push(screen)` slides the new screen in from the right edge over 0.22 s
+      (cubic ease-out) while the one below darkens to
+      `UiPalette.COVERED_SCREEN_MODULATE` (0.6); `pop()` plays it backwards, and
+      once a slide settles only the top screen is visible. `ui_cancel` is back on
+      every screen; the home screen (the lobby) never pops.
+    - On entry: the tree is unpaused (a match result pauses it), the menu
+      music plays, `GameManager.request_world_load()` starts loading the match in
+      the background (`GameManager.get_world_scene()` collects it), and on the
+      first run the tutorial opens after 0.9 s. Every button under the menu,
+      including ones a screen or overlay adds later, plays the UI click.
+    - The lobby's choice goes to `GameManager.choose_side()`, which persists it
+      (setting `chosen_side`); the next launch opens on the same side.
+    - Until their new screens land, requests open the old overlays on top:
+      HUNT → `PreRoundSetup` on the hero side (the monster side starts the match
+      at once), Heroes / Monsters / the plaques → `MetaSkillScreen` on the first
+      hero's or the selected monster's tree (`initial_tree_id`), Growth → the
+      Hero Base or Monster Base tree of the chosen side, Codex → the tutorial,
+      the gear → Settings. Tapping a character only chooses its side until the
+      character detail screen opens it.
+- **`LobbyScreen`** (`lobby_screen.gd`, the nav bar's HUNT tab): a split jungle
+  stage under the top bar (gear, Gold, Steel, Leaves) and above the nav bar.
+    - Hero stage (y 84-624): the campfire clearing (`Assets/UI/Lobby/lobby_heroes.svg`),
+      the "BETTER HUNT" title on a `Banner`, and River, Vlad, Irelia and Ted as
+      live `StageCharacter` rigs around the fire, the right pair facing inward.
+    - Monster stage (y 616 down to the nav bar): the fanged lair
+      (`lobby_monsters.svg`) with Grount large in the middle. Nyxa and Gorrak,
+      not playable yet, stand beside him as padlocked silhouettes: scene-local
+      locked `CharacterDef`s over their built rigs, outside the roster.
+    - Between them the HEROES and MONSTERS plaques, each side's HUNT button
+      (`ButtonPrimary` / `ButtonMonster`) and the VS badge (`vs_badge.svg`).
+    - Tapping a stage chooses that side in place: the other stage tweens to
+      `UiPalette.UNCHOSEN_SIDE_MODULATE` (0.5, 0.47, 0.47) over 0.25 s, the
+      chosen one shows its `FrameHero` (amber) or `FrameMonster` (crimson), its
+      HUNT button pops in (0.6 → 1, TRANS_BACK 0.35 s), its characters cheer
+      with a 0.05 s stagger, and the nav arch glows in the side's colour. With
+      the export `side_tap_opens_roster` a stage tap also asks for that side's
+      roster. Tapping a character chooses its side and asks for its detail.
+    - It only reports: `side_chosen`, `hunt_requested(side)`,
+      `roster_requested(side)`, `character_requested(def)`,
+      `tab_selected(tab_id)` and `settings_requested`. `show_side()` restores a
+      side without the animation. Its own wiring (stages, plaques, HUNT, the
+      characters, top bar, nav bar) is all in `LobbyScreen.tscn`.
+    - On a taller or wider phone the stages stretch with the window: the
+      backdrops cover their stage, the characters stay centred, and the lair
+      grows down to the nav bar.
+- `test/test_menu_root.gd`: every screen signal is connected once, scene-side,
+  to MenuRoot (no code connections); push / pop and `ui_cancel`; the click on
+  every button; the side choice (frames, HUNT pop, cheer stagger, tints, nav
+  glow) and `side_tap_opens_roster`; each request; the cast is the roster plus
+  the locked teasers; the chosen side persists; the first-run tutorial; the old
+  overlays each request opens; the main scene is MenuRoot.
+
 ### File Structure
 
 ```
@@ -963,6 +1025,7 @@ res://
 │  ├─ Fonts/ (LilitaOne-Regular.ttf display font + LilitaOne-OFL.txt licence)
 │  └─ UI/ (generated Jungle Guild kit, DPITexture SVGs)
 │     ├─ Kit/ · Crests/ · Icons/{Abilities,Currency,Stats,Roles,Nav,UI}/
+│     ├─ Lobby/ (the lobby's campfire and lair backdrops, VS badge)
 │     └─ Shaders/ (ability_cooldown, card_locked)
 ├─ Scenes/
 │  ├─ NPCs/
@@ -988,7 +1051,8 @@ res://
 │  │  ├─ FogOfWar/
 │  │  └─ MobSpawnArea/
 │  └─ UI/
-│     ├─ MainMenu.tscn
+│     ├─ Screens/ (MenuRoot.tscn: the main scene, LobbyScreen.tscn)
+│     ├─ MainMenu/ (the old menu, reachable from the match result until Phase 8)
 │     ├─ HeroContainer/
 │     ├─ Components/ (menu kit: CharacterCard, StageCharacter, TopBar,
 │     │               CurrencyChip, NavBar, NavTab, NavArch, PressFeedback)
@@ -1281,7 +1345,8 @@ Max out hero trees → Unlock new heroes → Compete on leaderboards
 
 **Meta & Flow** (since v0.1):
 
-- [x] Main Menu with side selection, Settings (volumes) and the Meta Skill screen
+- [x] Lobby (the main scene, MenuRoot): the heroes' campfire and the monster lair as live rigs, tap a side to choose it (persisted)
+- [x] Main Menu with side selection, Settings (volumes) and the Meta Skill screen (old; reachable from the match result)
 - [x] Match result screen (stats, currency + permanent XP rewards, Play Again / Main Menu)
 - [x] Hero Base + Monster Base skill trees (MetaSkillManager, applied on spawn), ConfigFile save
 - [x] Permanent XP per hero/monster with level readout on the menu cards
