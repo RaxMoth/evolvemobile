@@ -13,13 +13,27 @@ extends Control
 ## A tap on the map: the hero nearest to the tapped point.
 signal hero_picked(hero: Node2D)
 
+## Alpha of a pet's dot, of the camera frame and of the fog map.
+const PET_ALPHA := 0.8
+const CAMERA_FRAME_ALPHA := 0.55
+const FOG_ALPHA := 0.95
+
 @export var refresh_hz: float = 4.0
-## The map's own translucent frame. Off inside a frame of its own (MatchHud).
+## The map's own frame (the HUD panel look). Off inside a frame of its own
+## (MatchHud).
 @export var show_frame: bool = true
-@export var hero_color: Color = Color(0.35, 0.85, 1.0)
-@export var pet_color: Color = Color(0.7, 0.9, 1.0, 0.8)
-@export var monster_color: Color = Color(1.0, 0.35, 0.3)
-@export var frame_color: Color = Color(1.0, 1.0, 1.0, 0.55)
+@export_group("Palette tokens")
+## The dots, the camera frame and the fog map (minimap_fog.gdshader) are
+## palette tokens (UiPalette), resolved in _ready: the sides' accents for the
+## dots, the text colour for the camera frame, moss for explored ground and the
+## warm near-black for the fog.
+@export var hero_token: StringName = &"hero"
+@export var pet_token: StringName = &"hero_light"
+@export var monster_token: StringName = &"monster"
+@export var camera_frame_token: StringName = &"text"
+@export var explored_token: StringName = &"moss"
+@export var unexplored_token: StringName = &"bg_void"
+@export_group("")
 ## Monster-side vision radius used to decide which heroes it can see while
 ## the monster has no VisionArea (World gives it one, sized by World's
 ## monster_vision_radius, once it stands at its match spawn).
@@ -27,6 +41,10 @@ signal hero_picked(hero: Node2D)
 
 @onready var fog_view: TextureRect = %FogView
 
+var _hero_color: Color = Color.MAGENTA
+var _pet_color: Color = Color.MAGENTA
+var _monster_color: Color = Color.MAGENTA
+var _camera_frame_color: Color = Color.MAGENTA
 var _world_offset: Vector2 = Vector2.ZERO
 var _world_size: Vector2 = Vector2(7500, 6000)
 var _fog: Node = null
@@ -36,7 +54,29 @@ var _timer: float = 0.0
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	(%Frame as CanvasItem).visible = show_frame
+	_apply_palette()
 	_bind_fog()
+
+
+## The tokens' colours: the dots and the camera frame for _draw, the fog map's
+## two colours on FogView's material (local to this minimap).
+func _apply_palette() -> void:
+	var palette := UiPalette.get_default()
+	_hero_color = palette.color(hero_token)
+	_pet_color = palette.color(pet_token)
+	_pet_color.a = PET_ALPHA
+	_monster_color = palette.color(monster_token)
+	_camera_frame_color = palette.color(camera_frame_token)
+	_camera_frame_color.a = CAMERA_FRAME_ALPHA
+	var fog_material := fog_view.material as ShaderMaterial
+	if fog_material == null:
+		return
+	var explored := palette.color(explored_token)
+	explored.a = FOG_ALPHA
+	var unexplored := palette.color(unexplored_token)
+	unexplored.a = FOG_ALPHA
+	fog_material.set_shader_parameter(&"explored_color", explored)
+	fog_material.set_shader_parameter(&"unexplored_color", unexplored)
 
 
 func _process(delta: float) -> void:
@@ -111,19 +151,19 @@ func _draw() -> void:
 		if not hero_side and not hero_visible_to_monster(h.global_position):
 			continue
 		var is_hero := h is HeroBase
-		draw_circle(world_to_map(h.global_position), 3.0 if is_hero else 2.0, hero_color if is_hero else pet_color)
+		draw_circle(world_to_map(h.global_position), 3.0 if is_hero else 2.0, _hero_color if is_hero else _pet_color)
 	for m in EntityRegistry.monsters:
 		if not is_instance_valid(m):
 			continue
 		if hero_side and not monster_visible_to_heroes(m.global_position):
 			continue
-		draw_circle(world_to_map(m.global_position), 4.0, monster_color)
+		draw_circle(world_to_map(m.global_position), 4.0, _monster_color)
 	var cam := get_viewport().get_camera_2d()
 	if cam and cam.has_method("get_viewport_rect_in_world"):
 		var r: Rect2 = cam.get_viewport_rect_in_world()
 		var tl := world_to_map(r.position)
 		var br := world_to_map(r.end)
-		draw_rect(Rect2(tl, br - tl), frame_color, false, 1.0)
+		draw_rect(Rect2(tl, br - tl), _camera_frame_color, false, 1.0)
 
 
 # ---------- input ----------

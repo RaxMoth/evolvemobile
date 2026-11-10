@@ -1,4 +1,4 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene load_steps=7 format=3 uid="uid://3vi8rjjc2wh8"]
 
 [ext_resource type="Script" uid="uid://cs3exxnb8m7io" path="res://Scenes/NPCs/Hero/Heros/Healer/River/Abilities/ult/medikit.gd" id="1_script"]
 [ext_resource type="Texture2D" uid="uid://cvwanwy0c6yqh" path="res://Assets/Vfx/svg/fx_crate.svg" id="2_crate"]

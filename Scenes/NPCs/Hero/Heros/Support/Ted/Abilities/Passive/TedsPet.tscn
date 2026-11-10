@@ -29,7 +29,7 @@ monitoring = false
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Body"]
 shape = SubResource("CircleShape2D_petbody")
 
-[node name="Sprite2D" type="AnimatedSprite2D" parent="."]
+[node name="Sprite2D" type="Sprite2D" parent="."]
 visible = false
 
 [node name="ScreenNotifier" type="VisibleOnScreenNotifier2D" parent="."]

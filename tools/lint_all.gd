@@ -1,10 +1,23 @@
 extends SceneTree
 
 ## Headless compile check: loads every script / scene / resource under res://
-## so parse + compile errors surface on stderr, and checks every scene's wiring
-## (see _check_scene_wiring). Run through tools/lint.sh (which works on a temp
+## so parse + compile errors surface on stderr, checks every scene's wiring
+## (see _check_scene_wiring) and that the UI has no colour literals (see
+## _check_no_color_literals). Run through tools/lint.sh (which works on a temp
 ## COPY of the project — never run a newer editor binary against the real
 ## project directory).
+
+## The no-colour-literal rule covers every script, scene and resource here.
+const COLOR_RULE_ROOT := "res://Scenes/UI/"
+## The colour sources themselves: the palette (its Color.MAGENTA defaults and
+## the derived modulate constants), its values and the generated theme.
+const COLOR_RULE_EXEMPT: Array[String] = [
+	"res://Scenes/UI/Theme/ui_palette.gd",
+	"res://Scenes/UI/Theme/palette.tres",
+	"res://Scenes/UI/Theme/ui_theme.tres",
+]
+
+
 func _initialize() -> void:
 	# Autoload names only exist as globals after Main::start, hence not _init().
 	var files: Array[String] = []
@@ -26,7 +39,8 @@ func _initialize() -> void:
 				push_error("LINT: failed to load resource " + p)
 			elif res is PackedScene:
 				_check_scene_wiring(res as PackedScene, p)
-	print("LINT DONE scripts=%d resources=%d" % [n_scripts, n_res])
+	var n_color_checked := _check_no_color_literals(files)
+	print("LINT DONE scripts=%d resources=%d ui_color_checked=%d" % [n_scripts, n_res, n_color_checked])
 	quit()
 
 
@@ -69,6 +83,36 @@ func _check_scene_wiring(scene: PackedScene, p: String) -> void:
 		if to_state == null or not _is_state(to_state):
 			push_error("LINT: transition target is not a state %s: %s to = %s" % [p, state.get_node_path(i), state_path])
 	inst.free()
+
+
+## The palette (UiPalette, palette.tres) is the only colour source of the UI:
+## no colour literal in Scenes/UI/** (art spec "no Color( literal in
+## Scenes/UI"). In a script a literal is a Color( whose first argument is a
+## number or a string, Color8(...) or Color.html / hex / from_*(...); a palette
+## token with an alpha, Color(palette.bg_void, 0.72), is fine, and so are the
+## named identity constants (Color.WHITE as "no tint"). In a scene or resource
+## every Color( is a literal (the file format writes the numbers): use a theme
+## type variation, or set the token from the script. Comments do not count.
+## Returns how many files it checked.
+func _check_no_color_literals(files: Array[String]) -> int:
+	var in_script := RegEx.create_from_string("\\bColor\\(\\s*[-+.0-9\"')]|\\bColor8\\(|\\bColor\\.(html|hex|hex64|from_\\w+)\\(")
+	var in_data := RegEx.create_from_string("\\bColor\\(")
+	var checked := 0
+	for p in files:
+		if not p.begins_with(COLOR_RULE_ROOT) or COLOR_RULE_EXEMPT.has(p):
+			continue
+		var is_script := p.ends_with(".gd")
+		if not (is_script or p.ends_with(".tscn") or p.ends_with(".tres")):
+			continue
+		checked += 1
+		var lines := FileAccess.get_file_as_string(p).split("\n")
+		for i in lines.size():
+			var line: String = lines[i]
+			if is_script:
+				line = line.get_slice("#", 0)
+			if (in_script if is_script else in_data).search(line) != null:
+				push_error("LINT: colour literal in the UI (use a UiPalette token or a theme variation) %s:%d: %s" % [p, i + 1, lines[i].strip_edges()])
+	return checked
 
 
 ## Global class names of the node's script and its base scripts. Compared by

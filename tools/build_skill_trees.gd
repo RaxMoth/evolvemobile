@@ -42,7 +42,7 @@ func _initialize() -> void:
 			print("TREE %s kept: %s exists (--force overwrites)" % [tree_id, path])
 			kept += 1
 			continue
-		var t := _build_tree(tree_id, data[tree_id])
+		var t := build_tree(tree_id)
 		var err := ResourceSaver.save(t, path)
 		print("TREE %s -> %s (%d nodes, %d hidden, %s)" % [tree_id, path, t.nodes.size(), _hidden_count(t), error_string(err)])
 		if err != OK:
@@ -53,7 +53,11 @@ func _initialize() -> void:
 	quit(0 if built + kept == ids.size() else 1)
 
 
-func _build_tree(tree_id: StringName, specs: Array) -> TREE_SCRIPT:
+## The tree `tree_id` as the seed data describes it (static: test_skill_trees_v2
+## compares it with the shipped .tres, so a --force rebuild cannot silently
+## change a tree).
+static func build_tree(tree_id: StringName) -> TREE_SCRIPT:
+	var specs: Array = DATA.trees()[tree_id]
 	var t := TREE_SCRIPT.new()
 	var title: Array = DATA.TITLES[tree_id]
 	t.id = tree_id
@@ -75,7 +79,7 @@ func _build_tree(tree_id: StringName, specs: Array) -> TREE_SCRIPT:
 	return t
 
 
-func _build_node(spec: Dictionary, currency: StringName) -> NODE_SCRIPT:
+static func _build_node(spec: Dictionary, currency: StringName) -> NODE_SCRIPT:
 	var n := NODE_SCRIPT.new()
 	n.id = spec["id"]
 	# Readable, stable sub-resource ids in the .tres ("t1_dmg", not "Resource_x7k2p").

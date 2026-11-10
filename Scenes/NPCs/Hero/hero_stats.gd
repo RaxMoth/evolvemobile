@@ -8,7 +8,6 @@ class_name HeroStats
 @export var hero_name: String = "Unknown Hero"
 @export var hero_class: String = "DMG"
 @export var description: String = ""
-@export var portrait: Texture2D
 
 @export_group("Base Combat Stats")
 @export var base_max_health: float = 100.0

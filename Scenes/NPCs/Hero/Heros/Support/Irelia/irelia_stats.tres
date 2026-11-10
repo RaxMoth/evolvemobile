@@ -1,6 +1,5 @@
 [gd_resource type="Resource" script_class="HeroStats" format=3 uid="uid://dee3mmsm1t3fr"]
 
-[ext_resource type="Texture2D" uid="uid://bk17ahngrcr0" path="res://Scenes/NPCs/Hero/Heros/Support/Irelia/Assets/down_stand.png" id="1_15hgx"]
 [ext_resource type="Script" uid="uid://dvs6vqwnqtcd8" path="res://Scenes/NPCs/Hero/hero_stats.gd" id="1_stats"]
 
 [resource]
@@ -9,7 +8,6 @@ hero_id = &"irelia"
 hero_name = "Irelia"
 hero_class = "Tank/Support"
 description = "Defensive tank who shields allies and draws enemy attention"
-portrait = ExtResource("1_15hgx")
 base_max_health = 160.0
 base_move_speed = 75.0
 base_attack_range = 120.0

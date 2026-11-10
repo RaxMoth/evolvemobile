@@ -13,8 +13,8 @@ shader_type canvas_item;
 // the fragment mixes the art toward flash_color by f, a true white silhouette
 // instead of a brightened one (a plain over-bright modulate leaves the ink
 // outlines dark). Ordinary tints never raise all three channels above 1 at
-// once (a shield's blue, a rally's orange, a heal's green), so they pass
-// through untouched.
+// once (Trap Cage's honey pulse, Last Stand's glow), so they pass through
+// untouched.
 
 uniform vec4 flash_color : source_color = vec4(1.0);
 

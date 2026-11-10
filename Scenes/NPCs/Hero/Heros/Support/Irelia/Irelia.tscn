@@ -27,14 +27,11 @@ ultimate_ability = ExtResource("7_6vrsb")
 [node name="Hud" parent="." index="2"]
 position = Vector2(0, -68)
 
-[node name="AnimatedSprite2D" parent="." index="3"]
-visible = false
-
-[node name="Sprite2D" parent="." index="4"]
+[node name="Sprite2D" parent="." index="3"]
 visible = false
 scale = Vector2(0.159393, 0.131753)
 
-[node name="Rig" parent="." index="11" node_paths=PackedStringArray("body")]
+[node name="Rig" parent="." index="10" node_paths=PackedStringArray("body")]
 body = NodePath("IreliaBody")
 profile = ExtResource("9_motion")
 tier = 0

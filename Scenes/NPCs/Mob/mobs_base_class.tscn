@@ -17,15 +17,16 @@ strafe_speed = 40.0
 alert_allies_radius = 200.0
 
 [node name="HealthBar" parent="Hud" index="0"]
+fill_token = &"danger"
 hide_when_full = true
 
-[node name="DetectionArea" parent="." index="3"]
+[node name="DetectionArea" parent="." index="2"]
 collision_mask = 10
 
-[node name="Body" parent="." index="4"]
+[node name="Body" parent="." index="3"]
 collision_layer = 4
 
-[node name="AttackTimer" type="Timer" parent="." index="6"]
+[node name="AttackTimer" type="Timer" parent="." index="5"]
 unique_name_in_owner = true
 
 [node name="WarbandTimer" type="Timer" parent="."]

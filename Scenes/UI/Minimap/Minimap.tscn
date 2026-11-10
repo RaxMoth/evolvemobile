@@ -1,22 +1,11 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene load_steps=4 format=3 uid="uid://0b674f8kboyw"]
 
 [ext_resource type="Script" path="res://Scenes/UI/Minimap/minimap.gd" id="1_script"]
 [ext_resource type="Shader" path="res://Scenes/UI/Minimap/minimap_fog.gdshader" id="2_shader"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_fog"]
+resource_local_to_scene = true
 shader = ExtResource("2_shader")
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_frame"]
-bg_color = Color(0, 0, 0, 0.35)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.62, 0.78, 0.96, 0.45)
-corner_radius_top_left = 6
-corner_radius_top_right = 6
-corner_radius_bottom_right = 6
-corner_radius_bottom_left = 6
 
 [node name="Minimap" type="Control"]
 custom_minimum_size = Vector2(160, 128)
@@ -40,7 +29,7 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_frame")
+theme_type_variation = &"HudPanel"
 
 [node name="FogView" type="TextureRect" parent="."]
 unique_name_in_owner = true

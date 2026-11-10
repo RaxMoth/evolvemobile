@@ -19,6 +19,14 @@ const MENU_ROOT := preload("res://Scenes/UI/Screens/MenuRoot.tscn")
 const LOBBY := preload("res://Scenes/UI/Screens/LobbyScreen.tscn")
 const HEROES := MatchRewards.Side.HEROES
 const MONSTER := MatchRewards.Side.MONSTER
+## The pre-overhaul screens MenuRoot and its screens replaced (deleted in 8.3).
+const RETIRED_SCREENS: Array[String] = [
+	"res://Scenes/UI/MainMenu/MainMenu.tscn",
+	"res://Scenes/UI/PreRoundSetup/PreRoundSetup.tscn",
+	"res://Scenes/UI/MetaSkills/MetaSkillScreen.tscn",
+	"res://Scenes/UI/MatchResult/MatchResult.tscn",
+	"res://Scenes/UI/HeroContainer/HeroContainer.tscn",
+]
 
 var _side_before: int = HEROES
 var _world_before: PackedScene = null
@@ -120,7 +128,8 @@ func test_main_scene_is_the_menu_root() -> void:
 	if main.begins_with("uid://"):
 		main = ResourceUID.get_id_path(ResourceUID.text_to_id(main))
 	assert_eq(main, MENU_ROOT_PATH)
-	assert_true(ResourceLoader.exists("res://Scenes/UI/MainMenu/MainMenu.tscn"), "the old menu stays until Phase 8")
+	for old_screen: String in RETIRED_SCREENS:
+		assert_false(ResourceLoader.exists(old_screen), "%s is retired (Phase 8)" % old_screen)
 
 
 # -------------------------------------------------------- navigation ----

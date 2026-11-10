@@ -3,9 +3,10 @@ extends Node2D
 
 ## Animates one RigBody from what its entity DOES. It is the "Rig" node of
 ## NPCBaseClass.tscn: every entity has one, and a character scene migrated to
-## SVG art adds its <id>_body.tscn under it and sets `body` and `profile`. A rig
-## without a body (a character still on its AnimatedSprite2D) stays inert: it
-## never wakes, draws nothing and ignores every event.
+## SVG art adds its <id>_body.tscn under it and sets `body` and `profile`
+## (every character scene does; the pixel AnimatedSprite2D path is gone). A rig
+## without a body (a bare base scene) stays inert: it never wakes, draws
+## nothing and ignores every event.
 ##
 ## Read-only towards gameplay: it reads the entity's position, its facing
 ## carrier (the hidden Sprite2D whose rotation the abilities aim with) and

@@ -1,7 +1,7 @@
 [gd_resource type="Resource" script_class="RigProfile" format=3]
 
 [ext_resource type="Script" path="res://Scripts/Rig/rig_profile.gd" id="1_profile"]
-[ext_resource type="AnimationLibrary" path="res://Assets/Characters/_moves/flyer_moves.tres" id="2_moves"]
+[ext_resource type="AnimationLibrary" uid="uid://btfjux8uif88q" path="res://Assets/Characters/_moves/flyer_moves.tres" id="2_moves"]
 
 [resource]
 script = ExtResource("1_profile")

@@ -208,7 +208,7 @@ func snap_to_target() -> void:
 
 
 func _auto_find_target() -> void:
-	# Follow whoever the player is controlling (set by MainMenu).
+	# Follow whoever the player is controlling (the side chosen in the lobby).
 	if GameManager.chosen_side == MatchRewards.Side.MONSTER:
 		for m in get_tree().get_nodes_in_group("Monster"):
 			if m is MonsterBase and is_instance_valid(m):

@@ -1,12 +1,9 @@
-[gd_scene load_steps=6 format=3 uid="uid://ciqj3vjyob7jm"]
+[gd_scene load_steps=5 format=3 uid="uid://ciqj3vjyob7jm"]
 
 [ext_resource type="PackedScene" uid="uid://cnmv786k3qi1c" path="res://Scenes/NPCs/NPCBaseClass.tscn" id="1_cqly6"]
 [ext_resource type="Script" uid="uid://dl6xdhtgjlivg" path="res://Scenes/NPCs/Monster/monster_base_class.gd" id="2_yeqw1"]
 [ext_resource type="Script" uid="uid://cytafq8i1y8qm" path="res://addons/godot_state_charts/atomic_state.gd" id="3_atomic"]
 [ext_resource type="Script" uid="uid://cf1nsco3w0mf6" path="res://addons/godot_state_charts/transition.gd" id="4_trans"]
-
-[sub_resource type="LabelSettings" id="LabelSettings_lv"]
-font_size = 18
 
 [node name="Monster" groups=["Enemy", "Monster"] instance=ExtResource("1_cqly6")]
 script = ExtResource("2_yeqw1")
@@ -14,21 +11,38 @@ preferred_distance = 45.0
 min_distance = 20.0
 taunt_strength = 1.5
 
-[node name="DetectionArea" parent="." index="3"]
+[node name="HealthBar" parent="Hud" index="0"]
+fill_token = &"danger"
+
+[node name="DetectionArea" parent="." index="2"]
 collision_mask = 6
 
-[node name="Body" parent="." index="4"]
+[node name="Body" parent="." index="3"]
 collision_layer = 8
 
-[node name="LVLabel" type="Label" parent="Hud"]
+[node name="LevelBadge" type="Panel" parent="Hud"]
 unique_name_in_owner = true
 offset_left = 28.0
-offset_top = -12.0
-offset_right = 52.0
-offset_bottom = 14.0
+offset_top = -6.0
+offset_right = 50.0
+offset_bottom = 12.0
+mouse_filter = 2
+theme_type_variation = &"Pill"
+
+[node name="LVLabel" type="Label" parent="Hud/LevelBadge"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = -1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_type_variation = &"PillText"
+theme_override_font_sizes/font_size = 12
 text = "1"
-label_settings = SubResource("LabelSettings_lv")
 horizontal_alignment = 1
+vertical_alignment = 1
 
 [node name="Scattered" type="Node" parent="StateChart/CompoundState"]
 script = ExtResource("3_atomic")

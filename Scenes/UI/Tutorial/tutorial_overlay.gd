@@ -8,6 +8,8 @@ extends CanvasLayer
 signal finished(completed: bool)
 
 const SETTING_SEEN: StringName = &"tutorial_seen"
+## Alpha of the bg_void scrim behind the panel (the UnlockSheet's).
+const SCRIM_ALPHA := 0.72
 
 const STEPS: Array[Dictionary] = [
 	{
@@ -47,6 +49,7 @@ static func mark_seen() -> void:
 
 
 func _ready() -> void:
+	(%Dim as ColorRect).color = Color(UiPalette.get_default().bg_void, SCRIM_ALPHA)
 	_show_step(0)
 
 

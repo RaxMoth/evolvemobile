@@ -93,12 +93,14 @@ func test_singleton_cache_survives_a_freed_node() -> void:
 func test_hud_group_is_counter_scaled_as_one() -> void:
 	var grount := await spawn_entity(GROUNT, Vector2(4000, 4000))
 	var hud: Node2D = grount.get_node("%Hud")
-	assert_true(hud != null and grount.health_bar.get_parent() == hud and grount.lv_label.get_parent() == hud)
+	var badge := grount.get_node(^"%LevelBadge") as Control
+	assert_true(hud != null and grount.health_bar.get_parent() == hud and badge.get_parent() == hud)
+	assert_eq(grount.lv_label.get_parent(), badge, "the level number sits in its themed badge")
 	grount.scale = Vector2(1.5, 1.5)
 	grount._apply_ui_counter_scale()
 	assert_near(hud.scale.x, 1.0 / 1.5)
 	assert_eq(grount.health_bar.scale, Vector2.ONE, "children are not scaled separately")
-	assert_eq(grount.lv_label.scale, Vector2.ONE)
+	assert_eq(badge.scale, Vector2.ONE)
 	grount.queue_free()
 
 

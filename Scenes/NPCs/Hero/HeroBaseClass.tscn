@@ -1,13 +1,10 @@
-[gd_scene load_steps=7 format=3 uid="uid://bvyrcj7lkc1k6"]
+[gd_scene load_steps=6 format=3 uid="uid://bvyrcj7lkc1k6"]
 
 [ext_resource type="PackedScene" uid="uid://cnmv786k3qi1c" path="res://Scenes/NPCs/NPCBaseClass.tscn" id="1_py7br"]
 [ext_resource type="Script" uid="uid://cyux65w7f8f1b" path="res://Scenes/NPCs/Hero/hero_base_class.gd" id="2_385or"]
 [ext_resource type="Script" uid="uid://v7h1kjw4mr7a" path="res://Scenes/NPCs/Hero/Abilities/ability_system.gd" id="2_c2olh"]
 [ext_resource type="Script" uid="uid://bd0gjv0o4r2ef" path="res://Scenes/NPCs/Hero/stat_component.gd" id="2_h674b"]
 [ext_resource type="PackedScene" uid="uid://b6q5qdoikam77" path="res://Scenes/World/FogOfWar/VisionArea.tscn" id="5_m1rxm"]
-
-[sub_resource type="LabelSettings" id="LabelSettings_lv"]
-font_size = 18
 
 [node name="Hero" groups=["Hero"] instance=ExtResource("1_py7br")]
 script = ExtResource("2_385or")
@@ -26,27 +23,41 @@ script = ExtResource("2_h674b")
 unique_name_in_owner = true
 script = ExtResource("2_c2olh")
 
-[node name="DetectionArea" parent="." index="5"]
+[node name="DetectionArea" parent="." index="4"]
 collision_mask = 12
 
-[node name="Body" parent="." index="6"]
+[node name="Body" parent="." index="5"]
 collision_layer = 2
 
-[node name="NavigationAgent2D" parent="." index="7"]
+[node name="NavigationAgent2D" parent="." index="6"]
 navigation_layers = 3
 
-[node name="VisionArea" parent="." index="9" instance=ExtResource("5_m1rxm")]
+[node name="VisionArea" parent="." index="8" instance=ExtResource("5_m1rxm")]
 unique_name_in_owner = true
 
-[node name="LVLabel" type="Label" parent="Hud"]
+[node name="LevelBadge" type="Panel" parent="Hud"]
 unique_name_in_owner = true
 offset_left = 28.0
-offset_top = -12.0
-offset_right = 52.0
-offset_bottom = 14.0
+offset_top = -6.0
+offset_right = 50.0
+offset_bottom = 12.0
+mouse_filter = 2
+theme_type_variation = &"Pill"
+
+[node name="LVLabel" type="Label" parent="Hud/LevelBadge"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = -1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_type_variation = &"PillText"
+theme_override_font_sizes/font_size = 12
 text = "1"
-label_settings = SubResource("LabelSettings_lv")
 horizontal_alignment = 1
+vertical_alignment = 1
 
 [connection signal="health_changed" from="HeroStats" to="." method="_on_health_changed"]
 [connection signal="leveled_up" from="HeroStats" to="." method="_on_level_changed"]

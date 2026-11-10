@@ -20,7 +20,7 @@ const PALETTE_JSON := "res://tools/art/palette.json"
 ## Group folder -> SVG count (tools/art/build.py GROUPS, plus Lobby: the
 ## lobby's hand-drawn backdrops and VS badge from the UX design, no generator).
 const GROUP_COUNTS: Dictionary[String, int] = {
-	"Kit": 68,
+	"Kit": 64,
 	"Crests": 2,
 	"Icons/Abilities": 29,
 	"Icons/Currency": 4,

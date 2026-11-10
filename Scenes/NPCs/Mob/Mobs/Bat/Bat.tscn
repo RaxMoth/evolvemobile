@@ -14,13 +14,10 @@ max_chase_distance = 100.0
 [node name="Hud" parent="." index="0"]
 position = Vector2(0, -48)
 
-[node name="AnimatedSprite2D" parent="." index="1"]
+[node name="Sprite2D" parent="." index="1"]
 visible = false
 
-[node name="Sprite2D" parent="." index="2"]
-visible = false
-
-[node name="Rig" parent="." index="9" node_paths=PackedStringArray("body")]
+[node name="Rig" parent="." index="8" node_paths=PackedStringArray("body")]
 body = NodePath("BatBody")
 profile = ExtResource("3_motion")
 swing_fx = ExtResource("4_swing")

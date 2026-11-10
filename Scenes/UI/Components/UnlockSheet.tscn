@@ -1,4 +1,4 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://c0uaufrfa60fu"]
 
 [ext_resource type="Script" uid="uid://btdoenn1vuu4k" path="res://Scenes/UI/Components/unlock_sheet.gd" id="1_script"]
 [ext_resource type="Texture2D" uid="uid://b250ke07i0yes" path="res://Assets/UI/Kit/padlock.svg" id="2_lock"]

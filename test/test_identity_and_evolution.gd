@@ -51,7 +51,7 @@ func test_evolution_is_announced_on_the_event_bus() -> void:
 ## Back-to-back evolutions: the second flash replaces the first and both end at
 ## WHITE. The old sprite flash restored the tint it captured, which was
 ## mid-flash here, and the Grount stayed tinted; the rig's flash (on screen)
-## decays to WHITE and the hidden sprite is never tinted.
+## decays to WHITE and the hidden facing carrier is never tinted.
 func test_evolution_flashes_end_white() -> void:
 	var grount := (await spawn_frozen(GROUNT, Vector2(3000, 0))) as MonsterBase
 	var rig := grount.get_node(^"Rig") as CharacterRig
@@ -63,5 +63,5 @@ func test_evolution_flashes_end_white() -> void:
 	assert_eq(grount.current_stage, 3)
 	await wait_seconds(0.7)
 	assert_eq(rig.body.modulate, Color.WHITE, "no flash tint left on the rig")
-	assert_eq(grount.animated_sprite.modulate, Color.WHITE, "the hidden sprite is never tinted")
+	assert_eq(grount.sprite.modulate, Color.WHITE, "the hidden facing carrier is never tinted")
 	grount.queue_free()

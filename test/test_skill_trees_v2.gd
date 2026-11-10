@@ -1,18 +1,24 @@
 extends TestCase
 
-## Skill trees v2 (Data/SkillTrees/*.tres, generated once from
+## Skill trees v2 (Data/SkillTrees/*.tres, generated from
 ## Scripts/MetaSkills/skill_tree_data_v2.gd by tools/build_skill_trees.gd): the
 ## port of the design's validate_trees_v2. Save compatibility against a frozen
 ## copy of the v1 seeds (every v1 id kept, rank 1 = the v1 effect), the shape
-## of all nine trees, every ability node against its character's kit, the AI
-## build orders, hidden nodes, the "{v}" effect texts and the four v1 nodes the
-## ability renames / retargets bring to life.
+## of all nine trees, the generator's output against the shipped files, every
+## ability node against its character's kit, the AI build orders, hidden
+## nodes, the "{v}" effect texts and the four v1 nodes the ability renames /
+## retargets bring to life.
 
 const TREE_DIR := "res://Data/SkillTrees"
 const TREE_IDS: Array[StringName] = [&"hero_base", &"monster_base", &"hero_river", &"hero_vlad",
 	&"hero_ted", &"hero_irelia", &"monster_grount", &"monster_nyxa", &"monster_gorrak"]
 ## The throwaway tree of the hidden-node tests (_register_hidden_tree).
 const HIDDEN_TREE := &"test_hidden_nodes"
+## The tree generator (its static build_tree is what --force would write).
+const GENERATOR := preload("res://tools/build_skill_trees.gd")
+## Bookkeeping properties every Resource carries; not tree data.
+const RESOURCE_BOOKKEEPING: Array[String] = ["script", "resource_path", "resource_name",
+	"resource_local_to_scene", "resource_scene_unique_id"]
 const TED := "res://Scenes/NPCs/Hero/Heros/Support/Ted/Ted.tscn"
 const IRELIA := "res://Scenes/NPCs/Hero/Heros/Support/Irelia/Irelia.tscn"
 
@@ -282,6 +288,36 @@ func test_every_ability_node_targets_its_characters_kit() -> void:
 			assert_true(kit.has(n.ability_name), "%s/%s targets '%s'; the kit has %s" % [t.id, n.id, n.ability_name, kit.keys()])
 			if kit.has(n.ability_name) and not n.hidden:
 				assert_true(n.stat_name in kit[n.ability_name], "%s/%s: %s has a property %s" % [t.id, n.id, n.ability_name, n.stat_name])
+
+
+## tools/build_skill_trees.sh --force rebuilds the trees from the seed data;
+## it must write what ships, or a rebuild silently reverts tuning done in the
+## .tres (6.8's retuned AI build orders, the nodes the capstone batches
+## unhid). Every stored property of every tree and node is compared.
+func test_the_generator_writes_the_shipped_trees() -> void:
+	for tree_id in TREE_IDS:
+		var built: Resource = GENERATOR.build_tree(tree_id)
+		var shipped := _load_tree(tree_id)
+		var diffs := _stored_diffs(built, shipped, String(tree_id), ["nodes"])
+		var built_nodes: Array = built.get("nodes")
+		assert_eq(built_nodes.size(), shipped.nodes.size(), "%s: node count" % tree_id)
+		for i in mini(built_nodes.size(), shipped.nodes.size()):
+			var n: Resource = built_nodes[i]
+			diffs.append_array(_stored_diffs(n, shipped.nodes[i], "%s/%s" % [tree_id, n.get("id")], []))
+		assert_eq(diffs, [] as Array[String], "%s: the generator's output matches the .tres" % tree_id)
+
+
+## "<where>.<property>: generator <a>, shipped <b>" for every stored property
+## (bar the Resource bookkeeping and `ignored`) that differs.
+func _stored_diffs(built: Resource, shipped: Resource, where: String, ignored: Array[String]) -> Array[String]:
+	var out: Array[String] = []
+	for prop: Dictionary in built.get_property_list():
+		var key: String = prop["name"]
+		if not (int(prop["usage"]) & PROPERTY_USAGE_STORAGE) or key in RESOURCE_BOOKKEEPING or key in ignored:
+			continue
+		if built.get(key) != shipped.get(key):
+			out.append("%s.%s: generator %s, shipped %s" % [where, key, built.get(key), shipped.get(key)])
+	return out
 
 
 func test_ai_build_orders_are_valid() -> void:

@@ -32,3 +32,29 @@ func test_fairness_rules() -> void:
 	vlad.queue_free()
 	grount.queue_free()
 	mm.queue_free()
+
+
+## The dots, the camera frame and the fog map are palette tokens (the sides'
+## accents, the text colour, moss ground and the warm near-black fog), and the
+## map's own frame is the HUD panel variation.
+func test_colours_come_from_the_palette() -> void:
+	var palette := UiPalette.get_default()
+	var mm := (load(SCENE) as PackedScene).instantiate() as Minimap
+	add_child(mm)
+	assert_eq(mm._hero_color, palette.hero)
+	assert_eq(mm._monster_color, palette.monster)
+	var pet := palette.hero_light
+	pet.a = Minimap.PET_ALPHA
+	assert_eq(mm._pet_color, pet)
+	var frame := palette.text
+	frame.a = Minimap.CAMERA_FRAME_ALPHA
+	assert_eq(mm._camera_frame_color, frame)
+	var fog := mm.fog_view.material as ShaderMaterial
+	var explored := palette.moss
+	explored.a = Minimap.FOG_ALPHA
+	var unexplored := palette.bg_void
+	unexplored.a = Minimap.FOG_ALPHA
+	assert_eq(fog.get_shader_parameter(&"explored_color"), explored, "explored ground")
+	assert_eq(fog.get_shader_parameter(&"unexplored_color"), unexplored, "fog")
+	assert_eq((mm.get_node(^"%Frame") as Control).theme_type_variation, &"HudPanel", "its own frame is the HUD panel")
+	mm.queue_free()

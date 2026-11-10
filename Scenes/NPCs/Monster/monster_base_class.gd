@@ -6,7 +6,6 @@ signal evolved(stage: int)
 
 @export_group("Monster Configuration")
 @export var monster_stats: MonsterStats
-@export var visual_config: MonsterVisualConfig
 ## true (the tuned build): evolving refills HP. false: the README rule
 ## "Healing on Evolution: gains (new max HP - old max HP)". The Grount node
 ## Second Wind (+200 on the Stage 2 heal, capped at max) only shows with false.
@@ -608,14 +607,13 @@ func _scatter_point() -> Vector2:
 	return fallback
 
 
-## Presentation: the scattered bats show as a faded body (a CharacterRig's
-## own modulate, as Ground Slam's leap does; a legacy sprite's self_modulate).
+## Presentation: the scattered bats show as a faded body (the CharacterRig's
+## own modulate, as Ground Slam's leap does).
 func _fade_visual(alpha: float) -> void:
 	var vis: Node2D = visual_root()
 	if vis == null:
 		return
-	var prop: NodePath = ^"modulate:a" if vis is CharacterRig else ^"self_modulate:a"
-	create_tween().tween_property(vis, prop, alpha, SCATTER_FADE_TIME)
+	create_tween().tween_property(vis, ^"modulate:a", alpha, SCATTER_FADE_TIME)
 
 
 ## One F3 HUD line: the monster id, stage, HP, its build ("save" when the
@@ -691,47 +689,11 @@ func debug_keys_line() -> String:
 # ============================================
 
 
+## Presentation of an evolution. The CharacterRig shows the new stage's parts
+## and flashes itself (scene-wired to `evolved`); this adds the expanding ring
+## under the monster: the palette's gold, amber at Stage 2, danger at Stage 3,
+## 3 px wide as it grows (the Phase 7 toning-down rules).
 func _update_stage_visuals(stage: int) -> void:
-	if visual_root() != animated_sprite:
-		# A CharacterRig shows the stage's parts and flashes on `evolved`.
-		if visual_config and visual_config.enable_stage_effects:
-			_play_stage_effect(stage)
-		return
-	if not animated_sprite or not visual_config:
-		return
-
-	var sprite_frames = visual_config.get_sprite_frames_for_stage(stage)
-	var animation_name = visual_config.get_animation_name_for_stage(stage)
-	if sprite_frames:
-		animated_sprite.sprite_frames = sprite_frames
-
-	if animated_sprite.sprite_frames and animated_sprite.sprite_frames.has_animation(animation_name):
-		animated_sprite.play(animation_name)
-	else:
-		if animated_sprite.sprite_frames == null:
-			push_warning(name + " has no SpriteFrames!")
-			return
-		var available_anims = animated_sprite.sprite_frames.get_animation_names()
-		if available_anims.size() > 0:
-			animated_sprite.play(available_anims[0])
-		else:
-			push_warning(name + " has no animations available!")
-	
-	if visual_config.enable_stage_effects:
-		_play_stage_effect(stage)
-
-func _play_stage_effect(stage: int) -> void:
-	# Flash sprite (a CharacterRig flashes itself on set_stage)
-	if animated_sprite and visual_root() == animated_sprite:
-		var flash_color = Color.WHITE
-		match stage:
-			2: flash_color = Color(1.5, 1.2, 0.8) # Orange
-			3: flash_color = Color(1.8, 0.8, 0.8) # Red
-		
-		GameUtils.flash_modulate(animated_sprite, flash_color, 0.2, 0.3)
-	
-	# Expanding ring effect: the palette's gold, amber at Stage 2, danger at
-	# Stage 3; 3 px wide as it grows (the Phase 7 toning-down rules).
 	var palette := UiPalette.get_default()
 	var ring_color: Color = palette.gold
 	match stage:

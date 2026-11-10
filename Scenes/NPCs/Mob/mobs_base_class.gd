@@ -348,10 +348,6 @@ func prepare_for_pool() -> void:
 	if is_instance_valid(navigation_agent_2d):
 		navigation_agent_2d.target_position = global_position
 	_kill_transient_effects()
-	# Visual LOD: the ScreenNotifier only reports CHANGES, so a mob parked while
-	# on screen would otherwise keep animating off screen after reuse.
-	if animated_sprite and animated_sprite.is_playing():
-		animated_sprite.pause()
 	modulate = Color.WHITE
 	if sprite:
 		sprite.modulate = Color.WHITE

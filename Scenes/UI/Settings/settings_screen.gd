@@ -8,13 +8,13 @@ extends Control
 ## `add_child(SettingsScreen.new())`. Volume sliders drive the audio buses live
 ## through AudioSettings and persist on close; the reset button clears the save
 ## via PersistedData.wipe_progress() behind a two-tap confirm.
+##
+## Its look is the Jungle Guild theme's: the sheet panel and label / button
+## variations, and the palette's scrim and danger tokens (no colour literals).
 
 const _THEME: Theme = preload("res://Scenes/UI/Theme/ui_theme.tres")
-
-const _PANEL_BG := Color(0.10, 0.12, 0.14, 0.98)
-const _ACCENT := Color(0.62, 0.78, 0.96, 0.92)
-const _MUTED := Color(0.66, 0.70, 0.74, 0.85)
-const _DANGER := Color(0.90, 0.42, 0.40, 1.0)
+## Alpha of the bg_void scrim behind the sheet (the UnlockSheet's).
+const SCRIM_ALPHA := 0.72
 
 # Per-key percentage labels, refreshed as their slider moves.
 var _value_labels: Dictionary = {}
@@ -44,7 +44,7 @@ func _ready() -> void:
 func _build_dim_background() -> void:
 	var dim := ColorRect.new()
 	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
-	dim.color = Color(0, 0, 0, 0.75)
+	dim.color = Color(UiPalette.get_default().bg_void, SCRIM_ALPHA)
 	dim.mouse_filter = Control.MOUSE_FILTER_STOP
 	add_child(dim)
 
@@ -56,13 +56,7 @@ func _build_panel() -> void:
 
 	var panel := PanelContainer.new()
 	panel.custom_minimum_size = Vector2(460, 0)
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = _PANEL_BG
-	sb.set_corner_radius_all(16)
-	sb.set_content_margin_all(28)
-	sb.border_color = Color(_ACCENT.r, _ACCENT.g, _ACCENT.b, 0.25)
-	sb.set_border_width_all(1)
-	panel.add_theme_stylebox_override("panel", sb)
+	panel.theme_type_variation = &"SheetPanel"
 	center.add_child(panel)
 
 	var vbox := VBoxContainer.new()
@@ -71,8 +65,7 @@ func _build_panel() -> void:
 
 	var title := Label.new()
 	title.text = tr("SETTINGS")
-	title.add_theme_font_size_override("font_size", 26)
-	title.add_theme_color_override("font_color", _ACCENT)
+	title.theme_type_variation = &"HeaderSmall"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vbox.add_child(title)
 
@@ -96,13 +89,14 @@ func _build_panel() -> void:
 	_reset_button = Button.new()
 	_reset_button.text = tr("Reset Progress")
 	_reset_button.custom_minimum_size = Vector2(0, TOUCH_TARGET)
-	_reset_button.add_theme_color_override("font_color", _DANGER)
+	_reset_button.add_theme_color_override("font_color", UiPalette.get_default().danger)
 	_reset_button.pressed.connect(_on_reset_pressed)
 	vbox.add_child(_reset_button)
 
 	var close_button := Button.new()
 	close_button.text = tr("Close")
 	close_button.custom_minimum_size = Vector2(0, TOUCH_TARGET)
+	close_button.theme_type_variation = &"ButtonPrimary"
 	close_button.pressed.connect(_on_close_pressed)
 	vbox.add_child(close_button)
 
@@ -110,8 +104,7 @@ func _build_panel() -> void:
 func _section_header(text: String) -> Label:
 	var label := Label.new()
 	label.text = text
-	label.add_theme_font_size_override("font_size", 12)
-	label.add_theme_color_override("font_color", Color(_ACCENT.r, _ACCENT.g, _ACCENT.b, 0.55))
+	label.theme_type_variation = &"Caption"
 	return label
 
 
@@ -127,8 +120,7 @@ func _build_volume_row(key: StringName) -> Control:
 
 	var name_label := Label.new()
 	name_label.text = AudioSettings.label_for(key)
-	name_label.add_theme_font_size_override("font_size", 15)
-	name_label.add_theme_color_override("font_color", _MUTED)
+	name_label.theme_type_variation = &"BodyDim"
 	name_label.custom_minimum_size = Vector2(90, 0)
 	row.add_child(name_label)
 
@@ -145,8 +137,7 @@ func _build_volume_row(key: StringName) -> Control:
 	row.add_child(slider)
 
 	var value_label := Label.new()
-	value_label.add_theme_font_size_override("font_size", 14)
-	value_label.add_theme_color_override("font_color", _MUTED)
+	value_label.theme_type_variation = &"Caption"
 	value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	value_label.custom_minimum_size = Vector2(44, 0)
 	value_label.text = _percent(slider.value)
@@ -162,8 +153,7 @@ func _build_language_row() -> Control:
 
 	var label := Label.new()
 	label.text = tr("Language")
-	label.add_theme_font_size_override("font_size", 15)
-	label.add_theme_color_override("font_color", _MUTED)
+	label.theme_type_variation = &"BodyDim"
 	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(label)
 
@@ -202,8 +192,7 @@ func _build_shake_row() -> Control:
 
 	var label := Label.new()
 	label.text = tr("Screen shake")
-	label.add_theme_font_size_override("font_size", 15)
-	label.add_theme_color_override("font_color", _MUTED)
+	label.theme_type_variation = &"BodyDim"
 	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(label)
 
@@ -225,8 +214,7 @@ func _build_analytics_row() -> Control:
 
 	var label := Label.new()
 	label.text = tr("Usage statistics")
-	label.add_theme_font_size_override("font_size", 15)
-	label.add_theme_color_override("font_color", _MUTED)
+	label.theme_type_variation = &"BodyDim"
 	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	label.tooltip_text = tr("Stored only on this device (user://analytics.jsonl). Nothing is uploaded.")
 	row.add_child(label)

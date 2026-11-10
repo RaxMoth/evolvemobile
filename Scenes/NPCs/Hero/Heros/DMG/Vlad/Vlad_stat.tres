@@ -1,7 +1,6 @@
 [gd_resource type="Resource" script_class="HeroStats" format=3 uid="uid://m2m6oqcsafle"]
 
 [ext_resource type="Script" uid="uid://dvs6vqwnqtcd8" path="res://Scenes/NPCs/Hero/hero_stats.gd" id="1_aenkc"]
-[ext_resource type="Texture2D" uid="uid://dvv8w1iegdl1t" path="res://Scenes/NPCs/Hero/Heros/DMG/Vlad/Assets/down_stand.png" id="1_htbav"]
 
 [resource]
 script = ExtResource("1_aenkc")
@@ -9,7 +8,6 @@ hero_id = &"vlad"
 hero_name = "Vlad"
 hero_class = "DPS/Berserker"
 description = "High-risk berserker who gains massive power when at low health"
-portrait = ExtResource("1_htbav")
 base_max_health = 110.0
 vision_radius = 250.0
 idle_wander_radius = 120.0

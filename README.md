@@ -629,15 +629,13 @@ dangerous (`monster` #C2334A, `monster_purple` #7B3F95).
 - **UI kit** (`Assets/UI/`, all generated: edit the generators, never the
   files). Every SVG imports as a DPITexture (`importer="svg"`), so it stays
   crisp at any Control size and canvas scale.
-    - `Kit/` (68): card frames and inner panels (hero / monster / selected /
+    - `Kit/` (64): card frames and inner panels (hero / monster / selected /
       locked), carved-wood nav plaques and the mossy-stone HUNT arch, buttons
       (primary, secondary, copper, hero, monster, round) with hover / pressed
       art, panels and banners (plus the match result's outcome ribbons:
       `banner_victory` copper, `banner_victory_monster` crimson,
       `banner_defeat` grey stone), ability slot frames (basic, active, passive,
-      ult, locked), the old round skill-tree rings (`node_minor`,
-      `node_major` and their `_tint` versions; no theme type uses them since
-      the square tiles of the ranked tree screen), toggles, padlock,
+      ult, locked), toggles, padlock,
       notification dot, leaf and vine ornaments, the background tile. 9-slice
       margins live in `kit.MARGINS`.
     - `Icons/` (81, 64x64): `Abilities/` (29, `<owner>_<slot>_<ability>`:
@@ -651,7 +649,8 @@ dangerous (`monster` #C2334A, `monster_purple` #7B3F95).
     - Every ability `.tres` (the 16 hero abilities and the three monsters'
       kits) sets
       its `icon` to its tile; no ability shows the old `Icon.jpg`
-      placeholder. River's basic attack also has `heal_icon`
+      placeholder (`Assets/Icon.jpg` is only the app icon now,
+      `config/icon`). River's basic attack also has `heal_icon`
       (`river_basic_heal`) next to `icon` (`river_basic_sniper`).
       `test/test_ability_icons.gd` checks the resource-to-icon table, the
       DPITexture imports and River's weapon-mode swap.
@@ -705,10 +704,22 @@ dangerous (`monster` #C2334A, `monster_purple` #7B3F95).
       CharacterCard, PrimaryButton → ButtonPrimary, MossButton → ButtonHero,
       HudCard → HudPanel, TitleLabel → HeaderLarge, MutedLabel → Caption, ...;
       the full table is in `make_theme.py`).
-    - The old screens (main menu, pre-round, skill screen, match result,
-      settings, tutorial) restyle through it until Phases 3-8 replace them;
-      their own overrides still win. The MatchHud's cards and panels use
-      HudPanel / HudPanelSelected and HpBarHero / HpBarMonster.
+    - The old screens (main menu, pre-round, skill screen, match result) are
+      gone (8.3); the settings and tutorial overlays use the theme's
+      variations (SheetPanel, HeaderSmall, BodyDim, Caption, ButtonPrimary)
+      and the palette's scrim (`bg_void` at 0.72). The MatchHud's cards and
+      panels use HudPanel / HudPanelSelected and HpBarHero / HpBarMonster.
+    - **No colour literals in the UI** (`tools/lint_all.gd`,
+      `_check_no_color_literals`): no script, scene or resource under
+      `Scenes/UI/` writes a colour as numbers. In a script that is a
+      `Color(` whose first argument is a number or a string, `Color8(` or
+      `Color.html / hex / from_*(`; a token with an alpha
+      (`Color(palette.bg_void, 0.72)`) and the identity `Color.WHITE` are
+      fine. In a `.tscn` / `.tres` every `Color(` is a literal: use a theme
+      variation, or set the token from the script (a scrim's ColorRect, the
+      NavArch glow pulse animates `self_modulate:a`). Exempt: the colour
+      sources themselves (`ui_palette.gd`, `palette.tres`, `ui_theme.tres`).
+      The lint prints `ui_color_checked=<n>` and fails on any hit.
     - `test/test_theme_contract.gd`: the project setting points at the theme,
       every `theme_type_variation` a scene or script under `Scenes/` and
       `Scripts/` names exists, every StyleBoxTexture and icon resolves to a
@@ -808,8 +819,10 @@ Ted's fox, Grount (all three stages), Nyxa, Gorrak and the Bat and Hog mobs.
       pipeline see the same hit).
     - **Moves** (authored, not procedural): one `AnimationLibrary` per body
       plan in `Assets/Characters/_moves/` (`humanoid_moves.tres` 22 moves,
-      `quadruped_moves.tres` 7, `flyer_moves.tres` 7), set as each profile's
-      `moves`, so one library fits every character of the plan. Every library
+      `quadruped_moves.tres` 7, `flyer_moves.tres` 7; hand-written, with a
+      uid like every hand-written scene, which `test_legacy_retired` checks),
+      set as each profile's `moves`, so one library fits every character of
+      the plan. Every library
       has `attack`, `cast`, `ultimate`, `hurt` and `cheer`; the humanoid one
       also the signature moves `bash`, `shield_up`, `war_cry`, `place`,
       `rally`, `throw`, `aim`, `point`, `twirl`, `point_up`, `cleave`, `chop`,
@@ -874,11 +887,12 @@ Ted's fox, Grount (all three stages), Nyxa, Gorrak and the Bat and Hog mobs.
       `use_parent_material` (written by `tools/rig_builder.gd`): the shader
       reads a modulate of (1 + f) on all three channels as a flash of f and
       mixes the art toward white, a white silhouette instead of a brightened
-      one, while ordinary tints (a shield's blue, a trapped enemy's honey) pass
-      through. One shared material keeps a character in one draw and a
+      one, while ordinary tints (a trapped enemy's honey, Last Stand's glow)
+      pass through. One shared material keeps a character in one draw and a
       species' mobs batched together.
     - `EntityBase.visual_root()` is what effects move or tint (Ground Slam's
-      hop): the rig once the scene has a body, else the AnimatedSprite2D.
+      hop, Trap Cage's pulse, Vampiric Rebirth's fade): the rig (null only
+      for a bare base scene without a body, which draws nothing).
     - LOD: a rig animates only while its entity's ScreenNotifier is on screen.
       While more than 48 rigs are awake (`within_budget()` is false), mob
       rigs (tier BUDGETED) animate every other frame, staggered, and skip
@@ -913,24 +927,27 @@ Ted's fox, Grount (all three stages), Nyxa, Gorrak and the Bat and Hog mobs.
     - Evolution (`set_stage`): the stage's parts, and on screen the
       evolution flash (an evolution off screen leaves no flash pending). The
       stage SIZE stays the monster's root scale (gameplay: collision and
-      aggro shapes grow with it), which the rig inherits; the old sprite path
-      (stage SpriteFrames from `MonsterVisualConfig`, orange/red tint) only
-      runs for a monster scene without a rig body. The stage ring pulse
-      (`enable_stage_effects`) plays either way.
+      aggro shapes grow with it), which the rig inherits. `MonsterBase`
+      adds the stage ring pulse (gold, amber at Stage 2, danger at Stage 3).
+      The old sprite path (stage SpriteFrames from `MonsterVisualConfig`,
+      orange/red tint) is gone (8.3).
 - **Migrated scenes** (Irelia, Vlad, Ted, River, `TedsPet.tscn`, Grount, Bat
-  and Hog; Nyxa and Gorrak were built on their rigs): the `AnimatedSprite2D`
-  is hidden and its dead SpriteFrames deleted (Nyxa and Gorrak never had
-  any); the hidden facing
-  `Sprite2D` stays as it was (gameplay keeps rotating it); the `Rig` sets
+  and Hog; Nyxa and Gorrak were built on their rigs): 8.3 removed the pixel
+  `AnimatedSprite2D` from `NPCBaseClass.tscn` (and every override of it),
+  the `animated_sprite` code path, `MonsterVisualConfig` with its
+  `*_visual.tres` and Grount's `phase_1/2/3.tres` SpriteFrames, the pixel
+  PNGs (heroes, the fox, Bat-Run, Orc-Walk) and `HeroStats.portrait` (the
+  roster's `CharacterDef.portrait` is the one portrait). The hidden facing
+  `Sprite2D` stays as it was (gameplay keeps rotating it; the fox's is a
+  plain `Sprite2D` now); `test/test_legacy_retired.gd` keeps it that way. The
+  `Rig` sets
   `body` (through the scene's `node_paths`, so the export resolves at
   instantiation), `profile` and `tier` (FULL for the heroes, the fox and the
   three monsters; the mobs keep the default BUDGETED), with
   `<Id>Body` (the instanced `<id>_body.tscn`) under it. No existing node is
   reordered and World.tscn's node order and y-sort are untouched (it only
   gained the ground grade, see Ground Style), so the match and its trace are
-  unchanged. Grount keeps `grount_visual.tres` for its stage ring pulse;
-  Nyxa's `nyxa_visual.tres` and Gorrak's `gorrak_visual.tres` hold no frames,
-  only that switch.
+  unchanged.
     - The rig's origin is the character's feet at the entity's position (the
       old sprites were centred on it), so the entity's y-sort now orders by
       the feet.
@@ -1063,9 +1080,24 @@ writes gameplay state, so `tools/sim_trace.sh` stays byte-identical.
     - Follow (`ui_follow`): `follow_requested` → `MainCam.recenter()` (leaves
       the debug fly-cam, centres on the followed entity).
 - **Minimap**: the match's `Minimap` lives in the HUD's copper frame
-  (`Root/MinimapFrame/MinimapSlot`, 156x124, its own frame off via
+  (`Root/MinimapFrame/MinimapSlot`, 156x124, its own HudPanel frame off via
   `show_frame`). A tap emits `Minimap.hero_picked`, wired to
-  `MatchHud.select_hero` in the scene.
+  `MatchHud.select_hero` in the scene. Its colours are palette tokens
+  (exports, resolved in `_ready`): hero dots `hero`, pet dots `hero_light`
+  at 0.8, the monster `monster`, the camera frame `text` at 0.55, and the
+  fog map (`minimap_fog.gdshader`, on a material local to the minimap)
+  `moss` for explored ground over `bg_void` fog, both at 0.95.
+- **In-world bars and badges** (every entity's `Hud` group, counter-scaled
+  so it keeps its pixel size): the HP bar is an `HpBar2D` whose colours are
+  palette tokens: a `panel_inset` trough at 0.85, an `ink` outline at 0.8 and
+  the fill `heal` on the hero side (heroes, the fox) and `danger` on mobs and
+  the monster (`fill_token`, set on `mobs_base_class.tscn` and
+  `monster_base_class.tscn`). Heroes and the monster show their level (the
+  monster: its stage) right of the bar on the HUD's level pill: `%LevelBadge`
+  (a Panel, theme variation `Pill`, 22x18, ignoring taps) around `%LVLabel`
+  (`PillText` at 12 px); mobs carry none. The world fog
+  (`FogOfWarSystem.fog_token`) is `bg_void` at 0.85.
+  `test/test_world_palette.gd` checks all three.
 - **Heroes side: `HeroHudCard`** (172x146, one per HeroBase in the "Hero"
   group, tree order):
     - the head portrait: `CharacterDef.head_texture()` (the def's
@@ -1299,7 +1331,7 @@ changed (the trace is byte-identical).
 | Vlad | Land Mine (`mine`) | dust at Vlad's feet; `MINE_ARMED`: a small ring at each mine. The mine itself is `fx_mine` with a blinking `fx_lamp` (Mine.tscn's `Blink`), its trigger radius a dashed ring at 35 %. `MINE_EXPLODED`: a 0.14 s amber fireball, a ring out to the blast radius, three dust clouds, three rocks, a scorch crack left for 3 s |
 | Vlad | Blood Bomb (`blood_bomb`) | six drops sucked in for 0.12 s, then a crimson blast low on his body (the head stays clear), a ring to `area_of_effect`, four mist puffs rolling out along the ground, flying drops, a splat left for 3 s, trauma 0.25 |
 | Irelia | Shield Bash (`strike`) | the slash in her light teal |
-| Irelia | Divine Shield (`shield`) | a ring and a glint at Irelia; `SHIELD_UP` per hero: a 0.14 s bubble pop, then a ward ellipse at the feet whose alpha is the shield's strength; `SHIELD_HIT`: it pulses white; `SHIELD_BROKEN`: six shards; `SHIELD_EXPIRED`: it fades |
+| Irelia | Divine Shield (`shield`) | a ring and a glint at Irelia; `SHIELD_UP` per hero: a 0.14 s bubble pop, then a ward ellipse at the feet whose alpha is the shield's strength; `SHIELD_HIT`: it pulses white; `SHIELD_BROKEN`: six shards; `SHIELD_EXPIRED`: it fades. The shielded hero is not tinted (the old blue modulate read purple on the skin; 8.3) |
 | Irelia | Monster Taunt (`taunt`) | a copper ring out to the range and a "!" above Irelia; `TAUNTED` per enemy: an anger vein above its head and a dashed tether body to body for the taunt's duration (replaces `TauntLink`); Rallying Taunt: `RALLIED` per hero |
 | Irelia | Regeneration (`last_stand`) | `LAST_STAND`: a gold ring, star and sparks, then a halo at her feet for the invulnerable seconds |
 | Ted | Claw Swipe (`claw`) | three raking marks over the target's body |
@@ -1852,8 +1884,9 @@ code connections are to autoloads (`PersistedData.currency_changed`).
 ### Menu Root and Lobby (the main scene)
 
 The game boots into `Scenes/UI/Screens/MenuRoot.tscn` (`application/run/main_scene`),
-and the match result's LOBBY returns to it. Nothing reaches the old
-`MainMenu.tscn` any more; the Phase 8 cleanup deletes it.
+and the match result's LOBBY returns to it. The old `MainMenu.tscn`,
+`PreRoundSetup`, `MetaSkillScreen` and `MatchResult` were deleted in 8.3
+(`test_menu_root` checks they stay gone).
 
 - **`MenuRoot`** (`menu_root.gd`): every meta screen is a hidden child of
   `%Screens`, and every screen signal is connected in `MenuRoot.tscn`. The
@@ -1959,7 +1992,7 @@ child of MenuRoot's `%Screens` that HUNT pushes after `open(side)`. Under the
 top bar (back, Gold and the side's Steel or Leaves) the content scrolls
 (`%Scroll`) above the pinned start button. Sections carry the group
 `pre_round_heroes` or `pre_round_monster` in the scene and show for their side
-only. It replaces the old `PreRoundSetup` overlay with the same contract:
+only. It replaced the old `PreRoundSetup` overlay (deleted in 8.3) with the same contract:
 `start_requested(config: MatchConfig)`, `cancelled`, the config persisted
 (`save_to_settings`) and tracked (`AnalyticsSink` `pre_round_setup`) on start;
 it adds `monster_start_requested(monster_id, instinct)`.
@@ -2032,7 +2065,7 @@ it adds `monster_start_requested(monster_id, instinct)`.
 
 The overlay at the end of a match (`Scenes/UI/Screens/MatchResultScreen.tscn`,
 `match_result_screen.gd`), a CanvasLayer at layer 30 with `process_mode`
-ALWAYS. It replaces the old `MatchResult` overlay with the same contract:
+ALWAYS. It replaced the old `MatchResult` overlay (deleted in 8.3) with the same contract:
 `GameManager.MATCH_RESULT_SCENE` instantiates it over the paused World and calls
 `populate(result)` after the rewards are saved. Previews of the design:
 `result_heroes.png`, `result_monster.png`, `result_heroes_defeat.png`.
@@ -2319,8 +2352,7 @@ res://
 │     ├─ Screens/ (MenuRoot.tscn: the main scene, LobbyScreen.tscn,
 │     │            RosterScreen.tscn, CharacterDetail.tscn, PreRoundScreen.tscn,
 │     │            MatchResultScreen.tscn, ux_tree_model.gd)
-│     ├─ MainMenu/, MatchResult/, PreRoundSetup/ (the old screens, unreachable;
-│     │            the Phase 8 cleanup deletes them)
+│     ├─ Settings/, Tutorial/ (the settings and how-to-play overlays)
 │     ├─ Hud/ (MatchHud: the in-match HUD under MainCam, HeroHudCard,
 │     │        MonsterHudPanel, AbilitySlot: ability icon with the cooldown sweep,
 │     │        MatchAnnouncer: match events -> the HUD's event toasts)
@@ -2349,7 +2381,7 @@ res://
 └─ tools/
    ├─ art/ (Python art pipeline: palette.py, build.py, make_theme.py, ...)
    ├─ rig_builder.gd · build_rigs.gd · build_rigs.sh (SVG parts → rig sheet + body)
-   ├─ build_skill_trees.gd · build_skill_trees.sh (one-off: seed data → Data/SkillTrees)
+   ├─ build_skill_trees.gd · build_skill_trees.sh (seed data → Data/SkillTrees, kept in step by a test)
    ├─ sim.sh · sim_match.gd · sim_summary.py · sim_trace.sh · bench.sh · bench_match.gd
    │  (headless balance, determinism and performance; see Headless Tools)
    ├─ list_monsters.gd · monster_env.zsh (MONSTER=<id>|all for those three)
@@ -2691,11 +2723,15 @@ way round).
 #### Tree content v2 (Data/SkillTrees)
 
 Nine trees, one `MetaSkillTree` resource each with its nodes as sub-resources:
-`Data/SkillTrees/<tree_id>.tres`. They were generated once by
+`Data/SkillTrees/<tree_id>.tres`. They were generated by
 `tools/build_skill_trees.sh` (runs `tools/build_skill_trees.gd` on a temp copy)
 from the design's seed data, `Scripts/MetaSkills/skill_tree_data_v2.gd`
-(`SkillTreeDataV2`); since then the `.tres` files ARE the trees and are edited
-in the inspector (the tool keeps an existing file unless `--force`).
+(`SkillTreeDataV2`); the `.tres` files ARE the trees and are edited in the
+inspector (the tool keeps an existing file unless `--force`). The seed data
+follows every edit: `test_skill_trees_v2` compares each stored property of
+the generator's output (`build_tree`, static) with the shipped tree, so a
+`--force` rebuild writes exactly what ships (6.8's AI build orders and the
+unhidden nodes included; until 8.3 it would have reverted both).
 `MetaSkillManager._ready` registers `hero_base` and `monster_base`
 (`HERO_BASE_TREE`, `MONSTER_BASE_TREE`) and every roster def's `skill_tree`
 (`monster_nyxa` and `monster_gorrak` since Nyxa and Gorrak joined the

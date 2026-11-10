@@ -35,7 +35,7 @@ GROUPS = {
 }
 KIT_SHEETS = [("kit_cards", "x2,x1", 5, "card_,padlock,dot_"), ("kit_nav", "x2,x1", 3, "plaque,arch"),
               ("kit_buttons", "x2,x1", 4, "btn_"), ("kit_panels", "x2,x1", 4, "panel,banner"),
-              ("kit_slots", "x2,x1", 5, "slot_,node_"), ("kit_ornaments", "x1", 4, "orn_,bg_")]
+              ("kit_slots", "x2,x1", 5, "slot_"), ("kit_ornaments", "x1", 4, "orn_,bg_")]
 
 
 def render_sheet(proj, d, tag, sizes, cols, prefixes):

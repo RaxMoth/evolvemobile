@@ -1,4 +1,4 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://b3esndrgmkbio"]
 
 [ext_resource type="PackedScene" uid="uid://ciqj3vjyob7jm" path="res://Scenes/NPCs/Monster/monster_base_class.tscn" id="1_base"]
 [ext_resource type="Resource" path="res://Scenes/NPCs/Monster/Gorrak/gorrak_stats.tres" id="2_stats"]
@@ -6,7 +6,6 @@
 [ext_resource type="Resource" path="res://Scenes/NPCs/Monster/Gorrak/abilities/gorrak_axe.tres" id="4_axe"]
 [ext_resource type="Resource" path="res://Scenes/NPCs/Monster/Gorrak/abilities/gorrak_stomp.tres" id="5_stomp"]
 [ext_resource type="Resource" path="res://Scenes/NPCs/Monster/Gorrak/abilities/gorrak_bristled_hide.tres" id="6_passive"]
-[ext_resource type="Resource" path="res://Scenes/NPCs/Monster/Gorrak/Assets/gorrak_visual.tres" id="7_visual"]
 [ext_resource type="Resource" path="res://Scenes/NPCs/Monster/Gorrak/gorrak_strategy.tres" id="8_strategy"]
 [ext_resource type="PackedScene" path="res://Assets/Characters/gorrak/gorrak_body.tscn" id="9_body"]
 [ext_resource type="Resource" path="res://Assets/Characters/gorrak/gorrak_motion.tres" id="10_motion"]
@@ -18,22 +17,18 @@ ability_1 = ExtResource("3_cleaver")
 ability_2 = ExtResource("4_axe")
 ability_3 = ExtResource("5_stomp")
 passive_ability = ExtResource("6_passive")
-visual_config = ExtResource("7_visual")
 strategy_profile = ExtResource("8_strategy")
 
 [node name="Hud" parent="." index="0"]
 position = Vector2(0, -90)
 
-[node name="AnimatedSprite2D" parent="." index="1"]
+[node name="Sprite2D" parent="." index="1"]
 visible = false
 
-[node name="Sprite2D" parent="." index="2"]
-visible = false
-
-[node name="ScreenNotifier" parent="." index="7"]
+[node name="ScreenNotifier" parent="." index="6"]
 rect = Rect2(-58, -100, 116, 104)
 
-[node name="Rig" parent="." index="8" node_paths=PackedStringArray("body")]
+[node name="Rig" parent="." index="7" node_paths=PackedStringArray("body")]
 body = NodePath("GorrakBody")
 profile = ExtResource("10_motion")
 tier = 0

@@ -37,9 +37,6 @@ func _process(delta: float) -> void:
 	
 	if remaining_time <= 0.0:
 		_expire_shield()
-	
-	# Update visual indicator if exists
-	_update_visual()
 
 func absorb_damage(amount: float) -> float:
 	var absorbed: float = minf(amount, shield_amount)
@@ -52,28 +49,17 @@ func absorb_damage(amount: float) -> float:
 	
 	return amount - absorbed
 
+## The shield's strength (0..1). Its look is AbilityVfx's ward at the hero's
+## feet (FxEvents.SHIELD_*: its alpha follows this); the hero is never tinted.
 func get_shield_percent() -> float:
 	return shield_amount / max_shield if max_shield > 0 else 0.0
-
-func _update_visual() -> void:
-	if not owner_hero:
-		return
-	
-	# Add blue tint based on shield strength
-	var shield_percent = get_shield_percent()
-	if shield_percent > 0:
-		owner_hero.modulate = Color(1.0, 1.0, 1.0 + shield_percent * 0.5)
 
 func _break_shield() -> void:
 	if is_instance_valid(owner_hero):
 		EventBus.notify_ability_event(owner_hero, null, FxEvents.SHIELD_BROKEN, owner_hero.global_position)
-	if owner_hero:
-		owner_hero.modulate = Color.WHITE
 	queue_free()
 
 func _expire_shield() -> void:
 	if is_instance_valid(owner_hero):
 		EventBus.notify_ability_event(owner_hero, null, FxEvents.SHIELD_EXPIRED, owner_hero.global_position)
-	if owner_hero:
-		owner_hero.modulate = Color.WHITE
 	queue_free()

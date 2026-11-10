@@ -29,9 +29,6 @@ unique_name_in_owner = true
 position = Vector2(-25, 0)
 script = ExtResource("7_hpbar")
 
-[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
-scale = Vector2(1, 1)
-
 [node name="Sprite2D" type="Sprite2D" parent="."]
 rotation = -0.0119461
 scale = Vector2(0.602, 0.5)

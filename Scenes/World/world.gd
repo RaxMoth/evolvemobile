@@ -82,7 +82,6 @@ func _setup_fog():
 	fog.world_size = Vector2(7500, 6000)
 	fog.world_offset = Vector2(0, 0)
 	fog.tile_size = 32
-	fog.fog_color = Color(0, 0, 0, 0.85)
 
 	add_child(fog)
 

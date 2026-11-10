@@ -2,7 +2,10 @@ extends Node2D
 class_name FogOfWarSystem
 
 @export var tile_size: int = 32
-@export var fog_color: Color = Color(0, 0, 0, 0.85)
+## The unexplored fog: a palette token (UiPalette, the warm near-black
+## `bg_void`) at fog_alpha.
+@export var fog_token: StringName = &"bg_void"
+@export_range(0.0, 1.0) var fog_alpha: float = 0.85
 ## Snapped up to a whole number of tiles in _ready, so the exploration texture
 ## covers exactly this rectangle (the shader and the minimap both map by it).
 @export var world_size: Vector2 = Vector2(9200, 5185)
@@ -56,6 +59,13 @@ func _process(_delta: float) -> void:
 		_texture_dirty = false
 		exploration_texture.update(exploration_image)
 
+## The fog's colour: fog_token at fog_alpha.
+func fog_color() -> Color:
+	var c := UiPalette.get_default().color(fog_token)
+	c.a = fog_alpha
+	return c
+
+
 func _setup_fog_sprite() -> void:
 	fog_sprite = Sprite2D.new()
 	fog_sprite.name = "FogSprite"
@@ -74,7 +84,7 @@ func _setup_fog_sprite() -> void:
 	var fog_material := ShaderMaterial.new()
 	fog_material.shader = load("res://Scenes/World/FogOfWar/fog_of_war.gdshader")
 	fog_material.set_shader_parameter("exploration_map", exploration_texture)
-	fog_material.set_shader_parameter("fog_color", fog_color)
+	fog_material.set_shader_parameter("fog_color", fog_color())
 	fog_material.set_shader_parameter("tile_size", float(tile_size))
 	fog_material.set_shader_parameter("world_offset", world_offset)
 	fog_material.set_shader_parameter("grid_size", Vector2(grid_width, grid_height))

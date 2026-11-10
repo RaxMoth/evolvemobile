@@ -3,8 +3,8 @@ extends TestCase
 ## The character scenes migrated to their SVG rigs (the four heroes, Ted's
 ## pet, Grount, Nyxa and Gorrak, and the Bat and Hog mobs): each Rig carries the character's own
 ## generated body and motion profile, tier FULL for heroes, the pet and the
-## monster, BUDGETED for mobs; the pixel AnimatedSprite2D is hidden with its
-## dead SpriteFrames gone while the facing carrier stays; the HP bar sits just
+## monster, BUDGETED for mobs; no pixel AnimatedSprite2D is left (8.3 retired
+## that path) while the hidden facing carrier stays; the HP bar sits just
 ## above the rig's art and clears its tallest pose (at every monster stage);
 ## the screen notifier covers the drawn body; every rig stands on an ink
 ## contact shadow; and in a match the rig walks (or flies), faces and flinches
@@ -103,14 +103,18 @@ func _check_rig(inst: Node, id: String, rig_tier: CharacterRig.Tier = CharacterR
 	assert_eq(rig.tier, rig_tier, "%s: tier %s" % [id, CharacterRig.Tier.keys()[rig_tier]])
 
 
-## The pixel sprite is hidden with its frames gone; the facing carrier stays.
+## The pixel sprite is gone (8.3 retired the AnimatedSprite2D path); the hidden
+## facing carrier stays.
 func _check_sprite_retired(inst: Node, id: String) -> void:
 	assert_true(_rig(inst).mover == null, "%s: an EntityBase drives its Rig as the parent" % id)
-	var sprite := inst.get_node(^"AnimatedSprite2D") as AnimatedSprite2D
-	assert_false(sprite.visible, "%s: the pixel sprite is hidden" % id)
-	assert_true(sprite.sprite_frames == null, "%s: its dead SpriteFrames are gone" % id)
+	assert_true(_animated_sprites(inst).is_empty(), "%s: no AnimatedSprite2D left" % id)
 	var facing := inst.get_node_or_null(^"Sprite2D") as Sprite2D
 	assert_true(facing != null and not facing.visible, "%s: the hidden facing carrier stays" % id)
+
+
+## Every AnimatedSprite2D under `root` (none since 8.3).
+func _animated_sprites(root: Node) -> Array[Node]:
+	return root.find_children("*", "AnimatedSprite2D", true, false)
 
 
 func test_heroes_carry_their_rig() -> void:
@@ -140,9 +144,9 @@ func test_pet_carries_its_rig() -> void:
 	var pet := _instance(PET)
 	_check_rig(pet, PET_ID)
 	assert_eq(_rig(pet).mover, pet, "the pet (not an EntityBase) is the Rig's mover")
-	var facing := pet.get_node(^"Sprite2D") as AnimatedSprite2D
-	assert_false(facing.visible, "the pixel sprite is hidden")
-	assert_true(facing.sprite_frames == null, "its dead SpriteFrames are gone")
+	var facing := pet.get_node_or_null(^"Sprite2D") as Sprite2D
+	assert_true(facing != null and not facing.visible, "the hidden facing carrier is a plain Sprite2D")
+	assert_true(_animated_sprites(pet).is_empty(), "no AnimatedSprite2D left")
 	var notifier := pet.get_node_or_null(^"%ScreenNotifier") as VisibleOnScreenNotifier2D
 	assert_true(notifier != null, "a unique ScreenNotifier for the rig's LOD")
 	for sig in [&"ability_cast", &"damaged"]:
@@ -364,9 +368,8 @@ func test_grount_rig_follows_its_stages() -> void:
 	await wait_seconds(0.7)
 	assert_eq(body.modulate, Color.WHITE, "the flash ends white")
 	assert_near(grount.scale.x, grount._scale_for_stage(3).x, 0.001, "the root grew to the stage-3 size")
-	var sprite := grount.get_node(^"AnimatedSprite2D") as AnimatedSprite2D
-	assert_true(sprite.sprite_frames == null and not sprite.visible, "no stage SpriteFrames swapped in")
-	assert_eq(sprite.modulate, Color.WHITE, "no stage tint on the sprite")
+	assert_true(_animated_sprites(grount).is_empty(), "no stage SpriteFrames to swap in")
+	assert_eq(grount.sprite.modulate, Color.WHITE, "no stage tint on the facing carrier")
 	grount.queue_free()
 	await wait_frames(1)
 

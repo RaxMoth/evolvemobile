@@ -134,10 +134,11 @@ func test_trap_cage_lands_on_the_target_under_a_moved_parent() -> void:
 	holder.queue_free()
 
 
-## A flash (GameUtils.flash_modulate: Irelia's Last Stand, a sprite's
-## evolution) ends at WHITE, not at the tint it found when it started: a
-## Divine Shield that broke mid-flash used to leave Ted blue for good. Rally
-## Cry itself no longer tints Ted (its recipe draws rings).
+## A flash (GameUtils.flash_modulate: Irelia's Last Stand) ends at WHITE, not
+## at the tint it found when it started: a Divine Shield that broke mid-flash
+## used to leave Ted blue for good. Neither tints Ted any more: the shield is
+## the ward ring at his feet (8.3 dropped its blue modulate, which read purple
+## on the skin) and Rally Cry's recipe draws rings.
 func test_rally_flash_ends_white_when_a_shield_breaks_mid_flash() -> void:
 	var ted := (await spawn_frozen(TED, Vector2(0, 0))) as HeroBase
 	var hog := await spawn_frozen(HOG, Vector2(3000, 0))
@@ -149,7 +150,7 @@ func test_rally_flash_ends_white_when_a_shield_breaks_mid_flash() -> void:
 	shield.owner_hero = ted
 	ted.add_child(shield)
 	await wait_frames(1)
-	assert_true(ted.modulate.b > 1.0, "shielded: blue tint")
+	assert_eq(ted.modulate, Color.WHITE, "shielded: no tint (the ward ring shows the shield)")
 	assert_true(ted.use_active_ability(), "Rally Cry cast")
 	GameUtils.flash_modulate(ted, UiPalette.get_default().amber_light, 0.2, 0.2)
 	await wait_seconds(0.1)

@@ -95,7 +95,6 @@ func bind_to_hero(new_hero: Node) -> void:
 		_head.texture = def.head_texture()
 		_name.text = def.get_display_name()
 	elif _stats != null and _stats.base_stats != null:
-		_head.texture = _stats.base_stats.portrait
 		_name.text = _stats.base_stats.hero_name
 	_ring(UiPalette.signature(String(hero_id), false))
 

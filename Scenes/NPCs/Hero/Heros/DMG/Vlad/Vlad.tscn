@@ -24,13 +24,10 @@ ultimate_ability = ExtResource("6_dmu8j")
 [node name="Hud" parent="." index="2"]
 position = Vector2(0, -64)
 
-[node name="AnimatedSprite2D" parent="." index="3"]
+[node name="Sprite2D" parent="." index="3"]
 visible = false
 
-[node name="Sprite2D" parent="." index="4"]
-visible = false
-
-[node name="Rig" parent="." index="11" node_paths=PackedStringArray("body")]
+[node name="Rig" parent="." index="10" node_paths=PackedStringArray("body")]
 body = NodePath("VladBody")
 profile = ExtResource("8_motion")
 tier = 0

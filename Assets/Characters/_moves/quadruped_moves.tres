@@ -1,4 +1,4 @@
-[gd_resource type="AnimationLibrary" format=3]
+[gd_resource type="AnimationLibrary" format=3 uid="uid://c3neytg4lo4v6"]
 
 [sub_resource type="Animation" id="move_attack"]
 length = 0.42

@@ -85,9 +85,9 @@ signal damaged(packet: DamagePacket)
 @onready var hud: Node2D = %Hud
 @onready var health_bar: HpBar2D = %HealthBar
 @onready var detection_area: Area2D = %DetectionArea
-## Only hero / monster scenes carry a level label; mob scenes resolve null.
+## Only hero / monster scenes carry a level number (in their Hud's
+## %LevelBadge, the HUD's Pill); mob scenes resolve null.
 @onready var lv_label: Label = get_node_or_null("%LVLabel") as Label
-@onready var animated_sprite: AnimatedSprite2D = $AnimatedSprite2D
 @onready var screen_notifier: VisibleOnScreenNotifier2D = %ScreenNotifier
 
 # ============================================
@@ -180,8 +180,9 @@ func _ready() -> void:
 	if sprite:
 		_facing_angle = sprite.rotation
 
-	# Visual LOD: a mob that spawned off screen starts with its animation
-	# paused (the notifier only emits on CHANGES, so seed the initial state).
+	# AI LOD: an entity that spawned off screen starts off screen in the
+	# TickScheduler (the notifier only emits on CHANGES, so seed the initial
+	# state; the Rig seeds its own from the same notifier).
 	if screen_notifier and not screen_notifier.is_on_screen():
 		_on_screen_exited()
 
@@ -284,13 +285,9 @@ func _on_fight_state_stepped() -> void:
 
 func _on_screen_entered() -> void:
 	TickScheduler.set_on_screen(self, true)
-	if animated_sprite and animated_sprite.sprite_frames and not animated_sprite.is_playing():
-		animated_sprite.play()
 
 func _on_screen_exited() -> void:
 	TickScheduler.set_on_screen(self, false)
-	if animated_sprite and animated_sprite.is_playing():
-		animated_sprite.pause()
 
 
 # ============================================
@@ -304,13 +301,14 @@ func announce_cast(ability: AbilityBase, cast_target: Node) -> void:
 	ability_cast.emit(ability, cast_target)
 
 
-## What a visual effect should move or tint: the CharacterRig when the scene
-## has one with a body (migrated to SVG art), else the legacy AnimatedSprite2D.
+## What a visual effect should move or tint: the entity's CharacterRig (every
+## character scene gives it a body). null for a scene without a drawn body (a
+## bare base scene in a test): effects then have nothing to move.
 func visual_root() -> Node2D:
 	var rig := get_node_or_null(^"Rig") as CharacterRig
 	if rig and rig.body:
 		return rig
-	return animated_sprite
+	return null
 
 
 func set_hp_display(current: float, maximum: float) -> void:
