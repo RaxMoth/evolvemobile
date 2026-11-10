@@ -217,7 +217,7 @@ func test_live_grount_tree() -> void:
 		else:
 			assert_eq(m.state_of(n), UxTreeModel.NodeState.LOCKED, "%s is gated" % n.id)
 			assert_eq(m.block_reason(n), "Needs Lv %d" % t.gate_for_tier(n.tier))
-	assert_eq(str(capstones), str([&"g4_titan"]), "the only shown capstone")
+	assert_eq(str(capstones), str([&"g4_rampage", &"g4_titan", &"g4_stampede"]), "one capstone per branch, all shown since 6.6")
 	assert_eq(m.find(&"g2_hp").requires, [&"g1_hide"] as Array[StringName], "Thick Hide opens Scar Tissue")
 	assert_eq(m.find(&"g4_titan").requires, [&"g3_slam", &"g3_pull", &"g2_hp"] as Array[StringName])
 	assert_eq(m.find(&"g1_dmg").effect_at(2), "+14% damage")

@@ -108,16 +108,19 @@ func test_a_rank_one_save_applies_the_pre_rank_values() -> void:
 	for tree_id: StringName in [MetaSkillManager.TREE_MONSTER_BASE, MetaSkillManager.monster_tree_id(&"grount")]:
 		var t: MetaSkillTree = MetaSkillManager.get_tree_def(tree_id)
 		var ids: Array = []
-		# Hidden nodes never apply; Titan Form is Grount's only shown capstone.
 		for n in t.shown_nodes():
 			ids.append(String(n.id))
-			if n.stat_name.is_empty() or n.is_ability_node():
+		PersistedData.set_unlocked_skills(tree_id, ids)
+		# Hidden nodes never apply, and of the owned capstones only the
+		# equipped one does (Rampage: the first in branch order).
+		var equipped: StringName = MetaSkillManager.equipped_capstone(tree_id)
+		for n in t.shown_nodes():
+			if n.stat_name.is_empty() or n.is_ability_node() or (n.capstone and n.id != equipped):
 				continue
 			if n.stat_multiplicative:
 				expected[n.stat_name] = float(expected.get(n.stat_name, 1.0)) * n.stat_value
 			else:
 				expected[n.stat_name] = float(expected.get(n.stat_name, 0.0)) + n.stat_value
-		PersistedData.set_unlocked_skills(tree_id, ids)
 	var mods: Dictionary = MetaSkillManager.collect_monster_modifiers(&"grount")
 	assert_eq(mods.size(), expected.size(), str(mods))
 	for key: String in expected:

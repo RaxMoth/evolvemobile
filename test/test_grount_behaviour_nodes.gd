@@ -111,7 +111,14 @@ func test_grount_tree_ends_in_the_titan_form_capstone() -> void:
 		assert_false(titan.is_ability_node())
 		assert_eq(titan.stat_name, "monster_titan_form")
 		assert_false(titan.stat_multiplicative, "behaviour flags are additive")
-	assert_eq(t.capstones(), [titan] as Array[MetaSkillNode], "Rampage and Trample stay hidden until their code lands")
+	var rampage: MetaSkillNode = t.find_node(&"g4_rampage")
+	var trample: MetaSkillNode = t.find_node(&"g4_stampede")
+	assert_eq(t.capstones(), [rampage, titan, trample] as Array[MetaSkillNode], "one capstone per branch, in branch order")
+	if rampage != null and trample != null:
+		assert_false(rampage.hidden or trample.hidden, "Rampage and Trample have their code (6.6)")
+		assert_eq([rampage.branch, rampage.stat_name, rampage.is_ability_node()], [0, "monster_rampage", false])
+		assert_eq([trample.branch, trample.ability_name, trample.stat_name], [2, "Ram Dash", "trample"])
+		assert_false(rampage.stat_multiplicative or trample.stat_multiplicative, "flags are additive")
 	var pull: MetaSkillNode = t.find_node(&"g3_pull")
 	assert_true(pull != null, "Gravity Slam exists")
 	if pull != null:
@@ -142,7 +149,7 @@ func test_grount_tree_lists_its_shipped_nodes() -> void:
 		1: ["g1_dmg", "g1_hide", "g1_range", "g1_speed", "g1_stun"],
 		2: ["g2_cleavecd", "g2_earlyslam", "g2_evo", "g2_hp"],
 		3: ["g3_dash", "g3_dmg", "g3_enrage", "g3_pull", "g3_slam", "g3_speed"],
-		4: ["g4_titan"],
+		4: ["g4_rampage", "g4_stampede", "g4_titan"],
 	}
 	assert_eq(t.max_tier(), 4)
 	for tier: int in expected:
@@ -151,17 +158,16 @@ func test_grount_tree_lists_its_shipped_nodes() -> void:
 			ids.append(String(n.id))
 		ids.sort()
 		assert_eq(ids, expected[tier], "tier %d" % tier)
-	for id: StringName in [&"g4_rampage", &"g4_stampede"]:
-		var n := t.find_node(id)
-		assert_true(n != null and n.hidden, "%s is in the data, hidden until its code lands" % id)
+	for n in t.nodes:
+		assert_false(n.hidden, "%s: every Grount node has its code (6.6)" % n.id)
 	assert_true(t.find_node(&"g3_evoheal") == null, "Second Wind is not in the shipped tree yet")
 	if is_isolated():
 		PersistedData.add_currency(PersistedData.LEAVES, 5000)
 		PersistedData.add_monster_xp(&"grount", 2800)
-		_grant(["g1_dmg", "g2_hp"])
+		_grant(["g1_dmg", "g2_hp", "g3_dmg"])
 		assert_false(MetaSkillManager.unlock(_tree(), &"g3_evoheal"), "so it cannot be bought")
-		assert_false(MetaSkillManager.unlock(_tree(), &"g4_rampage"), "nor can a hidden node")
-		assert_eq(MetaSkillManager.node_state(_tree(), &"g4_rampage"), MetaSkillManager.NodeState.INVALID)
+		assert_eq(MetaSkillManager.node_state(_tree(), &"g3_evoheal"), MetaSkillManager.NodeState.INVALID)
+		assert_true(MetaSkillManager.unlock(_tree(), &"g4_rampage"), "Rampage is bought like any capstone at Lv 8")
 
 
 ## Character trees open tiers by the character's permanent level (1/3/5/8).
@@ -752,7 +758,8 @@ func test_skill_screen_renders_and_gates_tier_4() -> void:
 	assert_eq(screen.tree_id, _tree())
 	var shown := t.shown_nodes()
 	assert_eq(view.buttons().size(), shown.size(), "every shown node is on the screen")
-	assert_true(view.button(&"g4_rampage") == null, "a hidden node is not")
+	assert_true(view.button(&"g4_rampage") != null and view.button(&"g4_stampede") != null, "the 6.6 capstones too")
+	assert_true(view.slots().is_empty(), "no \"???\" slot left in Grount's tree")
 	var rows: Dictionary[int, Array] = {}
 	for n in shown:
 		var b := view.button(n.id)

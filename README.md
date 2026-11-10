@@ -1992,6 +1992,21 @@ running; an equal or stronger one restarts it. The F3 overlay's ability lines
 show each export as a tree modifier ("Regeneration ... tree last_stand +1.00
 last stand ready").
 
+#### Monster capstones and behaviour nodes
+
+The tier-4 capstones of the monster trees (6.6). Like the hero ones, every
+switch is off by default (false or 0), so a fresh save plays exactly as
+before and the three committed traces (`tools/baselines`) stay byte-identical;
+a spawn sets it on the monster's own ability copies or reads it from
+`collect_monster_modifiers` into `MonsterBase._meta_*`. Only the equipped
+capstone of a tree applies. `test/test_monster_capstones.gd` turns each one on
+from a seeded save.
+
+| node | key or export (ability) | effect |
+|---|---|---|
+| g4_rampage CAP | `monster_rampage`; `MonsterBase.rampage_heal_pct` 0.15 | `MonsterBase` connects to `EventBus.entity_died` only while it applies; a `HeroBase` death whose killer is this monster zeroes every `ability_cooldowns` slot and heals 15% of max HP (`heal_self`, never a dead monster). F3: "rampage(N)" with the hero kills so far |
+| g4_stampede CAP | `trample`; `trample_hit_radius` 70, `trample_from_stage` 3, `trample_cooldown_mult` 0.5 (Ram Dash, `BullRamDash`) | the dash hits everything within 70 px of the bull's centre as it passes (`get_hit_radius`; the stock lane is the `dash_hit_radius` export, 40, which was the const `DASH_HIT_RADIUS`), and from Stage 3 `apply_stage_stats` halves its cooldown (5 s -> 2.5 s). F3: "trample 70 px" |
+
 #### Tree content v2 (Data/SkillTrees)
 
 Nine trees, one `MetaSkillTree` resource each with its nodes as sub-resources:
@@ -2101,7 +2116,8 @@ code yet (every hero node has its code since 5.4; 6.6: monster behaviours):
     ability range; T2 Quick Cleave Front Cleave cooldown -15/20/25%; T3 Titan's
     Wrath +20/25/30%; T3 **Enrage** (below 20% HP: +30% speed and +50% on every
     cast; ends once HP is back at 20%, by rest regen or the evolution heal); T4
-    CAP Rampage (a hero kill resets the cooldowns, heals 15%) **[hidden]**.
+    CAP **Rampage** (every hero Grount kills resets all his cooldowns and heals
+    15% of max HP).
   - Hide: T1 Thick Hide -3/5/7/9/10% damage taken; T2 Scar Tissue
     +15/20/25% max HP; T2 Early Slam (Ground Slam at Stage 1); T3 Wider Slam
     Ground Slam radius +20/30/40%; T3 **Gravity Slam** (at impact, living
@@ -2112,7 +2128,9 @@ code yet (every hero node has its code since 5.4; 6.6: monster behaviours):
     Cleave reach and Fight leave distance).
   - Charge: T1 Stampede +5/7/9/11/13% speed; T1 Stunning Charge (Ram Dash stuns
     0.5 s); T2 Ravenous -10/13/15% stage XP; T3 Long Charge Ram Dash distance
-    +33/45/55%; T3 Apex Charge +15/18/21% speed; T4 CAP Trample **[hidden]**.
+    +33/45/55%; T3 Apex Charge +15/18/21% speed; T4 CAP **Trample** (Ram Dash
+    hits a 70 px lane instead of 40 px, and from Stage 3 recharges twice as
+    fast: 2.5 s).
 - **monster_nyxa** (Hunger / Shadow / Brood): registered with her def. Every
   node but the three capstones acts on her own ability copies (Thirst: Sonic
   Screech lifesteal; Swift Hunter, Disorienting Dive: Shadow Swoop; Wide

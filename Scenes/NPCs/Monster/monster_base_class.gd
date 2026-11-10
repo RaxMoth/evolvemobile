@@ -36,6 +36,9 @@ signal evolved(stage: int)
 @export var titan_scale_mult: float = 1.5
 @export var titan_bonus_health: float = 500.0
 @export var titan_bonus_range: float = 20.0
+## Rampage (Grount capstone, monster_rampage): every hero this monster kills
+## resets all its ability cooldowns and heals this fraction of max HP.
+@export_range(0.0, 1.0) var rampage_heal_pct: float = 0.15
 
 ## The last evolution stage (Stage III, "Apex Predator").
 const FINAL_STAGE: int = 3
@@ -90,6 +93,10 @@ var _meta_start_xp: float = 0.0
 var _meta_enrage: bool = false
 var _meta_titan: bool = false
 var _meta_stage_2_evo_heal: float = 0.0
+# Capstone flags of the monster trees (additive keys, 0 = off).
+var _meta_rampage: bool = false
+## Heroes this monster killed while Rampage applies (F3 only).
+var _rampage_kills: int = 0
 
 var ability_cooldowns := {
 	"ability_1": 0.0,
@@ -112,6 +119,10 @@ func _ready() -> void:
 	# gained, so Bloodhound's XP bonus does not scale it; the next XP gain
 	# checks evolution as usual.
 	current_xp = _meta_start_xp
+	# Rampage listens to every death only while the node applies: a fresh
+	# save adds no EventBus listener.
+	if _meta_rampage:
+		EventBus.entity_died.connect(_on_entity_died_rampage)
 	_enter_stage()
 	super._ready()
 
@@ -354,6 +365,7 @@ func _load_meta_modifiers() -> void:
 	_meta_enrage = float(mods.get("monster_enrage", 0.0)) > 0.5
 	_meta_titan = float(mods.get("monster_titan_form", 0.0)) > 0.5
 	_meta_stage_2_evo_heal = float(mods.get("monster_stage_2_evo_heal", 0.0))
+	_meta_rampage = float(mods.get("monster_rampage", 0.0)) > 0.5
 	# Per-entity ability copies, then the tree's ability nodes (cooldown, dash
 	# distance, …). apply_stage_stats re-applies them on every evolution.
 	_make_abilities_unique()
@@ -432,6 +444,19 @@ func _apply_evolution_bonus_heal(stage: int) -> void:
 	set_hp_display(current_health, max_hp)
 
 
+## Grount "Rampage": a hero this monster killed (EventBus.entity_died with
+## killer == self; HeroBase reports its last attacker) resets every ability
+## cooldown and heals rampage_heal_pct of max HP. Connected in _ready only
+## while the capstone applies.
+func _on_entity_died_rampage(entity: Node, killer: Node) -> void:
+	if killer != self or not (entity is HeroBase) or not is_alive():
+		return
+	for key in ability_cooldowns.keys():
+		ability_cooldowns[key] = 0.0
+	heal_self(get_max_health() * rampage_heal_pct)
+	_rampage_kills += 1
+
+
 ## One F3 HUD line: the monster id, stage, HP and the behaviour nodes this
 ## monster carries ("!" = active right now; Gravity Slam shows how many the
 ## last slam pulled), then after " | " the live state its abilities report
@@ -447,6 +472,8 @@ func debug_meta_line() -> String:
 		tags.append("evoheal +%d" % roundi(_meta_stage_2_evo_heal))
 	if _meta_titan:
 		tags.append("titan!" if is_titan() else "titan")
+	if _meta_rampage:
+		tags.append("rampage(%d)" % _rampage_kills)
 	var listed: String = " ".join(tags) if not tags.is_empty() else "-"
 	var monster_id: StringName = monster_stats.monster_id if monster_stats else &""
 	var line: String = "%s [%s] S%d HP %d/%d nodes: %s" % [name, monster_id, current_stage,

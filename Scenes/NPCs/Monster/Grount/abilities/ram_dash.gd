@@ -1,9 +1,6 @@
 class_name BullRamDash
 extends AbilityBase
 
-## Entities this close to the bull's centre are hit as it passes.
-const DASH_HIT_RADIUS: float = 40.0
-
 @export var dash_distance: float = 300.0
 @export var dash_speed: float = 500.0
 ## Not implemented: no entity has apply_knockback (see PROGRESS)
@@ -14,6 +11,18 @@ const DASH_HIT_RADIUS: float = 40.0
 ## Grount tree "Stunning Charge": every entity the dash hits is stunned this
 ## long (0 = no stun).
 @export var stun_duration: float = 0.0
+## Entities this close to the bull's centre are hit as it passes: the half
+## width of the lane the dash sweeps (was the const DASH_HIT_RADIUS).
+@export var dash_hit_radius: float = 40.0
+
+@export_group("Trample")
+## Grount capstone "Trample": the dash sweeps a trample_hit_radius lane, and
+## from trample_from_stage on it recharges in trample_cooldown_mult of its
+## cooldown (x0.5: twice as fast). Off by default.
+@export var trample: bool = false
+@export var trample_hit_radius: float = 70.0
+@export var trample_from_stage: int = 3
+@export var trample_cooldown_mult: float = 0.5
 
 var is_dashing: bool = false
 var dash_direction: Vector2 = Vector2.ZERO
@@ -36,6 +45,19 @@ func is_channeling() -> bool:
 
 func get_reach() -> float:
 	return dash_distance + dash_stop_short
+
+
+## Half width of the lane a dash hits: Trample's wider one when owned.
+func get_hit_radius() -> float:
+	return trample_hit_radius if trample else dash_hit_radius
+
+
+## The stage's numbers, then Trample's faster recharge from its stage on (a
+## locked dash keeps its parked cooldown).
+func apply_stage_stats(stage: int) -> void:
+	super.apply_stage_stats(stage)
+	if trample and stage >= trample_from_stage and is_unlocked_at(stage):
+		cooldown *= trample_cooldown_mult
 
 func execute(caster: Node2D, target: Node2D = null, override_damage: float = -1.0) -> void:
 	if not caster or is_dashing:
@@ -95,13 +117,19 @@ func _dash_update(caster: Node2D) -> void:
 	if is_dashing:
 		caster.get_tree().create_timer(0.0, false).timeout.connect(_dash_update.bind(caster))
 
-## Hit every target within DASH_HIT_RADIUS of the bull, once per dash.
+## Hit every target within get_hit_radius() of the bull, once per dash.
 func _check_dash_collisions(caster: Node2D) -> void:
 	for entity in GameUtils.entities_in_circle(caster.get_world_2d(), caster.global_position,
-			DASH_HIT_RADIUS, GameUtils.MASK_MONSTER_TARGETS, true, caster):
+			get_hit_radius(), GameUtils.MASK_MONSTER_TARGETS, true, caster):
 		if _hit_entities.has(entity) or not GameUtils.can_entity_target(caster, entity):
 			continue
 		deal(caster, entity, _effective_damage)
 		_hit_entities.append(entity)
 		if stun_duration > 0.0 and entity is EntityBase:
 			(entity as EntityBase).apply_stun(stun_duration)
+
+
+## F3 (MonsterBase.debug_meta_line): the capstone this dash carries; "" on a
+## fresh save.
+func debug_tag() -> String:
+	return "trample %d px" % roundi(get_hit_radius()) if trample else ""
