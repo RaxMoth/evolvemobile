@@ -115,6 +115,7 @@ func _hit_around(caster: Node2D) -> void:
 		deal(caster, entity, _axe_damage)
 		if stun_duration > 0.0 and entity is EntityBase:
 			(entity as EntityBase).apply_stun(stun_duration)
+			EventBus.notify_ability_event(entity, self, FxEvents.STUNNED, entity.global_position, stun_duration)
 
 
 ## F3 (MonsterBase.debug_meta_line): where the axe is ("!" = flying).

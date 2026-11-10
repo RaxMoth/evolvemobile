@@ -2,11 +2,13 @@
 
 [ext_resource type="Texture2D" uid="uid://brgh2xcc4w3hx" path="res://Assets/UI/Icons/Abilities/grount_ram_dash.svg" id="1_nrmkh"]
 [ext_resource type="Script" uid="uid://bbl84wvqrtqij" path="res://Scenes/NPCs/Monster/Grount/abilities/ram_dash.gd" id="1_us2jm"]
+[ext_resource type="Resource" path="res://Assets/Vfx/recipes/fx_grount_dash.tres" id="9_fx"]
 
 [resource]
 script = ExtResource("1_us2jm")
 ability_name = "Ram Dash"
 move_name = &"charge"
+fx = ExtResource("9_fx")
 icon = ExtResource("1_nrmkh")
 description = "Charges forward damaging enemies (Stage 1: 18 dmg, Stage 2: 25 dmg, Stage 3: 32.4 dmg)"
 damage = 18.0

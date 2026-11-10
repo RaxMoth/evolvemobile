@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" uid="uid://cwfkgc14uiawh" path="res://Scenes/NPCs/Monster/Grount/abilities/bull_front_cleave.gd" id="1_cleave"]
 [ext_resource type="Texture2D" uid="uid://b241w2edgki0q" path="res://Assets/UI/Icons/Abilities/nyxa_basic_sonic_screech.svg" id="2_icon"]
+[ext_resource type="Resource" path="res://Assets/Vfx/recipes/fx_nyxa_screech.tres" id="9_fx"]
 
 [resource]
 script = ExtResource("1_cleave")
@@ -10,6 +11,7 @@ cone_range = 110.0
 cone_angle_per_stage = Array[float]([50.0, 60.0, 70.0])
 ability_name = "Sonic Screech"
 move_name = &"shriek"
+fx = ExtResource("9_fx")
 icon = ExtResource("2_icon")
 description = "A shrieking cone that drinks blood: Nyxa heals for 20% of the damage (Stage 1: 8 dmg, Stage 2: 10 dmg, Stage 3: 8 dmg, a wider cone each stage)"
 damage = 8.0

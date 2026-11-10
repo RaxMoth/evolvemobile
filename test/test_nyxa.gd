@@ -5,8 +5,8 @@ extends TestCase
 ## past 150; Sonic Screech, Shadow Swoop, Night Swarm, the Blood Drinker
 ## passive), her per-stage numbers, the Night Swarm aura (locked below Stage 2,
 ## bites on the cast and every tick_interval through tick_active, heals her,
-## ends with her), the F3 line (monster id, swarm state), the VfxManager swarm
-## ring that follows her, her CharacterDef (locked, 2,500 Leaves, Lv.3 gate,
+## ends with her), the F3 line (monster id, swarm state), the AbilityVfx swarm
+## bats that follow her, her CharacterDef (locked, 2,500 Leaves, Lv.3 gate,
 ## met after 3 hunts) and the tree nodes that act on her own ability copies.
 ## Shared .tres are never touched: every check runs on her spawned copies.
 
@@ -251,39 +251,35 @@ func test_f3_line_shows_the_monster_id_and_the_swarm() -> void:
 
 # ---------- VFX ----------
 
-## A cast swarm takes a VfxManager slot: two pooled ground rings (made once,
-## under the manager's "Swarms" layer) at the swarm's radius that follow Nyxa
-## and hide, kept, when it ends. Read-only: the swarm runs the same with or
-## without the manager.
-func test_vfx_swarm_ring_follows_her_and_ends() -> void:
-	var vfx := VfxManager.new()
+## A cast swarm takes an AbilityVfx slot (its recipe's cue "swarm"): bats
+## circle over her ring (AbilityVfx.swarm_center) inside the swarm's radius,
+## follow her, and once the swarm
+## ends fade out and free the slot. Read-only: the swarm runs the same with
+## or without the vfx.
+func test_vfx_swarm_bats_follow_her_and_end() -> void:
+	var vfx := AbilityVfx.new()
 	add_child(vfx)
 	var n := await _nyxa(Vector2(100, 100))
 	_evolve(n, 3)
-	var layer := vfx.get_node(^"Swarms")
-	var rings: Array[RingPulse] = []
-	for c in layer.get_children():
-		rings.append(c as RingPulse)
-	assert_eq(rings.size(), 2 * VfxManager.SWARM_CAP, "an outline and a bite ring per slot, made once")
 	var swarm := n.ability_3 as NightSwarm
+	assert_eq(swarm.fx.cue, &"swarm", "her recipe plays the swarm")
 	assert_true(n._cast("ability_3", swarm, null), "cast (no hero needed)")
 	assert_eq(vfx.swarms_live(), 1)
-	var outline := rings[0]
-	assert_true(outline.visible, "shown on the cast")
-	assert_eq(outline.position, n.global_position)
-	assert_near(outline.scale.x, swarm.area_of_effect, 0.001, "at the swarm's radius (Stage 3: 140)")
-	assert_near(outline.width * outline.scale.x, vfx.swarm_width, 0.001, "the line keeps its width")
-	assert_eq([outline.z_as_relative, outline.z_index], [false, 0], "on the ground, under the characters")
-	assert_true(vfx.debug_line().contains("swarms 1/%d" % VfxManager.SWARM_CAP), vfx.debug_line())
+	var bats := vfx.swarm_bats(swarm)
+	assert_eq(bats.size(), AbilityVfx.SWARM_BATS, "a swarm of bats")
+	for b in bats:
+		var d: float = b.distance_to(AbilityVfx.swarm_center(n))
+		assert_true(d <= swarm.area_of_effect + 0.5, "inside the swarm's radius (Stage 3: 140; %.1f)" % d)
+	assert_true(vfx.debug_line().contains("swarms 1"), vfx.debug_line())
 	n.global_position = Vector2(180, 60)
 	await wait_frames(1)
-	assert_eq(outline.position, n.global_position, "follows her")
+	for b in vfx.swarm_bats(swarm):
+		assert_true(b.distance_to(AbilityVfx.swarm_center(n)) <= swarm.area_of_effect + 0.5, "follows her")
 	swarm.tick_active(n, 10.0)
-	await wait_frames(1)
-	assert_eq(vfx.swarms_live(), 0, "ended")
-	for ring in rings:
-		assert_false(ring.visible, "hidden")
-		assert_true(is_instance_valid(ring), "kept for the next swarm")
+	assert_false(swarm.is_active(), "ended")
+	await wait_seconds(AbilityVfx.SWARM_FADE + 0.15)
+	assert_eq(vfx.swarms_live(), 0, "faded out, slot freed")
+	assert_true(vfx.swarm_bats(swarm).is_empty())
 	vfx.queue_free()
 	await _free([n])
 

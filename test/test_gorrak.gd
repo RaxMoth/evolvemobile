@@ -8,10 +8,10 @@ extends TestCase
 ## target hit once a leg, never thrown twice at once, ends with him, thrown
 ## from Approach at a hero 110 px or more away, never as an escape), the
 ## in-place Warcry Stomp that stuns, the F3 line (monster id, axe state), the
-## VfxManager axe sprite that follows the axe, his CharacterDef (locked, 3,000
-## Leaves, Lv.3 gate, met after 6 hunts) and the tree nodes that act on his own
-## ability copies. Shared .tres are never touched: every check runs on his
-## spawned copies.
+## AbilityVfx axe sprite that follows the axe while his hand's axe hides, his
+## CharacterDef (locked, 3,000 Leaves, Lv.3 gate, met after 6 hunts) and the
+## tree nodes that act on his own ability copies. Shared .tres are never
+## touched: every check runs on his spawned copies.
 
 const GORRAK := "res://Scenes/NPCs/Monster/Gorrak/Gorrak.tscn"
 const GORRAK_AXE := "res://Scenes/NPCs/Monster/Gorrak/abilities/gorrak_axe.tres"
@@ -360,19 +360,23 @@ func test_f3_line_shows_the_monster_id_and_the_axe() -> void:
 
 # ---------- VFX ----------
 
-## A thrown axe takes a VfxManager slot: the sprite is drawn at the axe's
-## position, spins while it flies (clockwise thrown to the right) and frees
-## its slot once the axe is back. Read-only: the axe flies the same with or
-## without the manager.
-func test_vfx_axe_spins_along_and_ends() -> void:
-	var vfx := VfxManager.new()
+## A thrown axe takes an AbilityVfx slot (its recipe's cue "axe"): the sprite
+## is drawn at the axe's position and spins while it flies (clockwise thrown
+## to the right); his rig's own axe part (the recipe's prop_part) is hidden
+## meanwhile and shown again once the axe is back. Read-only towards
+## gameplay: the axe flies the same with or without the vfx.
+func test_vfx_axe_spins_along_and_leaves_his_hand() -> void:
+	var vfx := AbilityVfx.new()
 	add_child(vfx)
 	var g := await _gorrak(Vector2(100, 100))
 	var v := await _hero(Vector2(300, 100))
 	var axe := g.ability_2 as ThrownAxe
+	var hand := (g.get_node(^"Rig") as CharacterRig).body.part(axe.fx.prop_part)
+	assert_true(hand != null and hand.visible, "the axe in his hand is a rig part of its own")
 	assert_true(g._cast("ability_2", axe, v))
 	assert_eq(vfx.axes_live(), 1, "a slot on the throw")
-	assert_true(vfx.debug_line().contains("axes 1/%d" % VfxManager.AXE_CAP), vfx.debug_line())
+	assert_false(hand.visible, "his hand is empty while the axe flies")
+	assert_true(vfx.debug_line().contains("axes 1"), vfx.debug_line())
 	var a0: float = vfx.axe_angle(axe)
 	assert_false(is_nan(a0), "drawn for this axe")
 	await wait_frames(3)
@@ -383,6 +387,7 @@ func test_vfx_axe_spins_along_and_ends() -> void:
 	await wait_frames(1)
 	assert_eq(vfx.axes_live(), 0, "freed once back")
 	assert_true(is_nan(vfx.axe_angle(axe)))
+	assert_true(hand.visible, "back in his hand")
 	vfx.queue_free()
 	await _free([g, v])
 

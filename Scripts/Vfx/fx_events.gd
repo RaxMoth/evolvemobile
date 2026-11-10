@@ -7,13 +7,23 @@ extends RefCounted
 ## presentation layer listens (AbilityVfx draws them, VfxManager shows the heal
 ## numbers). Arguments: (source, ability, event, pos, value); `ability` is the
 ## caster's own copy (its AbilityFxRecipe colours the effect), or null.
-## The hero abilities emit theirs since Phase 7 (7.2); the monster abilities'
-## SLAM_* and DASH_* land with their recipes (7.3).
+## The hero abilities emit theirs since Phase 7 (7.2), the monsters' since
+## 7.3: their abilities the SLAM_*, DASH_*, STUNNED and RECRUITED moments,
+## MonsterBase the capstone moments (RAMPAGE, SCATTERED, REFORMED; `ability`
+## = the monster's passive, whose recipe colours them) and the hero CC that
+## skips an Unstoppable monster CC_SHRUGGED.
 
 const SLAM_LEAP := &"slam_leap"            # source = caster, pos = landing, value = airtime
-const SLAM_LANDED := &"slam_landed"        # pos = impact, value = radius
-const DASH_STARTED := &"dash_started"      # pos = end point, value = hit radius
-const DASH_ENDED := &"dash_ended"
+const SLAM_LANDED := &"slam_landed"        # source = caster, pos = impact, value = radius
+const DASH_STARTED := &"dash_started"      # source = caster, pos = end point, value = hit radius
+const DASH_TURNED := &"dash_turned"        # source = caster, pos = new end point, value = hit radius (Echo Strike)
+const DASH_ENDED := &"dash_ended"          # source = caster, pos = where it stopped
+const STUNNED := &"stunned"                # source = stunned entity, pos = its feet, value = stun seconds
+const RECRUITED := &"recruited"            # source = recruited mob, pos = the stomp, value = seconds in the warband
+const RAMPAGE := &"rampage"                # source = monster, pos = its feet, value = HP healed
+const SCATTERED := &"scattered"            # source = monster, pos = where the bats burst
+const REFORMED := &"reformed"              # source = monster (at the re-form point), pos = where the bats were
+const CC_SHRUGGED := &"cc_shrugged"        # source = immune monster, pos = the taunter / the cage
 const MINE_ARMED := &"mine_armed"          # source = mine node, pos = mine, value = trigger radius
 const MINE_EXPLODED := &"mine_exploded"    # source = mine node, pos, value = radius
 const KIT_LANDED := &"kit_landed"          # source = kit node, pos, value = pickup radius

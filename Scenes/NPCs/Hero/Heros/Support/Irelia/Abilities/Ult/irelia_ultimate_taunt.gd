@@ -16,6 +16,7 @@ func execute(caster: Node2D, _target: Node2D = null, _override_damage: float = -
 		if not is_instance_valid(monster) or not (monster is EntityBase) or not (monster as EntityBase).is_alive():
 			continue
 		if _is_cc_immune(monster):
+			_shrugged(monster as MonsterBase, caster)
 			continue
 		
 		var distance = caster.global_position.distance_to(monster.global_position)
@@ -48,6 +49,13 @@ func execute(caster: Node2D, _target: Node2D = null, _override_damage: float = -
 ## both passes (a monster is in the "Enemy" group too).
 func _is_cc_immune(enemy: Node) -> bool:
 	return enemy is MonsterBase and (enemy as MonsterBase).is_cc_immune()
+
+
+## Presentation: an Unstoppable monster within the taunt's range shrugs it
+## off (AbilityVfx, in the colours of its passive's recipe).
+func _shrugged(monster: MonsterBase, caster: Node2D) -> void:
+	if caster.global_position.distance_to(monster.global_position) <= ability_range:
+		EventBus.notify_ability_event(monster, monster.passive_ability, FxEvents.CC_SHRUGGED, caster.global_position)
 
 
 ## Rallying Taunt: the heroes around Irelia attack faster while the taunt lasts.

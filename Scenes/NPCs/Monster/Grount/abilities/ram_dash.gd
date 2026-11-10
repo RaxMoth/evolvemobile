@@ -96,6 +96,9 @@ func execute(caster: Node2D, target: Node2D = null, override_damage: float = -1.
 		return
 	
 	is_dashing = true
+	# Presentation: the lane and the trail (AbilityVfx).
+	EventBus.notify_ability_event(caster, self, FxEvents.DASH_STARTED,
+			caster.global_position + dash_direction * dash_remaining, get_hit_radius())
 
 	# Start dash process. One step per frame on pausable timers (the default,
 	# process_always, kept a dash sliding under the match-result screen).
@@ -127,6 +130,11 @@ func _dash_update(caster: Node2D) -> void:
 	_check_dash_collisions(caster)
 	if not is_dashing and _return_pending:
 		_begin_return_pass()
+		if is_dashing:
+			EventBus.notify_ability_event(caster, self, FxEvents.DASH_TURNED,
+					caster.global_position + dash_direction * dash_remaining, get_hit_radius())
+	if not is_dashing:
+		EventBus.notify_ability_event(caster, self, FxEvents.DASH_ENDED, caster.global_position)
 	
 	# Continue dashing
 	if is_dashing:
@@ -153,6 +161,7 @@ func _check_dash_collisions(caster: Node2D) -> void:
 		_hit_entities.append(entity)
 		if stun_duration > 0.0 and entity is EntityBase:
 			(entity as EntityBase).apply_stun(stun_duration)
+			EventBus.notify_ability_event(entity, self, FxEvents.STUNNED, entity.global_position, stun_duration)
 
 
 ## F3 (MonsterBase.debug_meta_line): the capstones this dash carries; "" on

@@ -67,8 +67,18 @@
    "stages": null
   },
   {
-   "name": "arm_f",
+   "name": "axe",
    "z": 6,
+   "pivot": [
+    104,
+    74
+   ],
+   "parent": "arm_f",
+   "stages": null
+  },
+  {
+   "name": "arm_f",
+   "z": 7,
    "pivot": [
     86,
     94

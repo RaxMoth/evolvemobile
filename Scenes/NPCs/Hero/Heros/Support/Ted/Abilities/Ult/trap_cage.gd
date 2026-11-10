@@ -86,6 +86,10 @@ func _scan_for_enemies() -> void:
 	for node in GameUtils.entities_in_circle(get_world_2d(), global_position, cage_radius,
 			GameUtils.MASK_HERO_TARGETS, false):
 		var entity := node as EntityBase
+		if entity and _is_valid_target(entity) and _is_cc_immune(entity):
+			# Presentation: Unstoppable shrugs the cage off (AbilityVfx).
+			EventBus.notify_ability_event(entity, (entity as MonsterBase).passive_ability,
+					FxEvents.CC_SHRUGGED, global_position)
 		if entity and _is_valid_target(entity) and not _is_cc_immune(entity):
 			trapped_enemies.append(entity)
 			_trapped_life_ids[entity] = entity.get("life_id")

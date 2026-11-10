@@ -2,12 +2,14 @@
 
 [ext_resource type="Script" uid="uid://dg381s3ogg0s0" path="res://Scenes/NPCs/Monster/Grount/abilities/grount_slam.gd" id="1_8el7q"]
 [ext_resource type="Texture2D" uid="uid://da5qubxw1ss63" path="res://Assets/UI/Icons/Abilities/grount_ground_slam.svg" id="1_rgsdf"]
+[ext_resource type="Resource" path="res://Assets/Vfx/recipes/fx_grount_slam.tres" id="9_fx"]
 
 [resource]
 script = ExtResource("1_8el7q")
 slam_radius = 120.0
 ability_name = "Ground Slam"
 move_name = &"slam"
+fx = ExtResource("9_fx")
 ability_type = 3
 icon = ExtResource("1_rgsdf")
 description = "LOCKED until Stage 2. Leaps and slams ground dealing AoE damage (Stage 2: 32 dmg, Stage 3: 22.5 dmg)"

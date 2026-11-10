@@ -2,12 +2,14 @@
 
 [ext_resource type="Script" path="res://Scenes/NPCs/Monster/Nyxa/abilities/night_swarm.gd" id="1_swarm"]
 [ext_resource type="Texture2D" uid="uid://c2rwsakqdfwa" path="res://Assets/UI/Icons/Abilities/nyxa_ult_night_swarm.svg" id="2_icon"]
+[ext_resource type="Resource" path="res://Assets/Vfx/recipes/fx_nyxa_swarm.tres" id="9_fx"]
 
 [resource]
 script = ExtResource("1_swarm")
 tick_interval = 0.5
 ability_name = "Night Swarm"
 move_name = &"ultimate"
+fx = ExtResource("9_fx")
 ability_type = 3
 icon = ExtResource("2_icon")
 description = "LOCKED until Stage 2. A bat swarm circles Nyxa for 3.5 s and bites everything close every 0.5 s, healing her for 25% (Stage 2: 4 dmg a bite within 110 px, Stage 3: 5 within 140 px)"

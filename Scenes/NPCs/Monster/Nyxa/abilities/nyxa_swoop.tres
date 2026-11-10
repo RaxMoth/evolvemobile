@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" uid="uid://bbl84wvqrtqij" path="res://Scenes/NPCs/Monster/Grount/abilities/ram_dash.gd" id="1_dash"]
 [ext_resource type="Texture2D" uid="uid://dupvwrqsngsxw" path="res://Assets/UI/Icons/Abilities/nyxa_active_shadow_swoop.svg" id="2_icon"]
+[ext_resource type="Resource" path="res://Assets/Vfx/recipes/fx_nyxa_swoop.tres" id="9_fx"]
 
 [resource]
 script = ExtResource("1_dash")
@@ -10,6 +11,7 @@ dash_speed = 700.0
 dash_stop_short = -60.0
 ability_name = "Shadow Swoop"
 move_name = &"swoop"
+fx = ExtResource("9_fx")
 icon = ExtResource("2_icon")
 description = "Swoops through the target and out the other side, healing for 30% of the damage; also her escape (Stage 1: 12 dmg, Stage 2: 16 dmg, Stage 3: 22 dmg)"
 damage = 12.0

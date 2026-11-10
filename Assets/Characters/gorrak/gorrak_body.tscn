@@ -12,7 +12,7 @@ character_id = &"gorrak"
 sheet_scale = 3.0
 origin = Vector2(64.0, 150.0)
 bounds = Rect2(-43.0, -126.0, 109.0, 130.0)
-part_order = PackedStringArray("cape", "arm_b", "leg_b", "leg_f", "body", "head", "arm_f")
+part_order = PackedStringArray("cape", "arm_b", "leg_b", "leg_f", "body", "head", "axe", "arm_f")
 stage_parts = {}
 proxies = {"body__back": "body"}
 
@@ -29,7 +29,7 @@ texture = ExtResource("2_sheet")
 centered = false
 offset = Vector2(-60.0, -78.0)
 region_enabled = true
-region_rect = Rect2(411.0, 0.0, 117.0, 234.0)
+region_rect = Rect2(372.0, 0.0, 117.0, 234.0)
 
 [node name="arm_b" type="Sprite2D" parent="body__back"]
 unique_name_in_owner = true
@@ -50,7 +50,7 @@ texture = ExtResource("2_sheet")
 centered = false
 offset = Vector2(-48.0, -24.0)
 region_enabled = true
-region_rect = Rect2(93.0, 288.0, 96.0, 102.0)
+region_rect = Rect2(201.0, 288.0, 96.0, 102.0)
 
 [node name="leg_f" type="Sprite2D" parent="."]
 unique_name_in_owner = true
@@ -60,7 +60,7 @@ texture = ExtResource("2_sheet")
 centered = false
 offset = Vector2(-48.0, -24.0)
 region_enabled = true
-region_rect = Rect2(189.0, 288.0, 96.0, 102.0)
+region_rect = Rect2(297.0, 288.0, 96.0, 102.0)
 
 [node name="body" type="Sprite2D" parent="."]
 unique_name_in_owner = true
@@ -70,7 +70,7 @@ texture = ExtResource("2_sheet")
 centered = false
 offset = Vector2(-111.0, -195.0)
 region_enabled = true
-region_rect = Rect2(162.0, 0.0, 249.0, 246.0)
+region_rect = Rect2(123.0, 0.0, 249.0, 246.0)
 
 [node name="head" type="Sprite2D" parent="body"]
 unique_name_in_owner = true
@@ -80,7 +80,7 @@ texture = ExtResource("2_sheet")
 centered = false
 offset = Vector2(-84.0, -180.0)
 region_enabled = true
-region_rect = Rect2(528.0, 0.0, 231.0, 198.0)
+region_rect = Rect2(489.0, 0.0, 231.0, 198.0)
 
 [node name="arm_f" type="Sprite2D" parent="body"]
 unique_name_in_owner = true
@@ -88,6 +88,17 @@ use_parent_material = true
 position = Vector2(66.0, -102.0)
 texture = ExtResource("2_sheet")
 centered = false
-offset = Vector2(-30.0, -174.0)
+offset = Vector2(-30.0, -24.0)
 region_enabled = true
-region_rect = Rect2(0.0, 0.0, 162.0, 288.0)
+region_rect = Rect2(93.0, 288.0, 108.0, 102.0)
+
+[node name="axe" type="Sprite2D" parent="body/arm_f"]
+unique_name_in_owner = true
+use_parent_material = true
+show_behind_parent = true
+position = Vector2(54.0, -60.0)
+texture = ExtResource("2_sheet")
+centered = false
+offset = Vector2(-45.0, -114.0)
+region_enabled = true
+region_rect = Rect2(0.0, 0.0, 123.0, 288.0)

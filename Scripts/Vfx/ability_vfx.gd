@@ -3,29 +3,38 @@ extends Node2D
 
 ## AbilityVfx - what makes each ability recognisable in the match: slashes,
 ## claws, tracers, blasts, shield wards, taunt tethers, cage stakes, heal hops
-## and rally marks. An ability's look is its AbilityFxRecipe (AbilityBase.fx):
-## the recipe's `cue` picks a program below, its UiPalette tokens and sizes
-## parameterise it, and the FxEvents the ability emits take their colours
-## from it. VfxManager keeps the generic hit feedback (impact star, damage and
-## heal numbers, kill puffs, trauma) and the ground telegraphs.
+## and rally marks for the heroes; cleave smears, screech ripples, dash trails,
+## slam craters, the spinning Tusk Axe, Night Swarm's bats, stun stars and the
+## capstone cues for the monsters. An ability's look is its AbilityFxRecipe
+## (AbilityBase.fx): the recipe's `cue` picks a program below, its UiPalette
+## tokens and sizes parameterise it, and the FxEvents the ability emits take
+## their colours from it (a monster's capstone moments from its passive's
+## recipe). VfxManager keeps the generic hit feedback (impact star, damage and
+## heal numbers, kill puffs, trauma) and draws the ground telegraphs the
+## monster programs ask for (`telegraphs`: circle, cone, lane).
 ##
 ## The "Abilities" node under World.tscn's Vfx (group "ability_vfx", `camera`
 ## and `ground` wired scene-side), not an autoload: it lives and dies with the
 ## match. It draws over the characters at absolute z 45 (under VfxManager's
 ## numbers at 50, the fog at 100); its FxGroundLayer child ("Ground", absolute
-## z 0) draws the ground half (rings, wards, halos, the cage ring, decals and
-## the back half of a cage's stakes) after the ground layers and under every
-## character.
+## z 0) draws the ground half (rings, wards, halos, the cage ring, swarm rings,
+## warband rings, decals and the back half of a cage's stakes) after the
+## ground layers and under every character. `camera`, `ground` and
+## `telegraphs` (the parent VfxManager) are wired scene-side.
 ##
 ## Hooks, connected in _ready (an autoload cannot be the source of a scene
 ## [connection]):
 ##   EventBus.ability_cast   -> cast programs (shield, taunt, rally,
-##                              weapon_swap, mine, blood_bomb)
+##                              weapon_swap, mine, blood_bomb, cleave,
+##                              screech, axe, swarm)
 ##   EventBus.damage_applied -> hit programs (strike, claw, sniper)
 ##   EventBus.ability_event  -> moments inside an ability (FxEvents): wards,
 ##                              tethers, rally marks, mines, cages, supply
-##                              drops, heal hops, Last Stand
-##   EventBus.entity_died    -> marks, tethers, wards and halos on the fallen end
+##                              drops, heal hops, Last Stand; dashes, slams,
+##                              stuns, recruits, Rampage, Vampiric Rebirth,
+##                              Unstoppable
+##   EventBus.entity_died    -> marks, tethers, wards, halos, stun stars and
+##                              warband rings on the fallen end
 ##
 ## Toning-down rules (the anim prototype's previews were too busy):
 ##   - rings at most MAX_RING_WIDTH (3) world px wide, ink included, and on
@@ -39,24 +48,33 @@ extends Node2D
 ##     VfxManager.TELEGRAPH_ALPHA (35%).
 ##
 ## Budget: fixed pools (sprite buffers, primitives, tethers, wards, halos,
-## cage rings); a full pool recycles its oldest entry, and lasting effects
-## (marks, stakes) have pools of their own so a burst never recycles them.
+## cage rings, dash trails, swarms, axes, stun stars, warband rings); a full
+## pool recycles its oldest entry, and lasting effects (marks, stakes) have
+## pools of their own so a burst never recycles them.
 ## One-shot programs outside the camera view are skipped (lasting ones start
 ## anyway: they may come into view). Nothing is allocated per frame. The F3
 ## overlay shows the pools and the node's script time (debug_line()).
 ##
 ## DETERMINISM (tools/sim_trace.sh stays byte-identical): it never writes
-## gameplay state (abilities, shields and cages are only READ) and draws every
-## random number from its private `_rng`.
+## gameplay state (abilities, shields, cages, dashes, swarms and axes are only
+## READ; the one write is presentation: a recipe's prop_part, a rig sprite,
+## hidden while the axe flies) and draws every random number from its
+## private `_rng`.
 
 ## The programs a recipe's cue can name.
 const CUES: Array[StringName] = [&"strike", &"claw", &"sniper", &"shield", &"taunt", &"rally",
-		&"weapon_swap", &"mine", &"blood_bomb", &"cage", &"supply_drop", &"last_stand"]
+		&"weapon_swap", &"mine", &"blood_bomb", &"cage", &"supply_drop", &"last_stand",
+		&"cleave", &"screech", &"ram_dash", &"swoop", &"slam", &"stomp", &"axe", &"swarm",
+		&"rampage", &"rebirth", &"unstoppable"]
 ## The cues played on each hit the ability lands (EventBus.damage_applied).
 const HIT_CUES: Array[StringName] = [&"strike", &"claw", &"sniper"]
 ## The cues played on the cast (EventBus.ability_cast). The others play only
 ## the ability's FxEvents.
-const CAST_CUES: Array[StringName] = [&"shield", &"taunt", &"rally", &"weapon_swap", &"mine", &"blood_bomb"]
+const CAST_CUES: Array[StringName] = [&"shield", &"taunt", &"rally", &"weapon_swap", &"mine", &"blood_bomb",
+		&"cleave", &"screech", &"axe", &"swarm"]
+## Cast cues that last (they follow the ability while it flies or runs):
+## started even out of view, drawn only in view.
+const LASTING_CAST_CUES: Array[StringName] = [&"axe", &"swarm"]
 
 const OVER_CAP: int = 96
 const UNDER_CAP: int = 24
@@ -105,12 +123,66 @@ const TETHER_SPEED: float = 40.0
 ## Segments of a curved heal beam.
 const BEAM_STEPS: int = 12
 
-enum Prim { NONE, RING, DISC, TRACER, BEAM }
+## Monster pools: dashes trailed, Night Swarms, thrown axes, stun stars and
+## warband rings shown at once (one monster; a second slot covers a recast).
+const TRAIL_CAP: int = 2
+const SWARM_CAP: int = 2
+const AXE_CAP: int = 2
+const STUN_CAP: int = 8
+const BAND_CAP: int = 8
+## A Swoop's streak: path points kept per trail, sampled every TRAIL_SAMPLE px.
+const TRAIL_POINTS: int = 10
+const TRAIL_SAMPLE: float = 10.0
+## Px between two trail sprites (a dust puff, a peeling bat).
+const TRAIL_STEP_DUST: float = 44.0
+const TRAIL_STEP_BATS: float = 60.0
+## Most bats one Swoop pass peels off (a dash's dust counts against MAX_PUFFS).
+const TRAIL_BATS: int = 4
+## Seconds a trail fades after its dash ended.
+const TRAIL_FADE: float = 0.22
+## Bats a Night Swarm circles with, more under Brood Mother (a never-ending
+## swarm), the most a slot holds.
+const SWARM_BATS: int = 8
+const SWARM_BATS_BROOD: int = 12
+## A swarm fades in and out over SWARM_FADE s; its bats dive to SWARM_DIVE of
+## the radius over the first SWARM_DIVE_SHARE of every bite.
+const SWARM_FADE: float = 0.25
+const SWARM_DIVE: float = 0.6
+const SWARM_DIVE_SHARE: float = 0.35
+## Stun stars: radians a second they circle, their orbit half-width and
+## their size (world px; smaller and they read as dust on a phone).
+const STUN_SPIN: float = 7.0
+const STUN_ORBIT: float = 12.0
+const STUN_STAR_SIZE: float = 13.0
+## A swarm's bats circle this share of the way from the caster's feet (its
+## ground ring's centre) up to its body: over the ring, at flying height.
+const SWARM_LIFT_SHARE: float = 0.5
+## Seconds a cleave's or a screech's cone telegraph shows.
+const CONE_FLASH: float = 0.22
+## Seconds Vampiric Rebirth's bats take to fly to the re-form point.
+const REFORM_TRAVEL: float = 0.35
+
+enum Prim { NONE, RING, DISC, TRACER, BEAM, ARC }
 
 ## The match camera (World.tscn): a recipe's trauma goes to it.
 @export var camera: GameCamera
 ## The ground canvas (World.tscn's Vfx/Abilities/Ground).
 @export var ground: FxGroundLayer
+## The match's VfxManager (World.tscn: this node's parent): the monster
+## programs' ground telegraphs. null = none drawn (tests, previews).
+@export var telegraphs: VfxManager
+
+@export_group("Thrown axe")
+## World px of the spinning Tusk Axe along its longest side.
+@export var axe_size: float = 44.0
+## Turns per second of the spinning axe (clockwise thrown right, else counter).
+@export var axe_turns_per_second: float = 2.5
+
+@export_group("Night Swarm")
+## World px of one bat of a swarm (along its wingspan).
+@export var swarm_bat_size: float = 20.0
+## Radians a second the swarm's bats circle (each a little off it).
+@export var swarm_orbit_speed: float = 2.2
 
 ## Short-lived sprites over the characters: slashes, claws, sparks, stars,
 ## pluses, puffs, dust, shards, drops, rocks, leaves.
@@ -194,6 +266,71 @@ var _c_col := PackedColorArray()
 var _c_next: int = 0
 var _c_live: int = 0
 
+# ARC primitives (screech ripples): the facing (radians) and the half spread.
+var _p_ang := PackedFloat32Array()
+var _p_span := PackedFloat32Array()
+
+# Dash trails: per slot the dashing caster (0 = free), its dash and recipe,
+# bats (Shadow Swoop) or dust (Ram Dash), the sprites spawned this cast and
+# where the last one was, the fade left once the dash ended (0 = dashing),
+# and TRAIL_POINTS path points (a ring per slot) for a Swoop's streak.
+var _r_caster := PackedInt64Array()
+var _r_dash: Array[BullRamDash] = []
+var _r_fx: Array[AbilityFxRecipe] = []
+var _r_bats := PackedByteArray()
+var _r_spawned := PackedInt32Array()
+var _r_last := PackedVector2Array()
+var _r_fade := PackedFloat32Array()
+var _r_path := PackedVector2Array()
+var _r_head := PackedInt32Array()
+var _r_count := PackedInt32Array()
+var _r_next: int = 0
+var _r_live: int = 0
+
+# Night Swarms: per slot the running ability (null = free), its caster, the
+# seconds shown, the fade-out left once it ended (0 = running) and per bat
+# (SWARM_BATS_BROOD a slot) its orbit phase, speed factor and radius share.
+var _s_swarm: Array[NightSwarm] = []
+var _s_caster := PackedInt64Array()
+var _s_fx: Array[AbilityFxRecipe] = []
+var _s_age := PackedFloat32Array()
+var _s_out := PackedFloat32Array()
+var _s_phase := PackedFloat32Array()
+var _s_speed := PackedFloat32Array()
+var _s_reach := PackedFloat32Array()
+var _s_next: int = 0
+var _s_live: int = 0
+
+# Thrown axes: per slot the flying ability (null = free), its caster, the
+# sprite's spin angle and turn rate, and the rig part hidden meanwhile (its
+# instance id, 0 = none).
+var _a_axe: Array[ThrownAxe] = []
+var _a_fx: Array[AbilityFxRecipe] = []
+var _a_caster := PackedInt64Array()
+var _a_angle := PackedFloat32Array()
+var _a_spin := PackedFloat32Array()
+var _a_prop := PackedInt64Array()
+var _a_next: int = 0
+var _a_live: int = 0
+
+# Stun stars: the stunned entity's instance id (0 = free), age, life, colour.
+var _st_host := PackedInt64Array()
+var _st_age := PackedFloat32Array()
+var _st_life := PackedFloat32Array()
+var _st_col := PackedColorArray()
+var _st_next: int = 0
+var _st_live: int = 0
+
+# Warband rings: the recruited mob's instance id (0 = free), age, life, ring
+# half-width and colour.
+var _b_mob := PackedInt64Array()
+var _b_age := PackedFloat32Array()
+var _b_life := PackedFloat32Array()
+var _b_rx := PackedFloat32Array()
+var _b_col := PackedColorArray()
+var _b_next: int = 0
+var _b_live: int = 0
+
 
 func _ready() -> void:
 	_palette = UiPalette.get_default()
@@ -244,6 +381,41 @@ func _alloc() -> void:
 	_c_age.resize(CAGE_CAP)
 	_c_life.resize(CAGE_CAP)
 	_c_col.resize(CAGE_CAP)
+	_p_ang.resize(PRIM_CAP)
+	_p_span.resize(PRIM_CAP)
+	_r_caster.resize(TRAIL_CAP)
+	_r_dash.resize(TRAIL_CAP)
+	_r_fx.resize(TRAIL_CAP)
+	_r_bats.resize(TRAIL_CAP)
+	_r_spawned.resize(TRAIL_CAP)
+	_r_last.resize(TRAIL_CAP)
+	_r_fade.resize(TRAIL_CAP)
+	_r_path.resize(TRAIL_CAP * TRAIL_POINTS)
+	_r_head.resize(TRAIL_CAP)
+	_r_count.resize(TRAIL_CAP)
+	_s_swarm.resize(SWARM_CAP)
+	_s_caster.resize(SWARM_CAP)
+	_s_fx.resize(SWARM_CAP)
+	_s_age.resize(SWARM_CAP)
+	_s_out.resize(SWARM_CAP)
+	_s_phase.resize(SWARM_CAP * SWARM_BATS_BROOD)
+	_s_speed.resize(SWARM_CAP * SWARM_BATS_BROOD)
+	_s_reach.resize(SWARM_CAP * SWARM_BATS_BROOD)
+	_a_axe.resize(AXE_CAP)
+	_a_fx.resize(AXE_CAP)
+	_a_caster.resize(AXE_CAP)
+	_a_angle.resize(AXE_CAP)
+	_a_spin.resize(AXE_CAP)
+	_a_prop.resize(AXE_CAP)
+	_st_host.resize(STUN_CAP)
+	_st_age.resize(STUN_CAP)
+	_st_life.resize(STUN_CAP)
+	_st_col.resize(STUN_CAP)
+	_b_mob.resize(BAND_CAP)
+	_b_age.resize(BAND_CAP)
+	_b_life.resize(BAND_CAP)
+	_b_rx.resize(BAND_CAP)
+	_b_col.resize(BAND_CAP)
 
 
 # ============================================
@@ -259,10 +431,20 @@ func _on_ability_cast(caster: Node, ability: AbilityBase, _target: Node) -> void
 	var fx := ability.fx
 	if fx.cue not in CAST_CUES:
 		return
+	var t0: int = Time.get_ticks_usec()
+	# Lasting programs start even out of view (they may come into view).
+	if fx.cue in LASTING_CAST_CUES:
+		programs_played += 1
+		match fx.cue:
+			&"axe":
+				_start_axe(c, ability as ThrownAxe, fx)
+			&"swarm":
+				_start_swarm(c, ability as NightSwarm, fx)
+		_cost_usec += Time.get_ticks_usec() - t0
+		return
 	if not in_view(c.global_position):
 		culled += 1
 		return
-	var t0: int = Time.get_ticks_usec()
 	programs_played += 1
 	match fx.cue:
 		&"shield":
@@ -277,6 +459,10 @@ func _on_ability_cast(caster: Node, ability: AbilityBase, _target: Node) -> void
 			_dust(c.global_position, 2, 8.0 * fx.size, 18.0)
 		&"blood_bomb":
 			_play_blood_bomb(c, ability, fx)
+		&"cleave":
+			_play_cleave(c, ability as BullFrontCleave, fx)
+		&"screech":
+			_play_screech(c, ability as BullFrontCleave, fx)
 	_cost_usec += Time.get_ticks_usec() - t0
 
 
@@ -327,6 +513,39 @@ func _on_ability_event(source: Node, ability: AbilityBase, event: StringName, po
 			_end_cage(source, pos)
 		FxEvents.LAST_STAND:
 			_play_last_stand(s, value, fx)
+		FxEvents.DASH_STARTED:
+			_start_trail(s, ability as BullRamDash, pos, value, fx)
+		FxEvents.DASH_TURNED:
+			_turn_trail(s, pos, value, fx)
+		FxEvents.DASH_ENDED:
+			_end_trail(s, fx)
+		FxEvents.STUNNED:
+			_start_stun(s, value, fx)
+		FxEvents.RECRUITED:
+			_start_band(s as MobBase, value, fx)
+		FxEvents.SLAM_LEAP:
+			_play_slam_leap(s, ability as BullGroundSlam, pos, value, fx)
+		# One-shot monster moments only in view (a re-form where the bats were
+		# or where she lands).
+		FxEvents.SLAM_LANDED, FxEvents.RAMPAGE, FxEvents.SCATTERED, FxEvents.REFORMED, FxEvents.CC_SHRUGGED:
+			if s == null or not (in_view(s.global_position) or (event == FxEvents.REFORMED and in_view(pos))):
+				culled += 1
+				return
+			programs_played += 1
+			match event:
+				FxEvents.SLAM_LANDED:
+					if fx != null and fx.cue == &"stomp":
+						_play_stomp_landed(pos, value, fx)
+					else:
+						_play_slam_landed(pos, value, fx)
+				FxEvents.RAMPAGE:
+					_play_rampage(s, fx)
+				FxEvents.SCATTERED:
+					_play_scatter(s, fx)
+				FxEvents.REFORMED:
+					_play_reform(s, pos, fx)
+				FxEvents.CC_SHRUGGED:
+					_play_shrug(s, fx)
 		# One-shot effects only in view.
 		FxEvents.RALLIED, FxEvents.KIT_PICKED, FxEvents.HEAL_SHOT, FxEvents.CHAIN_HEAL:
 			if s == null or not in_view(s.global_position):
@@ -371,6 +590,12 @@ func _on_entity_died(entity: Node, _killer: Node) -> void:
 	for i in HALO_CAP:
 		if _h_hero[i] == id:
 			_h_life[i] = minf(_h_life[i], _h_age[i] + 0.1)
+	for i in STUN_CAP:
+		if _st_host[i] == id:
+			_st_life[i] = minf(_st_life[i], _st_age[i] + 0.1)
+	for i in BAND_CAP:
+		if _b_mob[i] == id:
+			_b_life[i] = minf(_b_life[i], _b_age[i] + 0.1)
 
 
 func in_view(p: Vector2) -> bool:
@@ -651,12 +876,7 @@ func _play_mine_blast(pos: Vector2, radius: float, fx: AbilityFxRecipe) -> void:
 	_dust(pos, 3, 10.0, 40.0)
 	over.spawn(FxTex.STAR, pos + Vector2(0.0, -6.0), 24.0, 14.0, FLASH_LIFE, core, FxSpriteBuffer.Anim.POP,
 			_rng.randf() * TAU)
-	for k in 3:
-		var a: float = -PI * 0.5 + _rng.randf_range(-1.1, 1.1)
-		var rock: int = over.spawn(FxTex.ROCK, pos, 8.0, 8.0, 0.5, Color.WHITE, FxSpriteBuffer.Anim.FLY, _rng.randf() * TAU)
-		over.vel[rock] = Vector2.from_angle(a) * _rng.randf_range(90.0, 150.0)
-		over.grav[rock] = 380.0
-		over.spin[rock] = _rng.randf_range(-9.0, 9.0)
+	_rocks(pos, 3, 8.0)
 	_decal(FxTex.CRACK, pos, radius * 0.45, fx.decal_life if fx != null else 3.0, Color(_ink, 0.45))
 	_shake(fx.trauma if fx != null else 0.0)
 
@@ -768,6 +988,425 @@ func _play_chain_heal(ally: Node2D, from: Vector2, fx: AbilityFxRecipe) -> void:
 
 
 # ============================================
+# Monster cast programs (EventBus.ability_cast)
+# ============================================
+
+## Front Cleave / Cleaver Chop: the cone flashes on the ground (a cone
+## telegraph), a big slash crescent cuts through it at body height
+## (FLASH_LIFE) and dust kicks up at its far edge. Whirlwind (a full-circle
+## cleave): a circle telegraph, four slashes spinning all around, a ring at
+## the reach and dust at the rim.
+func _play_cleave(c: Node2D, cleave: BullFrontCleave, fx: AbilityFxRecipe) -> void:
+	if cleave == null:
+		return
+	var ang: float = _facing(c)
+	var monster := c as MonsterBase
+	var reach: float = (cleave.cone_range + (monster.get_range_bonus() if monster != null else 0.0)) * fx.size
+	var accent := _palette.color(fx.accent)
+	var feet := c.global_position
+	var swing := feet.lerp(CharacterRig.mid_body_of(c), 0.6)
+	_telegraph_cone(feet, ang, cleave.cone_angle, reach, CONE_FLASH, accent)
+	if cleave.cone_angle >= BullFrontCleave.FULL_CIRCLE:
+		for k in 4:
+			var a: float = ang + TAU * float(k) / 4.0
+			var slash: int = over.spawn(FxTex.SLASH, swing + Vector2.from_angle(a) * reach * 0.55, reach * 0.6,
+					reach * 0.6, FLASH_LIFE, accent, FxSpriteBuffer.Anim.SWEEP, a)
+			over.spin[slash] = 9.0
+		_ring(feet, reach * 0.4, reach, 3.0, accent, 0.3)
+		_dust(feet, 3, 10.0 * fx.size, reach * 0.9)
+	else:
+		var slash: int = over.spawn(FxTex.SLASH, swing + Vector2.from_angle(ang) * reach * 0.5, reach * 0.85,
+				reach * 0.85, FLASH_LIFE, accent, FxSpriteBuffer.Anim.SWEEP, ang + _rng.randf_range(-0.15, 0.15))
+		over.flip[slash] = 1.0 if _rng.randf() < 0.5 else -1.0
+		_dust(feet + Vector2.from_angle(ang) * reach * 0.8, 2, 9.0 * fx.size, 18.0)
+	_shake(fx.trauma)
+
+
+## Sonic Screech: three ink-rimmed sound arcs roll out of Nyxa's body
+## through the cone (staggered, gone in 0.3 s each) over its cone telegraph.
+func _play_screech(c: Node2D, cone: BullFrontCleave, fx: AbilityFxRecipe) -> void:
+	if cone == null:
+		return
+	var ang: float = _facing(c)
+	var reach: float = cone.cone_range * fx.size
+	var half: float = deg_to_rad(minf(cone.cone_angle, 359.0)) * 0.5
+	var from := CharacterRig.mid_body_of(c)
+	_telegraph_cone(c.global_position, ang, cone.cone_angle, reach, CONE_FLASH, _palette.color(fx.accent))
+	for k in 3:
+		var i: int = _prim(Prim.ARC, 0.3, 0.07 * float(k))
+		_p_pos[i] = from
+		_p_a[i] = reach * 0.15
+		_p_b[i] = reach * (0.75 + 0.1 * float(k))
+		_p_w[i] = minf(3.0 - 0.5 * float(k), MAX_RING_WIDTH)
+		_p_ang[i] = ang
+		_p_span[i] = half
+		_p_col[i] = _palette.color(fx.accent)
+		_p_col2[i] = _palette.color(fx.core)
+	_shake(fx.trauma)
+
+
+# ============================================
+# Monster event programs (EventBus.ability_event)
+# ============================================
+
+## SLAM_LEAP (Ground Slam, Warcry Stomp): the landing circle fills over the
+## airtime (VfxManager.telegraph), dust kicks up where he takes off; the
+## stomp's war cry pops a "!" over his head for the airtime.
+func _play_slam_leap(c: Node2D, slam: BullGroundSlam, landing: Vector2, airtime: float, fx: AbilityFxRecipe) -> void:
+	if c == null or not (in_view(landing) or in_view(c.global_position)):
+		culled += 1
+		return
+	programs_played += 1
+	var r: float = fx.radius if fx != null and fx.radius > 0.0 else (slam.slam_radius if slam != null else 120.0)
+	var accent := _palette.color(fx.accent if fx != null else &"danger")
+	if telegraphs != null:
+		telegraphs.telegraph(landing, r, airtime, accent)
+	_dust(c.global_position, 2, 10.0, 22.0)
+	if fx != null and fx.cue == &"stomp":
+		_mark(c, FxTex.BANG, 16.0, maxf(airtime, 0.3), accent, Vector2(0.0, -10.0))
+
+
+## SLAM_LANDED (Ground Slam): a crack left in the ground, a shockwave ring out
+## to the radius and a darker one after it, four dust clouds rolling out,
+## four rocks thrown up, a star at the centre (FLASH_LIFE) and the trauma.
+func _play_slam_landed(pos: Vector2, radius: float, fx: AbilityFxRecipe) -> void:
+	var accent := _palette.color(fx.accent if fx != null else &"danger")
+	var core := _palette.color(fx.core if fx != null else &"text")
+	_decal(FxTex.CRACK, pos, minf(radius * 0.9, 150.0), fx.decal_life if fx != null else 3.0, Color(_ink, 0.5))
+	_ring(pos, radius * 0.15, radius, 3.0, accent, 0.35)
+	_ring(pos, radius * 0.1, radius * 0.75, 2.0, _palette.color(fx.shade if fx != null else &"ink"), 0.4, 0.06)
+	_dust(pos, 4, 12.0, radius * 0.9)
+	_rocks(pos, 4, 8.0)
+	over.spawn(FxTex.STAR, pos + Vector2(0.0, -6.0), 26.0, 16.0, FLASH_LIFE, core, FxSpriteBuffer.Anim.POP, _rng.randf() * TAU)
+	_shake(fx.trauma if fx != null else 0.0)
+
+
+## SLAM_LANDED (Warcry Stomp): a double war-cry ring out to the stun radius,
+## a small crack, three dust clouds; every stunned target gets its stars from
+## STUNNED.
+func _play_stomp_landed(pos: Vector2, radius: float, fx: AbilityFxRecipe) -> void:
+	_ring(pos, radius * 0.2, radius, 3.0, _palette.color(fx.accent), 0.35)
+	_ring(pos, radius * 0.15, radius * 0.7, 2.0, _palette.color(fx.shade), 0.35, 0.08)
+	_decal(FxTex.CRACK, pos, minf(radius * 0.5, 80.0), fx.decal_life, Color(_ink, 0.4))
+	_dust(pos, 3, 11.0, radius * 0.7)
+	_rocks(pos, 2, 7.0)
+	_shake(fx.trauma)
+
+
+## RAMPAGE (Grount): a hero kill reset his cooldowns and healed him: a blood
+## ring and a darker one at his feet, an anger vein over his head, four sparks
+## rising (the cooldowns back) and a star on his body; the "+N" is
+## VfxManager's.
+func _play_rampage(m: Node2D, fx: AbilityFxRecipe) -> void:
+	var accent := _palette.color(fx.accent if fx != null else &"danger")
+	var feet := m.global_position
+	_ring(feet, 10.0, 60.0, 3.0, accent, 0.4)
+	_ring(feet, 8.0, 44.0, 2.0, _palette.color(fx.shade if fx != null else &"ink"), 0.4, 0.08)
+	_mark(m, FxTex.ANGER, 18.0, 0.9, accent, Vector2(10.0, -2.0))
+	_sparks_up(CharacterRig.mid_body_of(m), 4, _palette.color(fx.alt if fx != null else &"amber"), 16.0)
+	over.spawn(FxTex.STAR, CharacterRig.mid_body_of(m), 22.0, 14.0, FLASH_LIFE,
+			_palette.color(fx.core if fx != null else &"text"), FxSpriteBuffer.Anim.POP, _rng.randf() * TAU)
+	_shake(fx.trauma if fx != null else 0.0)
+
+
+## SCATTERED (Vampiric Rebirth): the lethal hit bursts her into six bats that
+## fly off, three shade puffs where her body was and a ring at her feet.
+func _play_scatter(m: Node2D, fx: AbilityFxRecipe) -> void:
+	var mid := CharacterRig.mid_body_of(m)
+	var accent := _palette.color(fx.accent if fx != null else &"monster2")
+	for k in 6:
+		var a: float = TAU * float(k) / 6.0 + _rng.randf_range(-0.3, 0.3)
+		var b: int = over.spawn(FxTex.BAT, mid + Vector2.from_angle(a) * 6.0, swarm_bat_size, swarm_bat_size,
+				0.6, accent, FxSpriteBuffer.Anim.FLY, 0.0)
+		over.vel[b] = Vector2.from_angle(a) * _rng.randf_range(90.0, 140.0) + Vector2(0.0, -50.0)
+		over.flip[b] = 1.0 if cos(a) >= 0.0 else -1.0
+		over.drag[b] = 1.5
+	_puffs(m.global_position, 3, 10.0, 20.0, 30.0, Color(_palette.color(fx.shade if fx != null else &"monster2_dark"), 0.8))
+	_ring(m.global_position, 6.0, 40.0, 2.0, accent, 0.3)
+
+
+## REFORMED (Vampiric Rebirth): six bats fly from where the bats were
+## (`from`) into her body at the re-form point, a streak bows along the jump
+## when she moved; as they arrive a ring, a star and three puffs.
+func _play_reform(m: Node2D, from: Vector2, fx: AbilityFxRecipe) -> void:
+	var to := CharacterRig.mid_body_of(m)
+	var start := from + (to - m.global_position)
+	var accent := _palette.color(fx.accent if fx != null else &"monster2")
+	for k in 6:
+		var a: float = TAU * float(k) / 6.0 + _rng.randf_range(-0.3, 0.3)
+		var p: Vector2 = start + Vector2.from_angle(a) * _rng.randf_range(18.0, 30.0)
+		var b: int = over.spawn(FxTex.BAT, p, swarm_bat_size, swarm_bat_size, REFORM_TRAVEL, accent,
+				FxSpriteBuffer.Anim.FLY, 0.0, 0.03 * float(k))
+		over.vel[b] = (to - p) / REFORM_TRAVEL
+		over.flip[b] = 1.0 if to.x >= p.x else -1.0
+	if start.distance_to(to) > 24.0:
+		var i: int = _prim(Prim.BEAM, REFORM_TRAVEL + 0.1)
+		_p_pos[i] = start
+		_p_pos2[i] = to
+		_p_a[i] = 2.0
+		_p_b[i] = clampf(start.distance_to(to) * 0.2, 8.0, 40.0)
+		_p_col[i] = accent
+		_p_col2[i] = _palette.color(fx.core if fx != null else &"text")
+	var arrive: float = REFORM_TRAVEL + 0.03 * 5.0
+	_ring(m.global_position, 6.0, 46.0, 3.0, accent, 0.35, arrive)
+	over.spawn(FxTex.STAR, to, 20.0, 12.0, FLASH_LIFE, _palette.color(fx.core if fx != null else &"text"),
+			FxSpriteBuffer.Anim.POP, _rng.randf() * TAU, arrive)
+	_puffs(m.global_position, 3, 10.0, 18.0, 26.0, Color(_palette.color(fx.shade if fx != null else &"monster2_dark"), 0.8), arrive)
+
+
+## CC_SHRUGGED (Unstoppable): a taunt or a cage that cannot hold him breaks
+## off: five shards fly off his body, a ring at his feet, a star.
+func _play_shrug(m: Node2D, fx: AbilityFxRecipe) -> void:
+	var accent := _palette.color(fx.accent if fx != null else &"monster3_light")
+	var mid := CharacterRig.mid_body_of(m)
+	for k in 5:
+		var a: float = TAU * float(k) / 5.0 + _rng.randf_range(-0.25, 0.25)
+		var sh: int = over.spawn(FxTex.SHARD, mid + Vector2.from_angle(a) * 10.0, 9.0, 7.0, 0.4, accent,
+				FxSpriteBuffer.Anim.FLY, a)
+		over.vel[sh] = Vector2.from_angle(a) * 90.0 + Vector2(0.0, -40.0)
+		over.grav[sh] = 260.0
+		over.spin[sh] = 9.0
+	_ring(m.global_position, 8.0, _foot_radius(m) * 2.2, 3.0, accent, 0.35)
+	over.spawn(FxTex.STAR, mid, 18.0, 12.0, FLASH_LIFE, _palette.color(fx.core if fx != null else &"text"),
+			FxSpriteBuffer.Anim.POP, _rng.randf() * TAU)
+
+
+# ============================================
+# Monster lasting programs (followed every frame)
+# ============================================
+
+## DASH_STARTED (Ram Dash, Shadow Swoop): the lane to the end point at the
+## hit radius (VfxManager.telegraph_lane; Trample's 70 px lane reads wider)
+## and a trail that follows the caster while it dashes: dust and speed lines
+## for the bull, a streak and peeling bats for Nyxa (the recipe's cue).
+func _start_trail(c: Node2D, dash: BullRamDash, end: Vector2, hit_radius: float, fx: AbilityFxRecipe) -> void:
+	if c == null or dash == null:
+		return
+	var id: int = c.get_instance_id()
+	var slot: int = -1
+	for i in TRAIL_CAP:
+		if _r_caster[i] == id:
+			slot = i
+	if slot < 0:
+		slot = _r_next
+		_r_next = (_r_next + 1) % TRAIL_CAP
+	if _r_caster[slot] == 0:
+		_r_live += 1
+	var bats: bool = fx != null and fx.cue == &"swoop"
+	_r_caster[slot] = id
+	_r_dash[slot] = dash
+	_r_fx[slot] = fx
+	_r_bats[slot] = 1 if bats else 0
+	_r_spawned[slot] = 0
+	_r_last[slot] = c.global_position
+	_r_fade[slot] = 0.0
+	_r_head[slot] = 0
+	_r_count[slot] = 0
+	_trail_point(slot, CharacterRig.mid_body_of(c))
+	if not (in_view(c.global_position) or in_view(end)):
+		culled += 1
+		return
+	programs_played += 1
+	var accent := _palette.color(fx.accent if fx != null else &"danger")
+	if telegraphs != null:
+		telegraphs.telegraph_lane(c.global_position, end, hit_radius,
+				c.global_position.distance_to(end) / maxf(dash.dash_speed, 1.0), accent)
+	if not bats:
+		_dust(c.global_position, 2, 10.0, 20.0)
+		_r_spawned[slot] = 2
+
+
+## DASH_TURNED (Echo Strike): the swoop turns at its end and runs back along
+## its lane: a new lane telegraph back, a small ring and two bats at the turn.
+func _turn_trail(c: Node2D, end: Vector2, hit_radius: float, fx: AbilityFxRecipe) -> void:
+	var slot: int = _trail_of(c)
+	if slot < 0 or not (in_view(c.global_position) or in_view(end)):
+		return
+	programs_played += 1
+	var dash: BullRamDash = _r_dash[slot]
+	var accent := _palette.color(fx.accent if fx != null else &"monster2")
+	if telegraphs != null:
+		telegraphs.telegraph_lane(c.global_position, end, hit_radius,
+				c.global_position.distance_to(end) / maxf(dash.dash_speed, 1.0), accent)
+	_ring(c.global_position, 6.0, 30.0, 2.0, accent, 0.3)
+	if _r_bats[slot] == 1:
+		_r_spawned[slot] = 0  # TRAIL_BATS a pass
+	for k in 2:
+		var side: float = -1.0 if k == 0 else 1.0
+		var b: int = over.spawn(FxTex.BAT, CharacterRig.mid_body_of(c), swarm_bat_size, swarm_bat_size, 0.45, accent,
+				FxSpriteBuffer.Anim.FLY)
+		over.vel[b] = Vector2(side * 80.0, -60.0)
+		over.flip[b] = side
+	_r_last[slot] = c.global_position
+
+
+## DASH_ENDED: the bull skids to a stop (a last dust cloud within the cast's
+## MAX_PUFFS, the recipe's trauma); Nyxa's streak just fades. The trail fades
+## once its dash no longer runs (_step_trails).
+func _end_trail(c: Node2D, fx: AbilityFxRecipe) -> void:
+	var slot: int = _trail_of(c)
+	if slot < 0 or _r_bats[slot] == 1 or not in_view(c.global_position):
+		return
+	if _r_spawned[slot] < MAX_PUFFS:
+		_dust(c.global_position, 1, 12.0, 16.0)
+		_r_spawned[slot] += 1
+	_shake(fx.trauma if fx != null else 0.0)
+
+
+func _trail_of(c: Node2D) -> int:
+	if c == null:
+		return -1
+	var id: int = c.get_instance_id()
+	for i in TRAIL_CAP:
+		if _r_caster[i] == id:
+			return i
+	return -1
+
+
+## Appends a point to the slot's path ring (TRAIL_POINTS, oldest dropped).
+func _trail_point(slot: int, p: Vector2) -> void:
+	_r_path[slot * TRAIL_POINTS + _r_head[slot]] = p
+	_r_head[slot] = (_r_head[slot] + 1) % TRAIL_POINTS
+	_r_count[slot] = mini(_r_count[slot] + 1, TRAIL_POINTS)
+
+
+## Night Swarm cast: the swarm takes its caster's slot if it has one (a
+## recast), else the next one round robin; every bat gets its own orbit phase,
+## speed and radius share from the private RNG.
+func _start_swarm(c: Node2D, swarm: NightSwarm, fx: AbilityFxRecipe) -> void:
+	if swarm == null or not swarm.is_active():
+		return
+	var id: int = c.get_instance_id()
+	var slot: int = -1
+	for i in SWARM_CAP:
+		if _s_swarm[i] != null and _s_caster[i] == id:
+			slot = i
+	if slot < 0:
+		slot = _s_next
+		_s_next = (_s_next + 1) % SWARM_CAP
+	if _s_swarm[slot] == null:
+		_s_live += 1
+	_s_swarm[slot] = swarm
+	_s_caster[slot] = id
+	_s_fx[slot] = fx
+	_s_age[slot] = 0.0
+	_s_out[slot] = 0.0
+	for k in SWARM_BATS_BROOD:
+		var j: int = slot * SWARM_BATS_BROOD + k
+		_s_phase[j] = TAU * float(k) / float(SWARM_BATS_BROOD) + _rng.randf_range(-0.25, 0.25)
+		_s_speed[j] = _rng.randf_range(0.8, 1.25)
+		_s_reach[j] = _rng.randf_range(0.75, 1.0)
+
+
+## Tusk Axe cast: the axe takes its caster's slot if it has one, else the next
+## one round robin. It spins clockwise thrown to the right, counter-clockwise
+## to the left; the recipe's prop_part (the axe in his hand) hides meanwhile.
+func _start_axe(c: Node2D, axe: ThrownAxe, fx: AbilityFxRecipe) -> void:
+	if axe == null or not axe.is_flying():
+		return
+	var id: int = c.get_instance_id()
+	var slot: int = -1
+	for i in AXE_CAP:
+		if _a_axe[i] != null and _a_caster[i] == id:
+			slot = i
+	if slot < 0:
+		slot = _a_next
+		_a_next = (_a_next + 1) % AXE_CAP
+	if _a_axe[slot] == null:
+		_a_live += 1
+	else:
+		_show_prop(slot)
+	_a_axe[slot] = axe
+	_a_fx[slot] = fx
+	_a_caster[slot] = id
+	_a_angle[slot] = axe.direction().angle()
+	_a_spin[slot] = TAU * axe_turns_per_second * (1.0 if axe.direction().x >= 0.0 else -1.0)
+	_a_prop[slot] = 0
+	var prop := _prop_of(c, fx.prop_part)
+	if prop != null and prop.visible:
+		prop.visible = false
+		_a_prop[slot] = prop.get_instance_id()
+
+
+## The rig sprite `part` of `c`'s body (RigBody.part), or null.
+func _prop_of(c: Node2D, part: StringName) -> Node2D:
+	if part == &"":
+		return null
+	var rig := c.get_node_or_null(^"Rig") as CharacterRig
+	return rig.body.part(part) if rig != null and rig.body != null else null
+
+
+## Shows the slot's hidden rig part again (the axe is back in his hand).
+func _show_prop(slot: int) -> void:
+	var prop := instance_from_id(_a_prop[slot]) as Node2D
+	if prop != null:
+		prop.visible = true
+	_a_prop[slot] = 0
+
+
+## STUNNED (Stunning Charge, Disorienting Dive, Concussive Axe, Warcry
+## Stomp): three stars circle above the stunned entity's head while the stun
+## lasts; a longer stun on it extends its stars.
+func _start_stun(e: Node2D, seconds: float, fx: AbilityFxRecipe) -> void:
+	var entity := e as EntityBase
+	if e == null or (entity != null and not entity.is_alive()):
+		return
+	var id: int = e.get_instance_id()
+	var col := _palette.color(fx.alt if fx != null else &"gold")
+	for i in STUN_CAP:
+		if _st_host[i] == id:
+			_st_life[i] = maxf(_st_life[i], _st_age[i] + seconds)
+			return
+	var slot: int = _st_next
+	_st_next = (_st_next + 1) % STUN_CAP
+	if _st_host[slot] == 0:
+		_st_live += 1
+	_st_host[slot] = id
+	_st_age[slot] = 0.0
+	_st_life[slot] = maxf(seconds, 0.3)
+	_st_col[slot] = col
+
+
+## RECRUITED (Call of the Herd): a ring at the mob's feet in the stomp's
+## accent while it fights in the warband (MobBase.is_in_warband), and a "!"
+## over its head as it joins.
+func _start_band(mob: MobBase, seconds: float, fx: AbilityFxRecipe) -> void:
+	if mob == null:
+		return
+	var id: int = mob.get_instance_id()
+	var slot: int = -1
+	for i in BAND_CAP:
+		if _b_mob[i] == id:
+			slot = i
+	if slot < 0:
+		slot = _b_next
+		_b_next = (_b_next + 1) % BAND_CAP
+	if _b_mob[slot] == 0:
+		_b_live += 1
+	var col := _palette.color(fx.accent if fx != null else &"monster3_light")
+	_b_mob[slot] = id
+	_b_age[slot] = 0.0
+	_b_life[slot] = maxf(seconds, 0.3)
+	_b_rx[slot] = _foot_radius(mob) * 1.1
+	_b_col[slot] = col
+	if in_view(mob.global_position):
+		programs_played += 1
+		_mark(mob, FxTex.BANG, 14.0, 0.5, col, Vector2(0.0, -8.0))
+
+
+func _telegraph_cone(apex: Vector2, angle: float, spread_deg: float, reach: float, life: float, col: Color) -> void:
+	if telegraphs != null:
+		telegraphs.telegraph_cone(apex, angle, spread_deg, reach, life, col)
+
+
+## The facing of `c` in radians: an entity's hidden facing carrier (the
+## Sprite2D its abilities aim with), else 0 (right).
+func _facing(c: Node2D) -> float:
+	var e := c as EntityBase
+	return e.sprite.rotation if e != null and e.sprite != null else 0.0
+
+
+# ============================================
 # Spawn helpers
 # ============================================
 
@@ -832,6 +1471,17 @@ func _puffs(p: Vector2, n: int, s0: float, s1: float, speed: float, col: Color, 
 		over.drag[s] = 4.0
 
 
+## `n` rocks (in their own stone colours) thrown up from `p`, falling back.
+func _rocks(p: Vector2, n: int, size: float) -> void:
+	for k in n:
+		var a: float = -PI * 0.5 + _rng.randf_range(-1.1, 1.1)
+		var rock: int = over.spawn(FxTex.ROCK, p, size, size, 0.5, Color.WHITE, FxSpriteBuffer.Anim.FLY, _rng.randf() * TAU)
+		over.vel[rock] = Vector2.from_angle(a) * _rng.randf_range(90.0, 150.0)
+		over.grav[rock] = 380.0
+		over.spin[rock] = _rng.randf_range(-9.0, 9.0)
+
+
+
 ## `n` sparks rising off `p`, spread `spread` px sideways.
 func _sparks_up(p: Vector2, n: int, col: Color, spread: float) -> void:
 	for k in n:
@@ -872,6 +1522,11 @@ func _process(delta: float) -> void:
 	_step_wards(delta)
 	_step_halos(delta)
 	_step_cages(delta)
+	_step_trails(delta)
+	_step_swarms(delta)
+	_step_axes(delta)
+	_step_stuns(delta)
+	_step_bands(delta)
 	if _over_live() or _drew:
 		queue_redraw()
 	if ground != null and (_ground_live() or _ground_drew):
@@ -888,11 +1543,13 @@ func _update_view() -> void:
 
 
 func _over_live() -> bool:
-	return _p_live_over > 0 or _t_live > 0 or over.live > 0 or marks.live > 0 or stakes_front.live > 0
+	return _p_live_over > 0 or _t_live > 0 or over.live > 0 or marks.live > 0 or stakes_front.live > 0 \
+			or _r_live > 0 or _s_live > 0 or _a_live > 0 or _st_live > 0
 
 
 func _ground_live() -> bool:
-	return _p_live_ground > 0 or _w_live > 0 or _h_live > 0 or _c_live > 0 or under.live > 0 or stakes_back.live > 0
+	return _p_live_ground > 0 or _w_live > 0 or _h_live > 0 or _c_live > 0 or under.live > 0 or stakes_back.live > 0 \
+			or _s_live > 0 or _b_live > 0
 
 
 func _step_prims(delta: float) -> void:
@@ -971,6 +1628,215 @@ func _step_cages(delta: float) -> void:
 			_c_live += 1
 
 
+## Follows every trailed dash: a path point every TRAIL_SAMPLE px and, in
+## view, a dust cloud and two speed lines (the bull) or a peeling bat (Nyxa)
+## every TRAIL_STEP_* px; once the dash stopped the trail fades over
+## TRAIL_FADE and frees its slot.
+func _step_trails(delta: float) -> void:
+	if _r_live == 0:
+		return
+	_r_live = 0
+	for i in TRAIL_CAP:
+		if _r_caster[i] == 0:
+			continue
+		var c := instance_from_id(_r_caster[i]) as Node2D
+		if c == null or not c.is_inside_tree():
+			_free_trail(i)
+			continue
+		_r_live += 1
+		if _r_fade[i] > 0.0:
+			_r_fade[i] -= delta
+			if _r_fade[i] <= 0.0:
+				_free_trail(i)
+				_r_live -= 1
+			continue
+		var dash: BullRamDash = _r_dash[i]
+		if dash == null or not dash.is_dashing:
+			_r_fade[i] = TRAIL_FADE
+			continue
+		var mid := CharacterRig.mid_body_of(c)
+		var newest: Vector2 = _r_path[i * TRAIL_POINTS + (_r_head[i] + TRAIL_POINTS - 1) % TRAIL_POINTS]
+		if mid.distance_squared_to(newest) >= TRAIL_SAMPLE * TRAIL_SAMPLE:
+			_trail_point(i, mid)
+		var feet := c.global_position
+		var step: float = TRAIL_STEP_BATS if _r_bats[i] == 1 else TRAIL_STEP_DUST
+		if feet.distance_squared_to(_r_last[i]) < step * step:
+			continue
+		var back: Vector2 = (_r_last[i] - feet).normalized()
+		_r_last[i] = feet
+		if not in_view(feet):
+			continue
+		if _r_bats[i] == 1:
+			_trail_bat(i, mid, back)
+		else:
+			_trail_dust(i, feet, mid, back, dash)
+
+
+func _free_trail(i: int) -> void:
+	_r_caster[i] = 0
+	_r_dash[i] = null
+	_r_fx[i] = null
+
+
+## One step of the bull's trail: a dust cloud behind him (under Trample at the
+## wide lane's edges, side to side) within the cast's MAX_PUFFS, one kept for
+## the skid, and two speed lines at body height.
+func _trail_dust(i: int, feet: Vector2, mid: Vector2, back: Vector2, dash: BullRamDash) -> void:
+	var fx: AbilityFxRecipe = _r_fx[i]
+	if _r_spawned[i] < MAX_PUFFS - 1:
+		var side := Vector2.ZERO
+		if dash.trample:
+			side = back.orthogonal() * dash.get_hit_radius() * 0.6 * (1.0 if _r_spawned[i] % 2 == 0 else -1.0)
+		var d: int = over.spawn(FxTex.DUST, feet + back * 10.0 + side, 10.0, 21.0 if dash.trample else 17.0,
+				_rng.randf_range(0.35, 0.5), Color.WHITE, FxSpriteBuffer.Anim.GROW, _rng.randf() * TAU)
+		over.vel[d] = back * 20.0 + Vector2(0.0, -8.0)
+		over.drag[d] = 3.0
+		_r_spawned[i] += 1
+	var accent := _palette.color(fx.accent if fx != null else &"danger")
+	var core := _palette.color(fx.core if fx != null else &"text")
+	for k in 2:
+		var off: Vector2 = back.orthogonal() * (9.0 if k == 0 else -9.0)
+		var l: int = _prim(Prim.TRACER, 0.16)
+		_p_pos[l] = mid + off + back * 36.0
+		_p_pos2[l] = mid + off + back * 16.0
+		_p_a[l] = 2.0
+		_p_col[l] = accent
+		_p_col2[l] = core
+
+
+## One step of a Swoop's streak: a bat peels off it, TRAIL_BATS a pass.
+func _trail_bat(i: int, mid: Vector2, back: Vector2) -> void:
+	if _r_spawned[i] >= TRAIL_BATS:
+		return
+	var fx: AbilityFxRecipe = _r_fx[i]
+	var side: float = 1.0 if _r_spawned[i] % 2 == 0 else -1.0
+	var b: int = over.spawn(FxTex.BAT, mid + back * 14.0, swarm_bat_size * 0.8, swarm_bat_size * 0.8, 0.5,
+			_palette.color(fx.accent if fx != null else &"monster2"), FxSpriteBuffer.Anim.FLY)
+	over.vel[b] = back.orthogonal() * side * 70.0 + back * 30.0 + Vector2(0.0, -40.0)
+	over.flip[b] = 1.0 if over.vel[b].x >= 0.0 else -1.0
+	_r_spawned[i] += 1
+
+
+## Follows each swarm's caster; a swarm that ended fades out over SWARM_FADE
+## (its bats flying wider), then frees its slot, as does a lost caster.
+func _step_swarms(delta: float) -> void:
+	if _s_live == 0:
+		return
+	_s_live = 0
+	for i in SWARM_CAP:
+		var swarm: NightSwarm = _s_swarm[i]
+		if swarm == null:
+			continue
+		var c := instance_from_id(_s_caster[i]) as Node2D
+		if c == null or not c.is_inside_tree():
+			_free_swarm(i)
+			continue
+		_s_age[i] += delta
+		if _s_out[i] > 0.0:
+			_s_out[i] -= delta
+			if _s_out[i] <= 0.0:
+				_free_swarm(i)
+				continue
+		elif not swarm.is_active():
+			_s_out[i] = SWARM_FADE
+		_s_live += 1
+
+
+func _free_swarm(i: int) -> void:
+	_s_swarm[i] = null
+	_s_fx[i] = null
+	_s_caster[i] = 0
+
+
+## A swarm's alpha: fading in over SWARM_FADE, out once it ended.
+func _swarm_alpha(i: int) -> float:
+	var a: float = clampf(_s_age[i] / SWARM_FADE, 0.0, 1.0)
+	if _s_out[i] > 0.0:
+		a *= _s_out[i] / SWARM_FADE
+	return a
+
+
+## 0..1: how far the bats dive in, peaking on each bite (one every
+## tick_interval from the cast) over SWARM_DIVE_SHARE of the interval.
+func _swarm_bite(i: int, swarm: NightSwarm) -> float:
+	var tick: float = maxf(swarm.tick_interval, 0.05)
+	var phase: float = fposmod(_s_age[i], tick) / tick
+	var d: float = clampf(1.0 - minf(phase, 1.0 - phase) / (SWARM_DIVE_SHARE * 0.5), 0.0, 1.0)
+	return d * d * (3.0 - 2.0 * d)
+
+
+## Where bat `k` of swarm slot `i` flies: circling `center` (swarm_center) at
+## its share of `radius`, diving in on a bite, flying wider while
+## the swarm fades out.
+func _swarm_bat(i: int, k: int, center: Vector2, radius: float, bite: float) -> Vector2:
+	var j: int = i * SWARM_BATS_BROOD + k
+	var a: float = _s_phase[j] + _s_age[i] * swarm_orbit_speed * _s_speed[j]
+	var r: float = radius * _s_reach[j] * lerpf(1.0, SWARM_DIVE, bite)
+	if _s_out[i] > 0.0:
+		r *= 1.0 + 0.6 * (1.0 - _s_out[i] / SWARM_FADE)
+	return center + Vector2.from_angle(a) * r
+
+
+## Spins every flying axe. One back in his hand (or dropped, or whose thrower
+## is gone) shows his hand's axe again, a catch spark at his body, and frees
+## its slot.
+func _step_axes(delta: float) -> void:
+	if _a_live == 0:
+		return
+	_a_live = 0
+	for i in AXE_CAP:
+		var axe: ThrownAxe = _a_axe[i]
+		if axe == null:
+			continue
+		var c := instance_from_id(_a_caster[i]) as Node2D
+		if c == null or not c.is_inside_tree() or not axe.is_flying():
+			_show_prop(i)
+			if c != null and c.is_inside_tree() and in_view(c.global_position):
+				var fx: AbilityFxRecipe = _a_fx[i]
+				over.spawn(FxTex.SPARK, CharacterRig.mid_body_of(c), 14.0, 8.0, 0.2,
+						_palette.color(fx.core if fx != null else &"text"), FxSpriteBuffer.Anim.POP)
+			_a_axe[i] = null
+			_a_fx[i] = null
+			continue
+		_a_live += 1
+		_a_angle[i] = wrapf(_a_angle[i] + _a_spin[i] * delta, -PI, PI)
+
+
+## Stun stars end with the stun (it may be cleared early: Guardian Angel),
+## their entity or their life.
+func _step_stuns(delta: float) -> void:
+	if _st_live == 0:
+		return
+	_st_live = 0
+	for i in STUN_CAP:
+		if _st_host[i] == 0:
+			continue
+		_st_age[i] += delta
+		var e := instance_from_id(_st_host[i]) as Node2D
+		var entity := e as EntityBase
+		if e == null or not e.is_inside_tree() or _st_age[i] >= _st_life[i] \
+				or (entity != null and not entity.is_stunned()):
+			_st_host[i] = 0
+			continue
+		_st_live += 1
+
+
+## Warband rings end when the mob leaves the warband, dies or is pooled.
+func _step_bands(delta: float) -> void:
+	if _b_live == 0:
+		return
+	_b_live = 0
+	for i in BAND_CAP:
+		if _b_mob[i] == 0:
+			continue
+		_b_age[i] += delta
+		var mob := instance_from_id(_b_mob[i]) as MobBase
+		if mob == null or not mob.is_inside_tree() or _b_age[i] >= _b_life[i] or not mob.is_in_warband():
+			_b_mob[i] = 0
+			continue
+		_b_live += 1
+
+
 # ============================================
 # Drawing: over the characters (this node), on the ground (FxGroundLayer)
 # ============================================
@@ -990,10 +1856,16 @@ func _draw() -> void:
 				_draw_tracer(i, k)
 			Prim.BEAM:
 				_draw_beam(i, k)
+			Prim.ARC:
+				_draw_arc(i, k)
 	_draw_tethers()
+	_draw_trails()
 	stakes_front.draw(self)
 	over.draw(self)
+	_draw_swarms()
+	_draw_axes()
 	marks.draw(self)
+	_draw_stuns()
 	_cost_usec += Time.get_ticks_usec() - t0
 
 
@@ -1006,6 +1878,8 @@ func paint_ground(ci: CanvasItem) -> void:
 	_paint_cages(ci)
 	_paint_wards(ci)
 	_paint_halos(ci)
+	_paint_swarms(ci)
+	_paint_bands(ci)
 	under.draw(ci)
 	stakes_back.draw(ci)
 
@@ -1059,6 +1933,159 @@ func _draw_beam(i: int, k: float) -> void:
 			var q: Vector2 = a0.lerp(mid, t).lerp(mid.lerp(a2, t), t)
 			draw_line(prev, q, col, width, true)
 			prev = q
+
+
+## A sound arc rolling out through its cone: ink under the accent, at most
+## MAX_RING_WIDTH wide.
+func _draw_arc(i: int, k: float) -> void:
+	var r: float = lerpf(_p_a[i], _p_b[i], FxEase.out_cubic(k))
+	var w: float = _p_w[i] * (1.0 - 0.4 * k)
+	var a: float = 1.0 if k < 0.6 else (1.0 - k) / 0.4
+	var half: float = _p_span[i] * (0.6 + 0.4 * k)
+	var ang: float = _p_ang[i]
+	draw_arc(_p_pos[i], r, ang - half, ang + half, 18, Color(_ink, a * 0.85), w, true)
+	draw_arc(_p_pos[i], r, ang - half, ang + half, 18, Color(_p_col[i], a), w * 0.55, true)
+
+
+## Each Swoop's streak: a tapered, ink-rimmed ribbon along its last path
+## points (the newest widest), fading with the trail. While the dash runs it
+## reaches her body where she is drawn: the monster moves in its own _process,
+## after this node sampled the path.
+func _draw_trails() -> void:
+	if _r_live == 0:
+		return
+	for i in TRAIL_CAP:
+		if _r_caster[i] == 0 or _r_bats[i] == 0 or _r_count[i] < 1:
+			continue
+		var n: int = _r_count[i]
+		var base: int = i * TRAIL_POINTS
+		var oldest: int = (_r_head[i] + TRAIL_POINTS - n) % TRAIL_POINTS
+		var newest: Vector2 = _r_path[base + (_r_head[i] + TRAIL_POINTS - 1) % TRAIL_POINTS]
+		var head := newest
+		var c := instance_from_id(_r_caster[i]) as Node2D
+		if _r_fade[i] <= 0.0 and c != null:
+			head = CharacterRig.mid_body_of(c)
+		var segs: int = n - 1 + (1 if head.distance_squared_to(newest) > 1.0 else 0)
+		if segs < 1 or not in_view(head):
+			continue
+		var fx: AbilityFxRecipe = _r_fx[i]
+		var a: float = 1.0 if _r_fade[i] <= 0.0 else _r_fade[i] / TRAIL_FADE
+		var col := _palette.color(fx.accent if fx != null else &"monster2")
+		for pass_i in 2:
+			for k in segs:
+				var t: float = float(k + 1) / float(segs)
+				var w: float = 1.0 + 6.0 * t
+				var p0: Vector2 = _r_path[base + (oldest + k) % TRAIL_POINTS]
+				var p1: Vector2 = head if k == n - 1 else _r_path[base + (oldest + k + 1) % TRAIL_POINTS]
+				if pass_i == 0:
+					draw_line(p0, p1, Color(_ink, a * t * 0.8), w + 2.0, true)
+				else:
+					draw_line(p0, p1, Color(col, a * t), w, true)
+
+
+## Each swarm in view: its bats circling over its ring (swarm_center),
+## flapping (their height squashed in a beat), in the recipe's accent; more
+## under Brood Mother.
+func _draw_swarms() -> void:
+	if _s_live == 0:
+		return
+	var tex: Texture2D = FxTex.BAT
+	var ts: Vector2 = tex.get_size()
+	var sc: float = swarm_bat_size / maxf(ts.x, ts.y)
+	for i in SWARM_CAP:
+		var swarm: NightSwarm = _s_swarm[i]
+		if swarm == null:
+			continue
+		var c := instance_from_id(_s_caster[i]) as Node2D
+		if c == null or not in_view(c.global_position):
+			continue
+		var fx: AbilityFxRecipe = _s_fx[i]
+		var col := Color(_palette.color(fx.accent if fx != null else &"monster2"), _swarm_alpha(i))
+		var center := swarm_center(c)
+		var radius: float = maxf(swarm.area_of_effect, 1.0)
+		var bite: float = _swarm_bite(i, swarm)
+		for k in (SWARM_BATS_BROOD if swarm.is_permanent() else SWARM_BATS):
+			var j: int = i * SWARM_BATS_BROOD + k
+			var flap: float = 0.55 + 0.45 * absf(sin(_s_age[i] * 20.0 + _s_phase[j] * 3.0))
+			draw_set_transform(_swarm_bat(i, k, center, radius, bite), 0.0, Vector2(sc, sc * flap))
+			draw_texture(tex, -ts * 0.5, col)
+	draw_set_transform_matrix(Transform2D.IDENTITY)
+
+
+## Each flying axe at its axe_position, axe_size px, untinted, after two
+## fading ghosts at its last angles (the spin's blur).
+func _draw_axes() -> void:
+	if _a_live == 0:
+		return
+	var tex: Texture2D = FxTex.AXE
+	var ts: Vector2 = tex.get_size()
+	var sc: float = axe_size / maxf(ts.x, ts.y)
+	for i in AXE_CAP:
+		var axe: ThrownAxe = _a_axe[i]
+		if axe == null or not in_view(axe.axe_position):
+			continue
+		for g in range(2, -1, -1):
+			draw_set_transform(axe.axe_position, _a_angle[i] - _a_spin[i] * 0.03 * float(g), Vector2(sc, sc))
+			draw_texture(tex, -ts * 0.5, Color(Color.WHITE, 1.0 if g == 0 else 0.4 / float(g * g)))
+	draw_set_transform_matrix(Transform2D.IDENTITY)
+
+
+## Three stars circling above each stunned head (the far ones smaller).
+func _draw_stuns() -> void:
+	if _st_live == 0:
+		return
+	var tex: Texture2D = FxTex.STAR
+	var ts: Vector2 = tex.get_size()
+	var sc: float = STUN_STAR_SIZE / maxf(ts.x, ts.y)
+	for i in STUN_CAP:
+		if _st_host[i] == 0:
+			continue
+		var e := instance_from_id(_st_host[i]) as Node2D
+		if e == null or not in_view(e.global_position):
+			continue
+		var top := CharacterRig.head_top_of(e) + Vector2(0.0, -6.0)
+		var a: float = clampf(_st_age[i] / 0.12, 0.0, 1.0) * clampf((_st_life[i] - _st_age[i]) / 0.15, 0.0, 1.0)
+		for k in 3:
+			var ang: float = _st_age[i] * STUN_SPIN + TAU * float(k) / 3.0
+			var depth: float = 0.75 + 0.25 * sin(ang)
+			draw_set_transform(top + Vector2(cos(ang) * STUN_ORBIT, sin(ang) * STUN_ORBIT * 0.35), ang,
+					Vector2(sc * depth, sc * depth))
+			draw_texture(tex, -ts * 0.5, Color(_st_col[i], a))
+	draw_set_transform_matrix(Transform2D.IDENTITY)
+
+
+## Each swarm's bite area on the ground: an ink and accent ring at the
+## swarm's radius at the telegraph alpha, fading with the swarm.
+func _paint_swarms(ci: CanvasItem) -> void:
+	if _s_live == 0:
+		return
+	for i in SWARM_CAP:
+		var swarm: NightSwarm = _s_swarm[i]
+		if swarm == null:
+			continue
+		var c := instance_from_id(_s_caster[i]) as Node2D
+		if c == null or not in_view(c.global_position):
+			continue
+		var fx: AbilityFxRecipe = _s_fx[i]
+		var a: float = _swarm_alpha(i) * VfxManager.TELEGRAPH_ALPHA
+		var r: float = maxf(swarm.area_of_effect, 1.0)
+		ci.draw_arc(c.global_position, r, 0.0, TAU, 64, Color(_ink, a), 2.0, true)
+		ci.draw_arc(c.global_position, r, 0.0, TAU, 64, Color(_palette.color(fx.accent if fx != null else &"monster2"), a * 2.0), 1.0, true)
+
+
+## Each warband mob: a ring at its feet in the stomp's accent, breathing.
+func _paint_bands(ci: CanvasItem) -> void:
+	if _b_live == 0:
+		return
+	for i in BAND_CAP:
+		if _b_mob[i] == 0:
+			continue
+		var mob := instance_from_id(_b_mob[i]) as Node2D
+		if mob == null or not in_view(mob.global_position):
+			continue
+		var a: float = clampf(_b_age[i] / 0.2, 0.0, 1.0) * clampf((_b_life[i] - _b_age[i]) / 0.3, 0.0, 1.0)
+		_paint_foot_ring(ci, mob.global_position, _b_rx[i] * (1.0 + 0.06 * sin(_b_age[i] * 5.0)), Color(_b_col[i], 0.9 * a))
+	ci.draw_set_transform_matrix(Transform2D.IDENTITY)
 
 
 ## Dashed ink-rimmed tethers from each taunted enemy's body to the taunter's,
@@ -1179,13 +2206,62 @@ func prims_of(kind: Prim) -> int:
 	return n
 
 
-## The widest live ring line (world px).
+## The widest live ring or sound-arc line (world px).
 func widest_ring() -> float:
 	var w: float = 0.0
 	for i in PRIM_CAP:
-		if _p_kind[i] == Prim.RING:
+		if _p_kind[i] == Prim.RING or _p_kind[i] == Prim.ARC:
 			w = maxf(w, _p_w[i])
 	return w
+
+
+func trails_live() -> int:
+	return _r_live
+
+
+func swarms_live() -> int:
+	return _s_live
+
+
+func axes_live() -> int:
+	return _a_live
+
+
+func stuns_live() -> int:
+	return _st_live
+
+
+func bands_live() -> int:
+	return _b_live
+
+
+## The spin angle (radians) of the axe drawn for `axe`; NAN when none is.
+func axe_angle(axe: ThrownAxe) -> float:
+	for i in AXE_CAP:
+		if _a_axe[i] == axe:
+			return _a_angle[i]
+	return NAN
+
+
+## Where the bats of `swarm` fly now (empty when it is not shown).
+func swarm_bats(swarm: NightSwarm) -> PackedVector2Array:
+	var out := PackedVector2Array()
+	for i in SWARM_CAP:
+		if _s_swarm[i] != swarm or swarm == null:
+			continue
+		var c := instance_from_id(_s_caster[i]) as Node2D
+		if c == null:
+			continue
+		var bite: float = _swarm_bite(i, swarm)
+		for k in (SWARM_BATS_BROOD if swarm.is_permanent() else SWARM_BATS):
+			out.append(_swarm_bat(i, k, swarm_center(c), maxf(swarm.area_of_effect, 1.0), bite))
+	return out
+
+
+## What a swarm's bats circle: SWARM_LIFT_SHARE of the way from `caster`'s
+## feet to its body.
+static func swarm_center(caster: Node2D) -> Vector2:
+	return caster.global_position.lerp(CharacterRig.mid_body_of(caster), SWARM_LIFT_SHARE)
 
 
 ## The longest life of a live primitive of `kind` (s).
@@ -1212,7 +2288,8 @@ func tether_ends(enemy: Node2D) -> PackedVector2Array:
 ## F3 overlay line: programs played and culled, pool use against the caps and
 ## this node's script time last frame.
 func debug_line() -> String:
-	return "Ability FX %d  culled %d  sprites %d/%d  marks %d/%d  stakes %d  prims %d/%d\n    tethers %d  wards %d  halos %d  cages %d  %.2f ms" % [
+	return "Ability FX %d  culled %d  sprites %d/%d  marks %d/%d  stakes %d  prims %d/%d\n    tethers %d  wards %d  halos %d  cages %d  trails %d  swarms %d  axes %d  stuns %d  warband %d  %.2f ms" % [
 			programs_played, culled, over.live, OVER_CAP, marks.live, MARK_CAP,
 			stakes_front.live + stakes_back.live, _p_live_ground + _p_live_over, PRIM_CAP,
-			_t_live, _w_live, _h_live, _c_live, float(_cost_usec) / 1000.0]
+			_t_live, _w_live, _h_live, _c_live, _r_live, _s_live, _a_live, _st_live, _b_live,
+			float(_cost_usec) / 1000.0]

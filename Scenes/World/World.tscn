@@ -645,12 +645,13 @@ texture_filter = 4
 script = ExtResource("11_vfx")
 camera = NodePath("../MainCam")
 
-[node name="Abilities" type="Node2D" parent="Vfx" node_paths=PackedStringArray("camera", "ground") groups=["ability_vfx"]]
+[node name="Abilities" type="Node2D" parent="Vfx" node_paths=PackedStringArray("camera", "ground", "telegraphs") groups=["ability_vfx"]]
 z_as_relative = false
 z_index = 45
 script = ExtResource("12_afx")
 camera = NodePath("../../MainCam")
 ground = NodePath("Ground")
+telegraphs = NodePath("..")
 
 [node name="Ground" type="Node2D" parent="Vfx/Abilities" node_paths=PackedStringArray("vfx")]
 z_as_relative = false

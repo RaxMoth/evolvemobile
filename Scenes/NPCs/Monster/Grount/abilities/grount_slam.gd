@@ -91,6 +91,8 @@ func execute(caster: Node2D, target: Node2D = null, override_damage: float = -1.
 		target_pos = start_pos + to_t.normalized() * minf(leap_distance, to_t.length())
 	target_pos = GameUtils.clamp_to_nav_segment(caster.get_world_2d(), start_pos, target_pos)
 	_airborne = true
+	# Presentation: the landing telegraph (AbilityVfx -> VfxManager.telegraph).
+	EventBus.notify_ability_event(caster, self, FxEvents.SLAM_LEAP, target_pos, jump_duration)
 	
 	# Animate jump
 	_perform_jump(caster, target_pos)
@@ -146,6 +148,9 @@ func _perform_slam(caster: Node2D) -> void:
 			deal(caster, entity, _effective_damage)
 			if stun_duration > 0.0 and entity is EntityBase:
 				(entity as EntityBase).apply_stun(stun_duration)
+				EventBus.notify_ability_event(entity, self, FxEvents.STUNNED, entity.global_position, stun_duration)
+	# Presentation: the impact (AbilityVfx), after the damage and the stuns.
+	EventBus.notify_ability_event(caster, self, FxEvents.SLAM_LANDED, caster.global_position, slam_radius)
 
 
 ## Call of the Herd (a stomp cast at a hero): every living, recruitable mob
@@ -165,6 +170,7 @@ func _recruit_mobs(caster: Node2D) -> void:
 			continue
 		mob.join_warband(caster, recruit_duration)
 		last_recruit_count += 1
+		EventBus.notify_ability_event(mob, self, FxEvents.RECRUITED, center, recruit_duration)
 
 
 ## F3 (MonsterBase.debug_meta_line): Call of the Herd's last recruits; "" on

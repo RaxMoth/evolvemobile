@@ -496,8 +496,11 @@ func _on_entity_died_rampage(entity: Node, killer: Node) -> void:
 		return
 	for key in ability_cooldowns.keys():
 		ability_cooldowns[key] = 0.0
+	var before: float = current_health
 	heal_self(get_max_health() * rampage_heal_pct)
 	_rampage_kills += 1
+	# Presentation: the rampage cue and its "+N" (AbilityVfx, VfxManager).
+	EventBus.notify_ability_event(self, passive_ability, FxEvents.RAMPAGE, global_position, current_health - before)
 
 
 ## Gorrak "Unstoppable" (monster_cc_immune): Irelia's Monster Taunt and Ted's
@@ -535,6 +538,8 @@ func _on_scattered_state_entered() -> void:
 	_body_area.collision_layer = 0
 	_set_nav_target(_scatter_point())
 	_fade_visual(SCATTER_ALPHA)
+	# Presentation: the bat-scatter burst (AbilityVfx).
+	EventBus.notify_ability_event(self, passive_ability, FxEvents.SCATTERED, global_position)
 
 
 ## One AI tick while scattered (the chart's step()): fly toward the scatter
@@ -553,6 +558,7 @@ func _on_scattered_transition_pending(_initial_delay: float, remaining_delay: fl
 ## back and she has rebirth_health_pct of max HP. Idle's entry handler then
 ## looks for targets as usual.
 func _on_scattered_state_exited() -> void:
+	var bats_at: Vector2 = global_position
 	var near: Node2D = EntityRegistry.nearest(EntityRegistry.heroes, global_position, rebirth_return_distance)
 	if near != null:
 		teleport_to(_scatter_point())
@@ -563,6 +569,8 @@ func _on_scattered_state_exited() -> void:
 	_since_damage = 0.0
 	_scatter_left = 0.0
 	_fade_visual(1.0)
+	# Presentation: the bats fly from where they were and re-form (AbilityVfx).
+	EventBus.notify_ability_event(self, passive_ability, FxEvents.REFORMED, bats_at)
 
 
 ## Where the bats fly and re-form: away from the living heroes within twice

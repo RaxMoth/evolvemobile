@@ -14,10 +14,13 @@ extends Resource
 
 ## The AbilityVfx program (AbilityVfx.CUES; &"" = no world effect):
 ##   strike, claw, sniper (on each hit the ability lands),
-##   shield, taunt, rally, weapon_swap, mine, blood_bomb (on the cast),
-##   cage, supply_drop, last_stand (on the ability's FxEvents only).
-## The FxEvents an ability emits (a ward, a tether, a heal hop) take their
-## colours from the same recipe whatever its cue.
+##   shield, taunt, rally, weapon_swap, mine, blood_bomb, cleave, screech,
+##   axe, swarm (on the cast),
+##   cage, supply_drop, last_stand, ram_dash, swoop, slam, stomp, rampage,
+##   rebirth, unstoppable (on the ability's FxEvents only).
+## The FxEvents an ability emits (a ward, a tether, a heal hop, a stun) take
+## their colours from the same recipe whatever its cue; a monster's capstone
+## moments take them from its passive's recipe.
 @export var cue: StringName = &""
 
 @export_group("Colours (UiPalette tokens)")
@@ -41,3 +44,9 @@ extends Resource
 @export_range(0.0, 1.0) var trauma: float = 0.0
 ## Seconds a ground decal (blood splat, blast scorch) stays.
 @export var decal_life: float = 3.0
+
+@export_group("Rig")
+## A part of the caster's rig body (RigBody.part) the program hides while
+## the ability has it away from the hand: Gorrak's axe while the Tusk Axe
+## flies. &"" = none.
+@export var prop_part: StringName = &""

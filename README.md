@@ -273,7 +273,8 @@ Power Level
 - **Visual Changes**: Grount's rig grows with the stage scale (1.0 / 1.25 / 1.5) and shows each
   stage's parts: bigger horns and orange eyes plus back spikes (Stage 2); huge horns, red eyes,
   glowing cracks and a chain (Stage 3); a flash and a ring pulse mark the evolution
-- **Screen Shake**: Alerts players to evolution
+- **Screen Shake**: Alerts players to evolution: VfxManager adds trauma 0.45 (`trauma_evolve`)
+  on every `EventBus.monster_evolved`, in view or not
 - **Ability Unlocks**: Ground Slam unlocks at Stage 2
 - **Passive slot**: "Evolution" (`grount_evolution.tres`) names this stage system in the HUD's
   passive slot and on the character screen
@@ -328,8 +329,9 @@ per-stage table, so the stage damage multiplier never applies to her.
   18 / 14 s, lifesteal 25%. No node and no timer: MonsterBase steps it through
   `tick_active` on her own copy; `get_cast_center` is Nyxa, so the combo casts
   it when at least one target (`slam_min_targets` 1) stands around her. It
-  ends with her. The VfxManager draws its ring (see Combat Visuals); F3 shows
-  `swarm! <s> s left` / `swarm off`.
+  ends with her. AbilityVfx draws it: bats circling her body inside the
+  radius, diving in on every bite, over a faint ring at the radius (see
+  Ability Effects); F3 shows `swarm! <s> s left` / `swarm off`.
 - **Blood Drinker** (passive slot): names her lifesteal and evolution in the
   HUD and on the character screen.
 - **AI**: see Monster AI → Nyxa (Bats only until Stage 3, early retreat,
@@ -379,8 +381,9 @@ per-stage table, so the stage damage multiplier never applies to him.
   and it ends with him. `stun_duration`
   (0 = off) is for the tree's Concussive Axe. No node and no timer: a point
   that MonsterBase steps through `tick_active` on his own copy, one overlap
-  query per frame while it flies (about 1 s of every 5–7 s). The VfxManager
-  draws it spinning (see Combat Visuals); F3 shows `axe in hand` /
+  query per frame while it flies (about 1 s of every 5–7 s). AbilityVfx
+  draws it spinning, and his rig's own `axe` part (split from the arm art)
+  hides meanwhile (see Ability Effects); F3 shows `axe in hand` /
   `axe! flying out` / `axe! flying back`. `escape_with_ability_2` is false:
   he never throws it away from the heroes as an escape.
 - **Warcry Stomp** (ability 3, ULTIMATE, `BullGroundSlam` with
@@ -1145,12 +1148,12 @@ drifted from the real cooldown under attack-speed boosts and pauses).
 `VfxManager` (`Scripts/Vfx/vfx_manager.gd`) is the match's hit feedback: a
 `Vfx` node of `World.tscn` in group `vfx` (not an autoload, so it lives and
 dies with the match; `camera` wired to `MainCam` scene-side). Its hooks are
-`EventBus.damage_applied`, `EventBus.ability_cast` (the swarm ring and the
-thrown axe below) and `EventBus.ability_event` (the heal numbers),
-connected in `_ready` (an autoload cannot be the source of a scene
-`[connection]`). What makes each ability recognisable is AbilityVfx's (see
-Ability Effects below). For every packet that lands in the camera view
-(grown by 64 px):
+`EventBus.damage_applied`, `EventBus.ability_event` (the heal numbers) and
+`EventBus.monster_evolved` (the evolution shake), connected in `_ready` (an
+autoload cannot be the source of a scene `[connection]`). What makes each
+ability recognisable is AbilityVfx's (see Ability Effects below); it asks
+this node for the ground telegraphs. For every packet that lands in the
+camera view (grown by 64 px):
 
 - **Impact**: an outlined cartoon star (`fx_star.svg`, gold; red on the
   player's side; bigger for a big hit) with two sparks, for 0.22 s at the
@@ -1163,8 +1166,8 @@ Ability Effects below). For every packet that lands in the camera view
   number; a target shows at most 3 numbers (side by side: centre, right,
   left), and a hit past that adds up in its youngest.
 - **Heal number**: a heal an ability reports (`FxEvents.HEAL_SHOT`,
-  `CHAIN_HEAL`, `KIT_PICKED`: River's staff, Chain Heal, the supply drop)
-  shows as "+N" (the glyph sheet's "+" cell, then the digits) in the
+  `CHAIN_HEAL`, `KIT_PICKED`, `RAMPAGE`: River's staff, Chain Heal, the
+  supply drop, Grount's Rampage) shows as "+N" (the glyph sheet's "+" cell, then the digits) in the
   palette's `heal` green, the HP actually healed (a heal on a full bar shows
   nothing). Heals add up with heals only, in their own number beside the
   damage numbers (`show_heal`, `heals_on`).
@@ -1172,40 +1175,36 @@ Ability Effects below). For every packet that lands in the camera view
 - **Hit flash**: the CharacterRig's hurt reaction rendered white by the
   shared hit flash shader (see Character Rigs). VfxManager does not flash.
 - **Screen shake**: camera trauma (`GameCamera.add_trauma`): 0.6 when the
-  monster goes down, 0.35 for a hero, 0.12 for a big hit on a hero or the
-  monster. Trauma is capped at 0.8, decays 1.8/s, and the offset is
+  monster goes down, 0.45 when it evolves (in view or not: the alert),
+  0.35 for a hero, 0.12 for a big hit on a hero or the monster, plus a
+  recipe's own `trauma` (a slam, a stomp, a blood bomb). Trauma is capped at 0.8, decays 1.8/s, and the offset is
   9 px x trauma², so only big moments move the view. Settings → Display →
   "Screen shake" (`screen_shake`, on by default) and the camera's
   `shake_enabled` export gate it; the offset uses the camera's private RNG.
-- **Ground telegraph**: `telegraph(pos, radius, windup, color)` shows where a
-  wound-up hit will land: a pooled `RingPulse` outline at the radius and a
-  ring growing from the centre that reaches it as the hit lands, both at 35%
-  alpha and 2 px wide at any radius. The rings are children of the Vfx node
-  at absolute z 0; the node sits right after the ground layers, so they draw
-  on the ground under the characters, while its sprites and numbers draw at
-  z 50 (above the characters and ability trails, under the fog at 100). The
-  monster abilities call it from Phase 7.
-- **Swarm ring** (minimal; Nyxa's full swarm look is Phase 7): a cast that
-  starts a Night Swarm takes one of 2 pooled slots (the caster's own slot on
-  a recast, else round robin). Each slot is two `RingPulse` rings under the
-  node's `Swarms` layer, also at absolute z 0: an outline at the swarm's
-  live radius (it grows with the stage and Thicker Swarm) and a bite ring
-  that sweeps from 55% of it to the edge once per bite, both in the
-  palette's `monster2_light` at 55% alpha, 3 px wide (`swarm_width`), fading
-  in and out over 0.25 s. They follow Nyxa every frame and hide (kept) when
-  the swarm ends or she is gone. It only READS the ability (`is_active`,
-  `time_left`, `area_of_effect`, `tick_interval`).
-- **Thrown axe** (minimal; the full look is Phase 7): a cast that throws
-  Gorrak's Tusk Axe takes one of 2 pooled slots (the caster's own slot, else
-  round robin). While the axe flies, `_draw` draws `fx_axe.svg` (ivory tusk
-  blade, wood haft, the `monster3` grip; drawn in its own colours, untinted,
-  44 world px, `axe_size`) at the ability's `axe_position`, spinning 2.5 turns
-  a second (`axe_turns_per_second`), clockwise when thrown to the right. The
-  slot frees once the axe is back in his hand or he is gone. It only READS
-  the ability (`is_flying`, `axe_position`, `direction`).
+- **Ground telegraphs**: where an ability lands, in the recipe's accent at
+  35% alpha (`TELEGRAPH_ALPHA`), lines 2 px wide at any size
+  (`telegraph_width`), from a pool of 4 slots (`TELEGRAPH_CAP`), each a
+  pooled pair of `RingPulse` lines that a slot reshapes:
+  `telegraph(pos, radius, windup, color)`, a circle: an outline at the
+  radius and a ring growing from the centre that reaches it as the hit lands
+  (Ground Slam and Warcry Stomp over their airtime, Whirlwind);
+  `telegraph_cone(apex, angle, spread_deg, reach, windup, color)`, a cone:
+  its outline and an arc growing from the apex to the rim (Front Cleave,
+  Cleaver Chop, Sonic Screech: they land on the cast, so the cone flashes
+  0.22 s); `telegraph_lane(from, to, half_width, windup, color)`, a dash's
+  rounded lane at the hit radius and a bar crossing it with the dash (Ram
+  Dash, Shadow Swoop and Echo Strike's way back; Trample's 70 px lane reads
+  wider than the stock 40). The lines are children of the Vfx node at
+  absolute z 0; the node sits right after the ground layers, so they draw on
+  the ground under the characters, while its sprites and numbers draw at
+  z 50 (above the characters and ability trails, under the fog at 100).
+  `telegraph_shapes()` lists the live ones (tests).
+
+Night Swarm's look and the thrown Tusk Axe (until 7.3 a minimal ring and an
+axe sprite here) are AbilityVfx programs now (see Ability Effects).
 
 Budget (the anim prototype measured 23 ms frames at p95): fixed pools of 64
-sprites (`FxSpriteBuffer`), 32 numbers, 4 telegraphs, 2 swarms and 2 axes, where a full pool
+sprites (`FxSpriteBuffer`), 32 numbers and 4 telegraphs, where a full pool
 recycles its oldest entry; at most 8 hits a frame spawn sprites (the rest still
 count in the numbers) and 2 kills a frame spawn puffs; nothing is allocated
 per frame. Every random draw uses its private RNG and it never writes gameplay
@@ -1221,27 +1220,34 @@ rings were never drawn.
 
 ### Ability Effects (AbilityVfx, AbilityFxRecipe)
 
-Every hero ability's look is data: `AbilityBase.fx`, an `AbilityFxRecipe`
-(`Scripts/Vfx/ability_fx_recipe.gd`; the hero recipes are
-`Assets/Vfx/recipes/fx_<hero>_<ability>.tres`). A recipe names the program
-(`cue`), its colours as UiPalette tokens (`accent`, `shade`, `core`, `alt`:
-the second look, River's heal staff, a rally mark, a mine's arming ring),
-`size`, `radius` (0 = the ability's own), the camera `trauma` of its biggest
-moment and the life of its ground decal. It is presentation only: gameplay
-never reads it, every copy of an ability shares it and nothing writes it at
-runtime. The rig move a cast plays stays the ability's `move_name`.
+Every hero and monster ability's look is data: `AbilityBase.fx`, an
+`AbilityFxRecipe` (`Scripts/Vfx/ability_fx_recipe.gd`; the recipes are
+`Assets/Vfx/recipes/fx_<character>_<ability>.tres`). A recipe names the
+program (`cue`), its colours as UiPalette tokens (`accent`, `shade`, `core`,
+`alt`: the second look, River's heal staff, a rally mark, a mine's arming
+ring, stun stars), `size`, `radius` (0 = the ability's own), the camera
+`trauma` of its biggest moment, the life of its ground decal and `prop_part`
+(a part of the caster's rig body the program hides while the ability has it
+away from the hand: Gorrak's axe). It is presentation only: gameplay never
+reads it, every copy of an ability shares it and nothing writes it at
+runtime. The rig move a cast plays stays the ability's `move_name`. A
+monster's passive carries the recipe of its capstone moments (Rampage,
+Vampiric Rebirth, Unstoppable).
 
 `AbilityVfx` (`Scripts/Vfx/ability_vfx.gd`) plays them: World.tscn's
 `Vfx/Abilities` (group `ability_vfx`, `camera` and `ground` wired
 scene-side), drawn over the characters at absolute z 45 (under VfxManager's
 numbers at 50), with its `FxGroundLayer` child `Ground` at absolute z 0 (after
 the ground layers, under the characters) for the ground half: rings, shield
-wards, Last Stand halos, cage rings, decals and the back stakes of a cage.
-Its hooks: `EventBus.ability_cast` (cast cues), `damage_applied` (hit cues),
+wards, Last Stand halos, cage rings, swarm rings, warband rings, decals and
+the back stakes of a cage. `telegraphs` (wired to its parent, the
+VfxManager) draws the monster programs' ground telegraphs. Its hooks:
+`EventBus.ability_cast` (cast cues), `damage_applied` (hit cues),
 `ability_event` (the moments inside an ability, names in `FxEvents`) and
-`entity_died` (what rides a fallen character ends). The hero scripts only
-emit `EventBus.notify_ability_event(...)` at points they already reach, after
-their own state change; no gameplay value, timer or query changed.
+`entity_died` (what rides a fallen character ends). The hero and monster
+scripts only emit `EventBus.notify_ability_event(...)` at points they already
+reach, after their own state change; no gameplay value, timer or query
+changed (the trace is byte-identical).
 
 | Hero | Ability (cue) | Look |
 |---|---|---|
@@ -1259,6 +1265,30 @@ their own state change; no gameplay value, timer or query changed.
 | River | Weapon Swap (`weapon_swap`) | a twinkle and a small ring in the colour of the weapon she now holds |
 | River | Supply Drop (`supply_drop`) | the kit is `fx_crate` under a leaf `fx_chute` (MediKit.tscn's `Drop` animation: the chute sways down and drifts off after landing), its pickup radius a dashed ring at 35 %; `KIT_LANDED`: dust, a ring, three leaves; `KIT_PICKED`: pluses and a ring on the healed hero |
 
+| Monster | Ability (cue) | Look |
+|---|---|---|
+| Grount | Front Cleave (`cleave`) | a cone telegraph (0.22 s) at the cone's live angle and reach (Titan Form's reach included), a big slash crescent through it at body height (0.14 s, `grount_light`), two dust clouds at its far edge |
+| Grount | Ram Dash (`ram_dash`) | `DASH_STARTED`: a lane telegraph to the end point at the hit radius (Trample: 70 px), its bar crossing with the dash; a trail follows him while `is_dashing`: a dust cloud every 44 px (at the lane's edges, side to side, under Trample) and two speed lines at body height; `DASH_ENDED`: a skid cloud and trauma 0.15. At most 6 dust clouds a cast |
+| Grount | Ground Slam (`slam`) | `SLAM_LEAP`: the landing circle telegraph fills over the airtime, dust at take-off; `SLAM_LANDED`: a crack left 3.5 s, a 3 px shockwave ring to the radius and a darker one after it, four dust clouds, four rocks, a 0.14 s star, trauma 0.35 |
+| Grount | Evolution (`rampage`) | Rampage, `RAMPAGE` (a hero kill): a danger ring and a darker one at his feet, an anger vein above his head, four amber sparks rising (the cooldowns back), a star, trauma 0.2, and VfxManager's "+N" for the HP healed |
+| Nyxa | Sonic Screech (`screech`) | a cone telegraph and three ink-rimmed sound arcs (at most 3 px) rolling out of her body through the cone, staggered 0.07 s, 0.3 s each |
+| Nyxa | Shadow Swoop (`swoop`) | `DASH_STARTED`: the lane telegraph; a tapered violet streak (the last 10 path points) follows her and fades 0.22 s after the swoop, and a bat peels off it every 60 px (at most 4 a pass); Echo Strike, `DASH_TURNED`: a lane telegraph back, a small ring and two bats at the turn |
+| Nyxa | Night Swarm (`swarm`) | 8 bats (`fx_bat`, tinted `monster2`, flapping) circle her body inside the swarm's radius, each on its own phase, speed and radius share from the private RNG, all diving to 60% of the radius on every bite (one every `tick_interval`); a faint ring at the radius on the ground; they fade in and out over 0.25 s and follow her. Brood Mother (a swarm that never ends): 12 bats. It only READS the ability (`is_active`, `is_permanent`, `area_of_effect`, `tick_interval`) |
+| Nyxa | Blood Drinker (`rebirth`) | Vampiric Rebirth, `SCATTERED`: six bats burst off her body and three shade puffs where it was, a ring (her body fades to 30 % as before); `REFORMED`: six bats fly from where the bats were to her body at the re-form point (covering the jump when she re-forms 400 px away), a violet streak bows along the jump, then a ring, a star and three puffs as they arrive |
+| Gorrak | Cleaver Chop (`cleave`) | as Front Cleave in `monster3_light`, a little bigger; Whirlwind (a 360° chop from Stage 3): a circle telegraph, four slashes spinning all around, a ring at the reach and three dust clouds at the rim |
+| Gorrak | Tusk Axe (`axe`) | the spinning `fx_axe` (44 px, `axe_size`, 2.5 turns a second, clockwise thrown to the right, two fading ghosts at its last angles) at the ability's `axe_position` while it flies; his rig's `axe` part (the recipe's `prop_part`) hides meanwhile and shows again with a catch spark once the axe is back. It only READS the ability (`is_flying`, `axe_position`, `direction`) |
+| Gorrak | Warcry Stomp (`stomp`) | `SLAM_LEAP`: the circle telegraph over the hop and a "!" over his head (the war cry); `SLAM_LANDED`: a double ring to the stun radius, a small crack, three dust clouds, two rocks, trauma 0.3. Call of the Herd, `RECRUITED` per recruit: a "!" over it and a ring at its feet while it fights in the warband (on top of its `monster3_light` tint) |
+| Gorrak | Bristled Hide (`unstoppable`) | Unstoppable, `CC_SHRUGGED` (Irelia's Monster Taunt within range, or a Trap Cage, skips him): five shards burst off his body, a ring at his feet, a star |
+| all | stuns | `STUNNED` (Stunning Charge, Disorienting Dive, Concussive Axe, Warcry Stomp): three stars in the recipe's `alt` (gold) circle above the stunned head while the stun lasts (they end when it is cleared, as Guardian Angel does) |
+
+Monster event moments (`FxEvents`): `DASH_STARTED` / `DASH_TURNED` /
+`DASH_ENDED` (BullRamDash's `execute` and `_dash_update`), `SLAM_LEAP` /
+`SLAM_LANDED` (BullGroundSlam, after the damage), `STUNNED` (after every
+`apply_stun` of Ram Dash, the Tusk Axe and the slam), `RECRUITED`
+(`_recruit_mobs`), `RAMPAGE`, `SCATTERED`, `REFORMED` (MonsterBase: the
+Rampage heal, the Scattered state's entry and exit) and `CC_SHRUGGED`
+(IreliaUltimateTaunt and TrapCage when they skip an Unstoppable monster).
+
 Toning-down rules (the anim prototype's previews were too busy), enforced by
 `test_ability_vfx`: rings at most 3 world px wide (ink included) and on the
 ground; at most 6 puffs or dust clouds per cast or event; nothing covers a
@@ -1269,18 +1299,26 @@ pickup radius) at 35 % alpha. No hero strikes with a `BasicStrike` trail any
 more (the recipes draw the hit); the trail stays a `.tres` option.
 
 Budget: fixed pools (96 overlay sprites, 24 decals, 16 marks, 64 + 64
-stakes, 40 primitives, 6 tethers, 6 wards, 4 halos, 4 cage rings); a full
-pool recycles its oldest entry, and lasting effects (marks, stakes) have
-pools of their own so a burst never recycles them. One-shot programs outside
-the camera view (grown by 96 px) are skipped; lasting ones start anyway.
-Every random draw uses its private RNG and it only READS gameplay (abilities,
-shields, cages), so `tools/sim_trace.sh` stays byte-identical. The F3 overlay
-adds "Ability FX" (programs played and culled, the pools, script time).
-`tools/preview/AbilityFxStage.tscn` (`-- hero=vlad|irelia|ted|river`) stages
-one hero's abilities on a timeline for muted renders.
+stakes, 40 primitives, 6 tethers, 6 wards, 4 halos, 4 cage rings, 2 dash
+trails, 2 swarms, 2 axes, 8 stun stars, 8 warband rings); a full pool
+recycles its oldest entry, and lasting effects (marks, stakes, trails,
+swarms, axes, stuns, warband rings) have pools of their own so a burst never
+recycles them. One-shot programs outside the camera view (grown by 96 px)
+are skipped; lasting ones start anyway and draw only in view. Every random
+draw uses its private RNG and it only READS gameplay (abilities, shields,
+cages, dashes, swarms, axes, stuns, warbands; its one write is
+presentation, the rig part a recipe's `prop_part` hides), so
+`tools/sim_trace.sh` stays byte-identical, also with every rig awake. The
+F3 overlay adds "Ability FX" (programs played and culled, the pools, script
+time). `tools/preview/AbilityFxStage.tscn` (`-- hero=vlad|irelia|ted|river`
+or `-- monster=grount|nyxa|gorrak`) stages one character's abilities on a
+timeline for muted renders; the monster combo turns its capstones on on the
+monster's own copies (Trample, Echo Strike with Disorienting Dive, Brood
+Mother, Concussive Axe, Call of the Herd, Whirlwind, Unstoppable) and
+triggers Rampage and the rebirth by hand.
 
-Planned: the monster abilities' recipes and telegraphs (7.3), evolution
-transformation effects, death animations.
+Planned: mob attack moves and the generic bite and claw effects under the
+rig LOD (7.4), evolution transformation effects, death animations.
 
 ---
 
@@ -1990,7 +2028,7 @@ res://
 │  ├─ Shaders/ (ground_grade; hit_flash + hit_flash_material.tres on every rig body)
 │  ├─ Vfx/svg/ (fx_*.svg: in-world effect sprites, mipmapped; the mine pod and
 │  │            lamp, supply crate and chute are scene sprites)
-│  ├─ Vfx/recipes/ (fx_<hero>_<ability>.tres: AbilityFxRecipe per ability)
+│  ├─ Vfx/recipes/ (fx_<character>_<ability>.tres: AbilityFxRecipe per ability)
 │  └─ UI/ (generated Jungle Guild kit, DPITexture SVGs)
 │     ├─ Kit/ · Crests/ · Icons/{Abilities,Currency,Stats,Roles,Nav,UI}/
 │     ├─ Lobby/ (the lobby's campfire and lair backdrops, VS badge)
@@ -2273,14 +2311,14 @@ from a seeded save.
 
 | node | key or export (ability) | effect |
 |---|---|---|
-| g4_rampage CAP | `monster_rampage`; `MonsterBase.rampage_heal_pct` 0.15 | `MonsterBase` connects to `EventBus.entity_died` only while it applies; a `HeroBase` death whose killer is this monster zeroes every `ability_cooldowns` slot and heals 15% of max HP (`heal_self`, never a dead monster). F3: "rampage(N)" with the hero kills so far |
-| g4_stampede CAP | `trample`; `trample_hit_radius` 70, `trample_from_stage` 3, `trample_cooldown_mult` 0.5 (Ram Dash, `BullRamDash`) | the dash hits everything within 70 px of the bull's centre as it passes (`get_hit_radius`; the stock lane is the `dash_hit_radius` export, 40, which was the const `DASH_HIT_RADIUS`), and from Stage 3 `apply_stage_stats` halves its cooldown (5 s -> 2.5 s). F3: "trample 70 px" |
-| ny_rebirth CAP | `monster_rebirth`; `MonsterBase.rebirth_health_pct` 0.3, `rebirth_return_distance` 400, `rebirth_flee_speed_mult` 1.5 | once per match the lethal hit sends `CombatEvents.SELF_SCATTERED` instead of `SELF_DEAD`: the chart's **Scattered** state (an atomic state of `monster_base_class.tscn`, entered from any state by `ToScattered`, its handlers wired scene-side) is the whole rebirth, no flag mirrors it (`is_scattered()` asks the state). While in it she has 0 HP, so `is_alive()` is false and nobody keeps her as a target; `_receive_damage` cancels every hit; her Body's collision layer is 0, so no detection area or overlap query finds her; her target and stun are dropped; each AI step flies her toward the scatter point at x1.5 speed, and her body fades to 30% alpha. The state's delayed `ToIdle` transition (3 s) ends it: still within 400 px of a hero, she re-forms at the scatter point (on the flee fan away from the centroid of the heroes within 800 px, 400, 600 or 800 px from her, the first point on the mesh that is at least 400 px from every living hero; her own spot if none is close), then the layer is back and she has 30% of max HP. No `entity_died` is reported, so the match goes on. F3: the chart state "Scattered"; "rebirth" / "rebirth! 1.2 s" (the pending transition's countdown) / "rebirth spent" |
-| ny_echo CAP | `double_pass` (Shadow Swoop, `BullRamDash`) | a targeted swoop turns at its end and runs back the distance it travelled along the same lane with its hit list cleared, so the target is hit twice (she ends where she started); an escape swoop (no target) never turns. `is_channeling` covers both passes. F3: "echo" |
-| ny_brood CAP | `permanent_from_stage` 3 (Night Swarm, `NightSwarm`) | from Stage 3 (`apply_stage_stats`) a running swarm never runs out; it stops only with her (dead or scattered). While it runs `can_use` is false, so the combo falls back to the screech instead of re-casting it. F3: "swarm! forever" |
-| gk_whirl CAP | `full_circle_from_stage` 3 (Cleaver Chop, `BullFrontCleave`) | from Stage 3 `apply_stage_stats` sets `cone_angle` to 360 and `execute` skips the cone test: the chop hits everything within its reach all around him. F3: "whirlwind" / "whirlwind!" |
-| gk_unstoppable CAP | `monster_cc_immune` | `MonsterBase.is_cc_immune()` (also true while Nyxa's bats are scattered). `IreliaUltimateTaunt` skips such a monster in both of its passes (a monster is in the "Enemy" group too), so the taunt falls back on the mobs around; `TrapCage` never traps it, and its per-frame hold and its exit check skip it, so a cage that held Nyxa lets her scattered bats out. The cage's spikes still hurt whatever overlaps it. F3: "unstoppable" |
-| gk_warband CAP | `recruit_radius` 250, `recruit_duration` 20 (Warcry Stomp, `BullGroundSlam`) | a stomp cast at a hero (or Ted's pet; a stomp at a mob while farming recruits nobody, or he would stall at Stage 2 beside a camp he may no longer eat: 17 of 24 sanity matches timed out before that rule) calls the herd: at impact, before the damage, every living mob within 250 px whose scene allows it (`MobBase.can_join_warband`, set on `Hog.tscn`) joins the caster's warband (`MobBase.join_warband`): `ally_monster` is the caster while its `WarbandTimer` (a one-shot Timer in `mobs_base_class.tscn`, timeout wired scene-side) runs 20 s. `GameUtils.can_entity_target` honours it both ways (the mob never targets him, his abilities never hit it, so the stomp spares it); heroes stay its targets, it drops him as a target and goes for the hero in sight or the nearest within its `chase_distance`. Tinted toward Gorrak's palette colour (`monster3_light`) while it lasts; the timeout and `prepare_for_pool` end it. F3: "warband(last N)"; a warband mob's overlay label shows "WARBAND" |
+| g4_rampage CAP | `monster_rampage`; `MonsterBase.rampage_heal_pct` 0.15 | `MonsterBase` connects to `EventBus.entity_died` only while it applies; a `HeroBase` death whose killer is this monster zeroes every `ability_cooldowns` slot and heals 15% of max HP (`heal_self`, never a dead monster). Look: `RAMPAGE` (rings, an anger vein, rising sparks, "+N"; see Ability Effects). F3: "rampage(N)" with the hero kills so far |
+| g4_stampede CAP | `trample`; `trample_hit_radius` 70, `trample_from_stage` 3, `trample_cooldown_mult` 0.5 (Ram Dash, `BullRamDash`) | the dash hits everything within 70 px of the bull's centre as it passes (`get_hit_radius`; the stock lane is the `dash_hit_radius` export, 40, which was the const `DASH_HIT_RADIUS`), and from Stage 3 `apply_stage_stats` halves its cooldown (5 s -> 2.5 s). Look: the dash's lane telegraph at 70 px and its dust at the lane's edges. F3: "trample 70 px" |
+| ny_rebirth CAP | `monster_rebirth`; `MonsterBase.rebirth_health_pct` 0.3, `rebirth_return_distance` 400, `rebirth_flee_speed_mult` 1.5 | once per match the lethal hit sends `CombatEvents.SELF_SCATTERED` instead of `SELF_DEAD`: the chart's **Scattered** state (an atomic state of `monster_base_class.tscn`, entered from any state by `ToScattered`, its handlers wired scene-side) is the whole rebirth, no flag mirrors it (`is_scattered()` asks the state). While in it she has 0 HP, so `is_alive()` is false and nobody keeps her as a target; `_receive_damage` cancels every hit; her Body's collision layer is 0, so no detection area or overlap query finds her; her target and stun are dropped; each AI step flies her toward the scatter point at x1.5 speed, and her body fades to 30% alpha (look: a bat-scatter burst on entry, `SCATTERED`, and the bats flying to the re-form point on exit, `REFORMED`). The state's delayed `ToIdle` transition (3 s) ends it: still within 400 px of a hero, she re-forms at the scatter point (on the flee fan away from the centroid of the heroes within 800 px, 400, 600 or 800 px from her, the first point on the mesh that is at least 400 px from every living hero; her own spot if none is close), then the layer is back and she has 30% of max HP. No `entity_died` is reported, so the match goes on. F3: the chart state "Scattered"; "rebirth" / "rebirth! 1.2 s" (the pending transition's countdown) / "rebirth spent" |
+| ny_echo CAP | `double_pass` (Shadow Swoop, `BullRamDash`) | a targeted swoop turns at its end and runs back the distance it travelled along the same lane with its hit list cleared, so the target is hit twice (she ends where she started); an escape swoop (no target) never turns. `is_channeling` covers both passes. Look: `DASH_TURNED`, a lane telegraph back and her streak running back along it. F3: "echo" |
+| ny_brood CAP | `permanent_from_stage` 3 (Night Swarm, `NightSwarm`) | from Stage 3 (`apply_stage_stats`) a running swarm never runs out; it stops only with her (dead or scattered). While it runs `can_use` is false, so the combo falls back to the screech instead of re-casting it. Look: 12 bats instead of 8, for as long as it runs. F3: "swarm! forever" |
+| gk_whirl CAP | `full_circle_from_stage` 3 (Cleaver Chop, `BullFrontCleave`) | from Stage 3 `apply_stage_stats` sets `cone_angle` to 360 and `execute` skips the cone test: the chop hits everything within its reach all around him. Look: a circle telegraph and four spinning slashes (the rig's `spin` move). F3: "whirlwind" / "whirlwind!" |
+| gk_unstoppable CAP | `monster_cc_immune` | `MonsterBase.is_cc_immune()` (also true while Nyxa's bats are scattered). Look: a taunt or cage that skips him bursts into shards off him (`CC_SHRUGGED`). `IreliaUltimateTaunt` skips such a monster in both of its passes (a monster is in the "Enemy" group too), so the taunt falls back on the mobs around; `TrapCage` never traps it, and its per-frame hold and its exit check skip it, so a cage that held Nyxa lets her scattered bats out. The cage's spikes still hurt whatever overlaps it. F3: "unstoppable" |
+| gk_warband CAP | `recruit_radius` 250, `recruit_duration` 20 (Warcry Stomp, `BullGroundSlam`) | a stomp cast at a hero (or Ted's pet; a stomp at a mob while farming recruits nobody, or he would stall at Stage 2 beside a camp he may no longer eat: 17 of 24 sanity matches timed out before that rule) calls the herd: at impact, before the damage, every living mob within 250 px whose scene allows it (`MobBase.can_join_warband`, set on `Hog.tscn`) joins the caster's warband (`MobBase.join_warband`): `ally_monster` is the caster while its `WarbandTimer` (a one-shot Timer in `mobs_base_class.tscn`, timeout wired scene-side) runs 20 s. `GameUtils.can_entity_target` honours it both ways (the mob never targets him, his abilities never hit it, so the stomp spares it); heroes stay its targets, it drops him as a target and goes for the hero in sight or the nearest within its `chase_distance`. Tinted toward Gorrak's palette colour (`monster3_light`) while it lasts, with a ring at its feet and a "!" as it joins (`RECRUITED`); the timeout and `prepare_for_pool` end it. F3: "warband(last N)"; a warband mob's overlay label shows "WARBAND" |
 
 Sanity check (6.6; `SAVE=<save.cfg> MONSTER=<id> tools/sim.sh 24 heroes 6`):
 each monster with `monster_base` and its own tree fully ranked (70-76 ranks)

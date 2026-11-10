@@ -27,6 +27,8 @@ const BANG := preload("res://Assets/Vfx/svg/fx_bang.svg")
 const ANGER := preload("res://Assets/Vfx/svg/fx_anger.svg")
 const SHARD := preload("res://Assets/Vfx/svg/fx_shard.svg")
 const CRACK := preload("res://Assets/Vfx/svg/fx_crack.svg")
+## Nyxa's bats (Night Swarm, Shadow Swoop, Vampiric Rebirth): tintable.
+const BAT := preload("res://Assets/Vfx/svg/fx_bat.svg")
 ## Ability effects (AbilityVfx): in their own colours.
 const STAKE := preload("res://Assets/Vfx/svg/fx_stake.svg")
 const ROCK := preload("res://Assets/Vfx/svg/fx_rock.svg")

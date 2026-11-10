@@ -4,40 +4,38 @@ extends Node2D
 ## VfxManager - the match's pooled hit feedback: for every damage packet that
 ## lands in view, an outlined cartoon impact star with sparks and a
 ## hand-lettered damage number (the fx_digits.svg glyph atlas); on a killing
-## blow a puff burst, and camera trauma when a hero or the monster goes down
-## or takes a heavy hit. telegraph() draws the ground warning of an ability
-## that winds up (pooled RingPulse rings), and a running Night Swarm shows as a
-## pooled ground ring that follows its caster at the swarm's radius, with a
-## bite ring sweeping out once per bite (_on_ability_cast, _step_swarms). A
-## thrown Tusk Axe shows as a pooled spinning axe sprite (fx_axe.svg) at the
-## ability's axe_position while it flies (_step_axes). A heal an ability
-## reports (FxEvents HEAL_SHOT, CHAIN_HEAL, KIT_PICKED) shows as a "+N" number
-## in the palette's heal green. The per-ability looks are AbilityVfx's
+## blow a puff burst, and camera trauma when a hero or the monster goes down,
+## takes a heavy hit or the monster evolves. The ground telegraphs show where
+## an ability lands (pooled RingPulse lines, all at TELEGRAPH_ALPHA):
+## telegraph() a circle (Ground Slam, Warcry Stomp), telegraph_cone() a cone
+## (Front Cleave, Sonic Screech, Cleaver Chop; a full circle under
+## Whirlwind), telegraph_lane() a dash's lane (Ram Dash, Shadow Swoop); the
+## monster recipes' programs (AbilityVfx) call them. A heal an ability reports
+## (FxEvents HEAL_SHOT, CHAIN_HEAL, KIT_PICKED, RAMPAGE) shows as a "+N"
+## number in the palette's heal green. The per-ability looks are AbilityVfx's
 ## (AbilityFxRecipe).
 ##
 ## A node of World.tscn (group "vfx", `camera` wired there), not an autoload:
 ## it lives and dies with the match. It sits right after the ground layers, so
-## its telegraph rings (absolute z 0) draw on the ground under the characters,
+## its telegraph lines (absolute z 0) draw on the ground under the characters,
 ## while its own sprites and numbers draw above them (z_index 50, below the
-## fog's 100). Its hooks are EventBus.damage_applied and ability_cast,
-## connected in _ready (an autoload cannot be the source of a scene
-## [connection]); the heal numbers come from EventBus.ability_event. The hit
+## fog's 100). Its hooks are EventBus.damage_applied, ability_event (the heal
+## numbers) and monster_evolved (the evolution shake), connected in _ready (an
+## autoload cannot be the source of a scene [connection]). The hit
 ## flash is not drawn here: the CharacterRig's hurt
 ## reaction (wired scene-side to `damaged`) drives it, and the shared
 ## hit_flash shader on every rig body turns it into a white silhouette.
 ##
 ## Budget (the anim prototype measured 23 ms frames at p95): fixed pools
-## (SPRITE_CAP sprites, NUMBER_CAP numbers, TELEGRAPH_CAP telegraphs,
-## SWARM_CAP swarms, AXE_CAP axes; a full pool recycles its oldest entry),
+## (SPRITE_CAP sprites, NUMBER_CAP numbers, TELEGRAPH_CAP telegraphs; a full
+## pool recycles its oldest entry),
 ## hits outside the camera view are skipped, at most MAX_HITS_PER_FRAME hits
 ## per frame spawn sprites, hits on one target within MERGE_WINDOW add up in
 ## one number (heals in their own) and a target shows at most
 ## NUMBERS_PER_TARGET numbers. Nothing is allocated per frame. The F3 overlay shows the pools (debug_line()).
 ##
 ## DETERMINISM (tools/sim_trace.sh stays byte-identical): it never writes
-## gameplay state (a swarm and an axe are only READ: is_active, time_left,
-## the radius; is_flying, axe_position, direction) and draws every random
-## number from its private `_rng`.
+## gameplay state and draws every random number from its private `_rng`.
 
 const SPRITE_CAP: int = 64
 const NUMBER_CAP: int = 32
@@ -45,16 +43,8 @@ const NUMBERS_PER_TARGET: int = 3
 ## Hits on one target closer together than this (s) add up in one number.
 const MERGE_WINDOW: float = 0.15
 const TELEGRAPH_CAP: int = 4
-## Night Swarms shown at once (one per monster; a second covers a recast).
-const SWARM_CAP: int = 2
-## Alpha of a swarm's ground ring at full strength; it fades in and out over
-## SWARM_FADE seconds.
-const SWARM_ALPHA: float = 0.55
-const SWARM_FADE: float = 0.25
-## The bite ring sweeps from this share of the swarm's radius out to it.
-const SWARM_BITE_FROM: float = 0.55
-## Thrown axes shown at once (one per monster; a second covers a quick rethrow).
-const AXE_CAP: int = 2
+## Line points of a cone telegraph's arc and of each rounded end of a lane.
+const SHAPE_STEPS: int = 12
 ## Hits past this in one frame still count in the numbers but spawn no sprites.
 const MAX_HITS_PER_FRAME: int = 8
 const MAX_KILLS_PER_FRAME: int = 2
@@ -66,8 +56,11 @@ const NUMBER_POP: float = 0.12
 const SPARKS_PER_HIT: int = 2
 ## At most 6 puffs per effect (the Phase 7 toning-down rules).
 const PUFFS_PER_KILL: int = 4
-## Alpha of a ground telegraph's rings (the toning-down rules).
+## Alpha of a ground telegraph's lines (the toning-down rules).
 const TELEGRAPH_ALPHA: float = 0.35
+
+## A telegraph's outline: a circle, a cone from an apex, a dash's lane.
+enum Shape { CIRCLE, CONE, LANE }
 ## Longest value a number shows (digits).
 const MAX_DIGITS: int = 9
 
@@ -94,20 +87,13 @@ const MAX_DIGITS: int = 9
 @export_range(0.0, 1.0) var trauma_big_hit: float = 0.12
 @export_range(0.0, 1.0) var trauma_hero_down: float = 0.35
 @export_range(0.0, 1.0) var trauma_monster_down: float = 0.6
+## The monster evolving (EventBus.monster_evolved), wherever it stands: the
+## shake tells the player the moment came (README "Screen Shake").
+@export_range(0.0, 1.0) var trauma_evolve: float = 0.45
 
 @export_group("Telegraphs")
-## Line width (world px) of a telegraph's rings at any radius (at most 3).
+## Line width (world px) of a telegraph's lines at any size (at most 3).
 @export_range(0.5, 3.0) var telegraph_width: float = 2.0
-
-@export_group("Swarm ring")
-## Line width (world px) of a swarm's rings at any radius (at most 3).
-@export_range(0.5, 3.0) var swarm_width: float = 3.0
-
-@export_group("Thrown axe")
-## World px of the spinning axe along its longest side.
-@export var axe_size: float = 44.0
-## Turns per second of the spinning axe (clockwise thrown right, else counter).
-@export var axe_turns_per_second: float = 2.5
 
 ## The impact stars, sparks and puffs.
 var sprites := FxSpriteBuffer.new(SPRITE_CAP)
@@ -142,35 +128,22 @@ var _numbers_live: int = 0
 var _digits := PackedInt32Array()
 var _digit_cell := Vector2.ONE
 
-# Telegraphs: an outline ring and a fill ring growing inside it per slot.
+# Telegraphs: per slot an outline line and a fill line (Shape: a circle's
+# fill ring grows from its centre, a cone's fill arc from its apex, a lane's
+# fill bar crosses it from start to end as the hit or the dash lands).
+# _t_size: the circle's or cone's radius, the lane's length.
 var _t_outline: Array[RingPulse] = []
 var _t_fill: Array[RingPulse] = []
+var _t_shape := PackedInt32Array()
 var _t_age := PackedFloat32Array()
 var _t_life := PackedFloat32Array()
-var _t_radius := PackedFloat32Array()
+var _t_size := PackedFloat32Array()
+var _t_from := PackedVector2Array()
+var _t_dir := PackedVector2Array()
 var _t_next: int = 0
 var _telegraphs_live: int = 0
-
-# Swarms: per slot the running ability (null = free), its caster's instance
-# id, the seconds shown, an outline ring at the radius and a bite ring. The
-# rings sit under _swarm_layer (built in _ready), drawn on the ground.
-var _swarm_layer: Node2D = null
-var _s_ability: Array[NightSwarm] = []
-var _s_caster := PackedInt64Array()
-var _s_age := PackedFloat32Array()
-var _s_outline: Array[RingPulse] = []
-var _s_bite: Array[RingPulse] = []
-var _s_next: int = 0
-var _swarms_live: int = 0
-
-# Axes: per slot the flying ability (null = free), its caster's instance id
-# and the sprite's spin angle. Drawn in _draw at the ability's axe_position.
-var _a_ability: Array[ThrownAxe] = []
-var _a_caster := PackedInt64Array()
-var _a_angle := PackedFloat32Array()
-var _a_spin := PackedFloat32Array()
-var _a_next: int = 0
-var _axes_live: int = 0
+## The pooled rings' unit circle (a circle telegraph's points).
+var _unit_circle := PackedVector2Array()
 
 # Palette colours (UiPalette), read once.
 var _c_number: Color
@@ -179,7 +152,6 @@ var _c_ours: Color
 var _c_star: Color
 var _c_spark: Color
 var _c_puff: Color
-var _c_swarm: Color
 var _c_heal: Color
 
 
@@ -191,7 +163,6 @@ func _ready() -> void:
 	_c_star = palette.gold
 	_c_spark = palette.text
 	_c_puff = palette.parchment
-	_c_swarm = palette.monster2_light
 	_c_heal = palette.heal
 	_digit_cell = FxTex.digit_cell()
 	_digits.resize(MAX_DIGITS)
@@ -203,36 +174,28 @@ func _ready() -> void:
 	_n_target.resize(NUMBER_CAP)
 	_n_ours.resize(NUMBER_CAP)
 	_n_heal.resize(NUMBER_CAP)
+	_t_shape.resize(TELEGRAPH_CAP)
 	_t_age.resize(TELEGRAPH_CAP)
 	_t_life.resize(TELEGRAPH_CAP)
-	_t_radius.resize(TELEGRAPH_CAP)
+	_t_size.resize(TELEGRAPH_CAP)
+	_t_from.resize(TELEGRAPH_CAP)
+	_t_dir.resize(TELEGRAPH_CAP)
 	for i in TELEGRAPH_CAP:
 		_t_outline.append(_make_ring(self, telegraph_width))
 		_t_fill.append(_make_ring(self, telegraph_width))
-	_swarm_layer = Node2D.new()
-	_swarm_layer.name = "Swarms"
-	add_child(_swarm_layer)
-	_s_ability.resize(SWARM_CAP)
-	_s_caster.resize(SWARM_CAP)
-	_s_age.resize(SWARM_CAP)
-	for i in SWARM_CAP:
-		_s_outline.append(_make_ring(_swarm_layer, swarm_width))
-		_s_bite.append(_make_ring(_swarm_layer, swarm_width))
-	_a_ability.resize(AXE_CAP)
-	_a_caster.resize(AXE_CAP)
-	_a_angle.resize(AXE_CAP)
-	_a_spin.resize(AXE_CAP)
+	_unit_circle = _t_outline[0].points
 	if GameManager.chosen_side == MatchRewards.Side.MONSTER:
 		_player_group = &"Monster"
 	_update_view()
 	# Code-side: an autoload cannot be the source of a scene [connection].
 	EventBus.damage_applied.connect(_on_damage_applied)
-	EventBus.ability_cast.connect(_on_ability_cast)
 	EventBus.ability_event.connect(_on_ability_event)
+	EventBus.monster_evolved.connect(_on_monster_evolved)
 
 
 ## A unit-radius ring on the ground under `parent`: absolute z 0 (this node
 ## draws at 50), so it lands after the ground layers and under the characters.
+## A telegraph slot reshapes it (cone, lane) and back.
 func _make_ring(parent: Node, line_width: float) -> RingPulse:
 	var ring := RingPulse.make_pooled(1.0, line_width)
 	ring.z_as_relative = false
@@ -316,9 +279,17 @@ func _add_trauma(target: Node2D, big: bool, killed: bool) -> void:
 		camera.add_trauma(trauma_big_hit)
 
 
-## A heal an ability reported (FxEvents): "+N" on the healed character.
+## The monster evolving: trauma_evolve, in view or not.
+func _on_monster_evolved(_monster: Node, _stage: int) -> void:
+	if camera != null:
+		camera.add_trauma(trauma_evolve)
+
+
+## A heal an ability reported (FxEvents): "+N" on the healed character (a
+## Rampage's heal on the monster too).
 func _on_ability_event(source: Node, _ability: AbilityBase, event: StringName, _pos: Vector2, value: float) -> void:
-	if event == FxEvents.HEAL_SHOT or event == FxEvents.CHAIN_HEAL or event == FxEvents.KIT_PICKED:
+	if event == FxEvents.HEAL_SHOT or event == FxEvents.CHAIN_HEAL or event == FxEvents.KIT_PICKED \
+			or event == FxEvents.RAMPAGE:
 		var healed := source as Node2D
 		if healed != null:
 			show_heal(healed, value)
@@ -378,7 +349,7 @@ func _add_number(target: Node2D, at: Vector2, amount: float, ours: bool, heal: b
 
 
 # ============================================
-# Ground telegraph
+# Ground telegraphs
 # ============================================
 
 ## Warns of a hit landing at `pos` within `radius` in `windup` seconds: an
@@ -386,20 +357,91 @@ func _add_number(target: Node2D, at: Vector2, amount: float, ours: bool, heal: b
 ## it as the hit lands, both `color` at TELEGRAPH_ALPHA. A full pool recycles
 ## the oldest telegraph.
 func telegraph(pos: Vector2, radius: float, windup: float, color: Color) -> void:
+	var i: int = _take_telegraph(Shape.CIRCLE, windup, color)
+	_t_size[i] = maxf(radius, 1.0)
+	_place(_t_outline[i], pos, 0.0)
+	_place(_t_fill[i], pos, 0.0)
+	_set_ring_radius(_t_outline[i], _t_size[i], telegraph_width)
+	_set_ring_radius(_t_fill[i], 1.0, telegraph_width)
+
+
+## Warns of a cone from `apex` facing `angle` (radians), `spread_deg` wide and
+## `reach` long, landing in `windup` seconds: its outline and an arc growing
+## from the apex to the rim. 360 or more is a full circle (telegraph()).
+func telegraph_cone(apex: Vector2, angle: float, spread_deg: float, reach: float, windup: float, color: Color) -> void:
+	if spread_deg >= 360.0:
+		telegraph(apex, reach, windup, color)
+		return
+	var i: int = _take_telegraph(Shape.CONE, windup, color)
+	var half: float = deg_to_rad(clampf(spread_deg, 1.0, 359.0)) * 0.5
+	_t_size[i] = maxf(reach, 1.0)
+	var arc := PackedVector2Array()
+	var outline := PackedVector2Array([Vector2.ZERO])
+	for k in SHAPE_STEPS + 1:
+		var u: Vector2 = Vector2.from_angle(lerpf(-half, half, float(k) / float(SHAPE_STEPS)))
+		arc.append(u)
+		outline.append(u * _t_size[i])
+	_shape(_t_outline[i], outline, true, apex, angle)
+	_shape(_t_fill[i], arc, false, apex, angle)
+	_set_ring_radius(_t_outline[i], 1.0, telegraph_width)
+	_set_ring_radius(_t_fill[i], 1.0, telegraph_width)
+
+
+## Warns of a dash from `from` to `to` hitting everything within
+## `half_width` of its line, taking `windup` seconds: its rounded lane and a
+## bar crossing it from start to end with the dash.
+func telegraph_lane(from: Vector2, to: Vector2, half_width: float, windup: float, color: Color) -> void:
+	var d: Vector2 = to - from
+	var length: float = d.length()
+	if length < 1.0:
+		telegraph(from, half_width, windup, color)
+		return
+	var i: int = _take_telegraph(Shape.LANE, windup, color)
+	var h: float = maxf(half_width, 1.0)
+	_t_size[i] = length
+	_t_from[i] = from
+	_t_dir[i] = d / length
+	var outline := PackedVector2Array()
+	for k in SHAPE_STEPS + 1:
+		outline.append(Vector2(length, 0.0) + Vector2.from_angle(lerpf(-PI * 0.5, PI * 0.5, float(k) / float(SHAPE_STEPS))) * h)
+	for k in SHAPE_STEPS + 1:
+		outline.append(Vector2.from_angle(lerpf(PI * 0.5, PI * 1.5, float(k) / float(SHAPE_STEPS))) * h)
+	_shape(_t_outline[i], outline, true, from, d.angle())
+	_shape(_t_fill[i], PackedVector2Array([Vector2(0.0, -h), Vector2(0.0, h)]), false, from, d.angle())
+	_set_ring_radius(_t_outline[i], 1.0, telegraph_width)
+	_set_ring_radius(_t_fill[i], 1.0, telegraph_width)
+
+
+## The next slot (round robin; a full pool recycles the oldest), shown in
+## `color` at TELEGRAPH_ALPHA for `windup` seconds, back to a circle's points
+## when `shape` is one and the slot held another shape.
+func _take_telegraph(shape: Shape, windup: float, color: Color) -> int:
 	var i: int = _t_next
 	_t_next = (_t_next + 1) % TELEGRAPH_CAP
 	if _t_age[i] >= _t_life[i]:
 		_telegraphs_live += 1
+	if shape == Shape.CIRCLE and _t_shape[i] != Shape.CIRCLE:
+		_shape(_t_outline[i], _unit_circle, false, Vector2.ZERO, 0.0)
+		_shape(_t_fill[i], _unit_circle, false, Vector2.ZERO, 0.0)
+	_t_shape[i] = shape
 	_t_age[i] = 0.0
 	_t_life[i] = maxf(windup, 0.05)
-	_t_radius[i] = maxf(radius, 1.0)
 	var c := Color(color, TELEGRAPH_ALPHA)
 	for ring: RingPulse in [_t_outline[i], _t_fill[i]]:
-		ring.position = pos
 		ring.default_color = c
 		ring.visible = true
-	_set_ring_radius(_t_outline[i], _t_radius[i], telegraph_width)
-	_set_ring_radius(_t_fill[i], 1.0, telegraph_width)
+	return i
+
+
+func _shape(ring: RingPulse, points: PackedVector2Array, closed: bool, at: Vector2, angle: float) -> void:
+	ring.points = points
+	ring.closed = closed
+	_place(ring, at, angle)
+
+
+func _place(ring: RingPulse, at: Vector2, angle: float) -> void:
+	ring.position = at
+	ring.rotation = angle
 
 
 ## A unit ring scaled to `radius`, its line kept `line_width` world px wide.
@@ -421,145 +463,11 @@ func _step_telegraphs(delta: float) -> void:
 			_t_fill[i].visible = false
 			continue
 		_telegraphs_live += 1
-		_set_ring_radius(_t_fill[i], maxf(_t_radius[i] * _t_age[i] / _t_life[i], 1.0), telegraph_width)
-
-
-# ============================================
-# Night Swarm ring (minimal; the full look is Phase 7)
-# ============================================
-
-## A cast that starts a Night Swarm takes a swarm slot, a thrown Tusk Axe an
-## axe slot (_start_axe). Everything after reads the ability's own copy.
-func _on_ability_cast(caster: Node, ability: AbilityBase, _target: Node) -> void:
-	var c := caster as Node2D
-	if c == null:
-		return
-	if ability is NightSwarm:
-		_start_swarm(c, ability as NightSwarm)
-	elif ability is ThrownAxe:
-		_start_axe(c, ability as ThrownAxe)
-
-
-## The swarm takes its caster's slot if it has one (a recast), else the next
-## one round robin (a full pool recycles the oldest).
-func _start_swarm(c: Node2D, swarm: NightSwarm) -> void:
-	if not swarm.is_active():
-		return
-	var id: int = c.get_instance_id()
-	var slot: int = -1
-	for i in SWARM_CAP:
-		if _s_ability[i] != null and _s_caster[i] == id:
-			slot = i
-	if slot < 0:
-		slot = _s_next
-		_s_next = (_s_next + 1) % SWARM_CAP
-	if _s_ability[slot] == null:
-		_swarms_live += 1
-	_s_ability[slot] = swarm
-	_s_caster[slot] = id
-	_s_age[slot] = 0.0
-	_place_swarm(slot, c)
-
-
-## Follows each running swarm's caster: the outline at the swarm's radius
-## (it grows with the stage and the tree), the bite ring sweeping from
-## SWARM_BITE_FROM of it to the edge once per tick_interval, both fading in
-## and out over SWARM_FADE. A swarm that ended or lost its caster frees its
-## slot (rings hidden, kept).
-func _step_swarms(delta: float) -> void:
-	if _swarms_live == 0:
-		return
-	for i in SWARM_CAP:
-		var swarm: NightSwarm = _s_ability[i]
-		if swarm == null:
-			continue
-		var c := instance_from_id(_s_caster[i]) as Node2D
-		if c == null or not c.is_inside_tree() or not swarm.is_active():
-			_free_swarm(i)
-			continue
-		_s_age[i] += delta
-		_place_swarm(i, c)
-
-
-func _place_swarm(i: int, c: Node2D) -> void:
-	var swarm: NightSwarm = _s_ability[i]
-	var radius: float = maxf(swarm.area_of_effect, 1.0)
-	var fade: float = clampf(_s_age[i] / SWARM_FADE, 0.0, 1.0) * clampf(swarm.time_left() / SWARM_FADE, 0.0, 1.0)
-	var bite: float = fposmod(_s_age[i], maxf(swarm.tick_interval, 0.05)) / maxf(swarm.tick_interval, 0.05)
-	var outline := _s_outline[i]
-	var bite_ring := _s_bite[i]
-	outline.position = c.global_position
-	bite_ring.position = c.global_position
-	outline.default_color = Color(_c_swarm, SWARM_ALPHA * fade)
-	bite_ring.default_color = Color(_c_swarm, SWARM_ALPHA * fade * (1.0 - bite))
-	_set_ring_radius(outline, radius, swarm_width)
-	_set_ring_radius(bite_ring, radius * lerpf(SWARM_BITE_FROM, 1.0, bite), swarm_width)
-	outline.visible = true
-	bite_ring.visible = true
-
-
-func _free_swarm(i: int) -> void:
-	_s_ability[i] = null
-	_s_outline[i].visible = false
-	_s_bite[i].visible = false
-	_swarms_live -= 1
-
-
-# ============================================
-# Thrown axe (minimal; the full look is Phase 7)
-# ============================================
-
-## A thrown axe takes its caster's slot if it has one, else the next one round
-## robin (a full pool recycles the oldest). It spins clockwise when thrown to
-## the right, counter-clockwise to the left.
-func _start_axe(c: Node2D, axe: ThrownAxe) -> void:
-	if not axe.is_flying():
-		return
-	var id: int = c.get_instance_id()
-	var slot: int = -1
-	for i in AXE_CAP:
-		if _a_ability[i] != null and _a_caster[i] == id:
-			slot = i
-	if slot < 0:
-		slot = _a_next
-		_a_next = (_a_next + 1) % AXE_CAP
-	if _a_ability[slot] == null:
-		_axes_live += 1
-	_a_ability[slot] = axe
-	_a_caster[slot] = id
-	_a_angle[slot] = axe.direction().angle()
-	_a_spin[slot] = TAU * axe_turns_per_second * (1.0 if axe.direction().x >= 0.0 else -1.0)
-
-
-## Spins every flying axe; one that landed back in the hand or lost its
-## caster frees its slot.
-func _step_axes(delta: float) -> void:
-	if _axes_live == 0:
-		return
-	for i in AXE_CAP:
-		var axe: ThrownAxe = _a_ability[i]
-		if axe == null:
-			continue
-		var c := instance_from_id(_a_caster[i]) as Node2D
-		if c == null or not c.is_inside_tree() or not axe.is_flying():
-			_a_ability[i] = null
-			_axes_live -= 1
-			continue
-		_a_angle[i] = wrapf(_a_angle[i] + _a_spin[i] * delta, -PI, PI)
-
-
-## The flying axes at axe_position, axe_size world px, untinted.
-func _draw_axes() -> void:
-	var tex: Texture2D = FxTex.AXE
-	var ts: Vector2 = tex.get_size()
-	var sc: float = axe_size / maxf(ts.x, ts.y)
-	for i in AXE_CAP:
-		var axe: ThrownAxe = _a_ability[i]
-		if axe == null or not _view_rect.has_point(axe.axe_position):
-			continue
-		draw_set_transform(axe.axe_position, _a_angle[i], Vector2(sc, sc))
-		draw_texture(tex, -ts * 0.5)
-	draw_set_transform_matrix(Transform2D.IDENTITY)
+		var k: float = _t_age[i] / _t_life[i]
+		if _t_shape[i] == Shape.LANE:
+			_t_fill[i].position = _t_from[i] + _t_dir[i] * _t_size[i] * k
+		else:
+			_set_ring_radius(_t_fill[i], maxf(_t_size[i] * k, 1.0), telegraph_width)
 
 
 # ============================================
@@ -574,9 +482,7 @@ func _process(delta: float) -> void:
 	sprites.step(delta)
 	_step_numbers(delta)
 	_step_telegraphs(delta)
-	_step_swarms(delta)
-	_step_axes(delta)
-	if sprites.live > 0 or _numbers_live > 0 or _axes_live > 0 or _drew:
+	if sprites.live > 0 or _numbers_live > 0 or _drew:
 		queue_redraw()
 	_cost_usec = Time.get_ticks_usec() - t0
 
@@ -603,10 +509,8 @@ func _step_numbers(delta: float) -> void:
 
 
 func _draw() -> void:
-	_drew = sprites.live > 0 or _numbers_live > 0 or _axes_live > 0
+	_drew = sprites.live > 0 or _numbers_live > 0
 	sprites.draw(self)
-	if _axes_live > 0:
-		_draw_axes()
 	if _numbers_live > 0:
 		_draw_numbers()
 
@@ -661,20 +565,13 @@ func telegraphs_live() -> int:
 	return _telegraphs_live
 
 
-func swarms_live() -> int:
-	return _swarms_live
-
-
-func axes_live() -> int:
-	return _axes_live
-
-
-## The spin angle (radians) of the axe drawn for `axe`; NAN when none is.
-func axe_angle(axe: ThrownAxe) -> float:
-	for i in AXE_CAP:
-		if _a_ability[i] == axe:
-			return _a_angle[i]
-	return NAN
+## The shape (Shape) of each live telegraph, oldest slot first.
+func telegraph_shapes() -> PackedInt32Array:
+	var out := PackedInt32Array()
+	for i in TELEGRAPH_CAP:
+		if _t_age[i] < _t_life[i]:
+			out.append(_t_shape[i])
+	return out
 
 
 ## The values of the live damage numbers on `target` (oldest slot first).
@@ -699,7 +596,6 @@ func _values_on(target: Node, kind: int) -> PackedFloat32Array:
 ## F3 overlay line: pool use against the caps, hit counters and this node's
 ## script time last frame.
 func debug_line() -> String:
-	return "VFX sprites %d/%d  numbers %d/%d  telegraphs %d/%d  swarms %d/%d  axes %d/%d\n    hits %d  culled %d  over budget %d  %.2f ms" % [
+	return "VFX sprites %d/%d  numbers %d/%d  telegraphs %d/%d\n    hits %d  culled %d  over budget %d  %.2f ms" % [
 			sprites.live, SPRITE_CAP, _numbers_live, NUMBER_CAP, _telegraphs_live, TELEGRAPH_CAP,
-			_swarms_live, SWARM_CAP, _axes_live, AXE_CAP, hits_shown, hits_culled, hits_over_budget,
-			float(_cost_usec) / 1000.0]
+			hits_shown, hits_culled, hits_over_budget, float(_cost_usec) / 1000.0]

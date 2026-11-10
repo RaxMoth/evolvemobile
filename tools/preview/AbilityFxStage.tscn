@@ -24,11 +24,12 @@ z_index = 50
 texture_filter = 4
 script = ExtResource("2_vfx")
 
-[node name="Abilities" type="Node2D" parent="Vfx" node_paths=PackedStringArray("ground")]
+[node name="Abilities" type="Node2D" parent="Vfx" node_paths=PackedStringArray("ground", "telegraphs")]
 z_as_relative = false
 z_index = 45
 script = ExtResource("3_afx")
 ground = NodePath("Ground")
+telegraphs = NodePath("..")
 
 [node name="Ground" type="Node2D" parent="Vfx/Abilities" node_paths=PackedStringArray("vfx")]
 z_as_relative = false
