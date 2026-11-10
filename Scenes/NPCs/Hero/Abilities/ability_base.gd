@@ -16,6 +16,10 @@ enum AbilityType {
 ## body-plan library (Assets/Characters/_moves). Empty = the generic one by
 ## slot: attack, cast or ultimate. Gameplay never reads it.
 @export var move_name: StringName = &""
+## Presentation only: how the ability looks in the world (AbilityVfx plays
+## its `cue` and colours its FxEvents from it). Shared by every copy of the
+## ability and never written at runtime. Gameplay never reads it.
+@export var fx: AbilityFxRecipe
 
 # Base stats (used if stage stats not provided)
 @export_group("Base Stats")
@@ -165,6 +169,13 @@ func deal(caster: Node, target: Node, amount: float) -> float:
 ## overrides it; without a caster it is the resource's own `icon`.
 func get_display_icon(_caster: Node = null) -> Texture2D:
 	return icon
+
+
+## True when get_display_icon() follows the caster's state (River's weapon),
+## so the HUD shows this ability's icon although its slot is not on the card.
+## Presentational and read-only.
+func has_display_modes() -> bool:
+	return false
 
 
 ## The move a cast plays now (CharacterRig.move_for). Presentational and

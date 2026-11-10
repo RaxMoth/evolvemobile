@@ -1,17 +1,15 @@
-[gd_resource type="Resource" script_class="IreliaBasicAttack" load_steps=3 format=3 uid="uid://qymj70fpxgwf"]
+[gd_resource type="Resource" script_class="IreliaBasicAttack" load_steps=4 format=3 uid="uid://qymj70fpxgwf"]
 
 [ext_resource type="Texture2D" uid="uid://bcv6hnog8uy8p" path="res://Assets/UI/Icons/Abilities/irelia_basic_taunting_strike.svg" id="1_baakk"]
 [ext_resource type="Script" uid="uid://csqf7qfehc1io" path="res://Scenes/NPCs/Hero/Heros/Support/Irelia/Abilities/Basic_attack/irelia_basic_attack.gd" id="1_ixuuq"]
+[ext_resource type="Resource" path="res://Assets/Vfx/recipes/fx_irelia_strike.tres" id="9_fx"]
 
 [resource]
 script = ExtResource("1_ixuuq")
 taunt_threat = 40.0
-trail_enabled = true
-trail_color = Color(0.7, 0.7, 1, 1)
-trail_width = 1.5
-trail_fade = 0.25
 ability_name = "Shield Bash"
 move_name = &"bash"
+fx = ExtResource("9_fx")
 ability_type = 2
 icon = ExtResource("1_baakk")
 description = "A shield strike that also draws the struck enemy's attention to Irelia"

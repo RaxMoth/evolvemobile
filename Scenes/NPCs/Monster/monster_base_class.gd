@@ -722,12 +722,14 @@ func _play_stage_effect(stage: int) -> void:
 		
 		GameUtils.flash_modulate(animated_sprite, flash_color, 0.2, 0.3)
 	
-	# Expanding ring effect
-	var ring_color: Color = Color.YELLOW
+	# Expanding ring effect: the palette's gold, amber at Stage 2, danger at
+	# Stage 3; 3 px wide as it grows (the Phase 7 toning-down rules).
+	var palette := UiPalette.get_default()
+	var ring_color: Color = palette.gold
 	match stage:
-		2: ring_color = Color.ORANGE
-		3: ring_color = Color.RED
-	RingPulse.spawn(get_parent(), global_position, ring_color, 50.0, 5.0, 5.0, 0.8, 10)
+		2: ring_color = palette.amber
+		3: ring_color = palette.danger
+	RingPulse.spawn(get_parent(), global_position, ring_color, 50.0, 5.0, 3.0, 0.8, 10)
 
 # ============================================
 # Combat & AI

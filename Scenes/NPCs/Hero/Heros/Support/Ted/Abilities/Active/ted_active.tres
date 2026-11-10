@@ -1,12 +1,14 @@
-[gd_resource type="Resource" script_class="TedActiveRally" load_steps=3 format=3 uid="uid://v1osghkh3vjw"]
+[gd_resource type="Resource" script_class="TedActiveRally" load_steps=4 format=3 uid="uid://v1osghkh3vjw"]
 
 [ext_resource type="Script" uid="uid://bplmq5qf4n0m2" path="res://Scenes/NPCs/Hero/Heros/Support/Ted/Abilities/Active/ted_active.gd" id="1_active"]
 [ext_resource type="Texture2D" uid="uid://bfpnddlfr44k0" path="res://Assets/UI/Icons/Abilities/ted_active_rally_cry.svg" id="2_icon"]
+[ext_resource type="Resource" path="res://Assets/Vfx/recipes/fx_ted_rally.tres" id="9_fx"]
 
 [resource]
 script = ExtResource("1_active")
 ability_name = "Rally Cry"
 move_name = &"rally"
+fx = ExtResource("9_fx")
 ability_type = 1
 icon = ExtResource("2_icon")
 cooldown = 10.0

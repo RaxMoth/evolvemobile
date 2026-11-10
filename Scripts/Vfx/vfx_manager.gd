@@ -10,8 +10,10 @@ extends Node2D
 ## pooled ground ring that follows its caster at the swarm's radius, with a
 ## bite ring sweeping out once per bite (_on_ability_cast, _step_swarms). A
 ## thrown Tusk Axe shows as a pooled spinning axe sprite (fx_axe.svg) at the
-## ability's axe_position while it flies (_step_axes). The per-ability looks
-## come later (AbilityFxRecipe, Phase 7).
+## ability's axe_position while it flies (_step_axes). A heal an ability
+## reports (FxEvents HEAL_SHOT, CHAIN_HEAL, KIT_PICKED) shows as a "+N" number
+## in the palette's heal green. The per-ability looks are AbilityVfx's
+## (AbilityFxRecipe).
 ##
 ## A node of World.tscn (group "vfx", `camera` wired there), not an autoload:
 ## it lives and dies with the match. It sits right after the ground layers, so
@@ -19,7 +21,8 @@ extends Node2D
 ## while its own sprites and numbers draw above them (z_index 50, below the
 ## fog's 100). Its hooks are EventBus.damage_applied and ability_cast,
 ## connected in _ready (an autoload cannot be the source of a scene
-## [connection]). The hit flash is not drawn here: the CharacterRig's hurt
+## [connection]); the heal numbers come from EventBus.ability_event. The hit
+## flash is not drawn here: the CharacterRig's hurt
 ## reaction (wired scene-side to `damaged`) drives it, and the shared
 ## hit_flash shader on every rig body turns it into a white silhouette.
 ##
@@ -28,8 +31,8 @@ extends Node2D
 ## SWARM_CAP swarms, AXE_CAP axes; a full pool recycles its oldest entry),
 ## hits outside the camera view are skipped, at most MAX_HITS_PER_FRAME hits
 ## per frame spawn sprites, hits on one target within MERGE_WINDOW add up in
-## one number and a target shows at most NUMBERS_PER_TARGET numbers. Nothing is
-## allocated per frame. The F3 overlay shows the pools (debug_line()).
+## one number (heals in their own) and a target shows at most
+## NUMBERS_PER_TARGET numbers. Nothing is allocated per frame. The F3 overlay shows the pools (debug_line()).
 ##
 ## DETERMINISM (tools/sim_trace.sh stays byte-identical): it never writes
 ## gameplay state (a swarm and an axe are only READ: is_active, time_left,
@@ -132,6 +135,8 @@ var _n_pop := PackedFloat32Array()
 var _n_pos := PackedVector2Array()
 var _n_target := PackedInt64Array()
 var _n_ours := PackedByteArray()
+## 1 = a heal ("+N", heal green): it adds up with heals only.
+var _n_heal := PackedByteArray()
 var _n_next: int = 0
 var _numbers_live: int = 0
 var _digits := PackedInt32Array()
@@ -175,6 +180,7 @@ var _c_star: Color
 var _c_spark: Color
 var _c_puff: Color
 var _c_swarm: Color
+var _c_heal: Color
 
 
 func _ready() -> void:
@@ -186,6 +192,7 @@ func _ready() -> void:
 	_c_spark = palette.text
 	_c_puff = palette.parchment
 	_c_swarm = palette.monster2_light
+	_c_heal = palette.heal
 	_digit_cell = FxTex.digit_cell()
 	_digits.resize(MAX_DIGITS)
 	_n_value.resize(NUMBER_CAP)
@@ -195,6 +202,7 @@ func _ready() -> void:
 	_n_pos.resize(NUMBER_CAP)
 	_n_target.resize(NUMBER_CAP)
 	_n_ours.resize(NUMBER_CAP)
+	_n_heal.resize(NUMBER_CAP)
 	_t_age.resize(TELEGRAPH_CAP)
 	_t_life.resize(TELEGRAPH_CAP)
 	_t_radius.resize(TELEGRAPH_CAP)
@@ -220,6 +228,7 @@ func _ready() -> void:
 	# Code-side: an autoload cannot be the source of a scene [connection].
 	EventBus.damage_applied.connect(_on_damage_applied)
 	EventBus.ability_cast.connect(_on_ability_cast)
+	EventBus.ability_event.connect(_on_ability_event)
 
 
 ## A unit-radius ring on the ground under `parent`: absolute z 0 (this node
@@ -307,6 +316,23 @@ func _add_trauma(target: Node2D, big: bool, killed: bool) -> void:
 		camera.add_trauma(trauma_big_hit)
 
 
+## A heal an ability reported (FxEvents): "+N" on the healed character.
+func _on_ability_event(source: Node, _ability: AbilityBase, event: StringName, _pos: Vector2, value: float) -> void:
+	if event == FxEvents.HEAL_SHOT or event == FxEvents.CHAIN_HEAL or event == FxEvents.KIT_PICKED:
+		var healed := source as Node2D
+		if healed != null:
+			show_heal(healed, value)
+
+
+## A heal of `amount` HP on `target`: a "+N" number in heal green that adds up
+## with the target's other heals within MERGE_WINDOW. Skipped outside the
+## camera view and below half a point (a heal on a full bar).
+func show_heal(target: Node2D, amount: float) -> void:
+	if amount < 0.5 or not _view_rect.has_point(target.global_position):
+		return
+	_add_number(target, _number_anchor(target), amount, false, true)
+
+
 ## Where a number on `target` starts: just above its HP bar (the entity's
 ## Hud), else above its origin.
 func _number_anchor(target: Node2D) -> Vector2:
@@ -316,17 +342,21 @@ func _number_anchor(target: Node2D) -> Vector2:
 	return target.global_position + Vector2(0.0, -28.0 - number_lift)
 
 
-## A hit within MERGE_WINDOW of the target's youngest number, or one past its
-## NUMBERS_PER_TARGET, adds up in that number (which pops again); otherwise it
-## takes the oldest slot, beside the target's other numbers (number_spread).
-func _add_number(target: Node2D, at: Vector2, amount: float, ours: bool) -> void:
+## A hit within MERGE_WINDOW of the target's youngest number of its kind
+## (damage or heal), or one past its NUMBERS_PER_TARGET, adds up in that
+## number (which pops again); otherwise it takes the oldest slot, beside the
+## target's other numbers (number_spread).
+func _add_number(target: Node2D, at: Vector2, amount: float, ours: bool, heal: bool = false) -> void:
 	var id: int = target.get_instance_id()
+	var kind: int = 1 if heal else 0
 	var youngest: int = -1
 	var on_target: int = 0
 	for i in NUMBER_CAP:
 		if _n_age[i] >= NUMBER_LIFE or _n_target[i] != id:
 			continue
 		on_target += 1
+		if _n_heal[i] != kind:
+			continue
 		if youngest < 0 or _n_age[i] < _n_age[youngest]:
 			youngest = i
 	if youngest >= 0 and (_n_age[youngest] < MERGE_WINDOW or on_target >= NUMBERS_PER_TARGET):
@@ -344,6 +374,7 @@ func _add_number(target: Node2D, at: Vector2, amount: float, ours: bool) -> void
 	_n_pos[j] = at + Vector2(side * number_spread + _rng.randf_range(-2.0, 2.0), 0.0)
 	_n_target[j] = id
 	_n_ours[j] = 1 if ours else 0
+	_n_heal[j] = kind
 
 
 # ============================================
@@ -581,7 +612,8 @@ func _draw() -> void:
 
 
 ## Numbers keep their on-screen size at any zoom: each is drawn in screen px
-## (a 1 / zoom transform) from the fx_digits.svg glyph cells.
+## (a 1 / zoom transform) from the fx_digits.svg glyph cells; a heal leads
+## with the "+" cell.
 func _draw_numbers() -> void:
 	var cell: Vector2 = _digit_cell
 	for i in NUMBER_CAP:
@@ -589,11 +621,16 @@ func _draw_numbers() -> void:
 		if k >= 1.0:
 			continue
 		var value: int = maxi(int(roundf(_n_value[i])), 1)
-		var big: bool = _n_value[i] >= big_hit
+		var heal: bool = _n_heal[i] == 1
+		var big: bool = not heal and _n_value[i] >= big_hit
 		var n: int = 0
-		while value > 0 and n < MAX_DIGITS:
+		var room: int = MAX_DIGITS - 1 if heal else MAX_DIGITS
+		while value > 0 and n < room:
 			_digits[n] = value % 10
 			value = floori(value / 10.0)
+			n += 1
+		if heal:
+			_digits[n] = FxTex.DIGIT_PLUS
 			n += 1
 		var pop: float = 1.0 + 0.5 * maxf(0.0, 1.0 - _n_pop[i] / NUMBER_POP)
 		var gh: float = (number_px_big if big else number_px) * pop
@@ -601,7 +638,7 @@ func _draw_numbers() -> void:
 		var advance: float = gw * 0.78
 		var x: float = -(advance * float(n - 1) + gw) * 0.5
 		var rise: float = number_rise * FxEase.out_cubic(minf(k * 1.6, 1.0))
-		var c: Color = _c_ours if _n_ours[i] == 1 else (_c_number_big if big else _c_number)
+		var c: Color = _c_heal if heal else (_c_ours if _n_ours[i] == 1 else (_c_number_big if big else _c_number))
 		if k > 0.7:
 			c.a *= (1.0 - k) / 0.3
 		draw_set_transform(_n_pos[i] + Vector2(0.0, -rise), 0.0, Vector2.ONE / _view_zoom)
@@ -640,12 +677,21 @@ func axe_angle(axe: ThrownAxe) -> float:
 	return NAN
 
 
-## The values of the live numbers on `target` (oldest slot first).
+## The values of the live damage numbers on `target` (oldest slot first).
 func numbers_on(target: Node) -> PackedFloat32Array:
+	return _values_on(target, 0)
+
+
+## The values of the live heal numbers on `target` (oldest slot first).
+func heals_on(target: Node) -> PackedFloat32Array:
+	return _values_on(target, 1)
+
+
+func _values_on(target: Node, kind: int) -> PackedFloat32Array:
 	var out := PackedFloat32Array()
 	var id: int = target.get_instance_id()
 	for i in NUMBER_CAP:
-		if _n_age[i] < NUMBER_LIFE and _n_target[i] == id:
+		if _n_age[i] < NUMBER_LIFE and _n_target[i] == id and _n_heal[i] == kind:
 			out.append(_n_value[i])
 	return out
 

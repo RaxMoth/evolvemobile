@@ -1,13 +1,78 @@
-[gd_scene load_steps=4 format=3 uid="uid://dgrwxxlwnw1w3"]
+[gd_scene load_steps=8 format=3 uid="uid://dgrwxxlwnw1w3"]
 
 [ext_resource type="Script" uid="uid://nqhq0eofvmsq" path="res://Scenes/NPCs/Hero/Heros/DMG/Vlad/Abilities/active/Mine/mine.gd" id="1_qc3ms"]
-[ext_resource type="Texture2D" uid="uid://b8hlhq44dx3qv" path="res://Assets/icon.svg" id="2_mk5k4"]
+[ext_resource type="Texture2D" uid="uid://cfqdtx2271ree" path="res://Assets/Vfx/svg/fx_mine.svg" id="2_pod"]
+[ext_resource type="Texture2D" uid="uid://ktusmgkl6h50" path="res://Assets/Vfx/svg/fx_lamp.svg" id="3_lamp"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_qc3ms"]
 resource_local_to_scene = true
 radius = 100.0
 
+[sub_resource type="Animation" id="Animation_reset"]
+resource_name = "RESET"
+length = 0.001
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Pod/Lamp:modulate")
+tracks/0/interp = 0
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [Color(1, 1, 1, 0.25)]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("Pod:scale")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Vector2(0.35, 0.35)]
+}
+
+[sub_resource type="Animation" id="Animation_blink"]
+resource_name = "blink"
+length = 0.8
+loop_mode = 1
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Pod/Lamp:modulate")
+tracks/0/interp = 0
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.12),
+"transitions": PackedFloat32Array(1, 1),
+"update": 1,
+"values": [Color(1, 1, 1, 1), Color(1, 1, 1, 0.25)]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("Pod:scale")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0, 0.08, 0.2),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 0,
+"values": [Vector2(0.37, 0.33), Vector2(0.33, 0.37), Vector2(0.35, 0.35)]
+}
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_mine"]
+_data = {
+&"RESET": SubResource("Animation_reset"),
+&"blink": SubResource("Animation_blink")
+}
+
 [node name="Mine" type="Area2D"]
+texture_filter = 4
 collision_layer = 16
 collision_mask = 12
 monitorable = false
@@ -16,9 +81,20 @@ script = ExtResource("1_qc3ms")
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
 shape = SubResource("CircleShape2D_qc3ms")
 
-[node name="Sprite2D" type="Sprite2D" parent="."]
-scale = Vector2(0.05, 0.05)
-texture = ExtResource("2_mk5k4")
+[node name="Pod" type="Sprite2D" parent="."]
+scale = Vector2(0.35, 0.35)
+texture = ExtResource("2_pod")
+
+[node name="Lamp" type="Sprite2D" parent="Pod"]
+modulate = Color(1, 1, 1, 0.25)
+position = Vector2(0, -18)
+texture = ExtResource("3_lamp")
+
+[node name="Blink" type="AnimationPlayer" parent="."]
+libraries = {
+&"": SubResource("AnimationLibrary_mine")
+}
+autoplay = &"blink"
 
 [connection signal="area_entered" from="." to="." method="_on_area_entered"]
 [connection signal="body_entered" from="." to="." method="_on_body_entered"]

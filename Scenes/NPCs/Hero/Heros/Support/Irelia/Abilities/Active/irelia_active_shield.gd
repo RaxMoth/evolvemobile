@@ -28,3 +28,5 @@ func _apply_shield(hero: Node2D) -> void:
 	shield.duration = duration
 	shield.owner_hero = hero
 	hero.add_child(shield)
+	# Presentation: the hero's ward (AbilityVfx, coloured by this recipe).
+	EventBus.notify_ability_event(shield, self, FxEvents.SHIELD_UP, hero.global_position, shield.shield_amount)

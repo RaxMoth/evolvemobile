@@ -6,6 +6,9 @@ class_name MediKit
 @export var lifetime: float = 20.0
 
 var owner_entity: Node2D = null
+## The supply drop copy that dropped it (presentation: its recipe colours the
+## heal bursts).
+var source_ability: AbilityBase = null
 var healed_heroes: Array[Node2D] = []
 
 func _ready() -> void:
@@ -14,7 +17,8 @@ func _ready() -> void:
 	if collision_shape and collision_shape.shape is CircleShape2D:
 		collision_shape.shape.radius = detection_radius
 	
-	# Visual representation
+	# The crate, its leaf chute and their Drop animation are MediKit.tscn's;
+	# _draw marks the pickup radius.
 	queue_redraw()
 	
 	# area_entered / body_entered are wired in MediKit.tscn.
@@ -23,17 +27,18 @@ func _ready() -> void:
 	await get_tree().create_timer(lifetime).timeout
 	_fade_out()
 
+## The pickup radius: a dashed ink and heal ring at the telegraph alpha
+## (VfxManager.TELEGRAPH_ALPHA), at most 3 px wide.
 func _draw() -> void:
-	# Draw medikit visual (green cross)
-	draw_circle(Vector2.ZERO, 12, Color.WHITE)
-	draw_circle(Vector2.ZERO, 10, Color.GREEN)
-	
-	# Draw cross
-	draw_line(Vector2(-6, 0), Vector2(6, 0), Color.WHITE, 3.0)
-	draw_line(Vector2(0, -6), Vector2(0, 6), Color.WHITE, 3.0)
-	
-	# Draw detection radius (faint circle)
-	draw_arc(Vector2.ZERO, detection_radius, 0, TAU, 32, Color(0, 1, 0, 0.3), 1.0)
+	var palette := UiPalette.get_default()
+	var ink := Color(palette.ink, VfxManager.TELEGRAPH_ALPHA)
+	var col := Color(palette.heal, VfxManager.TELEGRAPH_ALPHA)
+	var dashes: int = 16
+	var step: float = TAU / float(dashes)
+	for i in dashes:
+		var a0: float = step * float(i)
+		draw_arc(Vector2.ZERO, detection_radius, a0, a0 + step * 0.55, 4, ink, 3.0)
+		draw_arc(Vector2.ZERO, detection_radius, a0, a0 + step * 0.55, 4, col, 1.5)
 
 func _on_area_entered(area: Area2D) -> void:
 	_check_healing(area)
@@ -64,18 +69,19 @@ func _heal_hero(hero: Node2D) -> void:
 		return
 
 	# Apply healing
+	var before: float = hero_base.get_health()
 	hero_base.heal(heal_amount)
 	healed_heroes.append(hero)
 
 	# Visual feedback
-	_create_heal_effect(hero)
+	_create_heal_effect(hero_base, hero_base.get_health() - before)
 
 	# Check if we should disappear (all nearby heroes healed)
 	_check_if_should_disappear()
 
-func _create_heal_effect(hero: Node2D) -> void:
-	# Green flash on hero
-	GameUtils.flash_modulate(hero, Color.GREEN, 0.1, 0.2)
+## Presentation: the heal burst (AbilityVfx) and the "+N" (VfxManager).
+func _create_heal_effect(hero: Node2D, healed: float) -> void:
+	EventBus.notify_ability_event(hero, source_ability, FxEvents.KIT_PICKED, hero.global_position, healed)
 
 func _check_if_should_disappear() -> void:
 	# Every hero in range, once each.

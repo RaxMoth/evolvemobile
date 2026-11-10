@@ -1,4 +1,4 @@
-[gd_scene load_steps=24 format=4 uid="uid://bo3dhj3vnqkrr"]
+[gd_scene load_steps=26 format=4 uid="uid://bo3dhj3vnqkrr"]
 
 [ext_resource type="Texture2D" uid="uid://c8nbsaqetok8o" path="res://Scenes/World/Assets/tf_jungle_tileset.png" id="1_0nbjp"]
 [ext_resource type="Script" uid="uid://dp1dciyhok24n" path="res://Scenes/World/world.gd" id="1_hveh7"]
@@ -16,6 +16,8 @@
 [ext_resource type="NavigationPolygon" path="res://Scenes/World/world_navigation.tres" id="9_navmesh"]
 [ext_resource type="Shader" uid="uid://bgcelnyf5mdxi" path="res://Assets/Shaders/ground_grade.gdshader" id="10_grade"]
 [ext_resource type="Script" uid="uid://dmxqhnkb0kg8n" path="res://Scripts/Vfx/vfx_manager.gd" id="11_vfx"]
+[ext_resource type="Script" uid="uid://b4bpmqho58tmh" path="res://Scripts/Vfx/ability_vfx.gd" id="12_afx"]
+[ext_resource type="Script" uid="uid://c7qmkgpkatw32" path="res://Scripts/Vfx/fx_ground_layer.gd" id="13_fxg"]
 
 [sub_resource type="NavigationPolygon" id="NavigationPolygon_ouhkt"]
 vertices = PackedVector2Array(8, 8, -8, 8, -8, -8, 8, -8)
@@ -642,6 +644,18 @@ z_index = 50
 texture_filter = 4
 script = ExtResource("11_vfx")
 camera = NodePath("../MainCam")
+
+[node name="Abilities" type="Node2D" parent="Vfx" node_paths=PackedStringArray("camera", "ground") groups=["ability_vfx"]]
+z_as_relative = false
+z_index = 45
+script = ExtResource("12_afx")
+camera = NodePath("../../MainCam")
+ground = NodePath("Ground")
+
+[node name="Ground" type="Node2D" parent="Vfx/Abilities" node_paths=PackedStringArray("vfx")]
+z_as_relative = false
+script = ExtResource("13_fxg")
+vfx = NodePath("..")
 
 [node name="MainCam" parent="." instance=ExtResource("6_hveh7")]
 position = Vector2(111, 228)

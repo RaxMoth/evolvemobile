@@ -1,13 +1,15 @@
-[gd_resource type="Resource" script_class="IreliaPassiveRegeneration" load_steps=3 format=3 uid="uid://biehxohk5x7dp"]
+[gd_resource type="Resource" script_class="IreliaPassiveRegeneration" load_steps=4 format=3 uid="uid://biehxohk5x7dp"]
 
 [ext_resource type="Script" uid="uid://clqcylvch0eja" path="res://Scenes/NPCs/Hero/Heros/Support/Irelia/Abilities/Passive/irelia_passive_regeneration.gd" id="1_io1w8"]
 [ext_resource type="Texture2D" uid="uid://cugmchc4wiw1j" path="res://Assets/UI/Icons/Abilities/irelia_passive_regeneration.svg" id="1_ka6ao"]
+[ext_resource type="Resource" path="res://Assets/Vfx/recipes/fx_irelia_laststand.tres" id="9_fx"]
 
 [resource]
 script = ExtResource("1_io1w8")
 ability_name = "Regeneration"
 ability_type = 0
 icon = ExtResource("1_ka6ao")
+fx = ExtResource("9_fx")
 description = "Slowly regenerates health over time (0.5 HP/s)"
 heal_amount = 0.5
 metadata/_custom_type_script = "uid://clqcylvch0eja"

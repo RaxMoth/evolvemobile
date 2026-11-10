@@ -1,14 +1,16 @@
-[gd_resource type="Resource" script_class="TedUltimateTrapCage" load_steps=4 format=3 uid="uid://bd0lrdfadyflv"]
+[gd_resource type="Resource" script_class="TedUltimateTrapCage" load_steps=5 format=3 uid="uid://bd0lrdfadyflv"]
 
 [ext_resource type="Texture2D" uid="uid://3rc4hsq34lfl" path="res://Assets/UI/Icons/Abilities/ted_ult_trap_cage.svg" id="1_1gwko"]
 [ext_resource type="Script" uid="uid://buq71b61vhbli" path="res://Scenes/NPCs/Hero/Heros/Support/Ted/Abilities/Ult/ted_ultimate_trap.gd" id="1_bm2ge"]
 [ext_resource type="PackedScene" uid="uid://4idw7v83awvi" path="res://Scenes/NPCs/Hero/Heros/Support/Ted/Abilities/Ult/TrapCage.tscn" id="3_urshe"]
+[ext_resource type="Resource" path="res://Assets/Vfx/recipes/fx_ted_cage.tres" id="9_fx"]
 
 [resource]
 script = ExtResource("1_bm2ge")
 trap_scene = ExtResource("3_urshe")
 ability_name = "Trap Cage"
 move_name = &"throw"
+fx = ExtResource("9_fx")
 ability_type = 3
 icon = ExtResource("1_1gwko")
 description = "Drops a cage on the target. Enemies caught inside cannot leave until it breaks"

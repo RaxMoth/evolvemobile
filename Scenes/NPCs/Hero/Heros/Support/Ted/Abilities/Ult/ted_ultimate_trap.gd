@@ -40,3 +40,5 @@ func execute(caster: Node2D, target: Node2D = null, _override_damage: float = -1
 	cage.source = caster
 	cage.source_ability = self
 	parent.add_child(cage)
+	# Presentation: the stakes spring up around it (AbilityVfx).
+	EventBus.notify_ability_event(cage, self, FxEvents.CAGE_CLOSED, cage.global_position, cage.cage_radius)

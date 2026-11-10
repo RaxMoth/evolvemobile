@@ -10,7 +10,12 @@ extends Button
 ##     two extra fills are built once per card;
 ##   - the passive, active and ultimate AbilitySlots. Active and ultimate are
 ##     bound to a CooldownSource.Hero (the slot polls the real cooldown); the
-##     passive never cools down, so it only takes its icon.
+##     passive never cools down, so it only takes its icon;
+##   - a weapon badge on the portrait's lower right corner, only for a hero
+##     whose basic attack changes with its state (AbilityBase
+##     .has_display_modes: River's rifle or heal staff). It shows the basic
+##     attack's display icon, followed every frame, without a cooldown sweep
+##     (a basic attack cools down every second or so).
 ## The selected card (set_active) lifts LIFT px and wears HudPanelSelected. A
 ## dead hero's card greys out (UiPalette.FALLEN_MODULATE) under a skull. A
 ## level-up pops the level badge (LEVEL_POP -> 1, TRANS_BACK).
@@ -26,6 +31,7 @@ const HP_CRITICAL := 0.25
 const LIFT := 8.0
 const LIFT_TIME := 0.12
 ## CooldownSource.Hero slots the card shows.
+const SLOT_BASIC := 0
 const SLOT_ACTIVE := 1
 const SLOT_ULT := 2
 const SLOT_PASSIVE := 3
@@ -48,6 +54,8 @@ var _band: int = -1
 var _shown_xp: float = -1.0
 var _lift: Tween = null
 var _level_pop: Tween = null
+## The basic attack the weapon badge follows (null = no badge).
+var _weapon_source: CooldownSource = null
 
 @onready var _card: Panel = %Card
 @onready var _portrait: Panel = %Portrait
@@ -60,6 +68,7 @@ var _level_pop: Tween = null
 @onready var _passive: AbilitySlot = %Passive
 @onready var _active_slot: AbilitySlot = %Active
 @onready var _ult: AbilitySlot = %Ult
+@onready var _weapon: AbilitySlot = %Weapon
 @onready var _down: CanvasItem = %Down
 
 
@@ -96,6 +105,11 @@ func bind_to_hero(new_hero: Node) -> void:
 		_passive.icon_texture = source.icon(SLOT_PASSIVE)
 		_active_slot.bind(source, SLOT_ACTIVE)
 		_ult.bind(source, SLOT_ULT)
+		var basic := source.ability(SLOT_BASIC)
+		if basic != null and basic.has_display_modes():
+			_weapon_source = source
+			_weapon.icon_texture = source.icon(SLOT_BASIC)
+			_weapon.visible = true
 
 	if _stats != null:
 		_stats.health_changed.connect(_on_health_changed)
@@ -131,13 +145,18 @@ static func hp_band(frac: float) -> int:
 
 
 ## The in-round XP bar: HeroStats has no XP signal, so the card reads it each
-## frame and writes the bar only when it moved.
+## frame and writes the bar only when it moved. The weapon badge follows the
+## basic attack's display icon the same way.
 func _process(_delta: float) -> void:
 	if not is_instance_valid(_stats):
 		_stats = null
 		set_process(false)
 		_set_dead()
 		return
+	if _weapon_source != null and _weapon_source.is_valid():
+		var tex := _weapon_source.icon(SLOT_BASIC)
+		if tex != _weapon.icon_texture:
+			_weapon.icon_texture = tex
 	var xp := _stats.current_xp / HeroStatsComponent.XP_PER_LEVEL * 100.0
 	if xp != _shown_xp:
 		_shown_xp = xp

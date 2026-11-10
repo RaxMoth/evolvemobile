@@ -1,0 +1,36 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" uid="uid://dlg47a37ba42g" path="res://tools/preview/ability_fx_stage.gd" id="1_stage"]
+[ext_resource type="Script" uid="uid://dmxqhnkb0kg8n" path="res://Scripts/Vfx/vfx_manager.gd" id="2_vfx"]
+[ext_resource type="Script" uid="uid://b4bpmqho58tmh" path="res://Scripts/Vfx/ability_vfx.gd" id="3_afx"]
+[ext_resource type="Script" uid="uid://c7qmkgpkatw32" path="res://Scripts/Vfx/fx_ground_layer.gd" id="4_fxg"]
+
+[node name="AbilityFxStage" type="Node2D"]
+script = ExtResource("1_stage")
+
+[node name="Ground" type="ColorRect" parent="."]
+offset_left = -1000.0
+offset_top = -1000.0
+offset_right = 1000.0
+offset_bottom = 1000.0
+mouse_filter = 2
+
+[node name="Camera2D" type="Camera2D" parent="."]
+position = Vector2(-30, 10)
+zoom = Vector2(2, 2)
+
+[node name="Vfx" type="Node2D" parent="."]
+z_index = 50
+texture_filter = 4
+script = ExtResource("2_vfx")
+
+[node name="Abilities" type="Node2D" parent="Vfx" node_paths=PackedStringArray("ground")]
+z_as_relative = false
+z_index = 45
+script = ExtResource("3_afx")
+ground = NodePath("Ground")
+
+[node name="Ground" type="Node2D" parent="Vfx/Abilities" node_paths=PackedStringArray("vfx")]
+z_as_relative = false
+script = ExtResource("4_fxg")
+vfx = NodePath("..")

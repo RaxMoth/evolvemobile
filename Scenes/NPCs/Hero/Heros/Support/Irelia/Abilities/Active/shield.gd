@@ -24,6 +24,9 @@ func _on_damage_requested(packet: DamagePacket) -> void:
 	if packet.canceled or packet.target != owner_hero or shield_amount <= 0.0:
 		return
 	var remaining: float = absorb_damage(packet.amount)
+	if shield_amount > 0.0:
+		EventBus.notify_ability_event(owner_hero, null, FxEvents.SHIELD_HIT, owner_hero.global_position,
+				packet.amount - remaining)
 	packet.amount = remaining
 	packet.add_tag("shielded")
 	if remaining <= 0.0:
@@ -62,11 +65,15 @@ func _update_visual() -> void:
 		owner_hero.modulate = Color(1.0, 1.0, 1.0 + shield_percent * 0.5)
 
 func _break_shield() -> void:
+	if is_instance_valid(owner_hero):
+		EventBus.notify_ability_event(owner_hero, null, FxEvents.SHIELD_BROKEN, owner_hero.global_position)
 	if owner_hero:
 		owner_hero.modulate = Color.WHITE
 	queue_free()
 
 func _expire_shield() -> void:
+	if is_instance_valid(owner_hero):
+		EventBus.notify_ability_event(owner_hero, null, FxEvents.SHIELD_EXPIRED, owner_hero.global_position)
 	if owner_hero:
 		owner_hero.modulate = Color.WHITE
 	queue_free()

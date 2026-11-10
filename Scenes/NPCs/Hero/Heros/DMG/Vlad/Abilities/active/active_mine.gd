@@ -42,3 +42,7 @@ func _place_mine(caster: Node2D, at: Vector2) -> void:
 		mine.detection_radius = ability_range  # was bare `range` (GDScript builtin Callable)
 	if "owner_entity" in mine:
 		mine.owner_entity = caster
+	if "source_ability" in mine:
+		mine.source_ability = self
+	# Presentation: the arming ring and dust (AbilityVfx).
+	EventBus.notify_ability_event(mine, self, FxEvents.MINE_ARMED, at, ability_range)

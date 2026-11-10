@@ -315,6 +315,10 @@ func _update_hud_label(active_hero: Node, heroes_team: TeamBlackboard, enemies_t
 	var vfx := get_tree().get_first_node_in_group(&"vfx") as VfxManager
 	if vfx:
 		lines.append(vfx.debug_line())
+	# The match's AbilityVfx: programs played and culled, its pools.
+	var ability_vfx := get_tree().get_first_node_in_group(&"ability_vfx") as AbilityVfx
+	if ability_vfx:
+		lines.append(ability_vfx.debug_line())
 	lines.append("Registry: H%d P%d M%d Mob%d" % [
 		EntityRegistry.heroes.size(),
 		EntityRegistry.hero_side.size() - EntityRegistry.heroes.size(),

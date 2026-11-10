@@ -1,16 +1,14 @@
-[gd_resource type="Resource" script_class="BasicStrike" load_steps=3 format=3 uid="uid://uucpn3d4556s"]
+[gd_resource type="Resource" script_class="BasicStrike" load_steps=4 format=3 uid="uid://uucpn3d4556s"]
 
 [ext_resource type="Script" uid="uid://d0mfbnaga61ia" path="res://Scenes/NPCs/Hero/Heros/DMG/Vlad/Abilities/basic_attack/basic_melee_strike.gd" id="1_basic"]
 [ext_resource type="Texture2D" uid="uid://d16edjvfifrvk" path="res://Assets/UI/Icons/Abilities/ted_basic_claw_swipe.svg" id="2_icon"]
+[ext_resource type="Resource" path="res://Assets/Vfx/recipes/fx_ted_claw.tres" id="9_fx"]
 
 [resource]
 script = ExtResource("1_basic")
-trail_enabled = true
-trail_color = Color(0.8, 0.5, 0.2, 1)
-trail_width = 2.5
-trail_fade = 0.2
 ability_name = "Claw Swipe"
 move_name = &"attack"
+fx = ExtResource("9_fx")
 ability_type = 2
 icon = ExtResource("2_icon")
 damage = 9.0

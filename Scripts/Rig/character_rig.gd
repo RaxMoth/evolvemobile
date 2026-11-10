@@ -54,7 +54,8 @@ extends Node2D
 ##
 ## mid_body() (and the static mid_body_of) is the middle of the drawn body, the
 ## origin and end of line, beam and projectile EFFECTS: the entity's position
-## is its feet.
+## is its feet. head_top() (head_top_of) is the top of the drawn body, where a
+## lasting status mark floats.
 
 enum Tier { FULL, BUDGETED }
 
@@ -63,6 +64,8 @@ const BUDGET := 48
 const SHADOW_SPREAD := 1.5
 ## A frame step longer than this is a teleport, not a walk.
 const MAX_STEP := 64.0
+## head_top_of() of a node without an active rig: px above its position.
+const HEAD_FALLBACK := 32.0
 ## Seconds an authored move takes to blend in over the procedural pose, and to
 ## hand back to it at its end.
 const MOVE_BLEND_IN := 0.06
@@ -518,6 +521,26 @@ static func mid_body_of(node: Node2D) -> Vector2:
 	if rig and rig._active:
 		return rig.mid_body()
 	return node.global_position
+
+
+## The top of the drawn body in global coordinates (the art box's top edge,
+## raised by a flyer's mean hover, at the rig's size and the entity's scale):
+## where a lasting status mark (a taunt's anger vein, a "!") floats, clear of
+## the head. Presentation only.
+func head_top() -> Vector2:
+	var y := body.bounds.position.y
+	if profile.body_plan == RigProfile.BodyPlan.FLYER:
+		y -= profile.hover
+	return to_global(Vector2(0.0, y * profile.world_scale * _size))
+
+
+## head_top() of `node`'s Rig when it has an active one, else HEAD_FALLBACK
+## px above the node's own position.
+static func head_top_of(node: Node2D) -> Vector2:
+	var rig := node.get_node_or_null(^"Rig") as CharacterRig
+	if rig and rig._active:
+		return rig.head_top()
+	return node.global_position + Vector2(0.0, -HEAD_FALLBACK)
 
 
 # -------------------------------------------------------------- frame ----

@@ -40,7 +40,7 @@ func execute(caster: Node2D, _target: Node2D = null, _override_damage: float = -
 				_apply_taunt(enemy, caster)
 				taunted_count += 1
 	
-	_create_taunt_effect(caster)
+	# The war-cry ring and the "!" are the cast's recipe (AbilityVfx).
 	if rally_radius > 0.0:
 		_rally_heroes(caster)
 
@@ -56,13 +56,12 @@ func _rally_heroes(caster: Node2D) -> void:
 	if team == null:
 		return
 	var r_sq: float = rally_radius * rally_radius
-	var tint: Color = UiPalette.get_default().amber
 	for ally in team.members:
 		var hero := ally as HeroBase
 		if hero == null or not hero.is_alive() or hero.global_position.distance_squared_to(caster.global_position) > r_sq:
 			continue
 		hero.apply_attack_speed_boost(rally_attack_speed, duration)
-		GameUtils.flash_modulate(hero, tint, 0.15, 0.3)
+		EventBus.notify_ability_event(hero, self, FxEvents.RALLIED, caster.global_position, duration)
 
 func _apply_taunt(enemy: Node2D, caster: Node2D) -> void:
 	# CRITICAL: Validate both enemy and caster before proceeding
@@ -85,9 +84,9 @@ func _apply_taunt(enemy: Node2D, caster: Node2D) -> void:
 		# FIXED: Start timer, but validate before cleanup
 		_schedule_taunt_cleanup(enemy, taunt, duration)
 	
-	# Visual feedback - validate before creating link
+	# Presentation: the anger vein and the tether to Irelia (AbilityVfx).
 	if is_instance_valid(enemy) and is_instance_valid(caster):
-		_create_taunt_link(enemy, caster)
+		EventBus.notify_ability_event(enemy, self, FxEvents.TAUNTED, caster.global_position, duration)
 
 # FIXED: Separate timer function with validation
 func _schedule_taunt_cleanup(enemy: Node2D, taunt: Node, duration_time: float) -> void:
@@ -96,19 +95,3 @@ func _schedule_taunt_cleanup(enemy: Node2D, taunt: Node, duration_time: float) -
 	# CRITICAL: Validate before cleanup
 	if is_instance_valid(taunt) and is_instance_valid(enemy):
 		taunt.queue_free()
-
-func _create_taunt_link(enemy: Node2D, caster: Node2D) -> void:
-	# CRITICAL: Validate both objects before proceeding
-	if not is_instance_valid(enemy) or not is_instance_valid(caster):
-		return
-	
-	# Red line connecting enemy to Irelia, in world space, every frame
-	TauntLink.spawn(enemy, caster, duration)
-
-func _create_taunt_effect(caster: Node2D) -> void:
-	# CRITICAL: Validate caster
-	if not is_instance_valid(caster):
-		return
-	
-	# Red expanding ring around Irelia, out to the taunt range
-	RingPulse.spawn(caster.get_parent(), caster.global_position, Color.RED, 50.0, ability_range / 50.0, 3.0, 0.5, 10)

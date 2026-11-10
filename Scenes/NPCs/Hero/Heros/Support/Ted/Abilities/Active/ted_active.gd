@@ -22,12 +22,11 @@ func execute(caster: Node2D, _target: Node2D = null, _override_damage: float = -
 	if ted:
 		for pet in ted.get_pets():
 			pet.set_attack_speed_boost(attack_speed_boost, boost_duration)
+			EventBus.notify_ability_event(pet, self, FxEvents.RALLIED, caster.global_position, boost_duration)
 	
 	if aura_radius > 0.0:
 		_war_cry(caster)
-	
-	# Visual feedback
-	_create_rally_effect(caster)
+	# Ted's horn rings and "!" are the cast's recipe (AbilityVfx).
 
 ## War Cry: the heroes around Ted attack faster too.
 func _war_cry(caster: Node2D) -> void:
@@ -35,15 +34,10 @@ func _war_cry(caster: Node2D) -> void:
 	if team == null:
 		return
 	var r_sq: float = aura_radius * aura_radius
-	var tint: Color = UiPalette.get_default().amber
 	for ally in team.members:
 		var hero := ally as HeroBase
 		if hero == null or hero == caster or not hero.is_alive() \
 				or hero.global_position.distance_squared_to(caster.global_position) > r_sq:
 			continue
 		hero.apply_attack_speed_boost(attack_speed_boost, boost_duration)
-		GameUtils.flash_modulate(hero, tint, 0.15, 0.3)
-
-func _create_rally_effect(caster: Node2D) -> void:
-	# Flash Ted orange
-	GameUtils.flash_modulate(caster, Color.ORANGE, 0.2, 0.2)
+		EventBus.notify_ability_event(hero, self, FxEvents.RALLIED, caster.global_position, boost_duration)

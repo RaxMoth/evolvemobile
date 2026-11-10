@@ -134,8 +134,10 @@ func test_trap_cage_lands_on_the_target_under_a_moved_parent() -> void:
 	holder.queue_free()
 
 
-## Rally Cry's flash ends at WHITE, not at the tint it found when it started:
-## a Divine Shield that broke mid-flash used to leave Ted blue for good.
+## A flash (GameUtils.flash_modulate: Irelia's Last Stand, a sprite's
+## evolution) ends at WHITE, not at the tint it found when it started: a
+## Divine Shield that broke mid-flash used to leave Ted blue for good. Rally
+## Cry itself no longer tints Ted (its recipe draws rings).
 func test_rally_flash_ends_white_when_a_shield_breaks_mid_flash() -> void:
 	var ted := (await spawn_frozen(TED, Vector2(0, 0))) as HeroBase
 	var hog := await spawn_frozen(HOG, Vector2(3000, 0))
@@ -149,6 +151,7 @@ func test_rally_flash_ends_white_when_a_shield_breaks_mid_flash() -> void:
 	await wait_frames(1)
 	assert_true(ted.modulate.b > 1.0, "shielded: blue tint")
 	assert_true(ted.use_active_ability(), "Rally Cry cast")
+	GameUtils.flash_modulate(ted, UiPalette.get_default().amber_light, 0.2, 0.2)
 	await wait_seconds(0.1)
 	EventBus.deal_damage(null, ted, 20.0)
 	await wait_frames(1)
@@ -157,51 +160,6 @@ func test_rally_flash_ends_white_when_a_shield_breaks_mid_flash() -> void:
 	assert_eq(ted.modulate, Color.WHITE, "no tint left after the flash")
 	ted.queue_free()
 	hog.queue_free()
-
-
-## Monster Taunt's link is drawn in world space and follows both ends every
-## frame: under an evolved monster's 1.5x root scale it used to overshoot
-## Irelia by half, and it only moved at 20 Hz.
-func test_taunt_link_ends_on_irelia_under_a_scaled_monster() -> void:
-	var grount := (await spawn_frozen(GROUNT, Vector2(0, 0))) as MonsterBase
-	grount.gain_xp(1000.0)
-	grount.gain_xp(0.0)
-	await wait_seconds(0.7)  # stage scale tween
-	assert_eq(grount.current_stage, 3)
-	assert_true(grount.scale.x > 1.4, "stage 3 root scale")
-	var irelia := await spawn_frozen(IRELIA, Vector2(120, 0))
-	var before: Array[Node] = grount.get_children()
-	var ult: AbilityBase = (irelia.get_node("AbilitySystem") as AbilitySystem).ultimate_ability
-	ult.execute(irelia)
-	var links: Array = grount.get_children().filter(func(n: Node) -> bool: return n is Line2D and not before.has(n))
-	assert_eq(links.size(), 1, "one link on the taunted monster")
-	if links.size() != 1:
-		grount.queue_free()
-		irelia.queue_free()
-		return
-	var link := links[0] as Line2D
-	assert_true(link.is_in_group(&"TransientEffect"), "scrubbed when a pooled mob is parked")
-	await wait_frames(1)
-	assert_eq(link.get_point_count(), 2, "both ends drawn from the first frame")
-	if link.get_point_count() != 2:
-		grount.queue_free()
-		irelia.queue_free()
-		return
-	# Body to body: both ends mid-body (above the feet), not at the origins.
-	var irelia_mid := CharacterRig.mid_body_of(irelia)
-	assert_true(irelia_mid.y < irelia.global_position.y - 10.0, "Irelia's mid-body is above her feet")
-	assert_true(link.to_global(link.get_point_position(1)).distance_to(irelia_mid) <= 1.0,
-		"the link ends on Irelia")
-	assert_true(link.to_global(link.get_point_position(0)).distance_to(CharacterRig.mid_body_of(grount)) <= 1.0,
-		"the link starts on the monster")
-	irelia.global_position = Vector2(60, 80)
-	await wait_frames(1)
-	assert_true(link.to_global(link.get_point_position(1)).distance_to(CharacterRig.mid_body_of(irelia)) <= 1.0,
-		"the link follows Irelia the next frame")
-	await wait_seconds(ult.duration + 0.4)  # the taunt, then the 0.3 s fade
-	assert_false(is_instance_valid(link), "the link fades and frees itself after the taunt")
-	grount.queue_free()
-	irelia.queue_free()
 
 
 func test_heroes_use_their_active_in_a_fight() -> void:
@@ -235,32 +193,34 @@ func test_irelia_taunting_strike_pulls_a_mob_onto_her() -> void:
 
 
 ## BasicStrike flashes the trail its .tres enables (GameUtils.flash_line, under
-## the caster's parent, from caster to target) and the trail frees itself after
-## the fade: none for Vlad, Ted's brown-orange swipe, Irelia's light-blue one.
+## the caster's parent, body to body) and the trail frees itself after the
+## fade. No hero strikes with one any more: their recipes draw the slash or
+## the claw (AbilityVfx), so Vlad, Ted and Irelia leave no line; a copy with
+## the trail switched on still gets it.
 func test_basic_strike_trails_follow_the_tres() -> void:
 	var vlad := await spawn_frozen(VLAD, Vector2(-20, 0))
 	var ted := await spawn_frozen(TED, Vector2(20, 0))
 	var irelia := await spawn_frozen(IRELIA, Vector2(0, 20))
 	var hog := await spawn_frozen(HOG, Vector2(0, 0))
-	var expected: Dictionary = {vlad: [], ted: [Color(0.8, 0.5, 0.2), 2.5], irelia: [Color(0.7, 0.7, 1.0), 1.5]}
-	var all_trails: Array = []
 	for caster: Node2D in [vlad, ted, irelia]:
 		var before: Array[Node] = get_children()
-		(caster.get_node("AbilitySystem") as AbilitySystem).basic_attack.execute(caster, hog)
+		var basic := (caster.get_node("AbilitySystem") as AbilitySystem).basic_attack as BasicStrike
+		assert_false(basic.trail_enabled, "%s: no trail" % caster.name)
+		assert_true(basic.fx != null and basic.fx.cue in [&"strike", &"claw"], "%s: the recipe draws the hit" % caster.name)
+		basic.execute(caster, hog)
 		var trails: Array = get_children().filter(func(n: Node) -> bool: return n is Line2D and not before.has(n))
-		var want: Array = expected[caster]
-		assert_eq(trails.size(), 1 if want.size() > 0 else 0, "%s: trails drawn" % caster.name)
-		if trails.size() == 1 and want.size() > 0:
-			var line := trails[0] as Line2D
-			assert_true(line.default_color.is_equal_approx(want[0]), "%s: trail colour %s" % [caster.name, line.default_color])
-			assert_near(line.width, float(want[1]), 0.001, "%s: trail width" % caster.name)
-			assert_eq(line.z_index, 10)
-			# Body to body (CharacterRig.mid_body_of), not feet to feet.
-			assert_eq(line.points, PackedVector2Array([CharacterRig.mid_body_of(caster), CharacterRig.mid_body_of(hog)]), "%s: caster to target" % caster.name)
-			assert_true(line.points[0].y < caster.global_position.y - 10.0, "%s: the trail starts above the feet" % caster.name)
-		all_trails.append_array(trails)
-	await wait_seconds(0.5)
-	for line in all_trails:
+		assert_eq(trails.size(), 0, "%s: no line drawn" % caster.name)
+	var copy := (vlad.get_node("AbilitySystem") as AbilitySystem).basic_attack as BasicStrike
+	copy.trail_enabled = true  # Vlad's own copy
+	copy.trail_color = UiPalette.get_default().vlad
+	var others: Array[Node] = get_children()
+	copy.execute(vlad, hog)
+	var lines: Array = get_children().filter(func(n: Node) -> bool: return n is Line2D and not others.has(n))
+	assert_eq(lines.size(), 1, "a trail when switched on")
+	if lines.size() == 1:
+		var line := lines[0] as Line2D
+		assert_eq(line.points, PackedVector2Array([CharacterRig.mid_body_of(vlad), CharacterRig.mid_body_of(hog)]), "body to body")
+		await wait_seconds(copy.trail_fade + 0.2)
 		assert_false(is_instance_valid(line), "trail freed after its fade")
 	for n in [vlad, ted, irelia, hog]:
 		if is_instance_valid(n):

@@ -13,12 +13,17 @@ var source: Node2D = null
 var source_ability: AbilityBase = null
 var _spike_timer: float = 0.0
 
+## How far toward the palette's `ted` a trapped enemy's drawn body pulses.
+const TRAP_TINT_WEIGHT: float = 0.55
+## Seconds of each half of the pulse.
+const TRAP_PULSE: float = 0.5
+
 var trapped_enemies: Array[Node2D] = []  # Already typed correctly
 var cage_active: bool = true
 ## enemy -> life_id at trap time. A pooled mob that died and respawned keeps
 ## the same node but a new life_id, so the cage must stop acting on it.
 var _trapped_life_ids: Dictionary = {}
-var _sprite_tweens: Dictionary = {}  # enemy -> looping flash Tween, killed on expire
+var _sprite_tweens: Dictionary = {}  # enemy -> looping tint Tween, killed on expire
 
 func _ready() -> void:
 	# Setup collision
@@ -26,8 +31,8 @@ func _ready() -> void:
 	if collision_shape and collision_shape.shape is CircleShape2D:
 		collision_shape.shape.radius = cage_radius
 	
-	# Visual
-	queue_redraw()
+	# The stakes and the trampled ring are AbilityVfx's (CAGE_CLOSED, emitted
+	# by TedUltimateTrapCage once the cage is in the tree).
 	
 	# body_exited / area_exited are wired in TrapCage.tscn.
 	
@@ -37,22 +42,6 @@ func _ready() -> void:
 	# Expire after duration
 	await get_tree().create_timer(duration).timeout
 	_expire()
-
-func _draw() -> void:
-	if not cage_active:
-		return
-	
-	# Draw cage bars
-	var num_bars = 16
-	for i in range(num_bars):
-		var angle = i * TAU / num_bars
-		var start = Vector2(cos(angle), sin(angle)) * (cage_radius - 10)
-		var end = Vector2(cos(angle), sin(angle)) * cage_radius
-		draw_line(start, end, Color(0.8, 0.3, 0.3), 4.0)
-	
-	# Draw circle outline
-	draw_arc(Vector2.ZERO, cage_radius, 0, TAU, 64, Color.RED, 2.0)
-	draw_arc(Vector2.ZERO, cage_radius - 10, 0, TAU, 64, Color(1, 0.5, 0.5, 0.5), 1.0)
 
 func _process(delta: float) -> void:
 	if not cage_active:
@@ -120,20 +109,27 @@ func _prevent_exit(node: Node) -> void:
 		# Teleport back to center of cage
 		entity.global_position = global_position
 
+## A trapped enemy's drawn body (its CharacterRig, else its sprite:
+## EntityBase.visual_root) pulses toward the palette's `ted` and back. Only the
+## colour channels are tweened, so a fade of its alpha (Nyxa's scattered bats)
+## keeps running.
 func _apply_trap_effect(entity: Node2D) -> void:
-	# Visual indicator that enemy is trapped
-	if entity.has_node("Sprite2D"):
-		var sprite = entity.get_node("Sprite2D")
-		var original_modulate = sprite.modulate
-		
-		var tween = sprite.create_tween()
-		_sprite_tweens[entity] = tween
-		tween.set_loops()
-		tween.tween_property(sprite, "modulate", Color(1, 0.5, 0.5), 0.5)
-		tween.tween_property(sprite, "modulate", original_modulate, 0.5)
+	var vis: Node2D = (entity as EntityBase).visual_root() if entity is EntityBase else null
+	if vis == null:
+		return
+	var tint: Color = Color.WHITE.lerp(UiPalette.get_default().ted, TRAP_TINT_WEIGHT)
+	var tween := vis.create_tween()
+	_sprite_tweens[entity] = tween
+	tween.set_loops()
+	tween.tween_property(vis, ^"modulate:r", tint.r, TRAP_PULSE)
+	tween.parallel().tween_property(vis, ^"modulate:g", tint.g, TRAP_PULSE)
+	tween.parallel().tween_property(vis, ^"modulate:b", tint.b, TRAP_PULSE)
+	tween.tween_property(vis, ^"modulate:r", 1.0, TRAP_PULSE)
+	tween.parallel().tween_property(vis, ^"modulate:g", 1.0, TRAP_PULSE)
+	tween.parallel().tween_property(vis, ^"modulate:b", 1.0, TRAP_PULSE)
 
 func _still_trapped(enemy: Node2D) -> bool:
-	# Same node, same life, still in the tree. Otherwise drop its flash tween.
+	# Same node, same life, still in the tree. Otherwise drop its tint tween.
 	if is_instance_valid(enemy) and enemy.is_inside_tree() \
 			and enemy.get("life_id") == _trapped_life_ids.get(enemy):
 		return true
@@ -146,6 +142,16 @@ func _kill_sprite_tween(enemy: Node2D) -> void:
 		if tween and tween.is_valid():
 			tween.kill()
 		_sprite_tweens.erase(enemy)
+		_clear_tint(enemy)
+
+
+## Back to the body's own colours, its alpha untouched.
+func _clear_tint(enemy: Node2D) -> void:
+	if not is_instance_valid(enemy) or not enemy is EntityBase:
+		return
+	var vis: Node2D = (enemy as EntityBase).visual_root()
+	if vis != null:
+		vis.modulate = Color(1.0, 1.0, 1.0, vis.modulate.a)
 
 ## Gorrak's Unstoppable (MonsterBase.is_cc_immune): the cage never holds him
 ## (its spikes still hurt whatever overlaps it). Asked every frame, so the
@@ -185,13 +191,11 @@ func _get_entity(node: Node) -> Node2D:
 
 func _expire() -> void:
 	cage_active = false
+	EventBus.notify_ability_event(self, source_ability, FxEvents.CAGE_OPENED, global_position, cage_radius)
 	
-	# Clear visual effects on trapped enemies (kill the looping tweens first)
+	# Stop the trapped enemies' tint (each back to its own colours)
 	for enemy in trapped_enemies:
 		_kill_sprite_tween(enemy)
-		if is_instance_valid(enemy) and enemy.has_node("Sprite2D"):
-			var sprite = enemy.get_node("Sprite2D")
-			sprite.modulate = Color.WHITE
 	
 	# Fade out
 	var tween = create_tween()

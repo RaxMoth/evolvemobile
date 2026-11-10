@@ -57,6 +57,11 @@ func get_display_icon(caster: Node = null) -> Texture2D:
 	return icon
 
 
+## The HUD card shows this slot as River's weapon badge (HeroHudCard).
+func has_display_modes() -> bool:
+	return heal_icon != null
+
+
 ## River's rig shoulders the rifle or raises the staff, by her weapon mode.
 ## Only reads the mode.
 func get_move_name(caster: Node = null) -> StringName:
@@ -82,14 +87,11 @@ func _execute_sniper(caster: Node2D, target: Node2D) -> void:
 		_sniper_shots += 1
 		if is_crit_shot():
 			final_damage *= crit_mult
+		# Each landed shot draws its tracer (AbilityVfx, from damage_applied).
 		EventBus.deal_damage(caster, target, final_damage, self)
-
-		# Visual feedback
-		_create_sniper_effect(caster, target)
 		if extra_targets > 0:
 			for extra in _extra_targets_near(caster, target):
 				EventBus.deal_damage(caster, extra, final_damage, self)
-				_create_sniper_effect(caster, extra)
 
 		# Update cooldown to sniper speed
 		cooldown = sniper_cooldown
@@ -122,13 +124,17 @@ func _execute_heal(caster: Node2D, target: Node2D) -> void:
 	var distance := caster.global_position.distance_to(target.global_position)
 	if distance <= heal_range:
 		# Ted's pet (group Hero, not a HeroBase) gets the swing but no HP.
+		var healed: float = 0.0
 		if target is HeroBase:
-			(target as HeroBase).heal(heal_amount)
+			var hero := target as HeroBase
+			var before: float = hero.get_health()
+			hero.heal(heal_amount)
+			healed = hero.get_health() - before
 			if extra_heal_targets > 0:
-				_chain_heal(caster, target as HeroBase)
+				_chain_heal(caster, hero)
 
-		# Visual feedback
-		_create_heal_effect(caster, target)
+		# Presentation: the heal hop (AbilityVfx) and the "+N" (VfxManager).
+		EventBus.notify_ability_event(target, self, FxEvents.HEAL_SHOT, CharacterRig.mid_body_of(caster), healed)
 		
 		# Update cooldown to heal speed
 		cooldown = heal_cooldown
@@ -151,10 +157,12 @@ func _chain_heal(caster: Node2D, healed: HeroBase) -> void:
 		hurt.append(hero)
 	hurt.sort_custom(func(a: HeroBase, b: HeroBase) -> bool:
 		return a.get_health() / a.get_max_health() < b.get_health() / b.get_max_health())
-	var tint: Color = UiPalette.get_default().river_light
 	for hero in hurt.slice(0, extra_heal_targets):
+		var before: float = hero.get_health()
 		hero.heal(heal_amount)
-		GameUtils.flash_line(caster.get_parent(), CharacterRig.mid_body_of(healed), CharacterRig.mid_body_of(hero), tint, 2.0, 0.4)
+		# Presentation: the heal beam from `healed` (AbilityVfx) and the "+N".
+		EventBus.notify_ability_event(hero, self, FxEvents.CHAIN_HEAL, CharacterRig.mid_body_of(healed),
+				hero.get_health() - before)
 
 ## F3: Deadeye's count toward the next crit.
 func debug_line() -> String:
@@ -162,11 +170,3 @@ func debug_line() -> String:
 	if crit_every > 0:
 		line += "  deadeye %d/%d" % [_sniper_shots % crit_every, crit_every]
 	return line
-
-## The shot and heal lines run body to body (CharacterRig.mid_body_of), not
-## feet to feet.
-func _create_sniper_effect(caster: Node2D, target: Node2D) -> void:
-	GameUtils.flash_line(caster.get_parent(), CharacterRig.mid_body_of(caster), CharacterRig.mid_body_of(target), Color.ORANGE, 2.0, 0.3)
-
-func _create_heal_effect(caster: Node2D, target: Node2D) -> void:
-	GameUtils.flash_line(caster.get_parent(), CharacterRig.mid_body_of(caster), CharacterRig.mid_body_of(target), Color.GREEN, 3.0, 0.4)

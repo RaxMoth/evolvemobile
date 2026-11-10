@@ -827,9 +827,12 @@ Ted's fox, Grount (all three stages), Nyxa, Gorrak and the Bat and Hog mobs.
     - Mid-body anchor: `CharacterRig.mid_body()` / `mid_body_of(node)` is
       the middle of the drawn body (the art's box centre, raised by a flyer's
       mean hover, at the rig's size and the entity's scale), the start and end
-      of line effects (Vlad's, Ted's and Irelia's strike trails, River's shot,
-      heal and Chain Heal lines, Monster Taunt's link), which used to run feet
-      to feet. A node without a rig keeps its own position.
+      of line effects (AbilityVfx's tracers, heal hops and beams, Monster
+      Taunt's tethers; BasicStrike's optional trail), which used to run feet
+      to feet. A node without a rig keeps its own position. `head_top()` /
+      `head_top_of(node)` is the top of the drawn body, where a lasting
+      status mark (a taunt's anger vein, a "!") floats clear of the head; a
+      node without a rig answers 32 px above its position.
     - Hit flash: the rig drives the body's modulate over 1 (palette white x
       `hurt_flash_gain`, easing back to white). Every generated body draws
       through ONE shared material, `Assets/Shaders/hit_flash_material.tres`
@@ -837,7 +840,7 @@ Ted's fox, Grount (all three stages), Nyxa, Gorrak and the Bat and Hog mobs.
       `use_parent_material` (written by `tools/rig_builder.gd`): the shader
       reads a modulate of (1 + f) on all three channels as a flash of f and
       mixes the art toward white, a white silhouette instead of a brightened
-      one, while ordinary tints (a shield's blue, a rally's orange) pass
+      one, while ordinary tints (a shield's blue, a trapped enemy's honey) pass
       through. One shared material keeps a character in one draw and a
       species' mobs batched together.
     - `EntityBase.visual_root()` is what effects move or tint (Ground Slam's
@@ -1027,6 +1030,12 @@ writes gameplay state, so `tools/sim_trace.sh` stays byte-identical.
       extra fills are built once per card;
     - the passive, active (50 px) and ultimate (54 px) AbilitySlots; active
       and ultimate are bound to a `CooldownSource.Hero`;
+    - a 28 px weapon badge (`%Weapon`, an AbilitySlot with the basic frame
+      and no countdown) on the portrait's lower right corner, only for a
+      hero whose basic attack changes with its state
+      (`AbilityBase.has_display_modes()`: River's rifle or heal staff). The
+      card follows the basic attack's display icon every frame, without a
+      cooldown sweep;
     - the selected card lifts 8 px and wears `HudPanelSelected`; a fallen
       hero's card greys out (`UiPalette.FALLEN_MODULATE`) under the skull.
 - **Hero focus**: a card press, the 1-4 keys, Tab, a tap on a hero in the
@@ -1136,11 +1145,12 @@ drifted from the real cooldown under attack-speed boosts and pauses).
 `VfxManager` (`Scripts/Vfx/vfx_manager.gd`) is the match's hit feedback: a
 `Vfx` node of `World.tscn` in group `vfx` (not an autoload, so it lives and
 dies with the match; `camera` wired to `MainCam` scene-side). Its hooks are
-`EventBus.damage_applied` and `EventBus.ability_cast` (the swarm ring and the
-thrown axe below),
+`EventBus.damage_applied`, `EventBus.ability_cast` (the swarm ring and the
+thrown axe below) and `EventBus.ability_event` (the heal numbers),
 connected in `_ready` (an autoload cannot be the source of a scene
-`[connection]`). For every packet that lands in the camera view (grown by
-64 px):
+`[connection]`). What makes each ability recognisable is AbilityVfx's (see
+Ability Effects below). For every packet that lands in the camera view
+(grown by 64 px):
 
 - **Impact**: an outlined cartoon star (`fx_star.svg`, gold; red on the
   player's side; bigger for a big hit) with two sparks, for 0.22 s at the
@@ -1152,6 +1162,12 @@ connected in `_ready` (an autoload cannot be the source of a scene
   and fades over 0.8 s. Hits on one target within 0.15 s add up in one
   number; a target shows at most 3 numbers (side by side: centre, right,
   left), and a hit past that adds up in its youngest.
+- **Heal number**: a heal an ability reports (`FxEvents.HEAL_SHOT`,
+  `CHAIN_HEAL`, `KIT_PICKED`: River's staff, Chain Heal, the supply drop)
+  shows as "+N" (the glyph sheet's "+" cell, then the digits) in the
+  palette's `heal` green, the HP actually healed (a heal on a full bar shows
+  nothing). Heals add up with heals only, in their own number beside the
+  damage numbers (`show_heal`, `heals_on`).
 - **Kill**: on a killing blow, 4 puffs (`fx_puff.svg`) and a star.
 - **Hit flash**: the CharacterRig's hurt reaction rendered white by the
   shared hit flash shader (see Character Rigs). VfxManager does not flash.
@@ -1195,11 +1211,75 @@ count in the numbers) and 2 kills a frame spawn puffs; nothing is allocated
 per frame. Every random draw uses its private RNG and it never writes gameplay
 state, so `tools/sim_trace.sh` stays byte-identical. The F3 overlay shows the
 pools against their caps, the hits shown / culled / over budget and the
-node's script time. `EventBus.ability_event` (names in `FxEvents`) is the
-presentation channel for moments inside an ability; its emits and the
-per-ability effects (`AbilityFxRecipe`) land in Phase 7.
+node's script time.
 
-Planned: per-ability effects (slashes, explosions, heals), evolution
+`RingPulse.spawn` (one-shot rings: the monster's stage evolution ring, in the
+palette's gold, amber at Stage 2 and danger at Stage 3) grows the ring at a
+constant 3 px line and frees it once its tweens end. Until 7.2 the free ran
+on the tween's first step, so the evolution, Irelia taunt and supply-drop
+rings were never drawn.
+
+### Ability Effects (AbilityVfx, AbilityFxRecipe)
+
+Every hero ability's look is data: `AbilityBase.fx`, an `AbilityFxRecipe`
+(`Scripts/Vfx/ability_fx_recipe.gd`; the hero recipes are
+`Assets/Vfx/recipes/fx_<hero>_<ability>.tres`). A recipe names the program
+(`cue`), its colours as UiPalette tokens (`accent`, `shade`, `core`, `alt`:
+the second look, River's heal staff, a rally mark, a mine's arming ring),
+`size`, `radius` (0 = the ability's own), the camera `trauma` of its biggest
+moment and the life of its ground decal. It is presentation only: gameplay
+never reads it, every copy of an ability shares it and nothing writes it at
+runtime. The rig move a cast plays stays the ability's `move_name`.
+
+`AbilityVfx` (`Scripts/Vfx/ability_vfx.gd`) plays them: World.tscn's
+`Vfx/Abilities` (group `ability_vfx`, `camera` and `ground` wired
+scene-side), drawn over the characters at absolute z 45 (under VfxManager's
+numbers at 50), with its `FxGroundLayer` child `Ground` at absolute z 0 (after
+the ground layers, under the characters) for the ground half: rings, shield
+wards, Last Stand halos, cage rings, decals and the back stakes of a cage.
+Its hooks: `EventBus.ability_cast` (cast cues), `damage_applied` (hit cues),
+`ability_event` (the moments inside an ability, names in `FxEvents`) and
+`entity_died` (what rides a fallen character ends). The hero scripts only
+emit `EventBus.notify_ability_event(...)` at points they already reach, after
+their own state change; no gameplay value, timer or query changed.
+
+| Hero | Ability (cue) | Look |
+|---|---|---|
+| Vlad | Blood Strike (`strike`) | a slash crescent (`fx_slash`) sweeping through the target's body, 0.14 s |
+| Vlad | Land Mine (`mine`) | dust at Vlad's feet; `MINE_ARMED`: a small ring at each mine. The mine itself is `fx_mine` with a blinking `fx_lamp` (Mine.tscn's `Blink`), its trigger radius a dashed ring at 35 %. `MINE_EXPLODED`: a 0.14 s amber fireball, a ring out to the blast radius, three dust clouds, three rocks, a scorch crack left for 3 s |
+| Vlad | Blood Bomb (`blood_bomb`) | six drops sucked in for 0.12 s, then a crimson blast low on his body (the head stays clear), a ring to `area_of_effect`, four mist puffs rolling out along the ground, flying drops, a splat left for 3 s, trauma 0.25 |
+| Irelia | Shield Bash (`strike`) | the slash in her light teal |
+| Irelia | Divine Shield (`shield`) | a ring and a glint at Irelia; `SHIELD_UP` per hero: a 0.14 s bubble pop, then a ward ellipse at the feet whose alpha is the shield's strength; `SHIELD_HIT`: it pulses white; `SHIELD_BROKEN`: six shards; `SHIELD_EXPIRED`: it fades |
+| Irelia | Monster Taunt (`taunt`) | a copper ring out to the range and a "!" above Irelia; `TAUNTED` per enemy: an anger vein above its head and a dashed tether body to body for the taunt's duration (replaces `TauntLink`); Rallying Taunt: `RALLIED` per hero |
+| Irelia | Regeneration (`last_stand`) | `LAST_STAND`: a gold ring, star and sparks, then a halo at her feet for the invulnerable seconds |
+| Ted | Claw Swipe (`claw`) | three raking marks over the target's body |
+| Ted | Rally Cry (`rally`) | two horn rings at his feet, a "!", sparks; `RALLIED` per pet and per War Cry hero: a small amber ring and rising sparks (replaces the orange and amber flashes) |
+| Ted | Trap Cage (`cage`) | `CAGE_CLOSED`: 10-28 wood stakes spring up around the rim one after another (the back half on the ground, the front half over the characters), a trampled ring, six dust clouds; `CAGE_OPENED`: they sink. A trapped enemy's drawn body (`visual_root()`: its rig) pulses toward the palette's `ted` and back (RGB only, so a fade's alpha keeps running; it used to tint the hidden facing Sprite2D) |
+| River | Adaptive Weapon (`sniper`) | rifle: an ink-rimmed gold tracer body to body and a muzzle star; staff, `HEAL_SHOT`: three pluses hop to the ally, two rise off it; Chain Heal, `CHAIN_HEAL`: a curved heal beam to the chained hero |
+| River | Weapon Swap (`weapon_swap`) | a twinkle and a small ring in the colour of the weapon she now holds |
+| River | Supply Drop (`supply_drop`) | the kit is `fx_crate` under a leaf `fx_chute` (MediKit.tscn's `Drop` animation: the chute sways down and drifts off after landing), its pickup radius a dashed ring at 35 %; `KIT_LANDED`: dust, a ring, three leaves; `KIT_PICKED`: pluses and a ring on the healed hero |
+
+Toning-down rules (the anim prototype's previews were too busy), enforced by
+`test_ability_vfx`: rings at most 3 world px wide (ink included) and on the
+ground; at most 6 puffs or dust clouds per cast or event; nothing covers a
+character's head longer than 0.15 s (slashes, claws, stars, bubbles and
+blasts over a body live 0.14 s, lasting marks float above the head, wards
+and halos ring the feet); areas shown for a while (a mine's trigger, a
+pickup radius) at 35 % alpha. No hero strikes with a `BasicStrike` trail any
+more (the recipes draw the hit); the trail stays a `.tres` option.
+
+Budget: fixed pools (96 overlay sprites, 24 decals, 16 marks, 64 + 64
+stakes, 40 primitives, 6 tethers, 6 wards, 4 halos, 4 cage rings); a full
+pool recycles its oldest entry, and lasting effects (marks, stakes) have
+pools of their own so a burst never recycles them. One-shot programs outside
+the camera view (grown by 96 px) are skipped; lasting ones start anyway.
+Every random draw uses its private RNG and it only READS gameplay (abilities,
+shields, cages), so `tools/sim_trace.sh` stays byte-identical. The F3 overlay
+adds "Ability FX" (programs played and culled, the pools, script time).
+`tools/preview/AbilityFxStage.tscn` (`-- hero=vlad|irelia|ted|river`) stages
+one hero's abilities on a timeline for muted renders.
+
+Planned: the monster abilities' recipes and telegraphs (7.3), evolution
 transformation effects, death animations.
 
 ---
@@ -1908,7 +1988,9 @@ res://
 │  ├─ Characters/_moves/ (humanoid / quadruped / flyer_moves.tres: the rig moves)
 │  ├─ Fonts/ (LilitaOne-Regular.ttf display font + LilitaOne-OFL.txt licence)
 │  ├─ Shaders/ (ground_grade; hit_flash + hit_flash_material.tres on every rig body)
-│  ├─ Vfx/svg/ (fx_star, fx_spark, fx_puff, fx_digits: in-world effect sprites)
+│  ├─ Vfx/svg/ (fx_*.svg: in-world effect sprites, mipmapped; the mine pod and
+│  │            lamp, supply crate and chute are scene sprites)
+│  ├─ Vfx/recipes/ (fx_<hero>_<ability>.tres: AbilityFxRecipe per ability)
 │  └─ UI/ (generated Jungle Guild kit, DPITexture SVGs)
 │     ├─ Kit/ · Crests/ · Icons/{Abilities,Currency,Stats,Roles,Nav,UI}/
 │     ├─ Lobby/ (the lobby's campfire and lair backdrops, VS badge)
@@ -1961,7 +2043,8 @@ res://
 │  ├─ Rig/ (CharacterRig, RigBody, RigProfile: SVG cut-out rigs)
 │  ├─ Roster/ (Roster, CharacterDef: the character registry)
 │  ├─ UI/ (CooldownSource: read-only HUD view of an entity's ability slots)
-│  ├─ Vfx/ (VfxManager, FxSpriteBuffer, FxTex, FxEase, FxEvents: pooled hit feedback)
+│  ├─ Vfx/ (VfxManager: pooled hit feedback; AbilityVfx, FxGroundLayer,
+│  │        AbilityFxRecipe: ability effects; FxSpriteBuffer, FxTex, FxEase, FxEvents)
 │  └─ Systems/
 │     ├─ ability_system.gd
 │     └─ hero_exploration_controller.gd

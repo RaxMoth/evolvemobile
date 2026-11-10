@@ -1,12 +1,14 @@
-[gd_resource type="Resource" script_class="IreliaUltimateTaunt" load_steps=3 format=3 uid="uid://5o6u1y81qi8j"]
+[gd_resource type="Resource" script_class="IreliaUltimateTaunt" load_steps=4 format=3 uid="uid://5o6u1y81qi8j"]
 
 [ext_resource type="Script" uid="uid://ds6w22w54lvw0" path="res://Scenes/NPCs/Hero/Heros/Support/Irelia/Abilities/Ult/irelia_ultimate_taunt.gd" id="1_b1fc5"]
 [ext_resource type="Texture2D" uid="uid://dj23b26r482vg" path="res://Assets/UI/Icons/Abilities/irelia_ult_monster_taunt.svg" id="1_xlwob"]
+[ext_resource type="Resource" path="res://Assets/Vfx/recipes/fx_irelia_taunt.tres" id="9_fx"]
 
 [resource]
 script = ExtResource("1_b1fc5")
 ability_name = "Monster Taunt"
 move_name = &"war_cry"
+fx = ExtResource("9_fx")
 ability_type = 3
 icon = ExtResource("1_xlwob")
 description = "Force the monster to attack Irelia for 5 seconds"

@@ -23,6 +23,8 @@ func execute(caster: Node2D, _target: Node2D = null, _override_damage: float = -
 		medikit.detection_radius = 60.0
 	if "owner_entity" in medikit:
 		medikit.owner_entity = caster
+	if "source_ability" in medikit:
+		medikit.source_ability = self
 	
 	# Visual drop effect
 	_create_drop_effect(medikit)
@@ -42,6 +44,8 @@ func _create_drop_effect(medikit: Node2D) -> void:
 	await medikit.get_tree().create_timer(0.5).timeout
 	_create_impact_wave(medikit)
 
+## Presentation: the landing's dust, ring and leaves (AbilityVfx).
 func _create_impact_wave(medikit: Node2D) -> void:
-	# Green ring under the entities where the kit lands
-	RingPulse.spawn(medikit.get_parent(), medikit.global_position, Color.GREEN, 10.0, 6.0, 2.0, 0.4, -1)
+	if is_instance_valid(medikit):
+		EventBus.notify_ability_event(medikit, self, FxEvents.KIT_LANDED, medikit.global_position,
+				float(medikit.get(&"detection_radius")))
