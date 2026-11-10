@@ -19,8 +19,6 @@ const GORRAK_STOMP := "res://Scenes/NPCs/Monster/Gorrak/abilities/gorrak_stomp.t
 const GORRAK_MOTION := "res://Assets/Characters/gorrak/gorrak_motion.tres"
 const VLAD := "res://Scenes/NPCs/Hero/Heros/DMG/Vlad/Vlad.tscn"
 const TREE := &"monster_gorrak"
-## His capstones wait for their code (batch 6.6): data only until then.
-const HIDDEN_NODES: Array[StringName] = [&"gk_whirl", &"gk_unstoppable", &"gk_warband"]
 ## One frame of the 60 Hz sim.
 const STEP := 1.0 / 60.0
 
@@ -416,14 +414,20 @@ func test_his_def_is_a_locked_roster_monster() -> void:
 	assert_eq(names, ["Bristled Hide", "Cleaver Chop", "Tusk Axe", "Warcry Stomp"] as Array[String])
 
 
-## Every node whose effect has code is shown; the capstones wait for 6.6.
-func test_his_tree_shows_the_nodes_with_code() -> void:
+## Every node has its code and is shown, the three capstones since 6.6
+## (test_monster_capstones).
+func test_his_tree_shows_every_node() -> void:
 	var tree := MetaSkillManager.get_tree_def(TREE)
 	assert_true(tree != null)
 	if tree == null:
 		return
 	for node in tree.nodes:
-		assert_eq(node.hidden, HIDDEN_NODES.has(node.id), "%s hidden only while its code is missing" % node.id)
+		assert_false(node.hidden, "%s is shown" % node.id)
+	var ids: Array[StringName] = []
+	for n in tree.capstones():
+		ids.append(n.id)
+	assert_eq(ids, [&"gk_whirl", &"gk_unstoppable", &"gk_warband"] as Array[StringName], "one capstone per branch")
+	assert_eq(tree.max_tier(), 4)
 
 
 ## His tree's nodes act on his own copies and survive every stage's numbers:

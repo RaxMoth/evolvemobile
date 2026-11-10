@@ -149,6 +149,9 @@ func _collect_snapshots() -> void:
 				snap.state_str += " ENRAGED"
 			if m.is_titan():
 				snap.state_str += " TITAN"
+		elif entity is MobBase and (entity as MobBase).is_in_warband():
+			# Gorrak's Call of the Herd: fighting for the monster.
+			snap.state_str += " WARBAND"
 		snap.hp_pct = _hp_pct_of(entity)
 		snap.is_active_hero = (entity == active_hero)
 

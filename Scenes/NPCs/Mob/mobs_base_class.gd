@@ -1,6 +1,9 @@
 extends EntityBase
 class_name MobBase
 
+## How far a warband mob's modulate leans toward the warband colour.
+const WARBAND_TINT: float = 0.45
+
 @export_group("Mob Stats")
 @export var max_health: float = 50.0
 @export var base_move_speed: float = 70.0
@@ -22,7 +25,20 @@ class_name MobBase
 @export var base_keep_distance: float = 20.0
 @export var chase_distance: float = 400.0
 
+@export_group("Warband")
+## Gorrak's "Call of the Herd" (BullGroundSlam.recruit_radius) may recruit
+## this mob into his warband: set on the Hog scene.
+@export var can_join_warband: bool = false
+
 @onready var attack_timer: Timer = %AttackTimer
+## Runs while the mob fights for a monster (join_warband); its timeout is
+## wired scene-side to _on_warband_timer_timeout.
+@onready var warband_timer: Timer = %WarbandTimer
+
+## The monster this mob fights for (Call of the Herd), null = its own side.
+## Only valid while warband_timer runs. GameUtils.can_entity_target reads it:
+## the mob and that monster spare each other; heroes stay its targets.
+var ally_monster: Node2D = null
 
 var current_health: float
 var attacking: bool = false
@@ -249,6 +265,52 @@ func _share_hero_xp() -> void:
 		(h as HeroBase).gain_xp(hero_xp_value * share)
 
 # ============================================
+# Warband (Gorrak's Call of the Herd)
+# ============================================
+
+## Fight for `monster` for `duration` seconds: it stops being a target (and
+## stops targeting this mob), and the mob goes for the heroes, the nearest
+## one within chase_distance when none is in sight.
+func join_warband(monster: Node2D, duration: float) -> void:
+	if duration <= 0.0 or not is_alive():
+		return
+	ally_monster = monster
+	warband_timer.start(duration)
+	modulate = _warband_tint()
+	if is_target_valid() and target_entity == monster:
+		clear_target()
+	_reevaluate_current_target(0.0)
+	if not is_target_valid():
+		var hero: Node2D = EntityRegistry.nearest(EntityRegistry.heroes, global_position, chase_distance)
+		if hero != null:
+			set_target(hero)
+			state_chart.send_event(CombatEvents.ENEMY_ENTERED)
+
+
+## In a monster's warband right now.
+func is_in_warband() -> bool:
+	return ally_monster != null and not warband_timer.is_stopped()
+
+
+## The warband timer ran out: back to its own side (the monster may be a
+## target again on the next re-evaluation).
+func _on_warband_timer_timeout() -> void:
+	_leave_warband()
+
+
+func _leave_warband() -> void:
+	ally_monster = null
+	if warband_timer:
+		warband_timer.stop()
+	modulate = Color.WHITE
+
+
+## Presentation: a warband mob is tinted toward Gorrak's palette colour.
+static func _warband_tint() -> Color:
+	return Color.WHITE.lerp(UiPalette.get_default().monster3_light, WARBAND_TINT)
+
+
+# ============================================
 # Pooling (see SpawnManager.acquire_mob / release_mob)
 # ============================================
 
@@ -272,6 +334,7 @@ func prepare_for_pool() -> void:
 	if attack_timer:
 		attack_timer.stop()
 	is_in_combat = false
+	_leave_warband()
 	_flinch_timer = 0.0
 	_stun_timer = 0.0  # a stun only decays while in the tree; never carry it into the next life
 	_idle_timer = 0.0

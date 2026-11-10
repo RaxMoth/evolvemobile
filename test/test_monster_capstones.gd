@@ -9,6 +9,10 @@ extends TestCase
 ##   Nyxa: Vampiric Rebirth (monster_rebirth, the chart's Scattered state),
 ##     Echo Strike (Shadow Swoop double_pass), Brood Mother (Night Swarm
 ##     permanent_from_stage).
+##   Gorrak: Whirlwind (Cleaver Chop full_circle_from_stage), Unstoppable
+##     (monster_cc_immune: Monster Taunt and Trap Cage skip him), Call of the
+##     Herd (Warcry Stomp recruit_radius, MobBase.ally_monster and its timer,
+##     GameUtils.can_entity_target).
 
 const GROUNT := "res://Scenes/NPCs/Monster/Grount/Grount.tscn"
 const GROUNT_DASH := "res://Scenes/NPCs/Monster/Grount/abilities/grout_ram_dash.tres"
@@ -19,6 +23,13 @@ const NYXA := "res://Scenes/NPCs/Monster/Nyxa/Nyxa.tscn"
 const NYXA_SWOOP := "res://Scenes/NPCs/Monster/Nyxa/abilities/nyxa_swoop.tres"
 const NYXA_SWARM := "res://Scenes/NPCs/Monster/Nyxa/abilities/nyxa_night_swarm.tres"
 const NYXA_TREE := &"monster_nyxa"
+const GORRAK := "res://Scenes/NPCs/Monster/Gorrak/Gorrak.tscn"
+const GORRAK_CLEAVER := "res://Scenes/NPCs/Monster/Gorrak/abilities/gorrak_cleaver.tres"
+const GORRAK_STOMP := "res://Scenes/NPCs/Monster/Gorrak/abilities/gorrak_stomp.tres"
+const GORRAK_TREE := &"monster_gorrak"
+const IRELIA := "res://Scenes/NPCs/Hero/Heros/Support/Irelia/Irelia.tscn"
+const TED := "res://Scenes/NPCs/Hero/Heros/Support/Ted/Ted.tscn"
+const HOG := "res://Scenes/NPCs/Mob/Mobs/Hog/Hog.tscn"
 
 
 ## Unlocks never leak into later files (they assert the stock numbers).
@@ -348,3 +359,188 @@ func test_brood_mother_keeps_the_stage_3_swarm_running() -> void:
 			assert_true(swarm.can_use(n))
 		await _free([n])
 	assert_eq((load(NYXA_SWARM) as NightSwarm).permanent_from_stage, 0, "the shared .tres is untouched")
+
+
+# ---------- Gorrak: Whirlwind ----------
+
+## A hero 60 px BEHIND Gorrak (he faces +x): the stock chop misses it at
+## every stage; with Whirlwind the Stage 3 chop hits all around.
+func test_whirlwind_hits_all_around_from_stage_3() -> void:
+	if not require_isolated():
+		return
+	for owned: bool in [false, true]:
+		PersistedData.wipe_progress(false)
+		if owned:
+			_own(GORRAK_TREE, &"gk_whirl")
+		var g := (await _spawn(GORRAK)) as MonsterBase
+		var v := (await _spawn(VLAD, Vector2(-60, 0))) as HeroBase
+		var chop := g.ability_1 as BullFrontCleave
+		assert_eq(chop.full_circle_from_stage, 3 if owned else 0)
+		g.sprite.rotation = 0.0
+		chop.execute(g, null, 10.0)
+		assert_eq(v.get_health(), v.get_max_health(), "Stage 1: a frontal arc, owned or not")
+		assert_near(chop.cone_angle, 70.0, 0.001)
+		_evolve(g, 3)
+		assert_near(chop.cone_angle, 360.0 if owned else 90.0, 0.001, "the Stage 3 arc")
+		g.sprite.rotation = 0.0
+		chop.execute(g, null, 10.0)
+		assert_eq(v.get_health() < v.get_max_health(), owned, "Stage 3: the hero behind him is hit only with Whirlwind")
+		assert_eq(chop.debug_tag(), "whirlwind!" if owned else "")
+		await _free([g, v])
+	assert_eq((load(GORRAK_CLEAVER) as BullFrontCleave).full_circle_from_stage, 0, "the shared .tres is untouched")
+
+
+# ---------- Gorrak: Unstoppable ----------
+
+func _taunted(e: Node) -> bool:
+	return e.get_node_or_null(^"TauntEffect") != null
+
+
+## The TrapCage Ted's Trap Cage dropped on `target` (a child of the test).
+func _drop_cage(ted: Node2D, target: Node2D) -> TrapCage:
+	var before: Array[Node] = get_children()
+	(ted.get_node(^"AbilitySystem") as AbilitySystem).ultimate_ability.execute(ted, target)
+	for n in get_children():
+		if n is TrapCage and not before.has(n):
+			return n as TrapCage
+	return null
+
+
+func test_unstoppable_is_off_on_a_fresh_save() -> void:
+	if not require_isolated():
+		return
+	var g := (await _spawn(GORRAK)) as MonsterBase
+	var irelia := (await _spawn(IRELIA, Vector2(100, 0))) as HeroBase
+	var ted := (await _spawn(TED, Vector2(0, 600))) as HeroBase
+	assert_false(g.is_cc_immune())
+	(irelia.get_node(^"AbilitySystem") as AbilitySystem).ultimate_ability.execute(irelia)
+	assert_true(_taunted(g), "Monster Taunt takes him")
+	var cage := _drop_cage(ted, g)
+	assert_true(cage != null and cage.trapped_enemies.has(g), "Trap Cage takes him")
+	assert_false(g.debug_meta_line().contains("unstoppable"))
+	await _free([g, irelia, ted, cage])
+
+
+## Owned: Monster Taunt passes him by (the Hog next to him is taunted
+## instead) and Trap Cage never holds him (it still holds the Hog).
+func test_unstoppable_skips_the_taunt_and_the_cage() -> void:
+	if not require_isolated():
+		return
+	_own(GORRAK_TREE, &"gk_unstoppable")
+	var g := (await _spawn(GORRAK)) as MonsterBase
+	var hog := (await _spawn(HOG, Vector2(0, 80))) as MobBase
+	var irelia := (await _spawn(IRELIA, Vector2(100, 0))) as HeroBase
+	var ted := (await _spawn(TED, Vector2(0, 600))) as HeroBase
+	assert_true(g.is_cc_immune())
+	assert_true(g.debug_meta_line().contains("unstoppable"), g.debug_meta_line())
+	(irelia.get_node(^"AbilitySystem") as AbilitySystem).ultimate_ability.execute(irelia)
+	assert_false(_taunted(g), "Monster Taunt skips him")
+	assert_true(_taunted(hog), "and falls back on the mob next to him")
+	var cage := _drop_cage(ted, g)
+	assert_true(cage != null, "the cage still lands on him")
+	if cage != null:
+		assert_false(cage.trapped_enemies.has(g), "but never holds him")
+		assert_true(cage.trapped_enemies.has(hog), "the Hog is held")
+		g.global_position = cage.global_position + Vector2(300, 0)
+		await wait_frames(2)
+		assert_true(g.global_position.distance_to(cage.global_position) > cage.cage_radius, "he walks out")
+	await _free([g, hog, irelia, ted, cage])
+
+
+## Nyxa's scattered bats are cc-immune too: a cage that held her lets the
+## bats fly out.
+func test_a_cage_lets_the_scattered_bats_out() -> void:
+	if not require_isolated():
+		return
+	_own(NYXA_TREE, &"ny_rebirth")
+	var n := (await _spawn(NYXA)) as MonsterBase
+	var ted := (await _spawn(TED, Vector2(0, 600))) as HeroBase
+	var cage := _drop_cage(ted, n)
+	assert_true(cage != null and cage.trapped_enemies.has(n), "held while alive")
+	assert_false(n.is_cc_immune())
+	EventBus.deal_damage(ted, n, 99999.0)
+	assert_true(n.is_scattered() and n.is_cc_immune(), "the scattered bats are immune")
+	n.global_position = cage.global_position + Vector2(300, 0)
+	await wait_frames(2)
+	assert_true(n.global_position.distance_to(cage.global_position) > cage.cage_radius, "the bats fly out")
+	await _free([n, ted, cage])
+
+
+# ---------- Gorrak: Call of the Herd ----------
+
+func test_call_of_the_herd_is_off_on_a_fresh_save() -> void:
+	if not require_isolated():
+		return
+	var g := (await _spawn(GORRAK)) as MonsterBase
+	var hog := (await _spawn(HOG, Vector2(80, 0))) as MobBase
+	var v := (await _spawn(VLAD, Vector2(0, 90))) as HeroBase
+	var stomp := g.ability_3 as BullGroundSlam
+	assert_eq(stomp.recruit_radius, 0.0)
+	await _stomp_at(g, v)
+	assert_false(hog.is_in_warband())
+	assert_true(hog.ally_monster == null)
+	assert_true(hog.get_health() < hog.get_max_health(), "the stomp hits the Hog")
+	assert_true(GameUtils.can_entity_target(hog, g) and GameUtils.can_entity_target(g, hog))
+	assert_eq(stomp.debug_tag(), "")
+	await _free([g, hog, v])
+
+
+## Gorrak's Warcry Stomp cast at `target` (it lands where he stands after its
+## 0.6 s hop).
+func _stomp_at(g: MonsterBase, target: Node2D) -> void:
+	var stomp := g.ability_3 as BullGroundSlam
+	stomp.execute(g, target, 10.0)
+	await wait_seconds(stomp.jump_duration + 0.2)
+
+
+## Owned: a stomp cast at a hero turns the Hogs within 250 px into Gorrak's
+## warband for 20 s (one cast at a mob, farming, recruits nobody): spared by
+## the stomp (one stands inside its 100 px), they and he never target each
+## other, they go for the
+## hero; a Bat (not a Hog) and a Hog 400 px away are not recruited. When the
+## timer runs out they are mobs again.
+func test_call_of_the_herd_recruits_the_hogs_for_20_s() -> void:
+	if not require_isolated():
+		return
+	_own(GORRAK_TREE, &"gk_warband")
+	var g := (await _spawn(GORRAK)) as MonsterBase
+	var hog_a := (await _spawn(HOG, Vector2(80, 0))) as MobBase
+	var hog_b := (await _spawn(HOG, Vector2(-120, 140))) as MobBase
+	var far_hog := (await _spawn(HOG, Vector2(400, 0))) as MobBase
+	var bat := (await _spawn(BAT, Vector2(0, -90))) as MobBase
+	var v := (await _spawn(VLAD, Vector2(0, 260))) as HeroBase
+	var stomp := g.ability_3 as BullGroundSlam
+	assert_near(stomp.recruit_radius, 250.0, 0.001)
+	assert_true(hog_a.can_join_warband and not bat.can_join_warband, "the Hog scene is recruitable, the Bat is not")
+	await _stomp_at(g, bat)
+	assert_eq(stomp.last_recruit_count, 0, "a stomp at a mob (farming) calls no one")
+	assert_false(hog_a.is_in_warband())
+	assert_true(hog_a.get_health() < hog_a.get_max_health(), "and hits the Hog as usual")
+	hog_a.current_health = hog_a.max_health
+	bat.current_health = bat.max_health
+	await _stomp_at(g, v)
+	assert_eq(stomp.last_recruit_count, 2, "a stomp at a hero calls the herd")
+	assert_eq(stomp.debug_tag(), "warband(last 2)")
+	for hog: MobBase in [hog_a, hog_b]:
+		assert_true(hog.is_in_warband() and hog.ally_monster == g, "%s joined" % hog.name)
+		assert_near(hog.warband_timer.time_left, 20.0, 0.5, "a 20 s warband")
+		assert_eq(hog.get_health(), hog.get_max_health(), "the stomp spares its warband")
+		assert_false(GameUtils.can_entity_target(hog, g), "it never targets Gorrak")
+		assert_false(GameUtils.can_entity_target(g, hog), "and Gorrak never hits it")
+		assert_true(GameUtils.can_entity_target(hog, v), "heroes stay its targets")
+		assert_true(hog.target_entity == v, "it goes for the hero")
+		assert_true(hog.modulate != Color.WHITE, "tinted while in the warband")
+	assert_false(far_hog.is_in_warband(), "400 px away: not recruited")
+	assert_false(bat.is_in_warband(), "a Bat is not recruited")
+	assert_true(bat.get_health() < bat.get_max_health(), "and the stomp hits it")
+	hog_a.warband_timer.start(0.05)
+	await wait_seconds(0.2)
+	assert_false(hog_a.is_in_warband(), "the timer ran out")
+	assert_true(hog_a.ally_monster == null)
+	assert_eq(hog_a.modulate, Color.WHITE)
+	assert_true(GameUtils.can_entity_target(hog_a, g) and GameUtils.can_entity_target(g, hog_a), "enemies again")
+	hog_b.prepare_for_pool()
+	assert_false(hog_b.is_in_warband(), "parking a mob ends its warband")
+	assert_true(hog_b.warband_timer.is_stopped())
+	assert_eq((load(GORRAK_STOMP) as BullGroundSlam).recruit_radius, 0.0, "the shared .tres is untouched")
+	await _free([g, hog_a, hog_b, far_hog, bat, v])

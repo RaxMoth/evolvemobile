@@ -15,6 +15,8 @@ func execute(caster: Node2D, _target: Node2D = null, _override_damage: float = -
 	for monster in monsters:
 		if not is_instance_valid(monster) or not (monster is EntityBase) or not (monster as EntityBase).is_alive():
 			continue
+		if _is_cc_immune(monster):
+			continue
 		
 		var distance = caster.global_position.distance_to(monster.global_position)
 		if distance <= ability_range:
@@ -30,6 +32,8 @@ func execute(caster: Node2D, _target: Node2D = null, _override_damage: float = -
 			
 			if enemy.is_in_group("Hero"): # Don't taunt heroes
 				continue
+			if _is_cc_immune(enemy):
+				continue
 			
 			var distance = caster.global_position.distance_to(enemy.global_position)
 			if distance <= ability_range:
@@ -39,6 +43,12 @@ func execute(caster: Node2D, _target: Node2D = null, _override_damage: float = -
 	_create_taunt_effect(caster)
 	if rally_radius > 0.0:
 		_rally_heroes(caster)
+
+## Gorrak's Unstoppable (MonsterBase.is_cc_immune): the taunt skips him, in
+## both passes (a monster is in the "Enemy" group too).
+func _is_cc_immune(enemy: Node) -> bool:
+	return enemy is MonsterBase and (enemy as MonsterBase).is_cc_immune()
+
 
 ## Rallying Taunt: the heroes around Irelia attack faster while the taunt lasts.
 func _rally_heroes(caster: Node2D) -> void:

@@ -158,6 +158,8 @@ enum Faction { NONE, HERO, MOB, MONSTER }
 ## Who may hit whom: CAN_HIT[attacker] is the set of factions that attacker
 ## may target, one bit per Faction (1 << target). The one source of the
 ## targeting rules; EntityRegistry.targets_for and MASK_* mirror it.
+## can_entity_target adds the one per-entity exception, a warband mob and its
+## monster (Call of the Herd).
 const CAN_HIT: Array[int] = [
 	0,                                            # NONE: nothing
 	(1 << Faction.MOB) | (1 << Faction.MONSTER),  # HERO: every enemy
@@ -193,7 +195,23 @@ func can_hit(attacker: Faction, target: Faction) -> bool:
 
 
 func can_entity_target(attacker: Node, target: Node) -> bool:
-	return can_hit(cached_faction_of(attacker), cached_faction_of(target))
+	var a: Faction = cached_faction_of(attacker)
+	var t: Faction = cached_faction_of(target)
+	if not can_hit(a, t):
+		return false
+	# Gorrak's Call of the Herd (MobBase.ally_monster): a recruited mob and the
+	# monster it fights for spare each other; heroes stay its targets.
+	if a == Faction.MOB and t == Faction.MONSTER:
+		return not _fights_for(attacker, target)
+	if a == Faction.MONSTER and t == Faction.MOB:
+		return not _fights_for(target, attacker)
+	return true
+
+
+## `mob` is in `monster`'s warband (MobBase.ally_monster, while its timer runs).
+func _fights_for(mob: Node, monster: Node) -> bool:
+	var m := mob as MobBase
+	return m != null and m.ally_monster != null and m.ally_monster == monster
 
 # ============================================
 # OVERLAP QUERIES

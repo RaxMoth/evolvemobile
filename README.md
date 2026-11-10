@@ -1650,7 +1650,7 @@ button until the Phase 8 screens retire it.
   German.
 - Tests: `test_ux_tree_model` (states, block reasons, prices, gutter
   captions, rank totals, the suggested node and capstone equipping on a
-  hand-built ranked tree; the live Grount tree with its hidden slots; the
+  hand-built ranked tree; the live Grount tree with its three capstones; the
   points gates of Hero Base and their reasons in English and German; Irelia's
   capstones following the equipped one; icons; the live states, rank totals
   and equipped capstone agree with `node_state`, `card_progress` and
@@ -1662,8 +1662,8 @@ button until the Phase 8 screens retire it.
   character and account tree fits 720x1280 with its gutter, plaques, arches
   and names, Growth, wiring), and
   `test_grount_behaviour_nodes` checks the Grount tree on this screen (every
-  shown node on it, hidden ones not, Titan Form gated until Grount Lv 8, bought
-  through `upgrade_requested`).
+  node on it, Rampage and Trample too, no "???" slot left, Titan Form gated
+  until Grount Lv 8, bought through `upgrade_requested`).
 
 ### Headless Tools (lint, tests, sim, trace, bench)
 
@@ -1891,7 +1891,9 @@ stat, one ability property, or a behaviour key.
   out), not buyable (`node_state` INVALID, or UNLOCKED if a save owns it), never
   applied, left out of `card_progress`. As a parent it neither opens nor blocks:
   a node whose `requires` lists only hidden ids needs just its tier. The batch
-  that writes the code clears the flag in the tree's `.tres`.
+  that writes the code clears the flag in the tree's `.tres` (since 6.6 no
+  shipped node is hidden; `test_skill_trees_v2` keeps the rule covered on a
+  throwaway tree).
 - **Capstones** (`capstone`, tier 4 of a character tree, one per branch): all
   can be bought, but only the tree's equipped capstone applies. Buying the
   first one equips it; `equip_capstone` swaps for free. A tree with no saved
@@ -2012,6 +2014,18 @@ from a seeded save.
 | ny_rebirth CAP | `monster_rebirth`; `MonsterBase.rebirth_health_pct` 0.3, `rebirth_return_distance` 400, `rebirth_flee_speed_mult` 1.5 | once per match the lethal hit sends `CombatEvents.SELF_SCATTERED` instead of `SELF_DEAD`: the chart's **Scattered** state (an atomic state of `monster_base_class.tscn`, entered from any state by `ToScattered`, its handlers wired scene-side) is the whole rebirth, no flag mirrors it (`is_scattered()` asks the state). While in it she has 0 HP, so `is_alive()` is false and nobody keeps her as a target; `_receive_damage` cancels every hit; her Body's collision layer is 0, so no detection area or overlap query finds her; her target and stun are dropped; each AI step flies her toward the scatter point at x1.5 speed, and her body fades to 30% alpha. The state's delayed `ToIdle` transition (3 s) ends it: still within 400 px of a hero, she re-forms at the scatter point (on the flee fan away from the centroid of the heroes within 800 px, 400, 600 or 800 px from her, the first point on the mesh that is at least 400 px from every living hero; her own spot if none is close), then the layer is back and she has 30% of max HP. No `entity_died` is reported, so the match goes on. F3: the chart state "Scattered"; "rebirth" / "rebirth! 1.2 s" (the pending transition's countdown) / "rebirth spent" |
 | ny_echo CAP | `double_pass` (Shadow Swoop, `BullRamDash`) | a targeted swoop turns at its end and runs back the distance it travelled along the same lane with its hit list cleared, so the target is hit twice (she ends where she started); an escape swoop (no target) never turns. `is_channeling` covers both passes. F3: "echo" |
 | ny_brood CAP | `permanent_from_stage` 3 (Night Swarm, `NightSwarm`) | from Stage 3 (`apply_stage_stats`) a running swarm never runs out; it stops only with her (dead or scattered). While it runs `can_use` is false, so the combo falls back to the screech instead of re-casting it. F3: "swarm! forever" |
+| gk_whirl CAP | `full_circle_from_stage` 3 (Cleaver Chop, `BullFrontCleave`) | from Stage 3 `apply_stage_stats` sets `cone_angle` to 360 and `execute` skips the cone test: the chop hits everything within its reach all around him. F3: "whirlwind" / "whirlwind!" |
+| gk_unstoppable CAP | `monster_cc_immune` | `MonsterBase.is_cc_immune()` (also true while Nyxa's bats are scattered). `IreliaUltimateTaunt` skips such a monster in both of its passes (a monster is in the "Enemy" group too), so the taunt falls back on the mobs around; `TrapCage` never traps it, and its per-frame hold and its exit check skip it, so a cage that held Nyxa lets her scattered bats out. The cage's spikes still hurt whatever overlaps it. F3: "unstoppable" |
+| gk_warband CAP | `recruit_radius` 250, `recruit_duration` 20 (Warcry Stomp, `BullGroundSlam`) | a stomp cast at a hero (or Ted's pet; a stomp at a mob while farming recruits nobody, or he would stall at Stage 2 beside a camp he may no longer eat: 17 of 24 sanity matches timed out before that rule) calls the herd: at impact, before the damage, every living mob within 250 px whose scene allows it (`MobBase.can_join_warband`, set on `Hog.tscn`) joins the caster's warband (`MobBase.join_warband`): `ally_monster` is the caster while its `WarbandTimer` (a one-shot Timer in `mobs_base_class.tscn`, timeout wired scene-side) runs 20 s. `GameUtils.can_entity_target` honours it both ways (the mob never targets him, his abilities never hit it, so the stomp spares it); heroes stay its targets, it drops him as a target and goes for the hero in sight or the nearest within its `chase_distance`. Tinted toward Gorrak's palette colour (`monster3_light`) while it lasts; the timeout and `prepare_for_pool` end it. F3: "warband(last N)"; a warband mob's overlay label shows "WARBAND" |
+
+Sanity check (6.6; `SAVE=<save.cfg> MONSTER=<id> tools/sim.sh 24 heroes 6`):
+each monster with `monster_base` and its own tree fully ranked (70-76 ranks)
+and one capstone equipped, against fresh heroes. Grount: Titan Form 0% hero
+wins (matches end at a median 86 s), Rampage 29%, Trample 33%. Nyxa: 0% with
+each of her three capstones (one timeout each). Gorrak: 0% with each of his
+three. A fully ranked monster beats fresh heroes, as fully ranked heroes beat
+a fresh Grount (92%, above); Titan Form is the one capstone that decides
+Grount's matchup on its own. Opponent Threat (6.8) gives the AI side a build.
 
 #### Tree content v2 (Data/SkillTrees)
 
@@ -2051,8 +2065,9 @@ roster).
 - **AI build orders** (`ai_build_order`, 12 ranks per character tree, capstone
   last) wait for the Opponent Threat rule.
 
-Nodes, "branch: tier node (ranks)", `<-` = requires any; **[hidden]** = no
-code yet (every hero node has its code since 5.4; 6.6: monster behaviours):
+Nodes, "branch: tier node (ranks)", `<-` = requires any. No shipped node is
+hidden any more (every hero node has its code since 5.4, every monster node
+since 6.6); `hidden` stays for nodes whose code is still to come:
 
 - **hero_base** (Might / Vitality / Tactics):
   - Might: T1 Sharp Edge +5/8/10% damage; T2 Forged Steel +10/13/15% <- Sharp
@@ -2147,12 +2162,15 @@ code yet (every hero node has its code since 5.4; 6.6: monster behaviours):
   returns with 30% HP), **Echo Strike** (Shadow Swoop passes its target a
   second time), **Brood Mother** (from Stage 3 the Night Swarm never ends).
 - **monster_gorrak** (Tusks / Bristles / Warband): registered with his def.
-  Every node but the three capstones acts on his own ability copies (Wide
-  Arc: Cleaver Chop's cone; Honed Tusks, Concussive Axe: the Tusk Axe's damage
-  and stun; Earthshaker, Ringing Ears: Warcry Stomp's radius and stun) or a
-  generic key (Heavy Cleaver, Thick Bristles, Mud Armour, Mud Bath, Long
-  March, King's Hunger); Whirlwind, Unstoppable and Call of the Herd stay
-  **[hidden]** until their code (6.6).
+  Every node acts on his own ability copies (Wide Arc: Cleaver Chop's cone;
+  Honed Tusks, Concussive Axe: the Tusk Axe's damage and stun; Earthshaker,
+  Ringing Ears: Warcry Stomp's radius and stun) or a generic key (Heavy
+  Cleaver, Thick Bristles, Mud Armour, Mud Bath, Long March, King's Hunger).
+  Capstones (6.6, "Monster capstones and behaviour nodes"): T4 CAP
+  **Whirlwind** (from Stage 3 Cleaver Chop hits all around him),
+  **Unstoppable** (immune to Irelia's taunt and Ted's Trap Cage), **Call of
+  the Herd** (Warcry Stomp turns the Hogs within 250 px into his warband for
+  20 s).
 
 **Permanent XP** (per hero and per monster) opens a character tree's tiers:
 Lv 3, 5 and 8 take about 2, 7 and 19 matches with that character.

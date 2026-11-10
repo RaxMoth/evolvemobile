@@ -26,6 +26,20 @@ func test_every_character_has_a_tree_with_the_right_currency() -> void:
 		for n in t.nodes:
 			assert_eq(n.currency, PersistedData.STEEL, "%s/%s costs Steel" % [hero_id, n.id])
 			assert_false(n.stat_name.begins_with("monster_"))
+	# Every monster tree ends in a row of three capstones, one per branch, all
+	# with their code since 6.6 (nothing hidden).
+	for d in GameManager.ROSTER.monsters:
+		var mt: MetaSkillTree = MetaSkillManager.get_tree_def(d.skill_tree_id())
+		assert_true(mt != null, "tree for %s" % d.character_id())
+		if mt == null:
+			continue
+		assert_eq(mt.max_tier(), 4, "%s: tier 4 is the capstones' row" % d.character_id())
+		var branches: Array[int] = []
+		for n in mt.nodes_in_tier(4):
+			assert_true(n.capstone, "%s/%s: tier 4 holds only capstones" % [d.character_id(), n.id])
+			branches.append(n.branch)
+		assert_eq(branches, [0, 1, 2] as Array[int], "%s: one capstone per branch" % d.character_id())
+		assert_eq(mt.shown_nodes().size(), mt.nodes.size(), "%s: no hidden node left" % d.character_id())
 	var g: MetaSkillTree = MetaSkillManager.get_tree_def(MetaSkillManager.monster_tree_id(&"grount"))
 	assert_true(g != null)
 	if g != null:

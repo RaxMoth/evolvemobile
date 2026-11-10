@@ -65,7 +65,7 @@ func _process(delta: float) -> void:
 	
 	# Force trapped enemies to stay inside
 	for enemy in trapped_enemies:
-		if not _still_trapped(enemy):
+		if not _still_trapped(enemy) or _is_cc_immune(enemy):
 			continue
 		
 		var dist = enemy.global_position.distance_to(global_position)
@@ -97,7 +97,7 @@ func _scan_for_enemies() -> void:
 	for node in GameUtils.entities_in_circle(get_world_2d(), global_position, cage_radius,
 			GameUtils.MASK_HERO_TARGETS, false):
 		var entity := node as EntityBase
-		if entity and _is_valid_target(entity):
+		if entity and _is_valid_target(entity) and not _is_cc_immune(entity):
 			trapped_enemies.append(entity)
 			_trapped_life_ids[entity] = entity.get("life_id")
 			_apply_trap_effect(entity)
@@ -115,7 +115,8 @@ func _prevent_exit(node: Node) -> void:
 	var entity = _get_entity(node)
 	
 	# FIXED: Check if entity is Node2D before checking array
-	if entity and entity is Node2D and trapped_enemies.has(entity) and _still_trapped(entity):
+	if entity and entity is Node2D and trapped_enemies.has(entity) and _still_trapped(entity) \
+			and not _is_cc_immune(entity):
 		# Teleport back to center of cage
 		entity.global_position = global_position
 
@@ -145,6 +146,13 @@ func _kill_sprite_tween(enemy: Node2D) -> void:
 		if tween and tween.is_valid():
 			tween.kill()
 		_sprite_tweens.erase(enemy)
+
+## Gorrak's Unstoppable (MonsterBase.is_cc_immune): the cage never holds him
+## (its spikes still hurt whatever overlaps it). Asked every frame, so the
+## scattered bats of Nyxa's Vampiric Rebirth fly out of a cage too.
+func _is_cc_immune(entity: Node) -> bool:
+	return entity is MonsterBase and (entity as MonsterBase).is_cc_immune()
+
 
 func _is_valid_target(entity: EntityBase) -> bool:
 	if not entity.is_alive():

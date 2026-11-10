@@ -119,6 +119,7 @@ var _rebirth_spent: bool = false
 var _scatter_left: float = 0.0
 ## The Body's collision layer while the bats are scattered (restored on exit).
 var _scatter_body_layer: int = 0
+var _meta_cc_immune: bool = false
 
 ## The chart's Vampiric Rebirth state; is_scattered() asks it, so no flag
 ## mirrors the chart.
@@ -401,6 +402,7 @@ func _load_meta_modifiers() -> void:
 	_meta_stage_2_evo_heal = float(mods.get("monster_stage_2_evo_heal", 0.0))
 	_meta_rampage = float(mods.get("monster_rampage", 0.0)) > 0.5
 	_meta_rebirth = float(mods.get("monster_rebirth", 0.0)) > 0.5
+	_meta_cc_immune = float(mods.get("monster_cc_immune", 0.0)) > 0.5
 	# Per-entity ability copies, then the tree's ability nodes (cooldown, dash
 	# distance, …). apply_stage_stats re-applies them on every evolution.
 	_make_abilities_unique()
@@ -490,6 +492,13 @@ func _on_entity_died_rampage(entity: Node, killer: Node) -> void:
 		ability_cooldowns[key] = 0.0
 	heal_self(get_max_health() * rampage_heal_pct)
 	_rampage_kills += 1
+
+
+## Gorrak "Unstoppable" (monster_cc_immune): Irelia's Monster Taunt and Ted's
+## Trap Cage skip this monster (IreliaUltimateTaunt, TrapCage). The scattered
+## bats of Vampiric Rebirth are immune too, so a cage lets them fly.
+func is_cc_immune() -> bool:
+	return _meta_cc_immune or is_scattered()
 
 
 ## Nyxa "Vampiric Rebirth": true while the chart's Scattered state is active.
@@ -598,9 +607,10 @@ func _fade_visual(alpha: float) -> void:
 ## One F3 HUD line: the monster id, stage, HP and the behaviour nodes this
 ## monster carries ("!" = active right now; Gravity Slam shows how many the
 ## last slam pulled, Rampage the heroes killed, Vampiric Rebirth "rebirth" /
-## "rebirth! 1.2 s" while scattered / "rebirth spent"), then after " | " the
-## live state its abilities report (AbilityBase.debug_tag: Night Swarm
-## "swarm! 2.4 s left" / "swarm off", Ram Dash "trample 70 px").
+## "rebirth! 1.2 s" while scattered / "rebirth spent", Unstoppable), then
+## after " | " the live state its abilities report (AbilityBase.debug_tag:
+## Night Swarm "swarm! 2.4 s left" / "swarm off", Ram Dash "trample 70 px",
+## Cleaver Chop "whirlwind!", Warcry Stomp "warband(last 3)").
 func debug_meta_line() -> String:
 	var tags: Array[String] = []
 	if ability_3 != null and "pull_radius" in ability_3 and float(ability_3.get("pull_radius")) > 0.0:
@@ -614,6 +624,8 @@ func debug_meta_line() -> String:
 		tags.append("titan!" if is_titan() else "titan")
 	if _meta_rampage:
 		tags.append("rampage(%d)" % _rampage_kills)
+	if _meta_cc_immune:
+		tags.append("unstoppable")
 	if _meta_rebirth:
 		if is_scattered():
 			tags.append("rebirth! %.1f s" % _scatter_left)

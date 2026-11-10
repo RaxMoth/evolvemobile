@@ -17,10 +17,24 @@ extends AbilityBase
 ## Stomp, the same rule as Ram Dash's Stunning Charge.
 @export var stun_duration: float = 0.0
 
+@export_group("Call of the Herd")
+## Gorrak capstone "Call of the Herd": a stomp cast at a hero (or Ted's pet)
+## turns every living mob within this distance of the impact that may join a
+## warband (MobBase.can_join_warband: the Hogs) into the caster's warband for
+## recruit_duration seconds (MobBase.join_warband), before the damage lands,
+## so the stomp spares it. A stomp at a mob (farming) recruits nobody: the
+## herd would be the food he can no longer eat. 0 = off; the node adds 250.
+@export var recruit_radius: float = 0.0
+@export var recruit_duration: float = 20.0
+
 ## F3 (MonsterBase.debug_meta_line): how many entities the last slam pulled.
 var last_pull_count: int = 0
+## F3 (debug_tag): how many mobs the last slam recruited.
+var last_recruit_count: int = 0
 
 var _airborne: bool = false
+## Call of the Herd: the slam in the air was cast at a hero (execute).
+var _calls_herd: bool = false
 
 # Store effective damage for use in async slam
 var _effective_damage: float = 0.0
@@ -65,6 +79,8 @@ func execute(caster: Node2D, target: Node2D = null, override_damage: float = -1.
 	
 	# Calculate effective damage
 	_effective_damage = override_damage if override_damage >= 0.0 else damage
+	_calls_herd = recruit_radius > 0.0 and target != null and is_instance_valid(target) \
+			and GameUtils.cached_faction_of(target) == GameUtils.Faction.HERO
 	
 	var start_pos = caster.global_position
 	var target_pos = start_pos
@@ -120,7 +136,9 @@ func _on_leap_landed(caster: Node2D) -> void:
 	_airborne = false
 
 func _perform_slam(caster: Node2D) -> void:
-	# Gravity Slam first: the damage lands on the pulled positions.
+	# Call of the Herd first: a recruit is no longer a target of the caster.
+	_recruit_mobs(caster)
+	# Gravity Slam next: the damage lands on the pulled positions.
 	_pull_enemies(caster)
 	for entity in GameUtils.entities_in_circle(caster.get_world_2d(), caster.global_position,
 			slam_radius, GameUtils.MASK_MONSTER_TARGETS, true, caster):
@@ -128,6 +146,31 @@ func _perform_slam(caster: Node2D) -> void:
 			deal(caster, entity, _effective_damage)
 			if stun_duration > 0.0 and entity is EntityBase:
 				(entity as EntityBase).apply_stun(stun_duration)
+
+
+## Call of the Herd (a stomp cast at a hero): every living, recruitable mob
+## within recruit_radius of the impact joins the caster's warband for
+## recruit_duration seconds.
+func _recruit_mobs(caster: Node2D) -> void:
+	last_recruit_count = 0
+	if not _calls_herd:
+		return
+	var center: Vector2 = caster.global_position
+	var r_sq: float = recruit_radius * recruit_radius
+	for m in EntityRegistry.mobs:
+		var mob := m as MobBase
+		if mob == null or not mob.can_join_warband or not mob.is_alive() or mob.is_parked:
+			continue
+		if mob.global_position.distance_squared_to(center) > r_sq:
+			continue
+		mob.join_warband(caster, recruit_duration)
+		last_recruit_count += 1
+
+
+## F3 (MonsterBase.debug_meta_line): Call of the Herd's last recruits; "" on
+## a fresh save.
+func debug_tag() -> String:
+	return "warband(last %d)" % last_recruit_count if recruit_radius > 0.0 else ""
 
 
 ## Gravity Slam: drag every living slam target within pull_radius of the impact
