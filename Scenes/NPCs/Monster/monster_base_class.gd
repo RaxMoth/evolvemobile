@@ -39,9 +39,23 @@ signal evolved(stage: int)
 ## Rampage (Grount capstone, monster_rampage): every hero this monster kills
 ## resets all its ability cooldowns and heals this fraction of max HP.
 @export_range(0.0, 1.0) var rampage_heal_pct: float = 0.15
+## Vampiric Rebirth (Nyxa capstone, monster_rebirth): once per match the
+## lethal hit sends the monster into its chart's Scattered state instead of
+## Dead. The state's own delayed ToIdle transition (monster_base_class.tscn,
+## 3 s) ends it; she re-forms with this fraction of max HP ...
+@export_range(0.0, 1.0) var rebirth_health_pct: float = 0.3
+## ... at least this far from every living hero ...
+@export var rebirth_return_distance: float = 400.0
+## ... after flying away from them at this multiple of her move speed.
+@export var rebirth_flee_speed_mult: float = 1.5
 
 ## The last evolution stage (Stage III, "Apex Predator").
 const FINAL_STAGE: int = 3
+## Vampiric Rebirth: the scattered body's alpha, its fade time, and the radius
+## steps of the scatter point search (x rebirth_return_distance).
+const SCATTER_ALPHA: float = 0.3
+const SCATTER_FADE_TIME: float = 0.25
+const SCATTER_RADIUS_FACTORS: Array[float] = [1.0, 1.5, 2.0]
 
 ## Current strategy. A pure function of stage, health and nearby heroes,
 ## recomputed every strategy_eval_interval (see _compute_strategy). It only
@@ -97,6 +111,19 @@ var _meta_stage_2_evo_heal: float = 0.0
 var _meta_rampage: bool = false
 ## Heroes this monster killed while Rampage applies (F3 only).
 var _rampage_kills: int = 0
+var _meta_rebirth: bool = false
+## Vampiric Rebirth is once per match: set when the lethal hit is taken.
+var _rebirth_spent: bool = false
+## Seconds until the bats re-form, from the Scattered state's pending
+## transition (F3 only).
+var _scatter_left: float = 0.0
+## The Body's collision layer while the bats are scattered (restored on exit).
+var _scatter_body_layer: int = 0
+
+## The chart's Vampiric Rebirth state; is_scattered() asks it, so no flag
+## mirrors the chart.
+@onready var _scattered_state: StateChartState = get_node_or_null(^"StateChart/CompoundState/Scattered") as StateChartState
+@onready var _body_area: Area2D = %Body
 
 var ability_cooldowns := {
 	"ability_1": 0.0,
@@ -280,6 +307,11 @@ func get_max_health() -> float:
 	return _max_health_for_stage(current_stage) if monster_stats else current_health
 
 func _receive_damage(packet: DamagePacket) -> void:
+	if is_scattered():
+		# Vampiric Rebirth: nothing lands on the scattered bats. Canceled, so
+		# EventBus skips the reaction and damage_applied, and deal() heals no one.
+		packet.canceled = true
+		return
 	if not is_alive():
 		return
 
@@ -295,6 +327,8 @@ func _receive_damage(packet: DamagePacket) -> void:
 
 	if current_health <= 0.0:
 		current_health = 0.0
+		if _try_rebirth():
+			return
 		state_chart.send_event(CombatEvents.SELF_DEAD)
 
 
@@ -366,6 +400,7 @@ func _load_meta_modifiers() -> void:
 	_meta_titan = float(mods.get("monster_titan_form", 0.0)) > 0.5
 	_meta_stage_2_evo_heal = float(mods.get("monster_stage_2_evo_heal", 0.0))
 	_meta_rampage = float(mods.get("monster_rampage", 0.0)) > 0.5
+	_meta_rebirth = float(mods.get("monster_rebirth", 0.0)) > 0.5
 	# Per-entity ability copies, then the tree's ability nodes (cooldown, dash
 	# distance, …). apply_stage_stats re-applies them on every evolution.
 	_make_abilities_unique()
@@ -457,10 +492,115 @@ func _on_entity_died_rampage(entity: Node, killer: Node) -> void:
 	_rampage_kills += 1
 
 
+## Nyxa "Vampiric Rebirth": true while the chart's Scattered state is active.
+func is_scattered() -> bool:
+	return _scattered_state != null and _scattered_state.active
+
+
+## The first lethal hit of the match sends the monster into the chart's
+## Scattered state instead of Dead (HP stays 0 until the bats re-form). False
+## (die) when the node does not apply or is spent.
+func _try_rebirth() -> bool:
+	if not _meta_rebirth or _rebirth_spent or _scattered_state == null:
+		return false
+	_rebirth_spent = true
+	state_chart.send_event(CombatEvents.SELF_SCATTERED)
+	return true
+
+
+## Scattered (scene-wired): the bats are untargetable. At 0 HP no one keeps
+## her as a target (is_alive), hits are canceled (_receive_damage) and with
+## the Body layer off no area or overlap query finds her. She drops her target
+## and any stun and flies away from the heroes.
+func _on_scattered_state_entered() -> void:
+	clear_target()
+	clear_stun()
+	_scatter_left = 0.0
+	_scatter_body_layer = _body_area.collision_layer
+	_body_area.collision_layer = 0
+	_set_nav_target(_scatter_point())
+	_fade_visual(SCATTER_ALPHA)
+
+
+## One AI tick while scattered (the chart's step()): fly toward the scatter
+## point at rebirth_flee_speed_mult of the move speed.
+func _on_scattered_state_stepped() -> void:
+	_steer_along_nav(move_speed * rebirth_flee_speed_mult, _tick_delta)
+
+
+## The delayed ToIdle transition counting down (F3 only).
+func _on_scattered_transition_pending(_initial_delay: float, remaining_delay: float) -> void:
+	_scatter_left = remaining_delay
+
+
+## The bats re-form (Scattered -> Idle): still within rebirth_return_distance
+## of a hero, she re-forms at the scatter point instead; then the Body layer is
+## back and she has rebirth_health_pct of max HP. Idle's entry handler then
+## looks for targets as usual.
+func _on_scattered_state_exited() -> void:
+	var near: Node2D = EntityRegistry.nearest(EntityRegistry.heroes, global_position, rebirth_return_distance)
+	if near != null:
+		teleport_to(_scatter_point())
+	_body_area.collision_layer = _scatter_body_layer
+	var max_hp: float = get_max_health()
+	current_health = max_hp * rebirth_health_pct
+	set_hp_display(current_health, max_hp)
+	_since_damage = 0.0
+	_scatter_left = 0.0
+	_fade_visual(1.0)
+
+
+## Where the bats fly and re-form: away from the living heroes within twice
+## rebirth_return_distance (their centroid), on the first point of the flee
+## fan, rebirth_return_distance from her and then further out, that is on the
+## navigation mesh and at least rebirth_return_distance from every living
+## hero; else the first mesh point of the fan; her own spot when no hero is
+## that close or no point fits.
+func _scatter_point() -> Vector2:
+	var reach: float = rebirth_return_distance * 2.0
+	var centroid := Vector2.ZERO
+	var n: int = 0
+	for h in EntityRegistry.heroes:
+		if is_instance_valid(h) and EntityRegistry.is_entity_alive(h) \
+				and h.global_position.distance_squared_to(global_position) <= reach * reach:
+			centroid += h.global_position
+			n += 1
+	if n == 0:
+		return global_position
+	centroid /= float(n)
+	var away: Vector2 = global_position - centroid
+	away = away.normalized() if away.length_squared() > 0.0001 else Vector2.from_angle(_facing_angle + PI)
+	var fallback: Vector2 = global_position
+	var found_fallback: bool = false
+	for factor: float in SCATTER_RADIUS_FACTORS:
+		for deg: float in FLEE_ANGLES_DEG:
+			var p: Vector2 = global_position + away.rotated(deg_to_rad(deg)) * rebirth_return_distance * factor
+			if not _is_on_nav_mesh(p):
+				continue
+			if EntityRegistry.nearest(EntityRegistry.heroes, p, rebirth_return_distance) == null:
+				return p
+			if not found_fallback:
+				fallback = p
+				found_fallback = true
+	return fallback
+
+
+## Presentation: the scattered bats show as a faded body (a CharacterRig's
+## own modulate, as Ground Slam's leap does; a legacy sprite's self_modulate).
+func _fade_visual(alpha: float) -> void:
+	var vis: Node2D = visual_root()
+	if vis == null:
+		return
+	var prop: NodePath = ^"modulate:a" if vis is CharacterRig else ^"self_modulate:a"
+	create_tween().tween_property(vis, prop, alpha, SCATTER_FADE_TIME)
+
+
 ## One F3 HUD line: the monster id, stage, HP and the behaviour nodes this
 ## monster carries ("!" = active right now; Gravity Slam shows how many the
-## last slam pulled), then after " | " the live state its abilities report
-## (AbilityBase.debug_tag: Night Swarm "swarm! 2.4 s left" / "swarm off").
+## last slam pulled, Rampage the heroes killed, Vampiric Rebirth "rebirth" /
+## "rebirth! 1.2 s" while scattered / "rebirth spent"), then after " | " the
+## live state its abilities report (AbilityBase.debug_tag: Night Swarm
+## "swarm! 2.4 s left" / "swarm off", Ram Dash "trample 70 px").
 func debug_meta_line() -> String:
 	var tags: Array[String] = []
 	if ability_3 != null and "pull_radius" in ability_3 and float(ability_3.get("pull_radius")) > 0.0:
@@ -474,6 +614,11 @@ func debug_meta_line() -> String:
 		tags.append("titan!" if is_titan() else "titan")
 	if _meta_rampage:
 		tags.append("rampage(%d)" % _rampage_kills)
+	if _meta_rebirth:
+		if is_scattered():
+			tags.append("rebirth! %.1f s" % _scatter_left)
+		else:
+			tags.append("rebirth spent" if _rebirth_spent else "rebirth")
 	var listed: String = " ".join(tags) if not tags.is_empty() else "-"
 	var monster_id: StringName = monster_stats.monster_id if monster_stats else &""
 	var line: String = "%s [%s] S%d HP %d/%d nodes: %s" % [name, monster_id, current_stage,

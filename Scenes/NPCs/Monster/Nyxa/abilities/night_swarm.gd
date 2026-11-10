@@ -15,8 +15,14 @@ extends AbilityBase
 
 ## Seconds between two bites (the first lands on the cast).
 @export var tick_interval: float = 0.5
+## Nyxa capstone "Brood Mother": from this stage on a running swarm never
+## ends (it only stops with her), and it is not re-cast while it runs.
+## 0 = off; the tree node sets 3.
+@export var permanent_from_stage: int = 0
 
 var _time_left: float = 0.0
+## Brood Mother applies at the caster's current stage (apply_stage_stats).
+var _permanent: bool = false
 var _tick_left: float = 0.0
 var _bite_damage: float = 0.0
 
@@ -44,6 +50,23 @@ func is_active() -> bool:
 	return _time_left > 0.0
 
 
+## Brood Mother at this stage: a running swarm never runs out.
+func is_permanent() -> bool:
+	return _permanent
+
+
+## The stage's numbers, then whether Brood Mother holds at this stage.
+func apply_stage_stats(stage: int) -> void:
+	super.apply_stage_stats(stage)
+	_permanent = permanent_from_stage > 0 and stage >= permanent_from_stage
+
+
+## A never-ending swarm is not cast again while it runs (the combo falls
+## back to the screech instead of spending the cooldown).
+func can_use(_caster: Node2D) -> bool:
+	return not (_permanent and is_active())
+
+
 ## Seconds the running swarm still bites (0 when none runs).
 func time_left() -> float:
 	return maxf(_time_left, 0.0)
@@ -61,7 +84,8 @@ func tick_active(caster: Node2D, delta: float) -> void:
 	if not is_instance_valid(caster) or not (caster as EntityBase).is_alive():
 		_time_left = 0.0
 		return
-	_time_left -= delta
+	if not _permanent:
+		_time_left -= delta
 	_tick_left -= delta
 	if _tick_left > 0.0:
 		return
@@ -72,6 +96,9 @@ func tick_active(caster: Node2D, delta: float) -> void:
 			deal(caster, entity, _bite_damage)
 
 
-## F3 (MonsterBase.debug_meta_line): whether the swarm bites and for how long.
+## F3 (MonsterBase.debug_meta_line): whether the swarm bites and for how long
+## ("swarm! forever" under Brood Mother).
 func debug_tag() -> String:
-	return "swarm! %.1f s left" % _time_left if is_active() else "swarm off"
+	if not is_active():
+		return "swarm off"
+	return "swarm! forever" if _permanent else "swarm! %.1f s left" % _time_left

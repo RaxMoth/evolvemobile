@@ -1228,6 +1228,9 @@ Methods:
 - Approach: Navigate to target
 - Fight: In combat, use abilities
 - Dead: Cleanup (mobs return to the spawn pool; a `reset` event brings them back to Idle)
+- Scattered (monsters only, `monster_base_class.tscn`): Nyxa's Vampiric Rebirth.
+  `self_scattered` enters it from any state instead of Dead; untargetable,
+  fleeing; its own delayed `ToIdle` transition (3 s) brings her back
 
 The chart owns all state. Its active state is **stepped** by the `TickScheduler` autoload (`StateChart.step()` → `state_stepped`) at a per-entity LOD rate instead of running `state_processing` every frame.
 
@@ -2006,6 +2009,9 @@ from a seeded save.
 |---|---|---|
 | g4_rampage CAP | `monster_rampage`; `MonsterBase.rampage_heal_pct` 0.15 | `MonsterBase` connects to `EventBus.entity_died` only while it applies; a `HeroBase` death whose killer is this monster zeroes every `ability_cooldowns` slot and heals 15% of max HP (`heal_self`, never a dead monster). F3: "rampage(N)" with the hero kills so far |
 | g4_stampede CAP | `trample`; `trample_hit_radius` 70, `trample_from_stage` 3, `trample_cooldown_mult` 0.5 (Ram Dash, `BullRamDash`) | the dash hits everything within 70 px of the bull's centre as it passes (`get_hit_radius`; the stock lane is the `dash_hit_radius` export, 40, which was the const `DASH_HIT_RADIUS`), and from Stage 3 `apply_stage_stats` halves its cooldown (5 s -> 2.5 s). F3: "trample 70 px" |
+| ny_rebirth CAP | `monster_rebirth`; `MonsterBase.rebirth_health_pct` 0.3, `rebirth_return_distance` 400, `rebirth_flee_speed_mult` 1.5 | once per match the lethal hit sends `CombatEvents.SELF_SCATTERED` instead of `SELF_DEAD`: the chart's **Scattered** state (an atomic state of `monster_base_class.tscn`, entered from any state by `ToScattered`, its handlers wired scene-side) is the whole rebirth, no flag mirrors it (`is_scattered()` asks the state). While in it she has 0 HP, so `is_alive()` is false and nobody keeps her as a target; `_receive_damage` cancels every hit; her Body's collision layer is 0, so no detection area or overlap query finds her; her target and stun are dropped; each AI step flies her toward the scatter point at x1.5 speed, and her body fades to 30% alpha. The state's delayed `ToIdle` transition (3 s) ends it: still within 400 px of a hero, she re-forms at the scatter point (on the flee fan away from the centroid of the heroes within 800 px, 400, 600 or 800 px from her, the first point on the mesh that is at least 400 px from every living hero; her own spot if none is close), then the layer is back and she has 30% of max HP. No `entity_died` is reported, so the match goes on. F3: the chart state "Scattered"; "rebirth" / "rebirth! 1.2 s" (the pending transition's countdown) / "rebirth spent" |
+| ny_echo CAP | `double_pass` (Shadow Swoop, `BullRamDash`) | a targeted swoop turns at its end and runs back the distance it travelled along the same lane with its hit list cleared, so the target is hit twice (she ends where she started); an escape swoop (no target) never turns. `is_channeling` covers both passes. F3: "echo" |
+| ny_brood CAP | `permanent_from_stage` 3 (Night Swarm, `NightSwarm`) | from Stage 3 (`apply_stage_stats`) a running swarm never runs out; it stops only with her (dead or scattered). While it runs `can_use` is false, so the combo falls back to the screech instead of re-casting it. F3: "swarm! forever" |
 
 #### Tree content v2 (Data/SkillTrees)
 
@@ -2132,12 +2138,14 @@ code yet (every hero node has its code since 5.4; 6.6: monster behaviours):
     hits a 70 px lane instead of 40 px, and from Stage 3 recharges twice as
     fast: 2.5 s).
 - **monster_nyxa** (Hunger / Shadow / Brood): registered with her def. Every
-  node but the three capstones acts on her own ability copies (Thirst: Sonic
-  Screech lifesteal; Swift Hunter, Disorienting Dive: Shadow Swoop; Wide
-  Shriek: the cone; Thicker Swarm, Endless Night: Night Swarm's radius and
-  duration) or a generic key (Dusk Hide, Night Recovery, Silent Wings, Fast
-  Maturity, Piercing Shriek); Vampiric Rebirth, Echo Strike and Brood Mother
-  stay **[hidden]** until their code (6.6).
+  node acts on her own ability copies (Thirst: Sonic Screech lifesteal; Swift
+  Hunter, Disorienting Dive: Shadow Swoop; Wide Shriek: the cone; Thicker
+  Swarm, Endless Night: Night Swarm's radius and duration) or a generic key
+  (Dusk Hide, Night Recovery, Silent Wings, Fast Maturity, Piercing Shriek).
+  Capstones (6.6, "Monster capstones and behaviour nodes"): T4 CAP **Vampiric
+  Rebirth** (once per match at 0 HP she scatters into bats for 3 s and
+  returns with 30% HP), **Echo Strike** (Shadow Swoop passes its target a
+  second time), **Brood Mother** (from Stage 3 the Night Swarm never ends).
 - **monster_gorrak** (Tusks / Bristles / Warband): registered with his def.
   Every node but the three capstones acts on his own ability copies (Wide
   Arc: Cleaver Chop's cone; Honed Tusks, Concussive Axe: the Tusk Axe's damage

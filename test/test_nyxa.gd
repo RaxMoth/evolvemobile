@@ -16,8 +16,6 @@ const NYXA_MOTION := "res://Assets/Characters/nyxa/nyxa_motion.tres"
 const GROUNT := "res://Scenes/NPCs/Monster/Grount/Grount.tscn"
 const VLAD := "res://Scenes/NPCs/Hero/Heros/DMG/Vlad/Vlad.tscn"
 const TREE := &"monster_nyxa"
-## Her capstones wait for their code (batch 6.6): data only until then.
-const HIDDEN_NODES: Array[StringName] = [&"ny_rebirth", &"ny_echo", &"ny_brood"]
 
 
 ## Her numbers are the stock ones: no purchase from an earlier file applies,
@@ -316,14 +314,20 @@ func test_her_def_is_a_locked_roster_monster() -> void:
 	assert_eq(names, ["Blood Drinker", "Sonic Screech", "Shadow Swoop", "Night Swarm"] as Array[String])
 
 
-## Every node whose effect has code is shown; the capstones wait for 6.6.
-func test_her_tree_shows_the_nodes_with_code() -> void:
+## Every node has its code and is shown, the three capstones since 6.6
+## (test_monster_capstones).
+func test_her_tree_shows_every_node() -> void:
 	var tree := MetaSkillManager.get_tree_def(TREE)
 	assert_true(tree != null)
 	if tree == null:
 		return
 	for node in tree.nodes:
-		assert_eq(node.hidden, HIDDEN_NODES.has(node.id), "%s hidden only while its code is missing" % node.id)
+		assert_false(node.hidden, "%s is shown" % node.id)
+	var ids: Array[StringName] = []
+	for n in tree.capstones():
+		ids.append(n.id)
+	assert_eq(ids, [&"ny_rebirth", &"ny_echo", &"ny_brood"] as Array[StringName], "one capstone per branch")
+	assert_eq(tree.max_tier(), 4)
 
 
 ## Her tree's ability nodes act on her own copies and survive every stage's

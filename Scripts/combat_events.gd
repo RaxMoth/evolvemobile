@@ -16,5 +16,8 @@ const ENEMY_FIGHT   := &"enemy_fight"
 const TARGET_LOST   := &"target_lost"
 const RE_APPROACH   := &"re_approach"
 const SELF_DEAD     := &"self_dead"
+## Vampiric Rebirth: the lethal hit sends a monster into its chart's
+## Scattered state instead of Dead (MonsterBase._try_rebirth).
+const SELF_SCATTERED := &"self_scattered"
 ## Pooling: Dead -> Idle when a parked mob is respawned (see MobBase.on_spawned).
 const RESET         := &"reset"

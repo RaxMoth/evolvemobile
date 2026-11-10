@@ -24,11 +24,21 @@ extends AbilityBase
 @export var trample_from_stage: int = 3
 @export var trample_cooldown_mult: float = 0.5
 
+@export_group("Echo Strike")
+## Nyxa capstone "Echo Strike": a targeted dash turns at its end and runs back
+## the length it came along the same lane, hitting everything again (the hit
+## list is cleared). An escape dash (no target) never turns. Off by default.
+@export var double_pass: bool = false
+
 var is_dashing: bool = false
 var dash_direction: Vector2 = Vector2.ZERO
 var dash_remaining: float = 0.0
 var _effective_damage: float = 0.0 # Store effective damage for dash duration
 var _hit_entities: Array = [] # Track entities already hit during this dash
+## Echo Strike: the return pass is still to come (set by a targeted cast).
+var _return_pending: bool = false
+## Distance this pass moved so far: the length of the return pass.
+var _travelled: float = 0.0
 
 func _init() -> void:
 	ability_name = "Ram Dash"
@@ -66,6 +76,8 @@ func execute(caster: Node2D, target: Node2D = null, override_damage: float = -1.
 	# Calculate effective damage
 	_effective_damage = override_damage if override_damage >= 0.0 else damage
 	_hit_entities.clear() # Reset hit tracking
+	_travelled = 0.0
+	_return_pending = double_pass and target != null and is_instance_valid(target)
 	
 	# Toward the target (stopping short), or along the facing for an escape dash.
 	var facing: Vector2 = Vector2.from_angle((caster as EntityBase).sprite.rotation)
@@ -107,17 +119,31 @@ func _dash_update(caster: Node2D) -> void:
 	var new_pos: Vector2 = GameUtils.clamp_to_nav_segment(caster.get_world_2d(), old_pos, wanted)
 	caster.global_position = new_pos
 	dash_remaining -= move_amount
+	_travelled += old_pos.distance_to(new_pos)
 	if new_pos.distance_squared_to(wanted) > 0.01:
 		is_dashing = false  # hit a wall
 	
 	# Check for collisions during dash
 	_check_dash_collisions(caster)
+	if not is_dashing and _return_pending:
+		_begin_return_pass()
 	
 	# Continue dashing
 	if is_dashing:
 		caster.get_tree().create_timer(0.0, false).timeout.connect(_dash_update.bind(caster))
 
-## Hit every target within get_hit_radius() of the bull, once per dash.
+## Echo Strike: turn around and run back the distance this pass travelled,
+## along the same lane, with a fresh hit list (the target is passed again).
+func _begin_return_pass() -> void:
+	_return_pending = false
+	dash_direction = -dash_direction
+	dash_remaining = _travelled
+	_travelled = 0.0
+	_hit_entities.clear()
+	is_dashing = dash_remaining > 0.0
+
+
+## Hit every target within get_hit_radius() of the bull, once per pass.
 func _check_dash_collisions(caster: Node2D) -> void:
 	for entity in GameUtils.entities_in_circle(caster.get_world_2d(), caster.global_position,
 			get_hit_radius(), GameUtils.MASK_MONSTER_TARGETS, true, caster):
@@ -129,7 +155,12 @@ func _check_dash_collisions(caster: Node2D) -> void:
 			(entity as EntityBase).apply_stun(stun_duration)
 
 
-## F3 (MonsterBase.debug_meta_line): the capstone this dash carries; "" on a
-## fresh save.
+## F3 (MonsterBase.debug_meta_line): the capstones this dash carries; "" on
+## a fresh save.
 func debug_tag() -> String:
-	return "trample %d px" % roundi(get_hit_radius()) if trample else ""
+	var tags: PackedStringArray = []
+	if trample:
+		tags.append("trample %d px" % roundi(get_hit_radius()))
+	if double_pass:
+		tags.append("echo")
+	return " ".join(tags)
