@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="MonsterStrategy" format=3]
+
+[ext_resource type="Script" uid="uid://cvgposa0b66v8" path="res://Scripts/monster_strategy.gd" id="1_strategy"]
+
+[resource]
+script = ExtResource("1_strategy")
+hero_awareness_radius = 450.0
+cornered_radius = 60.0
+retreat_hp_pct = 0.4
+rest_hp_pct = 0.5
+resume_hp_pct = 0.85
+rest_regen_pct_per_sec = 0.007
+ambush_max_heroes = 1
+isolation_radius = 280.0
+farm_max_mob_health = Array[float]([60.0, 60.0, 1000.0])
+dash_cleave_window = 0.8
+slam_min_targets = 1
+escape_dash_radius = 140.0

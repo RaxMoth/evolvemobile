@@ -69,7 +69,7 @@ func test_the_nodes_are_shown_and_carry_their_keys() -> void:
 		assert_eq(n.stat_name, spec[2], "%s's key" % n.id)
 		assert_eq(n.stat_multiplicative, spec[3], "%s stacks %s" % [n.id, "multiplicatively" if spec[3] else "additively"])
 		assert_false(n.effect_text(1).contains("{v}"), "%s: %s" % [n.id, n.effect_text(1)])
-	# The unlinked monsters' copies of the keys have their code too.
+	# Nyxa's and Gorrak's copies of the keys have their code too.
 	for spec: Array in [["monster_nyxa", &"ny_regen"], ["monster_gorrak", &"gk_bark"], ["monster_gorrak", &"gk_regen"]]:
 		var t := load("res://Data/SkillTrees/%s.tres" % spec[0]) as MetaSkillTree
 		assert_false(t.find_node(spec[1]).hidden, "%s/%s" % spec)

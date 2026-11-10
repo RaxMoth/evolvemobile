@@ -19,21 +19,10 @@
 [ext_resource type="Resource" path="res://Assets/Characters/ted/ted_def.tres" id="17_ted"]
 [ext_resource type="Resource" path="res://Assets/Characters/grount/grount_def.tres" id="18_grount"]
 [ext_resource type="Script" uid="uid://cgn88tt4e34c7" path="res://Scripts/Roster/character_def.gd" id="19_def"]
-[ext_resource type="PackedScene" path="res://Assets/Characters/nyxa/nyxa_body.tscn" id="20_nyxa_body"]
-[ext_resource type="Resource" path="res://Assets/Characters/nyxa/nyxa_motion.tres" id="21_nyxa_motion"]
-[ext_resource type="Texture2D" uid="uid://rcfv15a8i8vo" path="res://Assets/Characters/nyxa/nyxa.svg" id="22_nyxa_portrait"]
+[ext_resource type="Resource" path="res://Assets/Characters/nyxa/nyxa_def.tres" id="20_nyxa"]
 [ext_resource type="PackedScene" path="res://Assets/Characters/gorrak/gorrak_body.tscn" id="23_gorrak_body"]
 [ext_resource type="Resource" path="res://Assets/Characters/gorrak/gorrak_motion.tres" id="24_gorrak_motion"]
 [ext_resource type="Texture2D" uid="uid://cyhlcw3tbsx38" path="res://Assets/Characters/gorrak/gorrak.svg" id="25_gorrak_portrait"]
-
-[sub_resource type="Resource" id="Resource_nyxa_teaser"]
-script = ExtResource("19_def")
-side = 1
-display_name = "Nyxa"
-rig_body = ExtResource("20_nyxa_body")
-rig_profile = ExtResource("21_nyxa_motion")
-portrait = ExtResource("22_nyxa_portrait")
-unlocked_by_default = false
 
 [sub_resource type="Resource" id="Resource_gorrak_teaser"]
 script = ExtResource("19_def")
@@ -103,7 +92,7 @@ offset_right = -154.0
 offset_bottom = 190.0
 grow_horizontal = 2
 grow_vertical = 2
-character = SubResource("Resource_nyxa_teaser")
+character = ExtResource("20_nyxa")
 
 [node name="Gorrak" parent="MonsterStage" instance=ExtResource("7_stage_character")]
 layout_mode = 1

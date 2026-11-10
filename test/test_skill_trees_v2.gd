@@ -11,8 +11,8 @@ extends TestCase
 const TREE_DIR := "res://Data/SkillTrees"
 const TREE_IDS: Array[StringName] = [&"hero_base", &"monster_base", &"hero_river", &"hero_vlad",
 	&"hero_ted", &"hero_irelia", &"monster_grount", &"monster_nyxa", &"monster_gorrak"]
-## Not in the roster until Phase 6: generated, not registered.
-const UNLINKED: Array[StringName] = [&"monster_nyxa", &"monster_gorrak"]
+## Not in the roster yet (Gorrak joins in Phase 6): generated, not registered.
+const UNLINKED: Array[StringName] = [&"monster_gorrak"]
 ## The throwaway tree of the hidden-node tests (_register_hidden_tree).
 const HIDDEN_TREE := &"test_hidden_nodes"
 const TED := "res://Scenes/NPCs/Hero/Heros/Support/Ted/Ted.tscn"
@@ -286,7 +286,7 @@ func test_every_ability_node_targets_its_characters_kit() -> void:
 			if kit.has(n.ability_name) and not n.hidden:
 				assert_true(n.stat_name in kit[n.ability_name], "%s/%s: %s has a property %s" % [t.id, n.id, n.ability_name, n.stat_name])
 	for id in UNLINKED:
-		# Their kits (Sonic Screech, Cleaver Chop, ...) arrive with Phase 6.
+		# Their kits (Cleaver Chop, Tusk Axe, ...) arrive with Phase 6.
 		for n in _load_tree(id).nodes:
 			assert_true(n.is_ability_node() or n.stat_name.begins_with("monster_"), "%s/%s" % [id, n.id])
 

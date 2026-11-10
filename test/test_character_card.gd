@@ -114,7 +114,9 @@ func test_upgrades_ready_counts_buyable_nodes() -> void:
 
 func test_unlocked_comes_from_the_def() -> void:
 	for d in GameManager.ROSTER.all():
-		assert_true(CharacterProgress.is_unlocked(d), "%s ships unlocked" % d.character_id())
+		assert_eq(CharacterProgress.is_unlocked(d), d.unlocked_by_default, "%s: unlocked_by_default" % d.character_id())
+	assert_true(CharacterProgress.is_unlocked(GameManager.ROSTER.find(&"grount")), "Grount ships unlocked")
+	assert_false(CharacterProgress.is_unlocked(GameManager.ROSTER.find(&"nyxa")), "Nyxa ships locked (bought with Leaves)")
 	assert_false(CharacterProgress.is_unlocked(_locked_def(2500)))
 	assert_false(CharacterProgress.is_unlocked(null))
 

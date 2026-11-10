@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="BullRamDash" format=3]
+
+[ext_resource type="Script" uid="uid://bbl84wvqrtqij" path="res://Scenes/NPCs/Monster/Grount/abilities/ram_dash.gd" id="1_dash"]
+[ext_resource type="Texture2D" uid="uid://dupvwrqsngsxw" path="res://Assets/UI/Icons/Abilities/nyxa_active_shadow_swoop.svg" id="2_icon"]
+
+[resource]
+script = ExtResource("1_dash")
+dash_distance = 260.0
+dash_speed = 700.0
+dash_stop_short = -60.0
+ability_name = "Shadow Swoop"
+icon = ExtResource("2_icon")
+description = "Swoops through the target and out the other side, healing for 30% of the damage; also her escape (Stage 1: 12 dmg, Stage 2: 16 dmg, Stage 3: 22 dmg)"
+damage = 12.0
+cooldown = 9.0
+damage_per_stage = Array[float]([12.0, 16.0, 22.0])
+cooldown_per_stage = Array[float]([9.0, 7.0, 5.0])
+lifesteal_pct = 0.3

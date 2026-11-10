@@ -35,6 +35,10 @@ const EXPECTED: Dictionary[String, String] = {
 	"Monster/Grount/abilities/grount_ground_slam.tres": "grount_ground_slam",
 	"Monster/Grount/abilities/grout_ram_dash.tres": "grount_ram_dash",
 	"Monster/Grount/abilities/grount_evolution.tres": "grount_passive_evolution",
+	"Monster/Nyxa/abilities/nyxa_screech.tres": "nyxa_basic_sonic_screech",
+	"Monster/Nyxa/abilities/nyxa_swoop.tres": "nyxa_active_shadow_swoop",
+	"Monster/Nyxa/abilities/nyxa_night_swarm.tres": "nyxa_ult_night_swarm",
+	"Monster/Nyxa/abilities/nyxa_blood_drinker.tres": "nyxa_passive_blood_drinker",
 }
 ## The <slot> part of a hero icon's name, per AbilityBase.AbilityType.
 const SLOT_WORD: Dictionary[int, String] = {

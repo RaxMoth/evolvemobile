@@ -1,0 +1,41 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" uid="uid://ciqj3vjyob7jm" path="res://Scenes/NPCs/Monster/monster_base_class.tscn" id="1_base"]
+[ext_resource type="Resource" path="res://Scenes/NPCs/Monster/Nyxa/nyxa_stats.tres" id="2_stats"]
+[ext_resource type="Resource" path="res://Scenes/NPCs/Monster/Nyxa/abilities/nyxa_screech.tres" id="3_screech"]
+[ext_resource type="Resource" path="res://Scenes/NPCs/Monster/Nyxa/abilities/nyxa_swoop.tres" id="4_swoop"]
+[ext_resource type="Resource" path="res://Scenes/NPCs/Monster/Nyxa/abilities/nyxa_night_swarm.tres" id="5_swarm"]
+[ext_resource type="Resource" path="res://Scenes/NPCs/Monster/Nyxa/abilities/nyxa_blood_drinker.tres" id="6_passive"]
+[ext_resource type="Resource" path="res://Scenes/NPCs/Monster/Nyxa/Assets/nyxa_visual.tres" id="7_visual"]
+[ext_resource type="Resource" path="res://Scenes/NPCs/Monster/Nyxa/nyxa_strategy.tres" id="8_strategy"]
+[ext_resource type="PackedScene" path="res://Assets/Characters/nyxa/nyxa_body.tscn" id="9_body"]
+[ext_resource type="Resource" path="res://Assets/Characters/nyxa/nyxa_motion.tres" id="10_motion"]
+
+[node name="Nyxa" instance=ExtResource("1_base")]
+preferred_distance = 55.0
+monster_stats = ExtResource("2_stats")
+ability_1 = ExtResource("3_screech")
+ability_2 = ExtResource("4_swoop")
+ability_3 = ExtResource("5_swarm")
+passive_ability = ExtResource("6_passive")
+visual_config = ExtResource("7_visual")
+strategy_profile = ExtResource("8_strategy")
+
+[node name="Hud" parent="." index="0"]
+position = Vector2(0, -100)
+
+[node name="AnimatedSprite2D" parent="." index="1"]
+visible = false
+
+[node name="Sprite2D" parent="." index="2"]
+visible = false
+
+[node name="ScreenNotifier" parent="." index="7"]
+rect = Rect2(-58, -112, 116, 112)
+
+[node name="Rig" parent="." index="8" node_paths=PackedStringArray("body")]
+body = NodePath("NyxaBody")
+profile = ExtResource("10_motion")
+tier = 0
+
+[node name="NyxaBody" parent="Rig" instance=ExtResource("9_body")]

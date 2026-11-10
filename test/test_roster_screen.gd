@@ -110,8 +110,12 @@ func test_filters_show_one_role() -> void:
 	var lair := _screen(MONSTER)
 	lair.open()
 	lair.set_filter(&"stalker")
+	assert_false((lair.get_node("%Empty") as CanvasItem).visible, "Nyxa stalks")
+	for card in lair.cards():
+		assert_eq(card.visible, card.character.character_id() == &"nyxa", "%s under stalker" % card.character.get_display_name())
+	lair.set_filter(&"swarm")
 	assert_true((lair.get_node("%Empty") as CanvasItem).visible, "nobody in this role yet")
-	assert_true((lair.get_node("%Filters/Filter_stalker") as BaseButton).button_pressed)
+	assert_true((lair.get_node("%Filters/Filter_swarm") as BaseButton).button_pressed)
 	lair.queue_free()
 
 

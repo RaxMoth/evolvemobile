@@ -343,6 +343,18 @@ for _a in (-90, -30, 30, 90, 150, 210):
     d.cel(bat(_x, min(_y, 57), 7.5), NYX, NYX_S, ow=2.2)
 ICONS["nyxa_ult_night_swarm"] = d.svg()
 
+# Blood Drinker (passive): the bat matriarch under a dusk crescent, over the
+# blood drop that heals her (white cross). Read order at 40 px: violet bat ->
+# red drop -> ivory moon.
+d = icon("monster2")
+d.cel("M47.38 1.02 A9 9 0 1 0 56.55 12.81 A7.5 7.5 0 0 1 47.38 1.02Z", IVORY, IVORY_S, ow=2.6)
+d.cel(bat(32, 30, 26), NYX, NYX_S, off=(-3, -3))
+d.cel(ellipse(29, 25.5, 2.2, 1.7, 15), P["amber"], P["amber_dark"], ow=1.8)
+d.cel(ellipse(35, 25.5, 2.2, 1.7, -15), P["amber"], P["amber_dark"], ow=1.8)
+d.cel(drop(32, 54, 7.5), BLOOD, BLOOD_S, off=(-2.5, -2.5))
+d.add(f'<path d="M30.5 47.5 H33.5 V50.5 H36.5 V53.5 H33.5 V56.5 H30.5 V53.5 H27.5 V50.5 H30.5Z" fill="{W}"/>')
+ICONS["nyxa_passive_blood_drinker"] = d.svg()
+
 # ============================================================ GORRAK (monster slot 3)
 # The boar warlord: cleaver and tusk axe, bog-green swing trails, monster3 tile.
 BOG, BOG_S, BOG_L = P["monster3"], P["monster3_dark"], P["monster3_light"]

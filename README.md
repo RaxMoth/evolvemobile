@@ -237,6 +237,51 @@ Power Level
 
 ---
 
+## 🦇 Monster: Nyxa (the Dusk Matriarch)
+
+A glass-cannon skirmisher: fast, fragile, healing from every bite. She picks
+off lone heroes, retreats early and punishes a clumped team with her swarm.
+Her scene `Scenes/NPCs/Monster/Nyxa/Nyxa.tscn` inherits
+`monster_base_class.tscn` with the bat-matriarch rig (`nyxa_body`, FLYER);
+her numbers are the gamedesign's final config (v9). Not owned by default:
+2,500 Leaves once any owned monster is Lv.3 (the unlock flow is Phase 6.7),
+and the Heroes side meets her after 3 hunts (`opponent_after_matches`).
+
+| Attribute        | Stage 1 (Duskling) | Stage 2 (Night Hunter) | Stage 3 (Dusk Matriarch) |
+| ---------------- | ------------------ | ---------------------- | ------------------------ |
+| **HP**           | 600                | 950 (heals to full)    | 1250 (heals to full)     |
+| **Speed**        | 85                 | 105                    | 125                      |
+| **Scale**        | 1.0                | 1.12                   | 1.25                     |
+| **Strafe**       | 90 px/s, 1.2 s     | 110, 1.0 s             | 130, 0.8 s               |
+| **XP Required**  | Start              | 150 XP                 | 400 XP                   |
+
+Reach 110 (`base_attack_range`), she keeps 55 px (`preferred_distance` on the
+scene root; min 20) and leaves Fight past 150 px. Every ability has a
+per-stage table, so the stage damage multiplier never applies to her.
+
+- **Sonic Screech** (ability 1, `BullFrontCleave`): a 110 px cone of
+  50 / 60 / 70°, 8 / 10 / 8 damage every 2.0 / 1.8 / 1.5 s, lifesteal 20%.
+- **Shadow Swoop** (ability 2, `BullRamDash`): 260 px at 700 px/s with
+  `dash_stop_short` -60, so she ends 60 px behind the target; 12 / 16 / 22
+  damage every 9 / 7 / 5 s, lifesteal 30%. Also her escape (`escape_dash_radius` 140).
+- **Night Swarm** (ability 3, ULTIMATE, `night_swarm.gd`): locked at Stage 1.
+  A bat aura centred on her for 3.5 s that bites every target within 110 / 140
+  px on the cast and every 0.5 s after (8 bites), 4 / 5 a bite, every
+  18 / 14 s, lifesteal 25%. No node and no timer: MonsterBase steps it through
+  `tick_active` on her own copy; `get_cast_center` is Nyxa, so the combo casts
+  it when at least one target (`slam_min_targets` 1) stands around her. It
+  ends with her. The VfxManager draws its ring (see Combat Visuals); F3 shows
+  `swarm! <s> s left` / `swarm off`.
+- **Blood Drinker** (passive slot): names her lifesteal and evolution in the
+  HUD and on the character screen.
+- **AI**: see Monster AI → Nyxa (Bats only until Stage 3, early retreat,
+  lone-hero ambushes).
+- **Counterplay** (her def's tip): she swoops onto lone heroes; keep the pack
+  within 300 px and burst her before Stage 3.
+- About a third of her wins are timeouts: she evades. Accepted as her trait.
+
+---
+
 ## 🗺️ Map Design - "Primal Jungle" (9200x5185)
 
 ### Zone Layout
@@ -374,6 +419,15 @@ since 6.2). A timeout is a monster win at the 10-minute clock.
   the first contact to about 64 s, Stage 1, where the heroes win most fights;
   Opponent Threat (6.8) gives the AI monster its own build.
 
+| Nyxa | Heroes side | Monster side | Timeouts (H / M) | Median Stage 3 | Median first contact |
+| ---- | ----------- | ------------ | ---------------- | -------------- | -------------------- |
+| 6.4: gamedesign config v9 (24 seeds in the design: 46 %, 8 timeouts) | **54 %** | **52 %** | 18 / 17 | 371 s / 371 s | 417 s / 417 s |
+
+- Nyxa's wins are almost all timeouts: in 17 of 48 matches the heroes never
+  meet her (she farms Bats away from them and swoops off). When they meet
+  her at Stage 1 (7 of 48) the heroes win all; at Stage 3 (24 of 48) they
+  win 75–79 %. Accepted as her trait: she evades.
+
 ---
 
 ## 🎨 Visual Systems
@@ -445,10 +499,11 @@ dangerous (`monster` #C2334A, `monster_purple` #7B3F95).
       the square tiles of the ranked tree screen), toggles, padlock,
       notification dot, leaf and vine ornaments, the background tile. 9-slice
       margins live in `kit.MARGINS`.
-    - `Icons/` (79, 64x64): `Abilities/` (27, `<owner>_<slot>_<ability>`:
+    - `Icons/` (80, 64x64): `Abilities/` (28, `<owner>_<slot>_<ability>`:
       a full-bleed tile in the owner's tone that the slot frame sits on;
-      every hero and Grount ability, River's two basic modes, and Nyxa's and
-      Gorrak's abilities on the `monster2` / `monster3` tiles), `Currency/`
+      every hero and Grount ability, River's two basic modes, and Nyxa's
+      (her Blood Drinker passive included) and Gorrak's abilities on the
+      `monster2` / `monster3` tiles), `Currency/`
       (gold, steel, leaves, upgrade point), `Stats/` (16), `Roles/` (9 filter
       silhouettes), `Nav/` (6) and `UI/` (17 glyphs; `ui_skull` marks a
       fallen hero and the HUD's kill count).
@@ -535,8 +590,8 @@ dangerous (`monster` #C2334A, `monster_purple` #7B3F95).
 Characters are moving from the pixel `AnimatedSprite2D` frames to chunky chibi
 SVG cut-out rigs. The runtime, the builder and the art of all ten characters
 are in place. Every character in the match draws its rig: the four heroes,
-Ted's fox, Grount (all three stages) and the Bat and Hog mobs. Gorrak and
-Nyxa have their art but no scene yet.
+Ted's fox, Grount (all three stages), Nyxa and the Bat and Hog mobs. Gorrak
+has his art but no scene yet.
 
 - **Source** (`Assets/Characters/<id>/src/`, ignored by Godot through
   `.gdignore`): `rig_src.json` (canvas 128x160, baseline 150, optional
@@ -647,15 +702,17 @@ Nyxa have their art but no scene yet.
       runs for a monster scene without a rig body. The stage ring pulse
       (`enable_stage_effects`) plays either way.
 - **Migrated scenes** (Irelia, Vlad, Ted, River, `TedsPet.tscn`, Grount, Bat
-  and Hog): the `AnimatedSprite2D` is hidden and its dead SpriteFrames
-  deleted; the hidden facing `Sprite2D` stays as it was (gameplay keeps
-  rotating it); the `Rig` sets `body` (through the scene's `node_paths`, so
-  the export resolves at instantiation), `profile` and `tier` (FULL for the
-  heroes, the fox and Grount; the mobs keep the default BUDGETED), with
+  and Hog; Nyxa was built on her rig): the `AnimatedSprite2D` is hidden and
+  its dead SpriteFrames deleted (Nyxa never had any); the hidden facing
+  `Sprite2D` stays as it was (gameplay keeps rotating it); the `Rig` sets
+  `body` (through the scene's `node_paths`, so the export resolves at
+  instantiation), `profile` and `tier` (FULL for the heroes, the fox, Grount
+  and Nyxa; the mobs keep the default BUDGETED), with
   `<Id>Body` (the instanced `<id>_body.tscn`) under it. No existing node is
   reordered and World.tscn's node order and y-sort are untouched (it only
   gained the ground grade, see Ground Style), so the match and its trace are
-  unchanged. Grount keeps `grount_visual.tres` for its stage ring pulse.
+  unchanged. Grount keeps `grount_visual.tres` for its stage ring pulse; Nyxa's
+  `nyxa_visual.tres` holds no frames, only that switch.
     - The rig's origin is the character's feet at the entity's position (the
       old sprites were centred on it), so the entity's y-sort now orders by
       the feet.
@@ -665,9 +722,10 @@ Nyxa have their art but no scene yet.
       top plus its highest hover (1.35 x `hover`). Heroes move their `Hud` to
       y = -68 (Irelia), -64 (Vlad), -59 (Ted) and -70 (River); the fox's bar
       (an HpBar2D like every entity's, 20x4) sits at -44..-40; Grount's
-      `Hud` is at -101, the Hog's at -45 and the Bat's at -48. Each clears
+      `Hud` is at -101, Nyxa's at -100 (a flyer: art top 138 + hover 8.1 at
+      0.6), the Hog's at -45 and the Bat's at -48. Each clears
       the character's tallest pose (largest size, breathing in, top of the
-      walk bounce or hover). Grount's `Hud` is a
+      walk bounce or hover). A monster's `Hud` is a
       child of the growing root: its position grows with the stage scale
       while the bar keeps its pixel size, so it clears the head at every
       stage and with Titan Form.
@@ -676,7 +734,9 @@ Nyxa have their art but no scene yet.
       hurt squash and bounce or hover). NPCBaseClass's rect already does for
       the heroes and the mobs. Grount's is sized from its bounds:
       Rect2(-58, -114, 116, 118) also covers Ground Slam's 1.2x hop of the
-      rig, and it grows with the stage scale like the rig.
+      rig, and it grows with the stage scale like the rig. Nyxa's,
+      Rect2(-58, -112, 116, 112), covers her hovering body with the same
+      1.2x margin.
     - Ted's pet is a CharacterBody2D, not an EntityBase, so its `Rig` sets
       `mover = ".."` and the scene provides what an EntityBase has: its hidden
       facing carrier "Sprite2D" (the pet aims it along its path), a unique
@@ -692,10 +752,10 @@ Nyxa have their art but no scene yet.
   sheets' svg/scale and mipmaps, DPITexture portraits, body plans, world
   scales and the no-slide stride. `test/test_rigged_scenes.gd` checks the
   migrated scenes: their own body, profile and tier, the hidden sprite without
-  frames, the HP bar rule (at every Grount stage), the notifier covering the
+  frames, the HP bar rule (at every monster stage), the notifier covering the
   drawn body, the ink contact shadow (wiring, tint, size from the body's
-  width, under the body, on the ground while the bat hovers), real heroes, the fox, Grount and the mobs
-  walking (the bat flapping), facing and flinching in a match (the fox
+  width, under the body, on the ground while the bat hovers), real heroes, the fox, Grount, Nyxa and the mobs
+  walking (the bat and Nyxa flapping), facing and flinching in a match (the fox
   through `mover`), Grount's parts and flash through stages 1 to 3, the mob half rate over the
   budget, a pooled mob's rig starting its next life clean, and the F3 line. `RIGS_AWAKE=1 tools/sim_trace.sh`
   animates every rig and must match the parent trace byte for byte;
@@ -884,10 +944,11 @@ drifted from the real cooldown under attack-speed boosts and pauses).
 
 `VfxManager` (`Scripts/Vfx/vfx_manager.gd`) is the match's hit feedback: a
 `Vfx` node of `World.tscn` in group `vfx` (not an autoload, so it lives and
-dies with the match; `camera` wired to `MainCam` scene-side). Its only hook is
-`EventBus.damage_applied`, connected in `_ready` (an autoload cannot be the
-source of a scene `[connection]`). For every packet that lands in the camera
-view (grown by 64 px):
+dies with the match; `camera` wired to `MainCam` scene-side). Its hooks are
+`EventBus.damage_applied` and `EventBus.ability_cast` (the swarm ring below),
+connected in `_ready` (an autoload cannot be the source of a scene
+`[connection]`). For every packet that lands in the camera view (grown by
+64 px):
 
 - **Impact**: an outlined cartoon star (`fx_star.svg`, gold; red on the
   player's side; bigger for a big hit) with two sparks, for 0.22 s at the
@@ -916,9 +977,19 @@ view (grown by 64 px):
   on the ground under the characters, while its sprites and numbers draw at
   z 50 (above the characters and ability trails, under the fog at 100). The
   monster abilities call it from Phase 7.
+- **Swarm ring** (minimal; Nyxa's full swarm look is Phase 7): a cast that
+  starts a Night Swarm takes one of 2 pooled slots (the caster's own slot on
+  a recast, else round robin). Each slot is two `RingPulse` rings under the
+  node's `Swarms` layer, also at absolute z 0: an outline at the swarm's
+  live radius (it grows with the stage and Thicker Swarm) and a bite ring
+  that sweeps from 55% of it to the edge once per bite, both in the
+  palette's `monster2_light` at 55% alpha, 3 px wide (`swarm_width`), fading
+  in and out over 0.25 s. They follow Nyxa every frame and hide (kept) when
+  the swarm ends or she is gone. It only READS the ability (`is_active`,
+  `time_left`, `area_of_effect`, `tick_interval`).
 
 Budget (the anim prototype measured 23 ms frames at p95): fixed pools of 64
-sprites (`FxSpriteBuffer`), 32 numbers and 4 telegraphs, where a full pool
+sprites (`FxSpriteBuffer`), 32 numbers, 4 telegraphs and 2 swarms, where a full pool
 recycles its oldest entry; at most 8 hits a frame spawn sprites (the rest still
 count in the numbers) and 2 kills a frame spawn puffs; nothing is allocated
 per frame. Every random draw uses its private RNG and it never writes gameplay
@@ -975,6 +1046,13 @@ transformation effects, death animations.
 - **Combos**: one cast per 0.25 s lock; Ram Dash as a gap closer only when Front Cleave is ready on
   landing; Ground Slam only when it hits 2+ targets; dashes and slam leaps stop at walls
 - Irelia's taunt overrides all of the above
+- **Nyxa** (`Scenes/NPCs/Monster/Nyxa/nyxa_strategy.tres`, the same layer with her numbers):
+  aware of heroes within 450 px, cornered within 60; farms Bats only until Stage 3
+  (`farm_max_mob_health` 60 / 60 / 1000: farming Hogs at Stage 2 bled her about 1,800 HP);
+  rests below 50% HP up to 85% at 0.7%/s; retreats (Stage ≤ 2) below 40% HP with 2+ heroes
+  close and swoops away from a hero within 140 px; ambushes (Stage 2) only a hero alone
+  within 280 px; Shadow Swoop gap-closes from 120 px when Sonic Screech is ready within
+  0.8 s; Night Swarm whenever it bites at least one target around her
 
 **Planned Improvements**:
 
@@ -1118,10 +1196,16 @@ one new ability script. Every default is Grount's old behaviour:
   `BullRamDash` already had its stun. All three deal through `deal()`.
 - **Passive slot**: every monster scene sets `passive_ability`. Grount's is
   Evolution (`grount_evolution.tres`, a plain PASSIVE `AbilityBase` with the
-  kit's evolution icon and the stage rules as its description): the HUD's
-  passive slot and the character screen show it; the evolution itself is
-  MonsterBase's.
-- Checks: `test/test_monster_framework.gd`.
+  kit's evolution icon and the stage rules as its description), Nyxa's is
+  Blood Drinker (`nyxa_blood_drinker.tres`: her lifesteal and stage rules):
+  the HUD's passive slot and the character screen show it; the evolution and
+  the lifesteal themselves are MonsterBase's and `deal()`'s.
+- **F3** (`MonsterBase.debug_meta_line`): `<name> [<monster id>] S<stage> HP
+  ... nodes: ...`, then after ` | ` the live state each ability reports
+  through `AbilityBase.debug_tag()` ("" = nothing; Night Swarm: `swarm! 2.4 s
+  left` / `swarm off`). Grount's abilities report none, so his line ends at
+  the nodes.
+- Checks: `test/test_monster_framework.gd`, `test/test_nyxa.gd`.
 
 ### Character Roster (Roster, CharacterDef, MonsterSlot)
 
@@ -1130,8 +1214,8 @@ sim tools and the save, without instancing a character scene (instancing an
 entity registers it and draws from the global RNG).
 
 - **`Scenes/NPCs/roster.tres`** (`Roster`, `Scripts/Roster/roster.gd`) lists
-  the heroes (Irelia, Vlad, Ted, River) and the monsters (Grount) in menu
-  order, plus `default_monster_id` (`grount`). GameManager preloads it as
+  the heroes (Irelia, Vlad, Ted, River) and the monsters (Grount, Nyxa) in
+  menu order, plus `default_monster_id` (`grount`). GameManager preloads it as
   `GameManager.ROSTER`. `find(id)`, `hero_ids()`, `monster_ids()`, and
   `resolve_monster(id)`, which falls back to the default and then to the first
   monster, so a stale save or sim argument never breaks a match.
@@ -1148,11 +1232,13 @@ entity registers it and draws from the global RNG).
     UiPalette token), `tagline`, the rig (`rig_body`, `rig_profile`), the
     `portrait` (DPITexture) and `head_region`, the head crop in portrait units
     (128x160) that `head_texture()` turns into an AtlasTexture for HUD heads.
-  - monsters: `stage_names` (Grount: Bullcalf, Rampager, Alpha Bull),
-    `opponent_after_matches` (Heroes-side quarry pool), `unlock_requires_level`,
-    and `tip`, the counterplay hint for the heroes.
-  - progression: `unlocked_by_default`, `unlock_cost` (in `currency()`: Steel for
-    heroes, Leaves for monsters) and `skill_tree`, the character's
+  - monsters: `stage_names` (Grount: Bullcalf, Rampager, Alpha Bull; Nyxa:
+    Duskling, Night Hunter, Dusk Matriarch), `opponent_after_matches`
+    (Heroes-side quarry pool: Grount 0, Nyxa 3), `unlock_requires_level`
+    (Nyxa 3), and `tip`, the counterplay hint for the heroes.
+  - progression: `unlocked_by_default` (false for Nyxa), `unlock_cost` (in
+    `currency()`: Steel for heroes, Leaves for monsters; Nyxa 2,500) and
+    `skill_tree`, the character's
     `Data/SkillTrees/<side>_<id>.tres` (its id is `skill_tree_id()`).
     MetaSkillManager registers the tree of every roster def at startup, so a
     character's tree is live exactly while its def is in the roster.
@@ -1185,8 +1271,8 @@ entity registers it and draws from the global RNG).
   slot) and strategy; its
   `Assets/Characters/<id>/` rig (`src/` + `tools/build_rigs.sh`); a
   `<id>_def.tres` added to `roster.tres`; its `Data/SkillTrees/monster_<id>.tres`
-  linked from the def's `skill_tree` (Nyxa's and Gorrak's are generated and wait
-  for their defs); and its trace baseline, recorded with
+  linked from the def's `skill_tree` (Gorrak's is generated and waits for his
+  def); and its trace baseline, recorded with
   `MONSTER=all RECORD_DIR=tools/baselines tools/sim_trace.sh` (`test_sim_tools`
   fails while a roster monster has none).
 
@@ -1332,8 +1418,8 @@ button until the Phase 8 screens retire it.
       `switch_to(screen)`: the screen slides in and then sits right above the
       lobby (back returns home; tabs do not stack up), or, when it is already
       on the stack, the screens above it slide away (`pop_to`). A character's
-      detail is pushed over the screen that asked. Locked characters (the
-      lair's teasers) open nothing yet.
+      detail is pushed over the screen that asked. Locked characters (Nyxa
+      until she is bought, the lair's Gorrak teaser) open nothing yet.
     - Purchases: a detail's `upgrade_requested(tree_id, node_id)` →
       `MetaSkillManager.rank_up` (the next rank; the shop decides: gates,
       price), and `equip_requested(tree_id, node_id)` →
@@ -1355,9 +1441,11 @@ button until the Phase 8 screens retire it.
       the "BETTER HUNT" title on a `Banner`, and River, Vlad, Irelia and Ted as
       live `StageCharacter` rigs around the fire, the right pair facing inward.
     - Monster stage (y 616 down to the nav bar): the fanged lair
-      (`lobby_monsters.svg`) with Grount large in the middle. Nyxa and Gorrak,
-      not playable yet, stand beside him as padlocked silhouettes: scene-local
-      locked `CharacterDef`s over their built rigs, outside the roster.
+      (`lobby_monsters.svg`) with Grount large in the middle. Nyxa and Gorrak
+      stand beside him as padlocked silhouettes: Nyxa is her roster def
+      (`nyxa_def.tres`, wired scene-side, locked until bought), Gorrak, not
+      playable yet, a scene-local locked `CharacterDef` over his built rig,
+      outside the roster.
     - Between them the HEROES and MONSTERS plaques, each side's HUNT button
       (`ButtonPrimary` / `ButtonMonster`) and the VS badge (`vs_badge.svg`).
     - Tapping a stage chooses that side in place: the other stage tweens to
@@ -1529,7 +1617,8 @@ Every tool copies the project to a temp directory with its own `user://`
     prefixes every line with `<id> `.
 - **Per-monster trace baselines**: `tools/baselines/trace_<id>.txt` is
   `MONSTER=<id> tools/sim_trace.sh` with the default arguments, for the
-  committed tree (Grount's is the roster-default trace, byte for byte).
+  committed tree (Grount's is the roster-default trace, byte for byte;
+  Nyxa's was recorded in the commit that added her).
   - check every monster: `MONSTER=all BASELINE_DIR=tools/baselines tools/sim_trace.sh > trace.txt`
     (exit 1 on a difference or a missing baseline);
   - re-record: `MONSTER=all RECORD_DIR=tools/baselines tools/sim_trace.sh > /dev/null`
@@ -1821,8 +1910,9 @@ from the design's seed data, `Scripts/MetaSkills/skill_tree_data_v2.gd`
 (`SkillTreeDataV2`); since then the `.tres` files ARE the trees and are edited
 in the inspector (the tool keeps an existing file unless `--force`).
 `MetaSkillManager._ready` registers `hero_base` and `monster_base`
-(`HERO_BASE_TREE`, `MONSTER_BASE_TREE`) and every roster def's `skill_tree`;
-`monster_nyxa` and `monster_gorrak` are generated but wait for their defs.
+(`HERO_BASE_TREE`, `MONSTER_BASE_TREE`) and every roster def's `skill_tree`
+(`monster_nyxa` since Nyxa joined the roster); `monster_gorrak` is generated
+but waits for his def.
 
 - **Shape:** 3 branches (offense / defense / utility) x 4 tiers. Tier-1 stat
   nodes have 5 ranks, most others 3, behaviour nodes and capstones 1. Values
@@ -1932,12 +2022,18 @@ code yet (every hero node has its code since 5.4; 6.6: monster behaviours):
   - Charge: T1 Stampede +5/7/9/11/13% speed; T1 Stunning Charge (Ram Dash stuns
     0.5 s); T2 Ravenous -10/13/15% stage XP; T3 Long Charge Ram Dash distance
     +33/45/55%; T3 Apex Charge +15/18/21% speed; T4 CAP Trample **[hidden]**.
-- **monster_nyxa** (Hunger / Shadow / Brood) and **monster_gorrak** (Tusks /
-  Bristles / Warband): generated with the gamedesign values, registered with
-  their defs in Phase 6. Their generic-key nodes (Night Recovery, Mud Armour,
-  Mud Bath) and the cone nodes (Nyxa Wide Shriek, Gorrak Wide Arc: the shared
-  `BullFrontCleave` keeps `cone_angle` modifiers) are already shown; their
-  other new-code nodes stay hidden.
+- **monster_nyxa** (Hunger / Shadow / Brood): registered with her def. Every
+  node but the three capstones acts on her own ability copies (Thirst: Sonic
+  Screech lifesteal; Swift Hunter, Disorienting Dive: Shadow Swoop; Wide
+  Shriek: the cone; Thicker Swarm, Endless Night: Night Swarm's radius and
+  duration) or a generic key (Dusk Hide, Night Recovery, Silent Wings, Fast
+  Maturity, Piercing Shriek); Vampiric Rebirth, Echo Strike and Brood Mother
+  stay **[hidden]** until their code (6.6).
+- **monster_gorrak** (Tusks / Bristles / Warband): generated with the
+  gamedesign values, registered with his def in Phase 6. Its generic-key nodes
+  (Mud Armour, Mud Bath) and the cone node (Wide Arc: the shared
+  `BullFrontCleave` keeps `cone_angle` modifiers) are already shown; its other
+  new-code nodes stay hidden.
 
 **Permanent XP** (per hero and per monster) opens a character tree's tiers:
 Lv 3, 5 and 8 take about 2, 7 and 19 matches with that character.
@@ -2016,6 +2112,7 @@ Max out hero trees → Unlock new heroes → Compete on leaderboards
 
 - [x] 4 unique heroes with abilities
 - [x] Grount monster with 3-stage evolution
+- [x] Nyxa, the Dusk Matriarch: a second monster (lifesteal skirmisher, Night Swarm aura), in the roster and the sim tools; locked (unlock flow and opponent choice come in 6.7)
 - [x] XP and leveling systems (in-round)
 - [x] Asymmetric power curve
 

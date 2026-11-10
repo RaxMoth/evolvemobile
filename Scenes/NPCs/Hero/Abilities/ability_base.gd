@@ -106,6 +106,12 @@ func debug_line() -> String:
 	return line
 
 
+## A short live-state tag for the owner's F3 line (MonsterBase.debug_meta_line:
+## Night Swarm's "swarm! 2.4 s left"); "" = nothing to show. Read-only.
+func debug_tag() -> String:
+	return ""
+
+
 ## Range a range-checked attack should accept: the larger of the ability's own
 ## range and the caster's effective attack range (HeroStats + skill nodes).
 ## Keeps the Fight gate (EntityBase.attack_range) and the hit check in step.

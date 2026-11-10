@@ -357,6 +357,8 @@ func _assert_agree(label: String) -> void:
 				assert_eq(state, open_state, tag)
 				assert_false(m.can_buy(n), tag)
 		assert_eq(m.buyable_count(), available, "%s %s: buyable count" % [label, tree_id])
+	# A locked character (Nyxa) shows no up-arrows: its detail does not open.
 	for def in GameManager.ROSTER.all():
 		var m := UxTreeModel.from_ranked_manager(def.skill_tree_id())
-		assert_eq(m.buyable_count(), CharacterProgress.upgrades_ready(def), "%s %s: the card's up-arrow count" % [label, def.character_id()])
+		var expected: int = m.buyable_count() if CharacterProgress.is_unlocked(def) else 0
+		assert_eq(CharacterProgress.upgrades_ready(def), expected, "%s %s: the card's up-arrow count" % [label, def.character_id()])

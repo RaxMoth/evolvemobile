@@ -432,8 +432,10 @@ func _apply_evolution_bonus_heal(stage: int) -> void:
 	set_hp_display(current_health, max_hp)
 
 
-## One F3 HUD line: stage, HP and the behaviour nodes this monster carries
-## ("!" = active right now; Gravity Slam shows how many the last slam pulled).
+## One F3 HUD line: the monster id, stage, HP and the behaviour nodes this
+## monster carries ("!" = active right now; Gravity Slam shows how many the
+## last slam pulled), then after " | " the live state its abilities report
+## (AbilityBase.debug_tag: Night Swarm "swarm! 2.4 s left" / "swarm off").
 func debug_meta_line() -> String:
 	var tags: Array[String] = []
 	if ability_3 != null and "pull_radius" in ability_3 and float(ability_3.get("pull_radius")) > 0.0:
@@ -446,7 +448,15 @@ func debug_meta_line() -> String:
 	if _meta_titan:
 		tags.append("titan!" if is_titan() else "titan")
 	var listed: String = " ".join(tags) if not tags.is_empty() else "-"
-	return "%s S%d HP %d/%d nodes: %s" % [name, current_stage, roundi(current_health), roundi(get_max_health()), listed]
+	var monster_id: StringName = monster_stats.monster_id if monster_stats else &""
+	var line: String = "%s [%s] S%d HP %d/%d nodes: %s" % [name, monster_id, current_stage,
+			roundi(current_health), roundi(get_max_health()), listed]
+	var states: Array[String] = []
+	for a: AbilityBase in [ability_1, ability_2, ability_3]:
+		var tag: String = a.debug_tag() if a != null else ""
+		if not tag.is_empty():
+			states.append(tag)
+	return line + " | " + " ".join(states) if not states.is_empty() else line
 
 
 ## The F3 line under debug_meta_line: the generic tree keys this monster

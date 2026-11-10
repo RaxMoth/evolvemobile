@@ -1,0 +1,27 @@
+[gd_resource type="Resource" script_class="MonsterStats" format=3]
+
+[ext_resource type="Script" uid="uid://ddjum8l4u4tan" path="res://Scenes/NPCs/Monster/monster_stats.gd" id="1_stats"]
+
+[resource]
+script = ExtResource("1_stats")
+monster_id = &"nyxa"
+monster_name = "Nyxa"
+monster_type = "Dusk Matriarch"
+base_attack_range = 110.0
+fight_leave_distance = 150.0
+stage_2_xp = 150
+stage_3_xp = 400
+stage_1_health = 600.0
+stage_1_speed = 85.0
+stage_1_strafe_speed = 90.0
+stage_1_strafe_interval = 1.2
+stage_2_health = 950.0
+stage_2_speed = 105.0
+stage_2_scale = Vector2(1.12, 1.12)
+stage_2_strafe_speed = 110.0
+stage_2_strafe_interval = 1.0
+stage_3_health = 1250.0
+stage_3_speed = 125.0
+stage_3_scale = Vector2(1.25, 1.25)
+stage_3_strafe_speed = 130.0
+stage_3_strafe_interval = 0.8

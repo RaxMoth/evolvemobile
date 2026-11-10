@@ -1,0 +1,29 @@
+[gd_resource type="Resource" script_class="CharacterDef" format=3]
+
+[ext_resource type="Script" uid="uid://cgn88tt4e34c7" path="res://Scripts/Roster/character_def.gd" id="1_def"]
+[ext_resource type="Resource" path="res://Scenes/NPCs/Monster/Nyxa/nyxa_stats.tres" id="2_stats"]
+[ext_resource type="PackedScene" path="res://Assets/Characters/nyxa/nyxa_body.tscn" id="3_body"]
+[ext_resource type="Resource" path="res://Assets/Characters/nyxa/nyxa_motion.tres" id="4_motion"]
+[ext_resource type="Texture2D" uid="uid://rcfv15a8i8vo" path="res://Assets/Characters/nyxa/nyxa.svg" id="5_portrait"]
+[ext_resource type="Resource" path="res://Data/SkillTrees/monster_nyxa.tres" id="6_tree"]
+
+[resource]
+script = ExtResource("1_def")
+side = 1
+scene_path = "res://Scenes/NPCs/Monster/Nyxa/Nyxa.tscn"
+stats = ExtResource("2_stats")
+role_text = "Stalker · The Bat"
+role_filter = &"stalker"
+accent_token = &"monster2"
+tagline = "The Dusk Matriarch. Fast, fragile, drinks blood."
+rig_body = ExtResource("3_body")
+rig_profile = ExtResource("4_motion")
+portrait = ExtResource("5_portrait")
+head_region = Rect2(32, 15, 68, 68)
+stage_names = PackedStringArray("Duskling", "Night Hunter", "Dusk Matriarch")
+unlocked_by_default = false
+unlock_cost = 2500
+unlock_requires_level = 3
+opponent_after_matches = 3
+skill_tree = ExtResource("6_tree")
+tip = "She swoops onto lone heroes. Keep the pack within 300 px and burst her before Stage 3."

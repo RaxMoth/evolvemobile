@@ -17,8 +17,9 @@ extends Control
 
 const CARD := preload("res://Scenes/UI/Components/CharacterCard.tscn")
 const STAGE_CHARACTER := preload("res://Scenes/UI/Components/StageCharacter.tscn")
-## Nyxa and Gorrak are not in the roster yet: preview-only defs over their
-## built rigs and portraits, locked with the planned prices.
+## Monsters the roster does not ship yet (Gorrak): preview-only defs over
+## their built rigs and portraits, locked with the planned prices. An id the
+## roster has (Nyxa) shows its real, locked def instead.
 const LOCKED_PREVIEW: Array[Array] = [
 	["nyxa", 2500],
 	["gorrak", 3000],
@@ -55,8 +56,10 @@ func _grid_page() -> void:
 	var monsters: Array[CharacterDef] = []
 	monsters.append_array(GameManager.ROSTER.monsters)
 	for pick in LOCKED_PREVIEW:
-		monsters.append(_locked_def(pick[0], pick[1]))
-	_list.add_child(_banner("MONSTERS  %d/%d" % [GameManager.ROSTER.monsters.size(), monsters.size()], &"BannerMonster"))
+		if GameManager.ROSTER.find(StringName(pick[0])) == null:
+			monsters.append(_locked_def(pick[0], pick[1]))
+	var owned := monsters.filter(func(d: CharacterDef) -> bool: return d.unlocked_by_default).size()
+	_list.add_child(_banner("MONSTERS  %d/%d" % [owned, monsters.size()], &"BannerMonster"))
 	grid = _grid()
 	_list.add_child(grid)
 	for d in monsters:
