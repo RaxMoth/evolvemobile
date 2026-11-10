@@ -7,8 +7,9 @@ extends Node
 ## each). _ready registers the two side-wide base trees (HERO_BASE_TREE,
 ## MONSTER_BASE_TREE) and the tree of every roster character
 ## (CharacterDef.skill_tree in GameManager.ROSTER): adding a character = its
-## def + its tree. A tree whose character is not in the roster yet (Nyxa,
-## Gorrak) is not registered, so nothing can buy or apply it.
+## def + its tree (all three monsters, Grount, Nyxa and Gorrak, are in it). A
+## tree whose character is not in the roster is not registered, so nothing can
+## buy or apply it.
 ##
 ## Flow:
 ##   • UI renders each node from `node_state(tree_id, node_id)` and calls

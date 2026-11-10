@@ -1,0 +1,29 @@
+[gd_resource type="Resource" script_class="CharacterDef" format=3]
+
+[ext_resource type="Script" uid="uid://cgn88tt4e34c7" path="res://Scripts/Roster/character_def.gd" id="1_def"]
+[ext_resource type="Resource" path="res://Scenes/NPCs/Monster/Gorrak/gorrak_stats.tres" id="2_stats"]
+[ext_resource type="PackedScene" path="res://Assets/Characters/gorrak/gorrak_body.tscn" id="3_body"]
+[ext_resource type="Resource" path="res://Assets/Characters/gorrak/gorrak_motion.tres" id="4_motion"]
+[ext_resource type="Texture2D" uid="uid://cyhlcw3tbsx38" path="res://Assets/Characters/gorrak/gorrak.svg" id="5_portrait"]
+[ext_resource type="Resource" path="res://Data/SkillTrees/monster_gorrak.tres" id="6_tree"]
+
+[resource]
+script = ExtResource("1_def")
+side = 1
+scene_path = "res://Scenes/NPCs/Monster/Gorrak/Gorrak.tscn"
+stats = ExtResource("2_stats")
+role_text = "Brute · The Boar"
+role_filter = &"brute"
+accent_token = &"monster3"
+tagline = "The Boar King. Slow, armoured, stuns the pack."
+rig_body = ExtResource("3_body")
+rig_profile = ExtResource("4_motion")
+portrait = ExtResource("5_portrait")
+head_region = Rect2(48, 28, 68, 68)
+stage_names = PackedStringArray("Tusker", "Warlord", "Boar King")
+unlocked_by_default = false
+unlock_cost = 3000
+unlock_requires_level = 3
+opponent_after_matches = 6
+skill_tree = ExtResource("6_tree")
+tip = "His stomp stuns everyone close. Spread out, kite the axe, strike when his armour cracks at Stage 3."

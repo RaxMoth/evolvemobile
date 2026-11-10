@@ -106,7 +106,7 @@ func test_lobby_wiring_lives_in_its_scene() -> void:
 			for c: Dictionary in links:
 				var flags: int = c["flags"]
 				assert_true(flags & CONNECT_PERSIST != 0, "%s is wired in LobbyScreen.tscn" % character.name)
-	assert_eq(cast, GameManager.ROSTER.heroes.size() + 3, "four heroes, Grount and two teasers")
+	assert_eq(cast, GameManager.ROSTER.heroes.size() + 3, "four heroes, Grount and the two locked monsters")
 	for button: String in ["%HeroStage", "%MonsterStage", "%HeroHunt", "%MonsterHunt", "HeroRow/HeroRoster", "MonsterRow/MonsterRoster"]:
 		assert_eq((lobby.get_node(button) as BaseButton).pressed.get_connections().size(), 1, "%s is wired" % button)
 	lobby.free()
@@ -266,14 +266,12 @@ func test_lair_teasers_are_locked_and_the_cast_is_the_roster() -> void:
 	var grount := lobby.get_node("MonsterStage/Grount") as StageCharacter
 	assert_eq(grount.character, GameManager.ROSTER.find(&"grount"), "Grount is the roster's def")
 	assert_false((grount.get_node("%Lock") as CanvasItem).visible)
-	var nyxa := lobby.get_node("MonsterStage/Nyxa") as StageCharacter
-	assert_eq(nyxa.character, GameManager.ROSTER.find(&"nyxa"), "Nyxa is the roster's def")
 	for teaser: String in ["Nyxa", "Gorrak"]:
 		var character := lobby.get_node("MonsterStage/" + teaser) as StageCharacter
+		assert_eq(character.character, GameManager.ROSTER.find(StringName(teaser.to_lower())), "%s is the roster's def" % teaser)
 		assert_eq(character.character.get_display_name(), teaser)
 		assert_eq(character.character.side, CharacterDef.MONSTER)
-		assert_eq(GameManager.ROSTER.monsters.has(character.character), teaser == "Nyxa",
-				"%s: in the roster once her scene exists" % teaser)
+		assert_true(GameManager.ROSTER.monsters.has(character.character), "%s is in the roster" % teaser)
 		assert_false(CharacterProgress.is_unlocked(character.character))
 		assert_true((character.get_node("%Rig") as RigView).silhouette, "%s is a silhouette" % teaser)
 		assert_true((character.get_node("%Lock") as CanvasItem).visible, "%s wears the padlock" % teaser)

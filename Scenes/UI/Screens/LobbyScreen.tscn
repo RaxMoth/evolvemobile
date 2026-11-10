@@ -18,20 +18,8 @@
 [ext_resource type="Resource" path="res://Assets/Characters/irelia/irelia_def.tres" id="16_irelia"]
 [ext_resource type="Resource" path="res://Assets/Characters/ted/ted_def.tres" id="17_ted"]
 [ext_resource type="Resource" path="res://Assets/Characters/grount/grount_def.tres" id="18_grount"]
-[ext_resource type="Script" uid="uid://cgn88tt4e34c7" path="res://Scripts/Roster/character_def.gd" id="19_def"]
 [ext_resource type="Resource" path="res://Assets/Characters/nyxa/nyxa_def.tres" id="20_nyxa"]
-[ext_resource type="PackedScene" path="res://Assets/Characters/gorrak/gorrak_body.tscn" id="23_gorrak_body"]
-[ext_resource type="Resource" path="res://Assets/Characters/gorrak/gorrak_motion.tres" id="24_gorrak_motion"]
-[ext_resource type="Texture2D" uid="uid://cyhlcw3tbsx38" path="res://Assets/Characters/gorrak/gorrak.svg" id="25_gorrak_portrait"]
-
-[sub_resource type="Resource" id="Resource_gorrak_teaser"]
-script = ExtResource("19_def")
-side = 1
-display_name = "Gorrak"
-rig_body = ExtResource("23_gorrak_body")
-rig_profile = ExtResource("24_gorrak_motion")
-portrait = ExtResource("25_gorrak_portrait")
-unlocked_by_default = false
+[ext_resource type="Resource" path="res://Assets/Characters/gorrak/gorrak_def.tres" id="21_gorrak"]
 
 [node name="LobbyScreen" type="Control"]
 layout_mode = 3
@@ -107,7 +95,7 @@ offset_right = 354.0
 offset_bottom = 176.0
 grow_horizontal = 2
 grow_vertical = 2
-character = SubResource("Resource_gorrak_teaser")
+character = ExtResource("21_gorrak")
 flip = true
 
 [node name="Grount" parent="MonsterStage" instance=ExtResource("7_stage_character")]

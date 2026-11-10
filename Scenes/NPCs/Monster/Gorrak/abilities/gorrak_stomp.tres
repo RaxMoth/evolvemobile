@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="BullGroundSlam" format=3]
+
+[ext_resource type="Script" uid="uid://dg381s3ogg0s0" path="res://Scenes/NPCs/Monster/Grount/abilities/grount_slam.gd" id="1_slam"]
+[ext_resource type="Texture2D" path="res://Assets/UI/Icons/Abilities/gorrak_ult_warcry_stomp.svg" id="2_icon"]
+
+[resource]
+script = ExtResource("1_slam")
+jump_duration = 0.6
+jump_height = 30.0
+slam_radius = 100.0
+leap_distance = 0.0
+stun_duration = 0.6
+ability_name = "Warcry Stomp"
+ability_type = 3
+icon = ExtResource("2_icon")
+description = "Roars and stomps where he stands, stunning everything close for 0.6 s (Stage 1: 12 dmg within 100 px, Stage 2: 18 within 130, Stage 3: 22 within 160)"
+damage = 12.0
+cooldown = 18.0
+area_of_effect = 100.0
+damage_per_stage = Array[float]([12.0, 18.0, 22.0])
+cooldown_per_stage = Array[float]([18.0, 15.0, 12.0])
+aoe_per_stage = Array[float]([100.0, 130.0, 160.0])

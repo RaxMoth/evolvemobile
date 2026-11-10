@@ -11,8 +11,6 @@ extends TestCase
 const TREE_DIR := "res://Data/SkillTrees"
 const TREE_IDS: Array[StringName] = [&"hero_base", &"monster_base", &"hero_river", &"hero_vlad",
 	&"hero_ted", &"hero_irelia", &"monster_grount", &"monster_nyxa", &"monster_gorrak"]
-## Not in the roster yet (Gorrak joins in Phase 6): generated, not registered.
-const UNLINKED: Array[StringName] = [&"monster_gorrak"]
 ## The throwaway tree of the hidden-node tests (_register_hidden_tree).
 const HIDDEN_TREE := &"test_hidden_nodes"
 const TED := "res://Scenes/NPCs/Hero/Heros/Support/Ted/Ted.tscn"
@@ -264,8 +262,7 @@ func test_the_roster_links_its_trees_and_the_manager_registers_them() -> void:
 	for id: StringName in [MetaSkillManager.TREE_HERO_BASE, MetaSkillManager.TREE_MONSTER_BASE]:
 		assert_eq(MetaSkillManager.get_tree_def(id).resource_path, "%s/%s.tres" % [TREE_DIR, id])
 	for id in TREE_IDS:
-		var registered := MetaSkillManager.get_tree_def(id) != null
-		assert_eq(registered, not UNLINKED.has(id), "%s registered: only the roster's trees and the base trees" % id)
+		assert_true(MetaSkillManager.get_tree_def(id) != null, "%s registered: every character tree is a roster def's" % id)
 		assert_true(_load_tree(id) != null, "%s is generated" % id)
 
 
@@ -285,10 +282,6 @@ func test_every_ability_node_targets_its_characters_kit() -> void:
 			assert_true(kit.has(n.ability_name), "%s/%s targets '%s'; the kit has %s" % [t.id, n.id, n.ability_name, kit.keys()])
 			if kit.has(n.ability_name) and not n.hidden:
 				assert_true(n.stat_name in kit[n.ability_name], "%s/%s: %s has a property %s" % [t.id, n.id, n.ability_name, n.stat_name])
-	for id in UNLINKED:
-		# Their kits (Cleaver Chop, Tusk Axe, ...) arrive with Phase 6.
-		for n in _load_tree(id).nodes:
-			assert_true(n.is_ability_node() or n.stat_name.begins_with("monster_"), "%s/%s" % [id, n.id])
 
 
 func test_ai_build_orders_are_valid() -> void:

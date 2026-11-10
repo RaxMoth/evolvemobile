@@ -22,7 +22,7 @@ const PALETTE_JSON := "res://tools/art/palette.json"
 const GROUP_COUNTS: Dictionary[String, int] = {
 	"Kit": 65,
 	"Crests": 2,
-	"Icons/Abilities": 28,
+	"Icons/Abilities": 29,
 	"Icons/Currency": 4,
 	"Icons/Stats": 16,
 	"Icons/Roles": 9,
@@ -40,7 +40,7 @@ const ABILITY_ICONS: Array[String] = [
 	"river_ult_supply_drop",
 	"grount_front_cleave", "grount_ram_dash", "grount_ground_slam", "grount_passive_evolution",
 	"nyxa_basic_sonic_screech", "nyxa_active_shadow_swoop", "nyxa_ult_night_swarm", "nyxa_passive_blood_drinker",
-	"gorrak_basic_cleaver_chop", "gorrak_active_tusk_axe", "gorrak_ult_warcry_stomp",
+	"gorrak_basic_cleaver_chop", "gorrak_active_tusk_axe", "gorrak_ult_warcry_stomp", "gorrak_passive_bristled_hide",
 ]
 
 

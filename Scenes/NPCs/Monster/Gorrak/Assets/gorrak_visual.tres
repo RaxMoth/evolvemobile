@@ -1,0 +1,6 @@
+[gd_resource type="Resource" script_class="MonsterVisualConfig" format=3]
+
+[ext_resource type="Script" uid="uid://8f2haeo87pmo" path="res://Scenes/NPCs/Monster/monster_visual_config.gd" id="1_visual"]
+
+[resource]
+script = ExtResource("1_visual")

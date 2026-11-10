@@ -282,6 +282,60 @@ per-stage table, so the stage damage multiplier never applies to her.
 
 ---
 
+## 🐗 Monster: Gorrak (the Boar King)
+
+A slow, armoured brawler: wide chops, a ranged returning axe and an in-place
+stomp that stuns the pack. He never flees with his axe. His scene
+`Scenes/NPCs/Monster/Gorrak/Gorrak.tscn` inherits `monster_base_class.tscn`
+with the boar-king rig (`gorrak_body`, QUADRUPED); his numbers are the
+gamedesign's final config (v6), except Stage 3 HP, retuned 1600 → 1500 in 6.5
+(see Balance). Not owned by default: 3,000 Leaves once any owned monster is
+Lv.3 (the unlock flow is Phase 6.7), and the Heroes side meets him after 6
+hunts (`opponent_after_matches`).
+
+| Attribute        | Stage 1 (Tusker) | Stage 2 (Warlord)   | Stage 3 (Boar King)  |
+| ---------------- | ---------------- | ------------------- | -------------------- |
+| **HP**           | 1100             | 1450 (heals to full) | 1500 (heals to full) |
+| **Damage taken** | × 0.85           | × 0.90              | × 1.00               |
+| **Speed**        | 56               | 64                  | 74                   |
+| **Scale**        | 1.0              | 1.15                | 1.3                  |
+| **Strafe**       | 40 px/s, 2.5 s   | 50, 2.0 s           | 60, 1.5 s            |
+| **XP Required**  | Start            | 150 XP              | 500 XP               |
+
+Reach 85 (`base_attack_range`), he keeps 50 px (`preferred_distance` on the
+scene root; min 20) and leaves Fight past 110 px. Every ability has a
+per-stage table, so the stage damage multiplier never applies to him.
+
+- **Bristled Hide** (passive slot, his armour): every hit on him lands × 0.85
+  at Stage 1 and × 0.90 at Stage 2 (`MonsterStats.damage_taken_mult_per_stage`,
+  after the tree's damage-taken nodes); at Stage 3 the armour is gone.
+- **Cleaver Chop** (ability 1, `BullFrontCleave`): an 85 px cone of
+  70 / 80 / 90°, 14 / 18 / 18 damage every 2.8 / 2.6 / 2.2 s.
+- **Tusk Axe** (ability 2, ACTIVE, `thrown_axe.gd`): a spinning axe thrown at
+  a hero 110–260 px away (`dash_min_range` 110 to its 260 px reach, from
+  Approach, aimed at the hero). It flies out at 520 px/s and hits every
+  target within 28 px of it once; a wall (the edge of the navigation mesh,
+  `GameUtils.clamp_to_nav_segment`) stops it early. With `returns` it then
+  flies back to his hand and can hit each target once more: 10 / 14 / 18
+  damage a hit, every 7 / 6 / 5 s. It cannot be thrown again while it flies,
+  and it ends with him. `stun_duration`
+  (0 = off) is for the tree's Concussive Axe. No node and no timer: a point
+  that MonsterBase steps through `tick_active` on his own copy, one overlap
+  query per frame while it flies (about 1 s of every 5–7 s). The VfxManager
+  draws it spinning (see Combat Visuals); F3 shows `axe in hand` /
+  `axe! flying out` / `axe! flying back`. `escape_with_ability_2` is false:
+  he never throws it away from the heroes as an escape.
+- **Warcry Stomp** (ability 3, ULTIMATE, `BullGroundSlam` with
+  `leap_distance` 0): his from Stage 1. A 0.6 s hop in place (30 px), then
+  12 / 18 / 22 damage within 100 / 130 / 160 px, every 18 / 15 / 12 s, and a
+  0.6 s stun on everything it hits. Its cast centre is Gorrak, so the combo
+  stomps when 2 targets (`slam_min_targets`) stand around him.
+- **AI**: see Monster AI → Gorrak (late retreat, only with 3 heroes on him).
+- **Counterplay** (his def's tip): his stomp stuns everyone close. Spread out,
+  kite the axe, strike when his armour cracks at Stage 3.
+
+---
+
 ## 🗺️ Map Design - "Primal Jungle" (9200x5185)
 
 ### Zone Layout
@@ -428,6 +482,21 @@ since 6.2). A timeout is a monster win at the 10-minute clock.
   her at Stage 1 (7 of 48) the heroes win all; at Stage 3 (24 of 48) they
   win 75–79 %. Accepted as her trait: she evades.
 
+| Gorrak | Heroes side | Monster side | Timeouts (H / M) | Median Stage 3 | Median first contact |
+| ------ | ----------- | ------------ | ---------------- | -------------- | -------------------- |
+| gamedesign config v6, Stage 3 HP 1600 (24 seeds in the design: 42 %) | 38 % | 50 % | 5 / 5 | 346 s / 347 s | 448 s / 456 s |
+| 6.5: Stage 3 HP 1600 → 1500 | **42 %** | **52 %** | 5 / 5 | 346 s / 347 s | 448 s / 456 s |
+
+- The design tuned him against the old Grount framework (17 % for Grount
+  then). Against today's heroes (Trap Cage traps, 6.3) config v6 came out
+  at 38 % on the heroes side, below the target, so Stage 3 HP went 1600 →
+  1500 (the design's h5 value; still above Stage 2's 1450). Also tried:
+  1550 (38 % / 51 %) and 1500 with the Stage 3 axe at 16 (42 % / 50 %).
+- Nearly every match is decided at Stage 3: the first contact falls at
+  Stage 1 in 6 of 48 matches (the heroes win 4) and at Stage 3 in 37–38,
+  where the heroes win 42 % (heroes side) and 57 % (monster side). The 4–5
+  matches without a contact are timeouts.
+
 ---
 
 ## 🎨 Visual Systems
@@ -499,15 +568,16 @@ dangerous (`monster` #C2334A, `monster_purple` #7B3F95).
       the square tiles of the ranked tree screen), toggles, padlock,
       notification dot, leaf and vine ornaments, the background tile. 9-slice
       margins live in `kit.MARGINS`.
-    - `Icons/` (80, 64x64): `Abilities/` (28, `<owner>_<slot>_<ability>`:
+    - `Icons/` (81, 64x64): `Abilities/` (29, `<owner>_<slot>_<ability>`:
       a full-bleed tile in the owner's tone that the slot frame sits on;
-      every hero and Grount ability, River's two basic modes, and Nyxa's
-      (her Blood Drinker passive included) and Gorrak's abilities on the
-      `monster2` / `monster3` tiles), `Currency/`
+      every hero and Grount ability, River's two basic modes, and Nyxa's and
+      Gorrak's (their Blood Drinker and Bristled Hide passives included) on
+      the `monster2` / `monster3` tiles), `Currency/`
       (gold, steel, leaves, upgrade point), `Stats/` (16), `Roles/` (9 filter
       silhouettes), `Nav/` (6) and `UI/` (17 glyphs; `ui_skull` marks a
       fallen hero and the HUD's kill count).
-    - Every ability `.tres` (the 16 hero abilities and Grount's three) sets
+    - Every ability `.tres` (the 16 hero abilities and the three monsters'
+      kits) sets
       its `icon` to its tile; no ability shows the old `Icon.jpg`
       placeholder. River's basic attack also has `heal_icon`
       (`river_basic_heal`) next to `icon` (`river_basic_sniper`).
@@ -590,8 +660,7 @@ dangerous (`monster` #C2334A, `monster_purple` #7B3F95).
 Characters are moving from the pixel `AnimatedSprite2D` frames to chunky chibi
 SVG cut-out rigs. The runtime, the builder and the art of all ten characters
 are in place. Every character in the match draws its rig: the four heroes,
-Ted's fox, Grount (all three stages), Nyxa and the Bat and Hog mobs. Gorrak
-has his art but no scene yet.
+Ted's fox, Grount (all three stages), Nyxa, Gorrak and the Bat and Hog mobs.
 
 - **Source** (`Assets/Characters/<id>/src/`, ignored by Godot through
   `.gdignore`): `rig_src.json` (canvas 128x160, baseline 150, optional
@@ -702,17 +771,19 @@ has his art but no scene yet.
       runs for a monster scene without a rig body. The stage ring pulse
       (`enable_stage_effects`) plays either way.
 - **Migrated scenes** (Irelia, Vlad, Ted, River, `TedsPet.tscn`, Grount, Bat
-  and Hog; Nyxa was built on her rig): the `AnimatedSprite2D` is hidden and
-  its dead SpriteFrames deleted (Nyxa never had any); the hidden facing
+  and Hog; Nyxa and Gorrak were built on their rigs): the `AnimatedSprite2D`
+  is hidden and its dead SpriteFrames deleted (Nyxa and Gorrak never had
+  any); the hidden facing
   `Sprite2D` stays as it was (gameplay keeps rotating it); the `Rig` sets
   `body` (through the scene's `node_paths`, so the export resolves at
-  instantiation), `profile` and `tier` (FULL for the heroes, the fox, Grount
-  and Nyxa; the mobs keep the default BUDGETED), with
+  instantiation), `profile` and `tier` (FULL for the heroes, the fox and the
+  three monsters; the mobs keep the default BUDGETED), with
   `<Id>Body` (the instanced `<id>_body.tscn`) under it. No existing node is
   reordered and World.tscn's node order and y-sort are untouched (it only
   gained the ground grade, see Ground Style), so the match and its trace are
-  unchanged. Grount keeps `grount_visual.tres` for its stage ring pulse; Nyxa's
-  `nyxa_visual.tres` holds no frames, only that switch.
+  unchanged. Grount keeps `grount_visual.tres` for its stage ring pulse;
+  Nyxa's `nyxa_visual.tres` and Gorrak's `gorrak_visual.tres` hold no frames,
+  only that switch.
     - The rig's origin is the character's feet at the entity's position (the
       old sprites were centred on it), so the entity's y-sort now orders by
       the feet.
@@ -723,7 +794,8 @@ has his art but no scene yet.
       y = -68 (Irelia), -64 (Vlad), -59 (Ted) and -70 (River); the fox's bar
       (an HpBar2D like every entity's, 20x4) sits at -44..-40; Grount's
       `Hud` is at -101, Nyxa's at -100 (a flyer: art top 138 + hover 8.1 at
-      0.6), the Hog's at -45 and the Bat's at -48. Each clears
+      0.6), Gorrak's at -90 (art 130 at 0.6), the Hog's at -45 and the Bat's
+      at -48. Each clears
       the character's tallest pose (largest size, breathing in, top of the
       walk bounce or hover). A monster's `Hud` is a
       child of the growing root: its position grows with the stage scale
@@ -735,8 +807,8 @@ has his art but no scene yet.
       the heroes and the mobs. Grount's is sized from its bounds:
       Rect2(-58, -114, 116, 118) also covers Ground Slam's 1.2x hop of the
       rig, and it grows with the stage scale like the rig. Nyxa's,
-      Rect2(-58, -112, 116, 112), covers her hovering body with the same
-      1.2x margin.
+      Rect2(-58, -112, 116, 112), covers her hovering body and Gorrak's,
+      Rect2(-58, -100, 116, 104), his stomp's hop, with the same 1.2x margin.
     - Ted's pet is a CharacterBody2D, not an EntityBase, so its `Rig` sets
       `mover = ".."` and the scene provides what an EntityBase has: its hidden
       facing carrier "Sprite2D" (the pet aims it along its path), a unique
@@ -754,7 +826,7 @@ has his art but no scene yet.
   migrated scenes: their own body, profile and tier, the hidden sprite without
   frames, the HP bar rule (at every monster stage), the notifier covering the
   drawn body, the ink contact shadow (wiring, tint, size from the body's
-  width, under the body, on the ground while the bat hovers), real heroes, the fox, Grount, Nyxa and the mobs
+  width, under the body, on the ground while the bat hovers), real heroes, the fox, Grount, Nyxa, Gorrak and the mobs
   walking (the bat and Nyxa flapping), facing and flinching in a match (the fox
   through `mover`), Grount's parts and flash through stages 1 to 3, the mob half rate over the
   budget, a pooled mob's rig starting its next life clean, and the F3 line. `RIGS_AWAKE=1 tools/sim_trace.sh`
@@ -945,7 +1017,8 @@ drifted from the real cooldown under attack-speed boosts and pauses).
 `VfxManager` (`Scripts/Vfx/vfx_manager.gd`) is the match's hit feedback: a
 `Vfx` node of `World.tscn` in group `vfx` (not an autoload, so it lives and
 dies with the match; `camera` wired to `MainCam` scene-side). Its hooks are
-`EventBus.damage_applied` and `EventBus.ability_cast` (the swarm ring below),
+`EventBus.damage_applied` and `EventBus.ability_cast` (the swarm ring and the
+thrown axe below),
 connected in `_ready` (an autoload cannot be the source of a scene
 `[connection]`). For every packet that lands in the camera view (grown by
 64 px):
@@ -987,9 +1060,17 @@ connected in `_ready` (an autoload cannot be the source of a scene
   in and out over 0.25 s. They follow Nyxa every frame and hide (kept) when
   the swarm ends or she is gone. It only READS the ability (`is_active`,
   `time_left`, `area_of_effect`, `tick_interval`).
+- **Thrown axe** (minimal; the full look is Phase 7): a cast that throws
+  Gorrak's Tusk Axe takes one of 2 pooled slots (the caster's own slot, else
+  round robin). While the axe flies, `_draw` draws `fx_axe.svg` (ivory tusk
+  blade, wood haft, the `monster3` grip; drawn in its own colours, untinted,
+  44 world px, `axe_size`) at the ability's `axe_position`, spinning 2.5 turns
+  a second (`axe_turns_per_second`), clockwise when thrown to the right. The
+  slot frees once the axe is back in his hand or he is gone. It only READS
+  the ability (`is_flying`, `axe_position`, `direction`).
 
 Budget (the anim prototype measured 23 ms frames at p95): fixed pools of 64
-sprites (`FxSpriteBuffer`), 32 numbers, 4 telegraphs and 2 swarms, where a full pool
+sprites (`FxSpriteBuffer`), 32 numbers, 4 telegraphs, 2 swarms and 2 axes, where a full pool
 recycles its oldest entry; at most 8 hits a frame spawn sprites (the rest still
 count in the numbers) and 2 kills a frame spawn puffs; nothing is allocated
 per frame. Every random draw uses its private RNG and it never writes gameplay
@@ -1053,6 +1134,12 @@ transformation effects, death animations.
   close and swoops away from a hero within 140 px; ambushes (Stage 2) only a hero alone
   within 280 px; Shadow Swoop gap-closes from 120 px when Sonic Screech is ready within
   0.8 s; Night Swarm whenever it bites at least one target around her
+- **Gorrak** (`Scenes/NPCs/Monster/Gorrak/gorrak_strategy.tres`): aware of heroes within
+  350 px, cornered within 90; farms like Grount (60 / 150 / 1000); rests below 40% HP up to
+  75% at 0.8%/s; retreats (Stage ≤ 2) only below 25% HP with 3+ heroes close, and never
+  throws the axe as an escape (`escape_with_ability_2` false); throws the Tusk Axe from
+  Approach at a hero 110–260 px away whenever it is ready (`dash_cleave_window` 99);
+  Warcry Stomp when it hits 2+ targets around him
 
 **Planned Improvements**:
 
@@ -1197,15 +1284,19 @@ one new ability script. Every default is Grount's old behaviour:
 - **Passive slot**: every monster scene sets `passive_ability`. Grount's is
   Evolution (`grount_evolution.tres`, a plain PASSIVE `AbilityBase` with the
   kit's evolution icon and the stage rules as its description), Nyxa's is
-  Blood Drinker (`nyxa_blood_drinker.tres`: her lifesteal and stage rules):
-  the HUD's passive slot and the character screen show it; the evolution and
-  the lifesteal themselves are MonsterBase's and `deal()`'s.
+  Blood Drinker (`nyxa_blood_drinker.tres`: her lifesteal and stage rules),
+  Gorrak's Bristled Hide (`gorrak_bristled_hide.tres`: his armour and stage
+  rules): the HUD's passive slot and the character screen show it; the
+  evolution, the lifesteal and the armour themselves are MonsterBase's,
+  `deal()`'s and MonsterStats'.
 - **F3** (`MonsterBase.debug_meta_line`): `<name> [<monster id>] S<stage> HP
   ... nodes: ...`, then after ` | ` the live state each ability reports
   through `AbilityBase.debug_tag()` ("" = nothing; Night Swarm: `swarm! 2.4 s
-  left` / `swarm off`). Grount's abilities report none, so his line ends at
+  left` / `swarm off`; Tusk Axe: `axe in hand` / `axe! flying out` /
+  `axe! flying back`). Grount's abilities report none, so his line ends at
   the nodes.
-- Checks: `test/test_monster_framework.gd`, `test/test_nyxa.gd`.
+- Checks: `test/test_monster_framework.gd`, `test/test_nyxa.gd`,
+  `test/test_gorrak.gd`.
 
 ### Character Roster (Roster, CharacterDef, MonsterSlot)
 
@@ -1214,8 +1305,8 @@ sim tools and the save, without instancing a character scene (instancing an
 entity registers it and draws from the global RNG).
 
 - **`Scenes/NPCs/roster.tres`** (`Roster`, `Scripts/Roster/roster.gd`) lists
-  the heroes (Irelia, Vlad, Ted, River) and the monsters (Grount, Nyxa) in
-  menu order, plus `default_monster_id` (`grount`). GameManager preloads it as
+  the heroes (Irelia, Vlad, Ted, River) and the monsters (Grount, Nyxa,
+  Gorrak) in menu order, plus `default_monster_id` (`grount`). GameManager preloads it as
   `GameManager.ROSTER`. `find(id)`, `hero_ids()`, `monster_ids()`, and
   `resolve_monster(id)`, which falls back to the default and then to the first
   monster, so a stale save or sim argument never breaks a match.
@@ -1233,11 +1324,13 @@ entity registers it and draws from the global RNG).
     `portrait` (DPITexture) and `head_region`, the head crop in portrait units
     (128x160) that `head_texture()` turns into an AtlasTexture for HUD heads.
   - monsters: `stage_names` (Grount: Bullcalf, Rampager, Alpha Bull; Nyxa:
-    Duskling, Night Hunter, Dusk Matriarch), `opponent_after_matches`
-    (Heroes-side quarry pool: Grount 0, Nyxa 3), `unlock_requires_level`
-    (Nyxa 3), and `tip`, the counterplay hint for the heroes.
-  - progression: `unlocked_by_default` (false for Nyxa), `unlock_cost` (in
-    `currency()`: Steel for heroes, Leaves for monsters; Nyxa 2,500) and
+    Duskling, Night Hunter, Dusk Matriarch; Gorrak: Tusker, Warlord, Boar
+    King), `opponent_after_matches` (Heroes-side quarry pool: Grount 0, Nyxa
+    3, Gorrak 6), `unlock_requires_level` (Nyxa and Gorrak 3), and `tip`, the
+    counterplay hint for the heroes.
+  - progression: `unlocked_by_default` (false for Nyxa and Gorrak),
+    `unlock_cost` (in `currency()`: Steel for heroes, Leaves for monsters;
+    Nyxa 2,500, Gorrak 3,000) and
     `skill_tree`, the character's
     `Data/SkillTrees/<side>_<id>.tres` (its id is `skill_tree_id()`).
     MetaSkillManager registers the tree of every roster def at startup, so a
@@ -1271,8 +1364,7 @@ entity registers it and draws from the global RNG).
   slot) and strategy; its
   `Assets/Characters/<id>/` rig (`src/` + `tools/build_rigs.sh`); a
   `<id>_def.tres` added to `roster.tres`; its `Data/SkillTrees/monster_<id>.tres`
-  linked from the def's `skill_tree` (Gorrak's is generated and waits for his
-  def); and its trace baseline, recorded with
+  linked from the def's `skill_tree`; and its trace baseline, recorded with
   `MONSTER=all RECORD_DIR=tools/baselines tools/sim_trace.sh` (`test_sim_tools`
   fails while a roster monster has none).
 
@@ -1419,7 +1511,7 @@ button until the Phase 8 screens retire it.
       lobby (back returns home; tabs do not stack up), or, when it is already
       on the stack, the screens above it slide away (`pop_to`). A character's
       detail is pushed over the screen that asked. Locked characters (Nyxa
-      until she is bought, the lair's Gorrak teaser) open nothing yet.
+      and Gorrak until they are bought) open nothing yet.
     - Purchases: a detail's `upgrade_requested(tree_id, node_id)` →
       `MetaSkillManager.rank_up` (the next rank; the shop decides: gates,
       price), and `equip_requested(tree_id, node_id)` →
@@ -1442,10 +1534,9 @@ button until the Phase 8 screens retire it.
       live `StageCharacter` rigs around the fire, the right pair facing inward.
     - Monster stage (y 616 down to the nav bar): the fanged lair
       (`lobby_monsters.svg`) with Grount large in the middle. Nyxa and Gorrak
-      stand beside him as padlocked silhouettes: Nyxa is her roster def
-      (`nyxa_def.tres`, wired scene-side, locked until bought), Gorrak, not
-      playable yet, a scene-local locked `CharacterDef` over his built rig,
-      outside the roster.
+      stand beside him as padlocked silhouettes: their roster defs
+      (`nyxa_def.tres`, `gorrak_def.tres`, wired scene-side, locked until
+      bought).
     - Between them the HEROES and MONSTERS plaques, each side's HUNT button
       (`ButtonPrimary` / `ButtonMonster`) and the VS badge (`vs_badge.svg`).
     - Tapping a stage chooses that side in place: the other stage tweens to
@@ -1618,7 +1709,7 @@ Every tool copies the project to a temp directory with its own `user://`
 - **Per-monster trace baselines**: `tools/baselines/trace_<id>.txt` is
   `MONSTER=<id> tools/sim_trace.sh` with the default arguments, for the
   committed tree (Grount's is the roster-default trace, byte for byte;
-  Nyxa's was recorded in the commit that added her).
+  Nyxa's and Gorrak's were recorded in the commits that added them).
   - check every monster: `MONSTER=all BASELINE_DIR=tools/baselines tools/sim_trace.sh > trace.txt`
     (exit 1 on a difference or a missing baseline);
   - re-record: `MONSTER=all RECORD_DIR=tools/baselines tools/sim_trace.sh > /dev/null`
@@ -1911,8 +2002,8 @@ from the design's seed data, `Scripts/MetaSkills/skill_tree_data_v2.gd`
 in the inspector (the tool keeps an existing file unless `--force`).
 `MetaSkillManager._ready` registers `hero_base` and `monster_base`
 (`HERO_BASE_TREE`, `MONSTER_BASE_TREE`) and every roster def's `skill_tree`
-(`monster_nyxa` since Nyxa joined the roster); `monster_gorrak` is generated
-but waits for his def.
+(`monster_nyxa` and `monster_gorrak` since Nyxa and Gorrak joined the
+roster).
 
 - **Shape:** 3 branches (offense / defense / utility) x 4 tiers. Tier-1 stat
   nodes have 5 ranks, most others 3, behaviour nodes and capstones 1. Values
@@ -2029,11 +2120,13 @@ code yet (every hero node has its code since 5.4; 6.6: monster behaviours):
   duration) or a generic key (Dusk Hide, Night Recovery, Silent Wings, Fast
   Maturity, Piercing Shriek); Vampiric Rebirth, Echo Strike and Brood Mother
   stay **[hidden]** until their code (6.6).
-- **monster_gorrak** (Tusks / Bristles / Warband): generated with the
-  gamedesign values, registered with his def in Phase 6. Its generic-key nodes
-  (Mud Armour, Mud Bath) and the cone node (Wide Arc: the shared
-  `BullFrontCleave` keeps `cone_angle` modifiers) are already shown; its other
-  new-code nodes stay hidden.
+- **monster_gorrak** (Tusks / Bristles / Warband): registered with his def.
+  Every node but the three capstones acts on his own ability copies (Wide
+  Arc: Cleaver Chop's cone; Honed Tusks, Concussive Axe: the Tusk Axe's damage
+  and stun; Earthshaker, Ringing Ears: Warcry Stomp's radius and stun) or a
+  generic key (Heavy Cleaver, Thick Bristles, Mud Armour, Mud Bath, Long
+  March, King's Hunger); Whirlwind, Unstoppable and Call of the Herd stay
+  **[hidden]** until their code (6.6).
 
 **Permanent XP** (per hero and per monster) opens a character tree's tiers:
 Lv 3, 5 and 8 take about 2, 7 and 19 matches with that character.
@@ -2113,6 +2206,7 @@ Max out hero trees → Unlock new heroes → Compete on leaderboards
 - [x] 4 unique heroes with abilities
 - [x] Grount monster with 3-stage evolution
 - [x] Nyxa, the Dusk Matriarch: a second monster (lifesteal skirmisher, Night Swarm aura), in the roster and the sim tools; locked (unlock flow and opponent choice come in 6.7)
+- [x] Gorrak, the Boar King: a third monster (armoured brawler, returning Tusk Axe, stunning Warcry Stomp), in the roster and the sim tools; locked (unlock flow and opponent choice come in 6.7)
 - [x] XP and leveling systems (in-round)
 - [x] Asymmetric power curve
 

@@ -1,7 +1,7 @@
 extends TestCase
 
 ## The character scenes migrated to their SVG rigs (the four heroes, Ted's
-## pet, Grount and Nyxa, and the Bat and Hog mobs): each Rig carries the character's own
+## pet, Grount, Nyxa and Gorrak, and the Bat and Hog mobs): each Rig carries the character's own
 ## generated body and motion profile, tier FULL for heroes, the pet and the
 ## monster, BUDGETED for mobs; the pixel AnimatedSprite2D is hidden with its
 ## dead SpriteFrames gone while the facing carrier stays; the HP bar sits just
@@ -22,6 +22,7 @@ const HEROES: Dictionary[String, String] = {
 const MONSTERS: Dictionary[String, String] = {
 	"grount": "res://Scenes/NPCs/Monster/Grount/Grount.tscn",
 	"nyxa": "res://Scenes/NPCs/Monster/Nyxa/Nyxa.tscn",
+	"gorrak": "res://Scenes/NPCs/Monster/Gorrak/Gorrak.tscn",
 }
 const MOBS: Dictionary[String, String] = {
 	"bat": "res://Scenes/NPCs/Mob/Mobs/Bat/Bat.tscn",
@@ -197,8 +198,9 @@ func test_monster_hp_bar_clears_the_head_at_every_stage() -> void:
 const SHADOW_RADII: Dictionary[String, float] = {
 	"irelia": 14.0, "river": 14.0, "ted": 14.0, "vlad": 14.0,
 	"grount": 24.0, "bat": 9.0, "hog": 14.0, PET_ID: 10.0,
-	# Nyxa was built on her rig: the derived 132 x 0.6 x 0.21.
-	"nyxa": 16.6,
+	# Nyxa and Gorrak were built on their rigs: the derived 132 x 0.6 x 0.21
+	# and 109 x 0.6 x 0.36.
+	"nyxa": 16.6, "gorrak": 23.5,
 }
 ## River's body is the narrowest hero's: 13.4 px.
 const SHADOW_TOLERANCE := 0.7

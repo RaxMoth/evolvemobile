@@ -8,8 +8,10 @@ extends Node2D
 ## or takes a heavy hit. telegraph() draws the ground warning of an ability
 ## that winds up (pooled RingPulse rings), and a running Night Swarm shows as a
 ## pooled ground ring that follows its caster at the swarm's radius, with a
-## bite ring sweeping out once per bite (_on_ability_cast, _step_swarms). The
-## per-ability looks come later (AbilityFxRecipe, Phase 7).
+## bite ring sweeping out once per bite (_on_ability_cast, _step_swarms). A
+## thrown Tusk Axe shows as a pooled spinning axe sprite (fx_axe.svg) at the
+## ability's axe_position while it flies (_step_axes). The per-ability looks
+## come later (AbilityFxRecipe, Phase 7).
 ##
 ## A node of World.tscn (group "vfx", `camera` wired there), not an autoload:
 ## it lives and dies with the match. It sits right after the ground layers, so
@@ -23,15 +25,16 @@ extends Node2D
 ##
 ## Budget (the anim prototype measured 23 ms frames at p95): fixed pools
 ## (SPRITE_CAP sprites, NUMBER_CAP numbers, TELEGRAPH_CAP telegraphs,
-## SWARM_CAP swarms; a full pool recycles its oldest entry), hits outside the
-## camera view are skipped, at most MAX_HITS_PER_FRAME hits per frame spawn
-## sprites, hits on one target within MERGE_WINDOW add up in one number and a
-## target shows at most NUMBERS_PER_TARGET numbers. Nothing is allocated per frame. The F3 overlay
-## shows the pools (debug_line()).
+## SWARM_CAP swarms, AXE_CAP axes; a full pool recycles its oldest entry),
+## hits outside the camera view are skipped, at most MAX_HITS_PER_FRAME hits
+## per frame spawn sprites, hits on one target within MERGE_WINDOW add up in
+## one number and a target shows at most NUMBERS_PER_TARGET numbers. Nothing is
+## allocated per frame. The F3 overlay shows the pools (debug_line()).
 ##
 ## DETERMINISM (tools/sim_trace.sh stays byte-identical): it never writes
-## gameplay state (a swarm is only READ: is_active, time_left, the radius) and
-## draws every random number from its private `_rng`.
+## gameplay state (a swarm and an axe are only READ: is_active, time_left,
+## the radius; is_flying, axe_position, direction) and draws every random
+## number from its private `_rng`.
 
 const SPRITE_CAP: int = 64
 const NUMBER_CAP: int = 32
@@ -47,6 +50,8 @@ const SWARM_ALPHA: float = 0.55
 const SWARM_FADE: float = 0.25
 ## The bite ring sweeps from this share of the swarm's radius out to it.
 const SWARM_BITE_FROM: float = 0.55
+## Thrown axes shown at once (one per monster; a second covers a quick rethrow).
+const AXE_CAP: int = 2
 ## Hits past this in one frame still count in the numbers but spawn no sprites.
 const MAX_HITS_PER_FRAME: int = 8
 const MAX_KILLS_PER_FRAME: int = 2
@@ -94,6 +99,12 @@ const MAX_DIGITS: int = 9
 @export_group("Swarm ring")
 ## Line width (world px) of a swarm's rings at any radius (at most 3).
 @export_range(0.5, 3.0) var swarm_width: float = 3.0
+
+@export_group("Thrown axe")
+## World px of the spinning axe along its longest side.
+@export var axe_size: float = 44.0
+## Turns per second of the spinning axe (clockwise thrown right, else counter).
+@export var axe_turns_per_second: float = 2.5
 
 ## The impact stars, sparks and puffs.
 var sprites := FxSpriteBuffer.new(SPRITE_CAP)
@@ -147,6 +158,15 @@ var _s_bite: Array[RingPulse] = []
 var _s_next: int = 0
 var _swarms_live: int = 0
 
+# Axes: per slot the flying ability (null = free), its caster's instance id
+# and the sprite's spin angle. Drawn in _draw at the ability's axe_position.
+var _a_ability: Array[ThrownAxe] = []
+var _a_caster := PackedInt64Array()
+var _a_angle := PackedFloat32Array()
+var _a_spin := PackedFloat32Array()
+var _a_next: int = 0
+var _axes_live: int = 0
+
 # Palette colours (UiPalette), read once.
 var _c_number: Color
 var _c_number_big: Color
@@ -190,6 +210,10 @@ func _ready() -> void:
 	for i in SWARM_CAP:
 		_s_outline.append(_make_ring(_swarm_layer, swarm_width))
 		_s_bite.append(_make_ring(_swarm_layer, swarm_width))
+	_a_ability.resize(AXE_CAP)
+	_a_caster.resize(AXE_CAP)
+	_a_angle.resize(AXE_CAP)
+	_a_spin.resize(AXE_CAP)
 	if GameManager.chosen_side == MatchRewards.Side.MONSTER:
 		_player_group = &"Monster"
 	_update_view()
@@ -373,13 +397,22 @@ func _step_telegraphs(delta: float) -> void:
 # Night Swarm ring (minimal; the full look is Phase 7)
 # ============================================
 
-## A cast that starts a Night Swarm takes a swarm slot: its caster's slot if
-## it has one (a recast), else the next one round robin (a full pool recycles
-## the oldest). Everything after reads the ability's own copy.
+## A cast that starts a Night Swarm takes a swarm slot, a thrown Tusk Axe an
+## axe slot (_start_axe). Everything after reads the ability's own copy.
 func _on_ability_cast(caster: Node, ability: AbilityBase, _target: Node) -> void:
-	var swarm := ability as NightSwarm
 	var c := caster as Node2D
-	if swarm == null or c == null or not swarm.is_active():
+	if c == null:
+		return
+	if ability is NightSwarm:
+		_start_swarm(c, ability as NightSwarm)
+	elif ability is ThrownAxe:
+		_start_axe(c, ability as ThrownAxe)
+
+
+## The swarm takes its caster's slot if it has one (a recast), else the next
+## one round robin (a full pool recycles the oldest).
+func _start_swarm(c: Node2D, swarm: NightSwarm) -> void:
+	if not swarm.is_active():
 		return
 	var id: int = c.get_instance_id()
 	var slot: int = -1
@@ -442,6 +475,63 @@ func _free_swarm(i: int) -> void:
 
 
 # ============================================
+# Thrown axe (minimal; the full look is Phase 7)
+# ============================================
+
+## A thrown axe takes its caster's slot if it has one, else the next one round
+## robin (a full pool recycles the oldest). It spins clockwise when thrown to
+## the right, counter-clockwise to the left.
+func _start_axe(c: Node2D, axe: ThrownAxe) -> void:
+	if not axe.is_flying():
+		return
+	var id: int = c.get_instance_id()
+	var slot: int = -1
+	for i in AXE_CAP:
+		if _a_ability[i] != null and _a_caster[i] == id:
+			slot = i
+	if slot < 0:
+		slot = _a_next
+		_a_next = (_a_next + 1) % AXE_CAP
+	if _a_ability[slot] == null:
+		_axes_live += 1
+	_a_ability[slot] = axe
+	_a_caster[slot] = id
+	_a_angle[slot] = axe.direction().angle()
+	_a_spin[slot] = TAU * axe_turns_per_second * (1.0 if axe.direction().x >= 0.0 else -1.0)
+
+
+## Spins every flying axe; one that landed back in the hand or lost its
+## caster frees its slot.
+func _step_axes(delta: float) -> void:
+	if _axes_live == 0:
+		return
+	for i in AXE_CAP:
+		var axe: ThrownAxe = _a_ability[i]
+		if axe == null:
+			continue
+		var c := instance_from_id(_a_caster[i]) as Node2D
+		if c == null or not c.is_inside_tree() or not axe.is_flying():
+			_a_ability[i] = null
+			_axes_live -= 1
+			continue
+		_a_angle[i] = wrapf(_a_angle[i] + _a_spin[i] * delta, -PI, PI)
+
+
+## The flying axes at axe_position, axe_size world px, untinted.
+func _draw_axes() -> void:
+	var tex: Texture2D = FxTex.AXE
+	var ts: Vector2 = tex.get_size()
+	var sc: float = axe_size / maxf(ts.x, ts.y)
+	for i in AXE_CAP:
+		var axe: ThrownAxe = _a_ability[i]
+		if axe == null or not _view_rect.has_point(axe.axe_position):
+			continue
+		draw_set_transform(axe.axe_position, _a_angle[i], Vector2(sc, sc))
+		draw_texture(tex, -ts * 0.5)
+	draw_set_transform_matrix(Transform2D.IDENTITY)
+
+
+# ============================================
 # Per frame
 # ============================================
 
@@ -454,7 +544,8 @@ func _process(delta: float) -> void:
 	_step_numbers(delta)
 	_step_telegraphs(delta)
 	_step_swarms(delta)
-	if sprites.live > 0 or _numbers_live > 0 or _drew:
+	_step_axes(delta)
+	if sprites.live > 0 or _numbers_live > 0 or _axes_live > 0 or _drew:
 		queue_redraw()
 	_cost_usec = Time.get_ticks_usec() - t0
 
@@ -481,8 +572,10 @@ func _step_numbers(delta: float) -> void:
 
 
 func _draw() -> void:
-	_drew = sprites.live > 0 or _numbers_live > 0
+	_drew = sprites.live > 0 or _numbers_live > 0 or _axes_live > 0
 	sprites.draw(self)
+	if _axes_live > 0:
+		_draw_axes()
 	if _numbers_live > 0:
 		_draw_numbers()
 
@@ -535,6 +628,18 @@ func swarms_live() -> int:
 	return _swarms_live
 
 
+func axes_live() -> int:
+	return _axes_live
+
+
+## The spin angle (radians) of the axe drawn for `axe`; NAN when none is.
+func axe_angle(axe: ThrownAxe) -> float:
+	for i in AXE_CAP:
+		if _a_ability[i] == axe:
+			return _a_angle[i]
+	return NAN
+
+
 ## The values of the live numbers on `target` (oldest slot first).
 func numbers_on(target: Node) -> PackedFloat32Array:
 	var out := PackedFloat32Array()
@@ -548,6 +653,7 @@ func numbers_on(target: Node) -> PackedFloat32Array:
 ## F3 overlay line: pool use against the caps, hit counters and this node's
 ## script time last frame.
 func debug_line() -> String:
-	return "VFX sprites %d/%d  numbers %d/%d  telegraphs %d/%d  swarms %d/%d\n    hits %d  culled %d  over budget %d  %.2f ms" % [
+	return "VFX sprites %d/%d  numbers %d/%d  telegraphs %d/%d  swarms %d/%d  axes %d/%d\n    hits %d  culled %d  over budget %d  %.2f ms" % [
 			sprites.live, SPRITE_CAP, _numbers_live, NUMBER_CAP, _telegraphs_live, TELEGRAPH_CAP,
-			_swarms_live, SWARM_CAP, hits_shown, hits_culled, hits_over_budget, float(_cost_usec) / 1000.0]
+			_swarms_live, SWARM_CAP, _axes_live, AXE_CAP, hits_shown, hits_culled, hits_over_budget,
+			float(_cost_usec) / 1000.0]

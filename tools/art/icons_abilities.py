@@ -398,3 +398,28 @@ d.cel("M21 38 H43 C46 38 47 41 47 45 V48 C47 50 45.5 51 43.5 51 H34.5 L32 45.5 L
       "C18.5 51 17 50 17 48 V45 C17 41 18 38 21 38Z", P["stone"], P["stone_dark"])
 d.cel(rrect(20.5, 6, 23, 6, 2.5), BOG, BOG_S, ow=3)
 ICONS["gorrak_ult_warcry_stomp"] = d.svg()
+
+# Bristled Hide (passive): the boar king's head under a steel brow plate, his
+# bristle mane fanned behind it and two ivory tusks; the armour he wears until
+# Stage 3. Read order at 40 px: bristle crown -> brown head with steel band ->
+# ivory tusks.
+d = icon("monster3")
+_mane = []
+for _i in range(15):   # spiky bristle crown fanned behind the head
+    _a = math.radians(-180 + _i * (180 / 14))
+    _r = 29 if _i % 2 == 0 else 19
+    _mane.append((32 + _r * math.cos(_a), 34 + _r * 0.9 * math.sin(_a)))
+d.cel(poly(_mane), P["wood_dark"], INK, ow=2.6)
+d.cel("M14 30 C14 18 22 12 32 12 C42 12 50 18 50 30 C50 40 46 47 40 51 H24 C18 47 14 40 14 30Z",
+      HOG, HOG_S, off=(-3, -3))
+d.cel(rrect(15.5, 17, 33, 9, 3.5), P["steel"], P["steel_dark"], ow=2.8)
+for _x in (21, 32, 43):
+    d.cel(circle(_x, 21.5, 1.8), P["steel_light"], P["steel_dark"], ow=1.6)
+d.cel(ellipse(24.5, 31, 3.2, 2.4, 12), P["danger"], P["danger_dark"], ow=2.2)
+d.cel(ellipse(39.5, 31, 3.2, 2.4, -12), P["danger"], P["danger_dark"], ow=2.2)
+d.cel(ellipse(32, 44, 10, 7.5), P["wood_hi"], HOG, ow=2.8)
+d.flat(ellipse(28.5, 44, 1.8, 2.6), INK, 0)
+d.flat(ellipse(35.5, 44, 1.8, 2.6), INK, 0)
+d.cel("M21 47 C15 46 11 40 12 32 C15 37 18 40 23 41Z", IVORY, IVORY_S, ow=2.6)
+d.cel("M43 47 C49 46 53 40 52 32 C49 37 46 40 41 41Z", IVORY, IVORY_S, ow=2.6)
+ICONS["gorrak_passive_bristled_hide"] = d.svg()

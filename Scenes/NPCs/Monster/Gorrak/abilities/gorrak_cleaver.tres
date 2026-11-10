@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="BullFrontCleave" format=3]
+
+[ext_resource type="Script" uid="uid://cwfkgc14uiawh" path="res://Scenes/NPCs/Monster/Grount/abilities/bull_front_cleave.gd" id="1_cleave"]
+[ext_resource type="Texture2D" path="res://Assets/UI/Icons/Abilities/gorrak_basic_cleaver_chop.svg" id="2_icon"]
+
+[resource]
+script = ExtResource("1_cleave")
+cone_angle = 70.0
+cone_range = 85.0
+cone_angle_per_stage = Array[float]([70.0, 80.0, 90.0])
+ability_name = "Cleaver Chop"
+icon = ExtResource("2_icon")
+description = "A wide, heavy chop in front of him (Stage 1: 14 dmg in a 70° arc, Stage 2: 18 dmg in 80°, Stage 3: 18 dmg in 90°)"
+damage = 14.0
+cooldown = 2.8
+damage_per_stage = Array[float]([14.0, 18.0, 18.0])
+cooldown_per_stage = Array[float]([2.8, 2.6, 2.2])

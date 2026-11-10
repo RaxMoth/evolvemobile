@@ -117,6 +117,7 @@ func test_unlocked_comes_from_the_def() -> void:
 		assert_eq(CharacterProgress.is_unlocked(d), d.unlocked_by_default, "%s: unlocked_by_default" % d.character_id())
 	assert_true(CharacterProgress.is_unlocked(GameManager.ROSTER.find(&"grount")), "Grount ships unlocked")
 	assert_false(CharacterProgress.is_unlocked(GameManager.ROSTER.find(&"nyxa")), "Nyxa ships locked (bought with Leaves)")
+	assert_false(CharacterProgress.is_unlocked(GameManager.ROSTER.find(&"gorrak")), "Gorrak ships locked (bought with Leaves)")
 	assert_false(CharacterProgress.is_unlocked(_locked_def(2500)))
 	assert_false(CharacterProgress.is_unlocked(null))
 
