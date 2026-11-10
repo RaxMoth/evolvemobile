@@ -788,7 +788,16 @@ Ted's fox, Grount (all three stages), Nyxa, Gorrak and the Bat and Hog mobs.
       and a mob's basic swing call; `ability` is null for the swing) plays the
       ability's move (below), `EntityBase.damaged(packet)` the hurt flash and
       squash plus the hurt move when no other move plays,
-      `MonsterBase.evolved(stage)` → `Rig.set_stage` the stage's parts.
+      `MonsterBase.evolved(stage)` → `Rig.set_stage` the stage's parts. An
+      asleep rig (off screen) plays nothing; a mob's rig over the budget (see
+      LOD) plays the procedural swing instead of the attack move and only
+      flashes on a hit (`plays_moves()` is false).
+    - `swing_fx` (scene-side, presentation only): the `AbilityFxRecipe` of a
+      swing that carries no ability, which AbilityVfx draws on each hit the
+      character lands while its rig `plays_moves()` (Ability Effects): the
+      Bat and Ted's fox `fx_generic_bite`, the Hog `fx_generic_claw`. The
+      hit's packet still carries no ability (Loyal Companion and the damage
+      pipeline see the same hit).
     - **Moves** (authored, not procedural): one `AnimationLibrary` per body
       plan in `Assets/Characters/_moves/` (`humanoid_moves.tres` 22 moves,
       `quadruped_moves.tres` 7, `flyer_moves.tres` 7), set as each profile's
@@ -817,6 +826,20 @@ Ted's fox, Grount (all three stages), Nyxa, Gorrak and the Bat and Hog mobs.
       the rig's own flip, squash and hover. A cast replaces the move playing;
       a flinch never cuts one short. A move the library lacks falls back to
       the procedural swing.
+    - Timed moves (Animation markers, editable in the animation editor): a
+      leap's `contact` marker (`slam` 1.0 s, `stomp` 0.6 s, today's
+      `jump_duration`s) is stretched to the airtime its `FxEvents.SLAM_LEAP`
+      reports (0.25x to 4x; it comes the frame before the cast), so the
+      landing pose lands with the hit whatever a node does to
+      `jump_duration`, and `SLAM_LANDED` jumps a late pose straight to it; a
+      dash's run loops between its `loop_from` and `loop_to` markers
+      (`charge` 0.45-0.6 s, one stride; `swoop` 0.3-0.4 s, the held dive)
+      while the dash `DASH_STARTED` names is still `is_dashing` (read only:
+      Echo Strike's way back keeps running), then plays out. Only FULL rigs
+      with an entity listen (`EventBus.ability_event`, connected in `_ready`).
+    - Gorrak's `spin` (Whirlwind) turns through a mirrored body: its x scale
+      narrows to 0.45, flips within 0.1 ms and broadens mirrored, so it is
+      never drawn edge on (it used to pass through 0, a 2-3 px sliver).
     - Which move a cast plays is data: `AbilityBase.move_name`
       (presentation only, read through `get_move_name(caster)`), falling back
       to `attack`, `cast` or `ultimate` by the ability's slot; a mob's swing
@@ -849,12 +872,15 @@ Ted's fox, Grount (all three stages), Nyxa, Gorrak and the Bat and Hog mobs.
     - `EntityBase.visual_root()` is what effects move or tint (Ground Slam's
       hop): the rig once the scene has a body, else the AnimatedSprite2D.
     - LOD: a rig animates only while its entity's ScreenNotifier is on screen.
-      While more than 48 rigs are awake, mob rigs (tier BUDGETED) animate
-      every other frame, staggered; heroes and the monster use tier FULL.
+      While more than 48 rigs are awake (`within_budget()` is false), mob
+      rigs (tier BUDGETED) animate every other frame, staggered, and skip
+      their authored moves (a swing plays the procedural swing, a hit only
+      flashes) and their `swing_fx`; heroes and the monster use tier FULL.
       A rig writes only the pose channels that changed since its last frame
       (an idle mob mostly breathes), and forgets them after an authored move
       or `reset_pose`. The F3 overlay shows the rigs awake now, their mean
-      since F3 was pressed and "mobs half rate" while over the budget.
+      since F3 was pressed and "mobs half rate, no moves" while over the
+      budget.
     - Pooled mobs leave the tree and come back without a new `_ready`: a rig
       leaving the tree sleeps and drops its hurt flash, attack swing, move
       and walk, so the next life starts clean; on re-entry the notifier wakes it
@@ -940,7 +966,15 @@ Ted's fox, Grount (all three stages), Nyxa, Gorrak and the Bat and Hog mobs.
   Gorrak HUMANOID), the generic and signature moves exist, every track is a
   linear one-shot on a known channel ending at rest, every ability's move
   exists in its caster's library, a cast in a match plays it while the rig
-  writes no entity state, and the mid-body anchor.
+  writes no entity state, the mid-body anchor, the timed moves' markers (a
+  leap's contact at its airtime, a seamless dash loop), a slam stretched to a
+  reported airtime, a charge looping while its dash goes on, only FULL rigs
+  listening, the spin never under 0.4 wide and Ground Slam settling without
+  a snap. `test/test_mob_swings.gd` checks the swings without an ability: the
+  generic recipes and who swings them, the budget rule, a Bat's bite and a
+  Hog's claw inside the budget, the procedural swing and plain flash over it,
+  nothing off screen, the fox's bite with its packet unchanged, and the bite
+  program's rules and pools.
   `test/test_character_art.gd` checks the real art: the ten characters, their
   sheets' svg/scale and mipmaps, DPITexture portraits, body plans, world
   scales and the no-slide stride. `test/test_rigged_scenes.gd` checks the
@@ -1315,10 +1349,24 @@ or `-- monster=grount|nyxa|gorrak`) stages one character's abilities on a
 timeline for muted renders; the monster combo turns its capstones on on the
 monster's own copies (Trample, Echo Strike with Disorienting Dive, Brood
 Mother, Concussive Axe, Call of the Herd, Whirlwind, Unstoppable) and
-triggers Rampage and the rebirth by hand.
+triggers Rampage and the rebirth by hand; `-- mobs` stages a Bat, two Hogs
+and Ted's fox swinging at Vlad and Ted.
 
-Planned: mob attack moves and the generic bite and claw effects under the
-rig LOD (7.4), evolution transformation effects, death animations.
+| Who | Swing (cue) | Look |
+|---|---|---|
+| Bat, Ted's fox | bite (`bite`, `fx_generic_bite`) | two jaws (`fx_bite`, one sprite turned over for the lower, fangs interlocking) start 0.3 of their 22 px width above and below the target's body and snap together (speed and drag 9/s), tilted toward the biter's side (at most 0.5 rad), tinted `text`, gone after 0.14 s |
+| Hog | claw (`claw`, `fx_generic_claw`) | the three raking marks of Ted's Claw Swipe at 0.8 size, tinted `danger` |
+
+The swings that carry no ability (a mob's basic swing, `MobBase.announce_cast(null)`,
+and Ted's fox's bite) have no `AbilityBase.fx`: their recipe is the swinging
+character's `CharacterRig.swing_fx`. On `damage_applied` with no ability,
+AbilityVfx plays it over the target only while that rig `plays_moves()`: on
+screen and inside the rig budget (48 awake rigs), the same rule that plays the
+attack move. Off screen or over the budget nothing is drawn or counted, and
+VfxManager's impact star and number show either way. The F3 "Ability FX" line
+counts them as `swings`.
+
+Planned: evolution transformation effects, death animations.
 
 ---
 
@@ -2028,7 +2076,8 @@ res://
 │  ├─ Shaders/ (ground_grade; hit_flash + hit_flash_material.tres on every rig body)
 │  ├─ Vfx/svg/ (fx_*.svg: in-world effect sprites, mipmapped; the mine pod and
 │  │            lamp, supply crate and chute are scene sprites)
-│  ├─ Vfx/recipes/ (fx_<character>_<ability>.tres: AbilityFxRecipe per ability)
+│  ├─ Vfx/recipes/ (fx_<character>_<ability>.tres: AbilityFxRecipe per ability;
+│  │                fx_generic_bite / fx_generic_claw: the mobs' and the fox's swings)
 │  └─ UI/ (generated Jungle Guild kit, DPITexture SVGs)
 │     ├─ Kit/ · Crests/ · Icons/{Abilities,Currency,Stats,Roles,Nav,UI}/
 │     ├─ Lobby/ (the lobby's campfire and lair backdrops, VS badge)

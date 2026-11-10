@@ -29,6 +29,9 @@ const SHARD := preload("res://Assets/Vfx/svg/fx_shard.svg")
 const CRACK := preload("res://Assets/Vfx/svg/fx_crack.svg")
 ## Nyxa's bats (Night Swarm, Shadow Swoop, Vampiric Rebirth): tintable.
 const BAT := preload("res://Assets/Vfx/svg/fx_bat.svg")
+## One jaw of the generic bite (the Bat, Ted's fox), fangs down; the lower
+## jaw is the same sprite turned over (the fangs interlock): tintable.
+const BITE := preload("res://Assets/Vfx/svg/fx_bite.svg")
 ## Ability effects (AbilityVfx): in their own colours.
 const STAKE := preload("res://Assets/Vfx/svg/fx_stake.svg")
 const ROCK := preload("res://Assets/Vfx/svg/fx_rock.svg")

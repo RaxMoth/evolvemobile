@@ -5,7 +5,8 @@ extends Node2D
 ## claws, tracers, blasts, shield wards, taunt tethers, cage stakes, heal hops
 ## and rally marks for the heroes; cleave smears, screech ripples, dash trails,
 ## slam craters, the spinning Tusk Axe, Night Swarm's bats, stun stars and the
-## capstone cues for the monsters. An ability's look is its AbilityFxRecipe
+## capstone cues for the monsters; the generic bite and claw of the mobs and
+## Ted's fox. An ability's look is its AbilityFxRecipe
 ## (AbilityBase.fx): the recipe's `cue` picks a program below, its UiPalette
 ## tokens and sizes parameterise it, and the FxEvents the ability emits take
 ## their colours from it (a monster's capstone moments from its passive's
@@ -27,7 +28,11 @@ extends Node2D
 ##   EventBus.ability_cast   -> cast programs (shield, taunt, rally,
 ##                              weapon_swap, mine, blood_bomb, cleave,
 ##                              screech, axe, swarm)
-##   EventBus.damage_applied -> hit programs (strike, claw, sniper)
+##   EventBus.damage_applied -> hit programs (strike, claw, sniper, bite);
+##                              a hit without an ability (a mob's or the
+##                              fox's swing) plays its rig's swing_fx while
+##                              that rig plays_moves() (on screen, inside the
+##                              rig budget), else nothing
 ##   EventBus.ability_event  -> moments inside an ability (FxEvents): wards,
 ##                              tethers, rally marks, mines, cages, supply
 ##                              drops, heal hops, Last Stand; dashes, slams,
@@ -65,9 +70,10 @@ extends Node2D
 const CUES: Array[StringName] = [&"strike", &"claw", &"sniper", &"shield", &"taunt", &"rally",
 		&"weapon_swap", &"mine", &"blood_bomb", &"cage", &"supply_drop", &"last_stand",
 		&"cleave", &"screech", &"ram_dash", &"swoop", &"slam", &"stomp", &"axe", &"swarm",
-		&"rampage", &"rebirth", &"unstoppable"]
-## The cues played on each hit the ability lands (EventBus.damage_applied).
-const HIT_CUES: Array[StringName] = [&"strike", &"claw", &"sniper"]
+		&"rampage", &"rebirth", &"unstoppable", &"bite"]
+## The cues played on each hit the ability lands (EventBus.damage_applied),
+## and the ones a rig's swing_fx can name.
+const HIT_CUES: Array[StringName] = [&"strike", &"claw", &"sniper", &"bite"]
 ## The cues played on the cast (EventBus.ability_cast). The others play only
 ## the ability's FxEvents.
 const CAST_CUES: Array[StringName] = [&"shield", &"taunt", &"rally", &"weapon_swap", &"mine", &"blood_bomb",
@@ -161,6 +167,14 @@ const SWARM_LIFT_SHARE: float = 0.5
 const CONE_FLASH: float = 0.22
 ## Seconds Vampiric Rebirth's bats take to fly to the re-form point.
 const REFORM_TRAVEL: float = 0.35
+## A bite's jaws: width (world px, x the recipe's size), how far apart they
+## start (share of the width, each side of the target's body), how hard they
+## snap together (1/s: their speed over the gap, and their drag) and the
+## most they tilt toward the biter's side (radians).
+const BITE_WIDTH: float = 22.0
+const BITE_GAP: float = 0.3
+const BITE_SNAP: float = 9.0
+const BITE_TILT: float = 0.5
 
 enum Prim { NONE, RING, DISC, TRACER, BEAM, ARC }
 
@@ -200,6 +214,9 @@ var stakes_back := FxSpriteBuffer.new(STAKE_CAP)
 # F3 counters since the match began.
 var programs_played: int = 0
 var culled: int = 0
+## Swings without an ability that played their rig's swing_fx (counted in
+## programs_played too).
+var swings_played: int = 0
 
 var _rng := RandomNumberGenerator.new()
 var _palette: UiPalette
@@ -467,10 +484,13 @@ func _on_ability_cast(caster: Node, ability: AbilityBase, _target: Node) -> void
 
 
 func _on_damage_applied(packet: DamagePacket) -> void:
-	if packet == null or packet.ability == null or packet.ability.fx == null:
+	if packet == null:
+		return
+	if packet.ability == null:
+		_on_swing_landed(packet)
 		return
 	var fx := packet.ability.fx
-	if fx.cue not in HIT_CUES:
+	if fx == null or fx.cue not in HIT_CUES:
 		return
 	var target: Node2D = packet.target as Node2D if is_instance_valid(packet.target) else null
 	var source: Node2D = packet.source as Node2D if is_instance_valid(packet.source) else null
@@ -481,6 +501,31 @@ func _on_damage_applied(packet: DamagePacket) -> void:
 		return
 	var t0: int = Time.get_ticks_usec()
 	programs_played += 1
+	_play_hit(source, target, fx)
+	_cost_usec += Time.get_ticks_usec() - t0
+
+
+## A hit that carries no ability (a mob's bite or claw, Ted's fox's bite):
+## the swinging character's CharacterRig.swing_fx over the target, only while
+## that rig plays_moves() (on screen, inside the rig budget: the attack move
+## plays with it). Off screen or over the budget nothing is drawn and nothing
+## is counted; VfxManager's impact star stays either way.
+func _on_swing_landed(packet: DamagePacket) -> void:
+	var target: Node2D = packet.target as Node2D if is_instance_valid(packet.target) else null
+	var source: Node2D = packet.source as Node2D if is_instance_valid(packet.source) else null
+	if target == null or source == null or not in_view(target.global_position):
+		return
+	var rig := source.get_node_or_null(^"Rig") as CharacterRig
+	if rig == null or rig.swing_fx == null or rig.swing_fx.cue not in HIT_CUES or not rig.plays_moves():
+		return
+	var t0: int = Time.get_ticks_usec()
+	programs_played += 1
+	swings_played += 1
+	_play_hit(source, target, rig.swing_fx)
+	_cost_usec += Time.get_ticks_usec() - t0
+
+
+func _play_hit(source: Node2D, target: Node2D, fx: AbilityFxRecipe) -> void:
 	match fx.cue:
 		&"strike":
 			_play_strike(source, target, fx)
@@ -488,7 +533,8 @@ func _on_damage_applied(packet: DamagePacket) -> void:
 			_play_claw(source, target, fx)
 		&"sniper":
 			_play_tracer(source, target, fx)
-	_cost_usec += Time.get_ticks_usec() - t0
+		&"bite":
+			_play_bite(source, target, fx)
 
 
 func _on_ability_event(source: Node, ability: AbilityBase, event: StringName, pos: Vector2, value: float) -> void:
@@ -622,6 +668,26 @@ func _play_claw(source: Node2D, target: Node2D, fx: AbilityFxRecipe) -> void:
 	var dir := (to - CharacterRig.mid_body_of(source)).normalized()
 	over.spawn(FxTex.CLAW, to, 24.0 * fx.size, 20.0 * fx.size, FLASH_LIFE, _palette.color(fx.accent),
 			FxSpriteBuffer.Anim.POP, dir.angle() + _rng.randf_range(-0.4, 0.4))
+
+
+## A bite (the generic one of the Bat and Ted's fox): two jaws snap shut over
+## the target's body, from above and below, tilted toward the biter's side
+## (at most BITE_TILT), their fangs interlocking; gone within FLASH_LIFE.
+func _play_bite(source: Node2D, target: Node2D, fx: AbilityFxRecipe) -> void:
+	var to := CharacterRig.mid_body_of(target)
+	var dir := (to - CharacterRig.mid_body_of(source)).normalized()
+	var tilt: float = clampf(dir.y * signf(dir.x if dir.x != 0.0 else 1.0) + _rng.randf_range(-0.15, 0.15),
+			-BITE_TILT, BITE_TILT)
+	var w: float = BITE_WIDTH * fx.size
+	var down := Vector2.DOWN.rotated(tilt)
+	var gap: float = BITE_GAP * w
+	var col: Color = _palette.color(fx.accent)
+	for k in 2:
+		var side: float = -1.0 if k == 0 else 1.0
+		var jaw: int = over.spawn(FxTex.BITE, to + down * gap * side, w, w, FLASH_LIFE, col,
+				FxSpriteBuffer.Anim.POP, tilt if side < 0.0 else tilt + PI)
+		over.vel[jaw] = -down * side * gap * BITE_SNAP
+		over.drag[jaw] = BITE_SNAP
 
 
 ## River's rifle: an ink-rimmed tracer whipping from her muzzle to the target's
@@ -2285,11 +2351,11 @@ func tether_ends(enemy: Node2D) -> PackedVector2Array:
 	return PackedVector2Array()
 
 
-## F3 overlay line: programs played and culled, pool use against the caps and
-## this node's script time last frame.
+## F3 overlay line: programs played and culled, the mob and fox swings among
+## them, pool use against the caps and this node's script time last frame.
 func debug_line() -> String:
-	return "Ability FX %d  culled %d  sprites %d/%d  marks %d/%d  stakes %d  prims %d/%d\n    tethers %d  wards %d  halos %d  cages %d  trails %d  swarms %d  axes %d  stuns %d  warband %d  %.2f ms" % [
-			programs_played, culled, over.live, OVER_CAP, marks.live, MARK_CAP,
+	return "Ability FX %d  culled %d  swings %d  sprites %d/%d  marks %d/%d  stakes %d  prims %d/%d\n    tethers %d  wards %d  halos %d  cages %d  trails %d  swarms %d  axes %d  stuns %d  warband %d  %.2f ms" % [
+			programs_played, culled, swings_played, over.live, OVER_CAP, marks.live, MARK_CAP,
 			stakes_front.live + stakes_back.live, _p_live_ground + _p_live_over, PRIM_CAP,
 			_t_live, _w_live, _h_live, _c_live, _r_live, _s_live, _a_live, _st_live, _b_live,
 			float(_cost_usec) / 1000.0]

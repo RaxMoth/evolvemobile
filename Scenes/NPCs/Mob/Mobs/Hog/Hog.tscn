@@ -1,8 +1,9 @@
-[gd_scene load_steps=4 format=3 uid="uid://cuhwjncpsg4ga"]
+[gd_scene load_steps=5 format=3 uid="uid://cuhwjncpsg4ga"]
 
 [ext_resource type="PackedScene" uid="uid://drkua71k2d53x" path="res://Scenes/NPCs/Mob/mobs_base_class.tscn" id="1_jh7o6"]
 [ext_resource type="PackedScene" path="res://Assets/Characters/hog/hog_body.tscn" id="2_body"]
 [ext_resource type="Resource" path="res://Assets/Characters/hog/hog_motion.tres" id="3_motion"]
+[ext_resource type="Resource" path="res://Assets/Vfx/recipes/fx_generic_claw.tres" id="4_swing"]
 
 [node name="Hog" groups=["Enemy"] instance=ExtResource("1_jh7o6")]
 max_health = 100.0
@@ -25,5 +26,6 @@ visible = false
 [node name="Rig" parent="." index="9" node_paths=PackedStringArray("body")]
 body = NodePath("HogBody")
 profile = ExtResource("3_motion")
+swing_fx = ExtResource("4_swing")
 
 [node name="HogBody" parent="Rig" instance=ExtResource("2_body")]

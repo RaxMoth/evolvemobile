@@ -37,12 +37,21 @@ extends Node2D
 ## ability) plays attack. A move the library lacks falls back to the
 ## procedural swing.
 ##
+## Timed moves (markers in the move): a leap's "contact" marker is stretched
+## to the airtime its FxEvents.SLAM_LEAP reports (the landing pose lands with
+## the hit, whatever the ability's jump_duration), and a dash's run loops
+## between its "loop_from" and "loop_to" markers while the dash that started
+## it (FxEvents.DASH_STARTED) is still dashing. Only FULL rigs with an entity
+## listen (EventBus.ability_event, code-side); it READS the dash.
+##
 ## LOD: it processes only while the entity's ScreenNotifier reports it on
 ## screen (seeded in _ready, toggled by the scene-wired signals). BUDGETED rigs
 ## (mobs) animate every other frame, staggered, while more than BUDGET rigs are
-## awake, so a zoomed-out view of 200+ mobs stays cheap. Heroes and the
-## monster set tier FULL. No allocation per frame, and only the pose channels
-## that changed are written (an idle camp mostly holds still).
+## awake, so a zoomed-out view of 200+ mobs stays cheap; over the budget they
+## also skip their authored moves (a swing plays the procedural swing, a hit
+## only flashes) and AbilityVfx skips their swing_fx (plays_moves()). Heroes
+## and the monster set tier FULL. No allocation per frame, and only the pose
+## channels that changed are written (an idle camp mostly holds still).
 ##
 ## A character that is not an EntityBase (Ted's pet) points `mover` at itself
 ## and gives the rig the same three things scene-side: the hidden facing
@@ -81,6 +90,9 @@ const CH_SCALE := 11
 const CH_TILT := 12
 const CH_REACH_F := 13
 const CH_REACH_B := 14
+## Slowest and fastest a leap's pose is stretched to its airtime.
+const MIN_MOVE_RATE := 0.25
+const MAX_MOVE_RATE := 4.0
 
 @export var body: RigBody
 @export var profile: RigProfile
@@ -102,6 +114,13 @@ const CH_REACH_B := 14
 @export var hurt_flash_gain: float = 2.1
 ## Puppet mode only: world px/s it walks in place (0 = idle).
 @export var puppet_speed: float = 0.0
+## The look of a swing that carries no ability (a mob's bite or claw, Ted's
+## fox's bite: Assets/Vfx/recipes/fx_generic_bite.tres / fx_generic_claw.tres,
+## set in Bat.tscn, Hog.tscn and TedsPet.tscn). AbilityVfx plays its hit cue on
+## each hit the character lands while this rig plays_moves(); null = only
+## VfxManager's impact star. Presentation only: the hit's packet carries no
+## ability either way.
+@export var swing_fx: AbilityFxRecipe
 
 static var _awake: int = 0
 ## Every rig animates whatever the notifiers say. Tool switch (tools/sim_trace.sh
@@ -150,6 +169,21 @@ var _move_t := 0.0
 var _move_channels: PackedInt32Array = PackedInt32Array()
 ## The move's limb rotations this frame (NAN = the move does not key it).
 var _move_rot: PackedFloat32Array = PackedFloat32Array()
+## Seconds a second the move plays (a leap stretched to its airtime: 1 again
+## from its contact on), and the times of its "contact", "loop_from" and
+## "loop_to" markers (NAN = the move has none).
+var _move_rate := 1.0
+var _contact := NAN
+var _loop_from := NAN
+var _loop_to := NAN
+## The airtime the entity's last FxEvents.SLAM_LEAP reported and the process
+## frame it came in: the cast that plays the leap follows in that frame
+## (abilities execute before the cast notifier).
+var _airtime := 0.0
+var _airtime_frame := -1
+## The entity's dash in flight (FxEvents.DASH_STARTED, null after DASH_ENDED):
+## its run loops while it is_dashing (read only).
+var _dash: BullRamDash = null
 
 var _torso: Node2D
 var _head: Node2D
@@ -214,6 +248,11 @@ func _ready() -> void:
 		_last_pos = _entity.global_position
 		var notifier := _entity.get_node_or_null(^"%ScreenNotifier") as VisibleOnScreenNotifier2D
 		set_on_screen(force_awake or (notifier != null and notifier.is_on_screen()))
+		# Timed moves (leaps, dashes) are the heroes', the monster's and the
+		# fox's; code-side: an autoload cannot be the source of a scene
+		# [connection].
+		if tier == Tier.FULL:
+			EventBus.ability_event.connect(_on_ability_event)
 	else:
 		set_on_screen(true)
 	_pose()
@@ -253,6 +292,8 @@ func _exit_tree() -> void:
 	_act = 0.0
 	_walk = 0.0
 	_skipped = 0.0
+	_dash = null
+	_airtime_frame = -1
 	if _move:
 		_end_move()
 	if _flashing:
@@ -325,28 +366,66 @@ static func awake_count() -> int:
 	return _awake
 
 
-## The half-rate rule: while more than BUDGET rigs are awake, a BUDGETED rig
-## animates only on the frames of its stagger parity (it catches the skipped
-## time up on the next one).
+## Inside the budget: a FULL rig always, a BUDGETED one while no more than
+## BUDGET rigs are awake.
+static func within_budget(rig_tier: Tier, awake: int) -> bool:
+	return rig_tier == Tier.FULL or awake <= BUDGET
+
+
+## The half-rate rule: outside the budget (within_budget(), written out here:
+## every awake rig asks this every frame), a BUDGETED rig animates only on the
+## frames of its stagger parity (it catches the skipped time up on the next
+## one).
 static func skips_frame(rig_tier: Tier, awake: int, frame: int, stagger: int) -> bool:
 	return rig_tier == Tier.BUDGETED and awake > BUDGET and ((frame + stagger) & 1) == 1
+
+
+## Awake (on screen) and inside the budget: only then do the entity's swings
+## and hits play the authored attack and hurt moves, and only then does
+## AbilityVfx draw its swing_fx. Over the budget a mob swings with the cheap
+## procedural swing and a hit only flashes it; asleep, nothing plays.
+func plays_moves() -> bool:
+	return _on_screen and within_budget(tier, _awake)
 
 
 # ------------------------------------------------------------- events ----
 
 ## EntityBase.ability_cast (scene-wired). `ability` null = a mob's basic swing.
-## A cast always replaces the move playing (the latest action wins).
+## A cast always replaces the move playing (the latest action wins). Asleep it
+## plays nothing; over the budget (a mob) the procedural swing.
 func _on_entity_ability_cast(ability: AbilityBase, _target: Node) -> void:
 	if not _on_screen:
 		return
-	if not _start_move(move_for(ability, _entity)):
+	if not (within_budget(tier, _awake) and _start_move(move_for(ability, _entity))):
 		_act = profile.attack_time
 
 
-## EntityBase.damaged (scene-wired).
+## EntityBase.damaged (scene-wired): the flash and squash, plus the hurt move
+## inside the budget.
 func _on_entity_damaged(_packet: DamagePacket) -> void:
 	if _on_screen:
-		play_hurt()
+		_flinch(within_budget(tier, _awake))
+
+
+## EventBus.ability_event (FULL rigs with an entity): the entity's leap
+## reports its airtime before the cast that plays it, its dash its start and
+## end. Read only.
+func _on_ability_event(source: Node, ability: AbilityBase, event: StringName, _pos: Vector2, value: float) -> void:
+	if source != _entity:
+		return
+	match event:
+		FxEvents.SLAM_LEAP:
+			_airtime = value
+			_airtime_frame = Engine.get_process_frames()
+		FxEvents.SLAM_LANDED:
+			# Landed early (a rig that slept or skipped): straight to the impact.
+			if _move and not is_nan(_contact) and _move_t < _contact:
+				_move_t = _contact
+				_move_rate = 1.0
+		FxEvents.DASH_STARTED:
+			_dash = ability as BullRamDash
+		FxEvents.DASH_ENDED:
+			_dash = null
 
 
 ## MonsterBase.evolved (scene-wired in monster_base_class.tscn): the stage's
@@ -375,10 +454,13 @@ func play_move(move: StringName, at: float = 0.0) -> void:
 ## puppets directly, plus the hurt move when no other move is playing (a
 ## flinch never cuts a swing or a cast short).
 func play_hurt() -> void:
-	if not _active:
-		return
+	if _active:
+		_flinch(true)
+
+
+func _flinch(with_move: bool) -> void:
 	_hurt = profile.hurt_time
-	if _move == null:
+	if with_move and _move == null:
 		_start_move(&"hurt")
 
 
@@ -425,9 +507,22 @@ func _start_move(move: StringName, at: float = 0.0) -> bool:
 	_move_name = move
 	_move_t = clampf(at, 0.0, _move.length)
 	_move_channels = channels_of(_move)
+	_contact = marker_time(_move, &"contact")
+	_loop_from = marker_time(_move, &"loop_from")
+	_loop_to = marker_time(_move, &"loop_to")
+	_move_rate = 1.0
+	# A leap the entity just reported (this frame): its contact lands with it.
+	if _airtime_frame == Engine.get_process_frames() and _airtime > 0.0 and _move_t < _contact:
+		_move_rate = clampf((_contact - _move_t) / _airtime, MIN_MOVE_RATE, MAX_MOVE_RATE)
+	_airtime_frame = -1
 	_act = 0.0
 	_pose()
 	return true
+
+
+## The time of `anim`'s marker `marker`, NAN when it has none.
+static func marker_time(anim: Animation, marker: StringName) -> float:
+	return anim.get_marker_time(marker) if anim.has_marker(marker) else NAN
 
 
 ## The move is over (or cut): the root channels back at rest, every part back
@@ -436,6 +531,7 @@ func _end_move() -> void:
 	_move = null
 	_move_name = &""
 	_move_t = 0.0
+	_move_rate = 1.0
 	move_offset = Vector2.ZERO
 	move_scale = Vector2.ONE
 	move_tilt = 0.0
@@ -574,7 +670,12 @@ func _process(delta: float) -> void:
 	_hurt = maxf(_hurt - dt, 0.0)
 	_act = maxf(_act - dt, 0.0)
 	if _move:
-		_move_t += dt
+		_move_t += dt * _move_rate
+		if _move_t >= _contact:
+			_move_rate = 1.0
+		# A dash's run loops while the dash goes on (NAN markers: never).
+		if _move_t >= _loop_to and _dash != null and _dash.is_dashing:
+			_move_t -= _loop_to - _loop_from
 		if _move_t >= _move.length:
 			_end_move()
 	_pose()

@@ -223,6 +223,10 @@ func _on_fight_logic(_delta: float) -> void:
 		attacking = true
 		attack_timer.start()
 
+## The swing: announce_cast(null) is presentation only (the scene-wired
+## CharacterRig plays the attack move, and AbilityVfx the rig's swing_fx, the
+## generic bite or claw, on the hit) and only while the rig is awake and
+## inside its budget; off screen nothing plays. The packet carries no ability.
 func _perform_basic_attack() -> void:
 	if not is_instance_valid(target_entity):
 		attacking = false

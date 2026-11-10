@@ -350,6 +350,15 @@ tracks/4/keys = {
 
 [sub_resource type="Animation" id="move_charge"]
 length = 0.85
+markers = [{
+"color": Color(1, 1, 1, 1),
+"name": &"loop_from",
+"time": 0.45
+}, {
+"color": Color(1, 1, 1, 1),
+"name": &"loop_to",
+"time": 0.6
+}]
 tracks/0/type = "value"
 tracks/0/imported = false
 tracks/0/enabled = true
@@ -1307,6 +1316,11 @@ tracks/8/keys = {
 
 [sub_resource type="Animation" id="move_slam"]
 length = 1.5
+markers = [{
+"color": Color(1, 1, 1, 1),
+"name": &"contact",
+"time": 1.0
+}]
 tracks/0/type = "value"
 tracks/0/imported = false
 tracks/0/enabled = true
@@ -1461,13 +1475,18 @@ tracks/4/path = NodePath("..:move_scale")
 tracks/4/interp = 1
 tracks/4/loop_wrap = true
 tracks/4/keys = {
-"times": PackedFloat32Array(0, 0.1, 0.18, 0.26, 0.34, 0.5),
-"transitions": PackedFloat32Array(-2, -2, -2, -2, -2, -2),
+"times": PackedFloat32Array(0, 0.08, 0.0801, 0.17, 0.255, 0.2551, 0.34, 0.5),
+"transitions": PackedFloat32Array(-2, -2, -2, -2, -2, -2, -2, -2),
 "update": 0,
-"values": [Vector2(1, 1), Vector2(0.2, 1.04), Vector2(-1, 0.98), Vector2(0.2, 1.04), Vector2(1, 1), Vector2(1, 1)]
+"values": [Vector2(1, 1), Vector2(0.45, 1.04), Vector2(-0.45, 1.04), Vector2(-1, 0.98), Vector2(-0.45, 1.04), Vector2(0.45, 1.04), Vector2(1, 1), Vector2(1, 1)]
 }
 
 [sub_resource type="Animation" id="move_stomp"]
+markers = [{
+"color": Color(1, 1, 1, 1),
+"name": &"contact",
+"time": 0.6
+}]
 tracks/0/type = "value"
 tracks/0/imported = false
 tracks/0/enabled = true

@@ -1,4 +1,4 @@
-[gd_scene load_steps=9 format=3 uid="uid://dmwsr7r1rglla"]
+[gd_scene load_steps=10 format=3 uid="uid://dmwsr7r1rglla"]
 
 [ext_resource type="Script" uid="uid://bqnd1nwlvm5hc" path="res://Scenes/NPCs/Hero/Heros/Support/Ted/Abilities/Passive/teds_pet.gd" id="1_pet"]
 [ext_resource type="Script" uid="uid://bqdiydcp3yanu" path="res://Scripts/Rig/character_rig.gd" id="2_rig"]
@@ -6,6 +6,7 @@
 [ext_resource type="Resource" path="res://Assets/Characters/pet/pet_motion.tres" id="4_motion"]
 [ext_resource type="Texture2D" uid="uid://cygm1ijrf37j7" path="res://Assets/Characters/shadow_blob.svg" id="5_shadow"]
 [ext_resource type="Script" uid="uid://cwinir1k1a0v2" path="res://Scripts/hp_bar_2d.gd" id="6_hpbar"]
+[ext_resource type="Resource" path="res://Assets/Vfx/recipes/fx_generic_bite.tres" id="7_swing"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_pet"]
 radius = 14.035668
@@ -42,6 +43,7 @@ profile = ExtResource("4_motion")
 tier = 0
 mover = NodePath("..")
 shadow = NodePath("Shadow")
+swing_fx = ExtResource("7_swing")
 
 [node name="Shadow" type="Sprite2D" parent="Rig"]
 visible = false

@@ -304,13 +304,14 @@ func _update_hud_label(active_hero: Node, heroes_team: TeamBlackboard, enemies_t
 	var buckets: Array[int] = TickScheduler.bucket_counts()
 	lines.append("LOD  FULL %d  NEAR %d  MID %d  FAR %d" % [buckets[0], buckets[1], buckets[2], buckets[3]])
 	# Animating SVG rigs now and on average since F3 was pressed; past the
-	# budget the mob rigs (tier BUDGETED) animate every other frame.
+	# budget the mob rigs (tier BUDGETED) animate every other frame and skip
+	# their authored moves and swing effects.
 	var awake: int = CharacterRig.awake_count()
 	lines.append("Rigs awake %d  mean %.1f  budget %d%s" % [
 		awake,
 		rigs_awake_mean(),
 		CharacterRig.BUDGET,
-		"  mobs half rate" if awake > CharacterRig.BUDGET else ""])
+		"  mobs half rate, no moves" if not CharacterRig.within_budget(CharacterRig.Tier.BUDGETED, awake) else ""])
 	# The match's VfxManager: its pools against their caps and hit counters.
 	var vfx := get_tree().get_first_node_in_group(&"vfx") as VfxManager
 	if vfx:

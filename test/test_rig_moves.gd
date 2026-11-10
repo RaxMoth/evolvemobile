@@ -5,8 +5,11 @@ extends TestCase
 ## (Grount and Gorrak stand upright: HUMANOID); every library has the generic
 ## moves and every track drives a known channel, as one-shots that start and
 ## end at rest; every ability's move exists in its caster's library; a cast
-## plays it in a match while the rig still never writes its entity; and
-## mid_body() anchors line effects on the body, not the feet.
+## plays it in a match while the rig still never writes its entity;
+## mid_body() anchors line effects on the body, not the feet; the timed moves
+## (7.4): a leap's landing marker stretches to the airtime its SLAM_LEAP
+## reports, a dash's run loops while the dash goes on, only FULL rigs listen;
+## Gorrak's spin is never drawn edge on and Ground Slam settles without a snap.
 ## test_rig_pipeline covers the sampling and blending on the fixture.
 
 const ROOT := "res://Assets/Characters"
@@ -33,6 +36,19 @@ const IRELIA := "res://Scenes/NPCs/Hero/Heros/Support/Irelia/Irelia.tscn"
 const RIVER := "res://Scenes/NPCs/Hero/Heros/Healer/River/River.tscn"
 const GORRAK := "res://Scenes/NPCs/Monster/Gorrak/Gorrak.tscn"
 const NYXA := "res://Scenes/NPCs/Monster/Nyxa/Nyxa.tscn"
+const GROUNT := "res://Scenes/NPCs/Monster/Grount/Grount.tscn"
+const BAT := "res://Scenes/NPCs/Mob/Mobs/Bat/Bat.tscn"
+const GROUNT_SLAM := "res://Scenes/NPCs/Monster/Grount/abilities/grount_ground_slam.tres"
+const GORRAK_STOMP := "res://Scenes/NPCs/Monster/Gorrak/abilities/gorrak_stomp.tres"
+## The moves a leap or a dash plays, with the markers that time them.
+const LEAPS: Dictionary[StringName, String] = {&"slam": GROUNT_SLAM, &"stomp": GORRAK_STOMP}
+const DASH_RUNS: Dictionary[RigProfile.BodyPlan, StringName] = {
+	RigProfile.BodyPlan.HUMANOID: &"charge",
+	RigProfile.BodyPlan.FLYER: &"swoop",
+}
+## Narrowest a turning body may be drawn (|x scale|): Gorrak's spin used to
+## pass through 0 and showed a 2-3 px sliver.
+const MIN_TURN_SCALE := 0.4
 const ROSTER := "res://Scenes/NPCs/roster.tres"
 
 
@@ -219,4 +235,155 @@ func test_mid_body_anchor() -> void:
 	plain.queue_free()
 	irelia.queue_free()
 	nyxa.queue_free()
+	await wait_frames(1)
+
+
+## A leap's move has its landing at a "contact" marker, at today's airtime
+## (the ability's jump_duration); a dash's run loops seamlessly between its
+## "loop_from" and "loop_to" markers (every channel the same at both).
+func test_timed_moves_carry_their_markers() -> void:
+	var humanoid := _library(RigProfile.BodyPlan.HUMANOID)
+	for move: StringName in LEAPS:
+		var anim := humanoid.get_animation(move)
+		var contact := CharacterRig.marker_time(anim, &"contact")
+		assert_near(contact, float((load(LEAPS[move]) as AbilityBase).get(&"jump_duration")), 0.0001, "%s lands at its airtime" % move)
+	for plan: RigProfile.BodyPlan in DASH_RUNS:
+		var anim := _library(plan).get_animation(DASH_RUNS[plan])
+		var from := CharacterRig.marker_time(anim, &"loop_from")
+		var to := CharacterRig.marker_time(anim, &"loop_to")
+		assert_true(from > 0.0 and to > from + 0.05 and to < anim.length, "%s loops %.2f..%.2f" % [DASH_RUNS[plan], from, to])
+		for i in anim.get_track_count():
+			var a: Variant = anim.value_track_interpolate(i, from)
+			var b: Variant = anim.value_track_interpolate(i, to)
+			var same: bool = is_equal_approx(float(a), float(b)) if typeof(a) == TYPE_FLOAT else (a as Vector2).is_equal_approx(b as Vector2)
+			assert_true(same, "%s %s: %s at loop_from, %s at loop_to" % [DASH_RUNS[plan], anim.track_get_path(i), a, b])
+
+
+## Gorrak's spin (Whirlwind) turns through a mirrored body without ever being
+## drawn edge on: its x scale flips within a tenth of a millisecond and stays
+## at least MIN_TURN_SCALE wide on every frame.
+func test_spin_never_turns_edge_on() -> void:
+	var anim := _library(RigProfile.BodyPlan.HUMANOID).get_animation(&"spin")
+	var track := anim.find_track(^"..:move_scale", Animation.TYPE_VALUE)
+	assert_true(track >= 0, "the spin keys the body's scale")
+	var narrowest := INF
+	var mirrored := false
+	var t := 0.0
+	while t <= anim.length:
+		var x: float = (anim.value_track_interpolate(track, t) as Vector2).x
+		narrowest = minf(narrowest, absf(x))
+		mirrored = mirrored or x < -0.9
+		t += 1.0 / 240.0
+	assert_true(narrowest >= MIN_TURN_SCALE, "never thinner than %.2f (%.2f)" % [MIN_TURN_SCALE, narrowest])
+	assert_true(mirrored, "it turns all the way round")
+
+
+## Ground Slam's move after its landing bounce (from 1.1 s) eases back to the
+## procedural pose with no visible snap: frame to frame the body and every
+## limb move only a little, and the hand-back at its end changes nothing.
+func test_slam_returns_to_rest_without_a_snap() -> void:
+	var grount := await spawn_frozen(GROUNT, Vector2(300, 300)) as MonsterBase
+	var rig := grount.get_node(^"Rig") as CharacterRig
+	rig.set_on_screen(true)
+	grount.announce_cast(load(GROUNT_SLAM) as AbilityBase, null)
+	assert_eq(rig.current_move(), &"slam", "the slam plays")
+	rig.set_process(false)  # stepped by hand below
+	var dt := 1.0 / 60.0
+	var limbs: Array[Node2D] = []
+	for part: StringName in [&"body", &"head", &"arm_f", &"arm_b", &"leg_f", &"leg_b"]:
+		limbs.append(rig.body.part(part))
+	var last_scale := Vector2.ZERO
+	var last_pos := Vector2.ZERO
+	var last_rot := PackedFloat32Array()
+	var worst_scale := 0.0
+	var worst_pos := 0.0
+	var worst_rot := 0.0
+	for frame in 110:
+		rig._process(dt)
+		var rot := PackedFloat32Array()
+		for limb in limbs:
+			rot.append(limb.rotation)
+		if frame >= 66:  # 1.1 s and on, through the end of the move and past it
+			worst_scale = maxf(worst_scale, absf(absf(rig.body.scale.y) - absf(last_scale.y)) / absf(last_scale.y))
+			worst_pos = maxf(worst_pos, rig.body.position.distance_to(last_pos))
+			for i in rot.size():
+				worst_rot = maxf(worst_rot, absf(rot[i] - last_rot[i]))
+		last_scale = rig.body.scale
+		last_pos = rig.body.position
+		last_rot = rot
+	assert_eq(rig.current_move(), &"", "over")
+	assert_true(worst_scale < 0.05, "the squash eases out (%.3f a frame)" % worst_scale)
+	assert_true(worst_pos < 1.0, "the body settles (%.2f px a frame)" % worst_pos)
+	assert_true(worst_rot < 0.08, "the limbs settle (%.3f rad a frame)" % worst_rot)
+	grount.queue_free()
+	await wait_frames(1)
+
+
+## The airtime a leap reports (FxEvents.SLAM_LEAP, the frame before its cast)
+## stretches its move so the landing pose comes with the hit; a landing that
+## comes early jumps straight to it; a report from an earlier frame is stale.
+func test_leap_lands_with_its_airtime() -> void:
+	var grount := await spawn_frozen(GROUNT, Vector2(300, 300)) as MonsterBase
+	var rig := grount.get_node(^"Rig") as CharacterRig
+	rig.set_on_screen(true)
+	var slam := grount.ability_3
+	EventBus.notify_ability_event(grount, slam, FxEvents.SLAM_LEAP, grount.global_position, 2.0)
+	grount.announce_cast(slam, null)
+	assert_eq(rig.current_move(), &"slam", "the slam plays")
+	assert_near(rig._move_rate, 0.5, 0.001, "stretched to a 2 s airtime")
+	await wait_seconds(1.0)
+	assert_near(rig._move_t, 0.5, 0.05, "half-way to the landing after 1 s")
+	EventBus.notify_ability_event(grount, slam, FxEvents.SLAM_LANDED, grount.global_position, 120.0)
+	assert_near(rig._move_t, 1.0, 0.001, "landed: the impact pose")
+	assert_near(rig._move_rate, 1.0, 0.001, "and the recovery at its own pace")
+	await wait_seconds(0.6)
+	EventBus.notify_ability_event(grount, slam, FxEvents.SLAM_LEAP, grount.global_position, 2.0)
+	await wait_frames(1)
+	grount.announce_cast(slam, null)
+	assert_near(rig._move_rate, 1.0, 0.001, "a leap reported a frame earlier is not this cast's")
+	grount.queue_free()
+	await wait_frames(1)
+
+
+## A dash's run loops for as long as the dash goes on, and plays out once it
+## ended (DASH_ENDED, or the dash simply no longer dashing).
+func test_dash_run_loops_while_dashing() -> void:
+	var grount := await spawn_frozen(GROUNT, Vector2(300, 300)) as MonsterBase
+	var rig := grount.get_node(^"Rig") as CharacterRig
+	rig.set_on_screen(true)
+	var dash := grount.ability_2 as BullRamDash
+	var anim := rig.profile.moves.get_animation(&"charge")
+	dash.is_dashing = true  # the dash in flight (read only by the rig)
+	EventBus.notify_ability_event(grount, dash, FxEvents.DASH_STARTED, grount.global_position + Vector2(300, 0), 40.0)
+	grount.announce_cast(dash, null)
+	assert_eq(rig.current_move(), &"charge", "the charge plays")
+	await wait_seconds(anim.length + 0.6)
+	assert_eq(rig.current_move(), &"charge", "still running past its length while dashing")
+	assert_true(rig._move_t >= CharacterRig.marker_time(anim, &"loop_from") - 0.001 \
+			and rig._move_t < CharacterRig.marker_time(anim, &"loop_to"), "inside its run loop (%.2f)" % rig._move_t)
+	dash.is_dashing = false
+	EventBus.notify_ability_event(grount, dash, FxEvents.DASH_ENDED, grount.global_position)
+	await wait_seconds(anim.length - CharacterRig.marker_time(anim, &"loop_from") + 0.05)
+	assert_eq(rig.current_move(), &"", "played out after the dash")
+	dash.is_dashing = true
+	EventBus.notify_ability_event(grount, dash, FxEvents.DASH_STARTED, grount.global_position + Vector2(300, 0), 40.0)
+	grount.announce_cast(dash, null)
+	dash.is_dashing = false  # stopped without an event (a wall, a stun)
+	await wait_seconds(anim.length + 0.05)
+	assert_eq(rig.current_move(), &"", "a dash that stopped stops the loop")
+	grount.queue_free()
+	await wait_frames(1)
+
+
+## Only FULL rigs with an entity (heroes, monsters, the fox) listen for the
+## timed moves; the mobs' rigs never connect.
+func test_only_full_rigs_listen_for_timed_moves() -> void:
+	var grount := await spawn_frozen(GROUNT, Vector2(300, 300)) as MonsterBase
+	var bat := await spawn_frozen(BAT, Vector2(500, 300)) as MobBase
+	var grount_rig := grount.get_node(^"Rig") as CharacterRig
+	var bat_rig := bat.get_node(^"Rig") as CharacterRig
+	assert_true(EventBus.ability_event.is_connected(grount_rig._on_ability_event), "the monster's rig listens")
+	assert_false(EventBus.ability_event.is_connected(bat_rig._on_ability_event), "a mob's rig does not")
+	grount.queue_free()
+	bat.queue_free()
 	await wait_frames(1)

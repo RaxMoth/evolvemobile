@@ -13,8 +13,13 @@ extends Node2D
 ## with Disorienting Dive, Brood Mother, Whirlwind, Concussive Axe, Call of the
 ## Herd, Unstoppable), and Rampage and Vampiric Rebirth's scatter and re-form
 ## are triggered by hand.
+## With "mobs" it stages the swings that carry no ability instead: Vlad and Ted
+## (his fox beside him) against a Bat and two Hogs; each mob swing goes as
+## MobBase's does (announce_cast(null), then a packet without an ability) and
+## each fox bite as TedsPet's, so the rigs play their attack moves and
+## AbilityVfx their swing_fx (the generic bite and claw).
 ## Render muted on a copy of the project (hero = vlad | irelia | ted | river,
-## monster = grount | nyxa | gorrak):
+## monster = grount | nyxa | gorrak, or mobs):
 ##   godot --path <copy> --audio-driver Dummy --fixed-fps 30
 ##         --write-movie <dir>/f.png --quit-after 120 res://tools/preview/AbilityFxStage.tscn -- hero=vlad
 
@@ -37,6 +42,7 @@ const MONSTERS: Dictionary[String, String] = {
 	"gorrak": "res://Scenes/NPCs/Monster/Gorrak/Gorrak.tscn",
 }
 const HOG := "res://Scenes/NPCs/Mob/Mobs/Hog/Hog.tscn"
+const BAT := "res://Scenes/NPCs/Mob/Mobs/Bat/Bat.tscn"
 ## Where the Hogs wait until everyone is frozen.
 const FAR := Vector2(4000, 0)
 
@@ -44,6 +50,8 @@ const FAR := Vector2(4000, 0)
 @export var hero_id: String = "vlad"
 ## Which monster to stage instead ("" = the hero); "monster=<id>" wins.
 @export var monster_id: String = ""
+## Stage the mob and fox swings instead; a "mobs" user argument sets it.
+@export var mobs: bool = false
 
 var _hero: HeroBase = null
 var _monster: MonsterBase = null
@@ -63,6 +71,11 @@ func _ready() -> void:
 			hero_id = arg.substr(5)
 		elif arg.begins_with("monster="):
 			monster_id = arg.substr(8)
+		elif arg == "mobs":
+			mobs = true
+	if mobs:
+		_stage_mobs()
+		return
 	if not monster_id.is_empty():
 		_stage_monster()
 		return
@@ -114,6 +127,64 @@ func _stage_monster() -> void:
 	_foes[1].global_position = Vector2(-150, -40)
 	_steps = _monster_timeline()
 	_ready_to_play = true
+
+
+## Vlad, Ted, his fox, a Bat and two Hogs, spawned far apart, frozen (the
+## fox's own AI too), then walked into place.
+func _stage_mobs() -> void:
+	_hero = _spawn(HEROES["vlad"], FAR + Vector2(0, -600)) as HeroBase
+	_allies.append(_spawn(HEROES["ted"], FAR + Vector2(0, -1200)) as HeroBase)
+	_foes.append(_spawn(HOG, FAR))
+	_foes.append(_spawn(HOG, FAR + Vector2(0, 100)))
+	_foes.append(_spawn(BAT, FAR + Vector2(0, 200)))
+	for _i in 4:
+		await get_tree().physics_frame
+	await get_tree().process_frame
+	var ticks := get_tree().root.get_node(^"TickScheduler")
+	for e: Node2D in [_hero, _allies[0], _foes[0], _foes[1], _foes[2]]:
+		ticks.unregister(e)
+	_hero.teleport_to(Vector2(-60, 20))
+	_allies[0].teleport_to(Vector2(-130, -50))
+	_foes[0].global_position = Vector2(0, 40)
+	_foes[1].global_position = Vector2(30, -60)
+	_foes[2].global_position = Vector2(-10, -20)
+	var pet := _pet_of(_allies[0])
+	if pet != null:
+		pet.set_physics_process(false)
+		pet.global_position = Vector2(-20, -70)
+	_steps = [
+		[0.3, _mob_swing.bind(_foes[0], _hero)],
+		[0.7, _mob_swing.bind(_foes[2], _hero)],
+		[1.1, _pet_bite.bind(pet, _foes[1])],
+		[1.5, _mob_swing.bind(_foes[1], _allies[0])],
+		[1.9, _mob_swing.bind(_foes[2], _allies[0])],
+		[2.3, _pet_bite.bind(pet, _foes[2])],
+	]
+	_ready_to_play = true
+
+
+## Ted's fox (his passive spawned it beside him).
+func _pet_of(ted: Node2D) -> CharacterBody2D:
+	for e in EntityRegistry.hero_side:
+		if is_instance_valid(e) and not (e is HeroBase) and e.get("owner_entity") == ted:
+			return e as CharacterBody2D
+	return null
+
+
+## A mob's swing at `target`, as MobBase._perform_basic_attack does it.
+func _mob_swing(mob: MobBase, target: Node2D) -> void:
+	mob.sprite.rotation = (target.global_position - mob.global_position).angle()
+	mob.announce_cast(null, target)
+	EventBus.deal_damage(mob, target, mob.base_attack_damage)
+
+
+## A fox bite at `target`, as TedsPet._perform_attack does it.
+func _pet_bite(pet: CharacterBody2D, target: Node2D) -> void:
+	if pet == null:
+		return
+	(pet.get_node(^"Sprite2D") as Node2D).rotation = (target.global_position - pet.global_position).angle()
+	pet.emit_signal(&"ability_cast", null, target)
+	EventBus.deal_damage(pet, target, 9.0, null)
 
 
 ## Casts `ability` of the monster at `target` (facing it first): its gameplay

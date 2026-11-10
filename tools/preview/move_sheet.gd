@@ -28,7 +28,7 @@ const KEY_TIMES: Dictionary[StringName, Array] = {
 	&"shriek": [0.1, 0.14, 0.4],
 	&"swoop": [0.06, 0.3, 0.48],
 	&"cheer": [0.12, 0.22, 0.44],
-	&"spin": [0.08, 0.14, 0.26],
+	&"spin": [0.08, 0.17, 0.3],
 	&"twirl": [0.08, 0.16, 0.24],
 }
 ## Showcase grount at this stage (its horns and spikes grow).

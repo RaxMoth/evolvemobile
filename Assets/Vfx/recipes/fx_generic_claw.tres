@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="AbilityFxRecipe" load_steps=2 format=3]
+
+[ext_resource type="Script" uid="uid://cvlk2ujtjdeqd" path="res://Scripts/Vfx/ability_fx_recipe.gd" id="1_fx"]
+
+[resource]
+script = ExtResource("1_fx")
+cue = &"claw"
+accent = &"danger"
+shade = &"danger_dark"
+core = &"text"
+alt = &"danger"
+size = 0.8
