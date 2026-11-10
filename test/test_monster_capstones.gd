@@ -34,6 +34,8 @@ const HOG := "res://Scenes/NPCs/Mob/Mobs/Hog/Hog.tscn"
 
 ## Unlocks never leak into later files (they assert the stock numbers).
 func before_each() -> void:
+	# Every tree these tests seed is a monster's: the played side applies it.
+	play_side(MatchRewards.Side.MONSTER)
 	if is_isolated():
 		PersistedData.wipe_progress(false)
 

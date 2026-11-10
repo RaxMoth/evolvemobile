@@ -58,6 +58,31 @@ func test_v2_constants() -> void:
 	assert_eq([MatchRewards.GOLD_WIN, MatchRewards.GOLD_LOSS, MatchRewards.GOLD_PER_KILL], [100, 50, 2])
 
 
+## Opponent Threat T: currency and Gold x (1 + 0.1 T), rounded half up; XP
+## and the echoed stats are unchanged (README "Opponent Threat").
+func test_threat_scales_currency_and_gold() -> void:
+	var plain := MatchRewards.compute(MatchRewards.Side.HEROES, MatchRewards.Outcome.WIN, 480.0, 40, 3, 2)
+	var r := MatchRewards.compute(MatchRewards.Side.HEROES, MatchRewards.Outcome.WIN, 480.0, 40, 3, 2, 3)
+	assert_eq(plain.threat, 0, "threat 0 by default")
+	assert_eq(r.threat, 3)
+	assert_eq(r.steel, 1105, "850 x 1.3")
+	assert_eq(r.gold, 234, "180 x 1.3")
+	assert_eq(r.xp, plain.xp, "XP is not scaled")
+	var m := MatchRewards.compute(MatchRewards.Side.MONSTER, MatchRewards.Outcome.LOSS, 125.0, 3, 0, 2, 4)
+	assert_eq(m.leaves, 252, "180 x 1.4")
+	assert_eq(m.gold, 78, "56 x 1.4 = 78.4")
+	assert_eq(MatchRewards.compute(MatchRewards.Side.MONSTER, MatchRewards.Outcome.LOSS, 125.0, 3, 0, 2, -2).leaves, 180,
+			"a negative threat is 0")
+
+
+func test_threat_bonus_rounds_half_up() -> void:
+	assert_eq(MatchRewards.with_threat_bonus(195, 1), 215, "214.5")
+	assert_eq(MatchRewards.with_threat_bonus(194, 1), 213, "213.4")
+	assert_eq(MatchRewards.with_threat_bonus(150, 0), 150)
+	assert_eq(MatchRewards.with_threat_bonus(155, 4), 217)
+	assert_eq(MatchRewards.THREAT_BONUS_TENTHS, 1, "+10% per threat level")
+
+
 func test_format_duration() -> void:
 	assert_eq(MatchRewards.format_duration(125.0), "2:05")
 	assert_eq(MatchRewards.format_duration(0.0), "0:00")

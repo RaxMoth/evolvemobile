@@ -87,6 +87,9 @@ var damage_multiplier: float = 1.0
 # 1.0 = no upgrade purchased. Loaded once in _ready before stage config so the
 # Monster Base skill tree actually affects gameplay (was previously seeded +
 # purchasable but never consumed).
+## The build behind them (README "Opponent Threat"): -1 when the player plays
+## the monster (the save's trees), else the AI build's threat (0-4). F3 only.
+var _ai_threat: int = -1
 var _meta_health_mult: float = 1.0
 var _meta_damage_mult: float = 1.0
 var _meta_speed_mult: float = 1.0
@@ -379,11 +382,14 @@ func _get_next_evolution_threshold() -> int:
 
 
 func _load_meta_modifiers() -> void:
-	## Pull the player's purchased Monster Base upgrades from MetaSkillManager.
-	## Keys default to 1.0 when no matching skill is unlocked, so an un-upgraded
-	## monster behaves exactly as before.
+	## Pull the monster's build from MetaSkillManager: the player's purchased
+	## Monster Base and own-tree upgrades when the player plays the monster,
+	## else the AI build at this match's threat (the side rule). Keys default
+	## to 1.0 when no matching skill is in it, so an un-upgraded monster
+	## behaves exactly as before.
 	# Monster Base tree merged with this monster's own tree (monster_<id>).
 	var monster_id: StringName = monster_stats.monster_id if monster_stats else &""
+	_ai_threat = MetaSkillManager.opponent_threat() if MetaSkillManager.is_ai_side(MatchRewards.Side.MONSTER) else -1
 	var mods: Dictionary = MetaSkillManager.collect_monster_modifiers(monster_id)
 	_meta_health_mult = float(mods.get("monster_health_mult", 1.0))
 	_meta_damage_mult = float(mods.get("monster_damage_mult", 1.0))
@@ -604,8 +610,10 @@ func _fade_visual(alpha: float) -> void:
 	create_tween().tween_property(vis, prop, alpha, SCATTER_FADE_TIME)
 
 
-## One F3 HUD line: the monster id, stage, HP and the behaviour nodes this
-## monster carries ("!" = active right now; Gravity Slam shows how many the
+## One F3 HUD line: the monster id, stage, HP, its build ("save" when the
+## player plays it; "AI T2 6+4" = the AI build at threat 2, 6 ranks of its own
+## tree and 4 of monster_base) and the behaviour nodes this monster carries
+## ("!" = active right now; Gravity Slam shows how many the
 ## last slam pulled, Rampage the heroes killed, Vampiric Rebirth "rebirth" /
 ## "rebirth! 1.2 s" while scattered / "rebirth spent", Unstoppable), then
 ## after " | " the live state its abilities report (AbilityBase.debug_tag:
@@ -633,14 +641,23 @@ func debug_meta_line() -> String:
 			tags.append("rebirth spent" if _rebirth_spent else "rebirth")
 	var listed: String = " ".join(tags) if not tags.is_empty() else "-"
 	var monster_id: StringName = monster_stats.monster_id if monster_stats else &""
-	var line: String = "%s [%s] S%d HP %d/%d nodes: %s" % [name, monster_id, current_stage,
-			roundi(current_health), roundi(get_max_health()), listed]
+	var line: String = "%s [%s] S%d HP %d/%d %s nodes: %s" % [name, monster_id, current_stage,
+			roundi(current_health), roundi(get_max_health()), _debug_build_tag(monster_id), listed]
 	var states: Array[String] = []
 	for a: AbilityBase in [ability_1, ability_2, ability_3]:
 		var tag: String = a.debug_tag() if a != null else ""
 		if not tag.is_empty():
 			states.append(tag)
 	return line + " | " + " ".join(states) if not states.is_empty() else line
+
+
+## debug_meta_line's build: "save", or "AI T<threat> <own ranks>+<base ranks>".
+func _debug_build_tag(monster_id: StringName) -> String:
+	if _ai_threat < 0:
+		return "save"
+	return "AI T%d %d+%d" % [_ai_threat,
+			MetaSkillManager.ai_build_size(MetaSkillManager.monster_tree_id(monster_id), _ai_threat),
+			MetaSkillManager.ai_build_size(MetaSkillManager.TREE_MONSTER_BASE, _ai_threat)]
 
 
 ## The F3 line under debug_meta_line: the generic tree keys this monster

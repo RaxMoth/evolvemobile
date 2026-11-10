@@ -42,6 +42,7 @@ func test_hero_ability_node_modifies_only_that_heros_copy() -> void:
 func test_monster_ability_nodes_survive_evolution() -> void:
 	if not require_isolated():
 		return
+	play_side(MatchRewards.Side.MONSTER)  # the played side applies the save's trees
 	var tree := MetaSkillManager.monster_tree_id(&"grount")
 	PersistedData.set_unlocked_skills(tree, ["g1_dmg", "g2_cleavecd", "g3_dash"])
 	var grount := await spawn_entity(GROUNT, Vector2(3000, 0))
@@ -82,6 +83,7 @@ func test_stacked_modifiers_apply_to_the_unmodified_base() -> void:
 func test_early_slam_unlocks_ground_slam_at_stage_1() -> void:
 	if not require_isolated():
 		return
+	play_side(MatchRewards.Side.MONSTER)  # the played side applies the save's trees
 	var locked := await spawn_frozen(GROUNT, Vector2(3000, 0))
 	assert_false(locked.ability_3.is_unlocked_at(1), "Ground Slam is a stage-2 unlock by default")
 	assert_true(locked.ability_3.cooldown >= AbilityBase.LOCKED_COOLDOWN)
@@ -103,6 +105,7 @@ func test_early_slam_unlocks_ground_slam_at_stage_1() -> void:
 func test_stunning_charge_stuns_what_the_dash_hits() -> void:
 	if not require_isolated():
 		return
+	play_side(MatchRewards.Side.MONSTER)  # the played side applies the save's trees
 	PersistedData.add_currency(PersistedData.LEAVES, 1000)
 	assert_true(MetaSkillManager.unlock(MetaSkillManager.monster_tree_id(&"grount"), &"g1_stun"))
 	var g := await spawn_frozen(GROUNT, Vector2(0, 0))

@@ -334,11 +334,11 @@ static func gorrak() -> Array:
 
 
 ## Which ranks an AI-controlled side buys, in order, at each Threat level
-## (README "Opponent Threat"): threat N gives the first N*per_level entries.
-## An entry is a node id (one more rank of it). Capstones come last.
-const AI_BUILD_PER_THREAT: int = 3
-const AI_BUILD_BASE_PER_THREAT: int = 2
-
+## (README "Opponent Threat"): threat T gives the first 3T entries of a
+## character tree and 2T of a base tree (MetaSkillManager.ai_build_entries).
+## An entry is a node id (one more rank of it). Capstones come last. These are
+## the design's orders: 6.8 retuned the monster and monster_base orders in
+## their .tres (README "Opponent Threat"), which are the trees now.
 static func ai_build_order() -> Dictionary:
 	return {
 		&"hero_base": [&"t1_hp", &"t1_dmg", &"t1_speed", &"t1_hp", &"t1_dmg", &"t2_hp", &"t2_dmg", &"hb_armor", &"t2_atkspd", &"t2_hp", &"t2_dmg", &"t3_hp", &"t3_atkspd", &"t3_speed", &"hb_cdr", &"t4_hp", &"t4_dmg", &"t4_atkspd"],

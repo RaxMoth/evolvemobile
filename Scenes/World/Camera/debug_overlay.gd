@@ -320,8 +320,11 @@ func _update_hud_label(active_hero: Node, heroes_team: TeamBlackboard, enemies_t
 		EntityRegistry.hero_side.size() - EntityRegistry.heroes.size(),
 		EntityRegistry.monsters.size(),
 		EntityRegistry.mobs.size()])
-	# Per monster: stage, HP and the behaviour nodes it carries, then its
-	# generic tree keys (damage taken, regen, cooldowns, Apex, Head Start).
+	# Opponent Threat: the played side's power ranks, the threat and the AI
+	# opponent's build (the side rule).
+	lines.append(GameManager.debug_threat_line())
+	# Per monster: stage, HP, its build and the behaviour nodes it carries,
+	# then its generic tree keys (damage taken, regen, cooldowns, Apex, Head Start).
 	for mon in EntityRegistry.monsters:
 		if is_instance_valid(mon) and mon is MonsterBase:
 			lines.append((mon as MonsterBase).debug_meta_line())

@@ -288,6 +288,7 @@ func test_double_migration_is_a_no_op() -> void:
 func test_v2_titan_form_owner_keeps_it_equipped() -> void:
 	if not require_isolated():
 		return
+	play_side(MatchRewards.Side.MONSTER)  # the played side applies the save's trees
 	_write_v2({"monster_grount": ["g1_dmg", "g2_hp", "g3_enrage", "g4_titan"]}, {"monster_xp": {"grount": 900}})
 	PersistedData.load_data()
 	var tree := MetaSkillManager.monster_tree_id(&"grount")

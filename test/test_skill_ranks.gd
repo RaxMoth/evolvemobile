@@ -104,6 +104,7 @@ func test_rank_one_equals_the_pre_rank_node_on_every_shipped_tree() -> void:
 func test_a_rank_one_save_applies_the_pre_rank_values() -> void:
 	if not require_isolated():
 		return
+	play_side(MatchRewards.Side.MONSTER)  # the played side applies the save's trees
 	var expected: Dictionary = {}
 	for tree_id: StringName in [MetaSkillManager.TREE_MONSTER_BASE, MetaSkillManager.monster_tree_id(&"grount")]:
 		var t: MetaSkillTree = MetaSkillManager.get_tree_def(tree_id)
@@ -368,6 +369,7 @@ func test_no_saved_choice_equips_the_first_owned_capstone() -> void:
 func test_titan_form_owners_keep_it_equipped() -> void:
 	if not require_isolated():
 		return
+	play_side(MatchRewards.Side.MONSTER)  # the played side applies the save's trees
 	var tree := MetaSkillManager.monster_tree_id(&"grount")
 	assert_true(MetaSkillManager.get_tree_def(tree).find_node(&"g4_titan").capstone)
 	PersistedData.set_unlocked_skills(tree, ["g3_enrage", "g4_titan"])

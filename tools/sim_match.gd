@@ -7,11 +7,19 @@ extends SceneTree
 ## project directory with a newer editor binary.
 ##
 ##   godot --headless --fixed-fps 60 --max-fps 0 --path <copy> \
-##         -s res://tools/sim_match.gd -- <seed> [heroes|monster] [cap_seconds] [trace] [rigs_awake] [monster=<id>]
+##         -s res://tools/sim_match.gd -- <seed> [heroes|monster] [cap_seconds] [trace] [rigs_awake] [monster=<id>] [threat=<0-4>]
 ##
 ## "monster=<id>" picks the roster monster (GameManager.select_monster, not
 ## persisted); without it the roster default plays, so old command lines replay
 ## the same matches. The result JSON names it ("monster", "monster_name").
+##
+## "threat=<N>" is the Opponent Threat parity check: both sides hold their
+## threat-N AI build. MetaSkillManager.threat_override puts the AI opponent at
+## threat N, and the played side's save gets its own side's AI build at N
+## (MetaSkillManager.side_ai_build: 3N entries of each played character tree's
+## ai_build_order, 2N of its base tree's). Without it the save decides (a
+## fresh one: threat 0). The result JSON has the match's "threat" and the
+## played side's power ranks ("power").
 ##
 ## "rigs_awake" makes every CharacterRig animate as if on screen (headless, no
 ## notifier ever fires): presentation must never feed gameplay, so the trace
@@ -34,6 +42,8 @@ var _cap_s: float = 660.0
 var _trace: bool = false
 ## Roster id from "monster=<id>"; empty = the selection GameManager loaded.
 var _monster_id: String = ""
+## Threat from "threat=<N>" (the parity check); -1 = the rule on the save.
+var _threat: int = -1
 ## Node name of the spawned monster: the "by" of the hero deaths it caused.
 var _monster_name: String = ""
 var _frames: int = 0
@@ -66,6 +76,8 @@ func _initialize() -> void:
 	for arg: String in args:
 		if arg.begins_with("monster="):
 			_monster_id = arg.trim_prefix("monster=")
+		elif arg.begins_with("threat="):
+			_threat = int(arg.trim_prefix("threat="))
 	if args.has("rigs_awake"):
 		# By path: a -s script must not name project classes.
 		load("res://Scripts/Rig/character_rig.gd").set("force_awake", true)
@@ -80,6 +92,8 @@ func _start() -> void:
 	gm.set("chosen_side", 1 if _side == "monster" else 0)
 	if _monster_id != "":
 		gm.call("select_monster", StringName(_monster_id), false)
+	if _threat >= 0:
+		_start_parity_check()
 	gm.connect("match_ended", _on_match_ended)
 	var bus := root.get_node("EventBus")
 	bus.connect("damage_applied", _on_damage_applied)
@@ -92,6 +106,21 @@ func _start() -> void:
 	var m := _monster()
 	_monster_name = String(m.name) if m else ""
 	process_frame.connect(_tick)
+
+
+## "threat=<N>": the AI opponent plays its threat-N build and the played side
+## owns its own (written into this run's save before World loads;
+## tools/sim.sh refuses THREAT with SAVE).
+func _start_parity_check() -> void:
+	var gm := root.get_node("GameManager")
+	var skills := root.get_node("MetaSkillManager")
+	skills.set("threat_override", _threat)
+	var build: Dictionary = skills.call("side_ai_build", gm.get("chosen_side"), gm.get("selected_monster_id"), _threat)
+	var data := root.get_node("PersistedData")
+	for tree_id: StringName in build:
+		var ranks: Dictionary = build[tree_id]
+		for node_id: StringName in ranks:
+			data.call("set_skill_rank", tree_id, node_id, int(ranks[node_id]))
 
 
 func _t() -> float:
@@ -208,6 +237,8 @@ func _finish(reason: String, winner: String) -> void:
 		"side": _side,
 		"monster": String(gm.get("selected_monster_id")),
 		"monster_name": _monster_name,
+		"threat": int(gm.get("match_threat")),
+		"power": int(root.get_node("MetaSkillManager").call("power_ranks", gm.get("chosen_side"), gm.get("selected_monster_id"))),
 		"reason": reason,
 		"winner": winner,
 		"t": snappedf(_t(), 0.1),

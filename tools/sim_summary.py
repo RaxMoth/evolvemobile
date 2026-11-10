@@ -3,9 +3,10 @@
 
     tools/sim_summary.py results.jsonl [expected_runs_per_monster]
 
-One summary per monster (the rows' "monster" id, in order of first
-appearance; rows from before the roster count as Grount), so an OUT= file of
-MONSTER=all summarizes the same way sim.sh printed it. Hero deaths are
+One summary per monster and threat (the rows' "monster" id and "threat", in
+order of first appearance; rows from before the roster count as Grount, rows
+from before Opponent Threat as threat 0), so an OUT= file of MONSTER=all
+THREAT=all summarizes the same way sim.sh printed it. Hero deaths are
 attributed to the monster by each row's "monster_name" (the spawned monster
 node's name, the "by" of the deaths it caused).
 """
@@ -37,7 +38,10 @@ def summarize(rows, expected):
     evo3 = [e["t"] for r in rows for e in r["evolutions"] if e["stage"] == 3]
     final_stage = [r["monster_stage"] for r in rows]
 
-    print(f"runs: {len(rows)}/{expected or len(rows)}   side: {rows[0]['side']}   monster: {monster_id} ({monster_name})")
+    threat = rows[0].get("threat", 0)
+    power = sorted(r.get("power", 0) for r in rows)
+    print(f"runs: {len(rows)}/{expected or len(rows)}   side: {rows[0]['side']}   monster: {monster_id} ({monster_name})"
+          f"   threat: {threat} (played side's power ranks {power[0]}" + (f"-{power[-1]})" if power[-1] != power[0] else ")"))
     print(f"winner: heroes {pct(heroes)}  monster {pct(monster)} (of which timeout {timeouts})  undecided(cap) {capped}")
     print(f"match length: median {med(lengths)}  p10 {q(lengths, .1)}  p90 {q(lengths, .9)}")
     print(f"first hero<->monster contact: median {med(contact)}  ({len(contact)} runs)")
@@ -76,7 +80,8 @@ groups = {}
 for line in open(path):
     if line.strip():
         row = json.loads(line)
-        groups.setdefault(row.get("monster") or DEFAULT_MONSTER[0], []).append(row)
+        key = (row.get("monster") or DEFAULT_MONSTER[0], row.get("threat", 0))
+        groups.setdefault(key, []).append(row)
 if not groups:
     print("no results (did the sim crash? run one seed by hand)"); sys.exit(1)
 for i, rows in enumerate(groups.values()):

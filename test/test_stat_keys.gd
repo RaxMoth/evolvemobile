@@ -207,6 +207,7 @@ func test_start_level_starts_heroes_at_level_2() -> void:
 func test_monster_damage_taken_mult_scales_every_hit() -> void:
 	if not require_isolated():
 		return
+	play_side(MatchRewards.Side.MONSTER)  # the played side applies the save's trees
 	_own(&"monster_base", &"mb_bark", 3)
 	_own(&"monster_grount", &"g1_hide", 5)
 	var mods: Dictionary = MetaSkillManager.collect_monster_modifiers(&"grount")
@@ -223,6 +224,7 @@ func test_monster_damage_taken_mult_scales_every_hit() -> void:
 func test_monster_regen_mult_speeds_rest_regeneration() -> void:
 	if not require_isolated():
 		return
+	play_side(MatchRewards.Side.MONSTER)  # the played side applies the save's trees
 	_own(&"monster_base", &"mb_regen", 1)
 	var g := await _grount()
 	var max_hp: float = g.get_max_health()
@@ -241,6 +243,7 @@ func test_monster_regen_mult_speeds_rest_regeneration() -> void:
 func test_monster_cooldown_mult_shortens_every_cast() -> void:
 	if not require_isolated():
 		return
+	play_side(MatchRewards.Side.MONSTER)  # the played side applies the save's trees
 	_own(&"monster_base", &"mb_cdr", 2)
 	var g := await _grount()
 	var cleave: AbilityBase = g.ability_1
@@ -259,6 +262,7 @@ func test_monster_cooldown_mult_shortens_every_cast() -> void:
 func test_monster_s3_damage_mult_applies_at_stage_3() -> void:
 	if not require_isolated():
 		return
+	play_side(MatchRewards.Side.MONSTER)  # the played side applies the save's trees
 	_own(&"monster_base", &"mb_apex", 1)
 	var g := await _grount()
 	assert_near(g.effective_ability_damage(g.ability_1), g.ability_1.damage, 0.0001, "Stage 1: Front Cleave's table value")
@@ -283,6 +287,7 @@ func test_monster_s3_damage_mult_applies_at_stage_3() -> void:
 func test_monster_start_xp_is_banked_at_spawn() -> void:
 	if not require_isolated():
 		return
+	play_side(MatchRewards.Side.MONSTER)  # the played side applies the save's trees
 	_own(&"monster_base", &"mb_headstart", 1)
 	_own(&"monster_base", &"mt1_xp", 1)
 	var g := await _grount()

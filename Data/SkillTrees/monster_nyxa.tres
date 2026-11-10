@@ -234,4 +234,4 @@ branches = PackedStringArray("Hunger", "Shadow", "Brood")
 gate_kind = 1
 tier_gates = Array[int]([1, 3, 5, 8])
 owner_id = &"nyxa"
-ai_build_order = Array[StringName]([&"ny_hp", &"ny_dmg", &"ny_speed", &"ny_hp", &"ny_leech", &"ny_swoopcd", &"ny_cone", &"ny_evo", &"ny_swarm", &"ny_regen", &"ny_swarmdur", &"ny_brood"])
+ai_build_order = Array[StringName]([&"ny_hp", &"ny_dmg", &"ny_hp", &"ny_evo", &"ny_dmg", &"ny_leech", &"ny_hp", &"ny_speed", &"ny_swoopcd", &"ny_swarm", &"ny_swarmdur", &"ny_brood"])

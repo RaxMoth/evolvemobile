@@ -70,6 +70,7 @@ func test_hero_tree_applies_only_to_that_hero() -> void:
 func test_monster_tree_merges_with_base_tree() -> void:
 	if not require_isolated():
 		return
+	play_side(MatchRewards.Side.MONSTER)  # the played side applies the save's trees
 	PersistedData.add_currency(PersistedData.LEAVES, 500)
 	PersistedData.add_currency(PersistedData.GOLD, 500)
 	assert_true(MetaSkillManager.unlock(MetaSkillManager.monster_tree_id(&"grount"), &"g1_dmg"))

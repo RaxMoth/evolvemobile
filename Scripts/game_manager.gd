@@ -50,6 +50,11 @@ var heroes_alive: int = 0
 var monster_alive: bool = false
 var monster_stage_reached: int = 1
 var mob_kills: int = 0
+## This match's Opponent Threat (README "Opponent Threat"), taken when it
+## starts (MetaSkillManager.opponent_threat(), from the played side's save):
+## the AI opponent's build and the rewards' bonus. Entities read the same
+## value at their spawn.
+var match_threat: int = 0
 
 # Characters that participated this match, captured at census so permanent XP
 # can be awarded even after their nodes are freed by match end.
@@ -267,6 +272,7 @@ func start_new_match() -> void:
 	monster_alive = false
 	monster_stage_reached = 1
 	mob_kills = 0
+	match_threat = MetaSkillManager.opponent_threat()
 	_participating_hero_ids.clear()
 
 	await get_tree().process_frame
@@ -390,7 +396,8 @@ func _end_match_with_outcome(outcome: int) -> void:
 		duration,
 		mob_kills,
 		maxi(0, heroes_alive),
-		monster_stage_reached
+		monster_stage_reached,
+		match_threat
 	)
 
 	# match_ended feeds analytics, audio and the sim.
@@ -445,3 +452,25 @@ func get_match_elapsed() -> float:
 
 func get_mob_kills() -> int:
 	return mob_kills
+
+
+## The F3 overlay's threat line: the played side and its power ranks P, the
+## threat, and the AI opponent's build ("AI monster: 6 nyxa + 4 base ranks";
+## "AI heroes: 6/6/6/6 + 4 base ranks", one count per roster hero). P is read
+## now, the threat when the match started.
+func debug_threat_line() -> String:
+	var heroes_played: bool = chosen_side == MatchRewards.Side.HEROES
+	var power: int = MetaSkillManager.power_ranks(chosen_side, selected_monster_id)
+	var ai_text: String
+	if heroes_played:
+		ai_text = "AI monster: %d %s + %d base ranks" % [
+			MetaSkillManager.ai_build_size(MetaSkillManager.monster_tree_id(selected_monster_id), match_threat),
+			selected_monster_id,
+			MetaSkillManager.ai_build_size(MetaSkillManager.TREE_MONSTER_BASE, match_threat)]
+	else:
+		var counts: Array[String] = []
+		for id in ROSTER.hero_ids():
+			counts.append(str(MetaSkillManager.ai_build_size(MetaSkillManager.hero_tree_id(id), match_threat)))
+		ai_text = "AI heroes: %s + %d base ranks" % ["/".join(counts),
+			MetaSkillManager.ai_build_size(MetaSkillManager.TREE_HERO_BASE, match_threat)]
+	return "Threat %d  played %s P %d  %s" % [match_threat, "heroes" if heroes_played else "monster", power, ai_text]

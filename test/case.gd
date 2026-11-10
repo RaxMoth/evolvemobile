@@ -92,6 +92,15 @@ func spawn_frozen(scene_path: String, pos: Vector2) -> Node2D:
 
 # ---------- fixtures ----------
 
+## Plays `side` (MatchRewards.Side: 0 the heroes, 1 the monster) for this
+## test: GameManager.chosen_side. Only the played side applies the save's
+## skill trees, the other one the AI build (README "Opponent Threat"), so a
+## test that seeds a monster tree and spawns the monster plays the monster.
+## The runner restores the side after every test.
+func play_side(side: int) -> void:
+	get_tree().root.get_node(^"GameManager").set("chosen_side", side)
+
+
 ## True when user:// is the throwaway dir tools/run_tests.sh sets up, so the
 ## test may wipe and rewrite the save file.
 func is_isolated() -> bool:

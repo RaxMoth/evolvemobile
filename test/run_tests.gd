@@ -61,9 +61,13 @@ func _run_all() -> void:
 			_current_failed = false
 			# Hermetic: never depend on the host language (tr() in UI code).
 			TranslationServer.set_locale("en")
+			# TestCase.play_side changes the played side for one test only.
+			var side_before: Variant = gm.get("chosen_side") if gm else null
 			case.before_each()
 			await case.call(method_name)
 			case.after_each()
+			if gm:
+				gm.set("chosen_side", side_before)
 			# Free whatever the test left behind so tests never see each other's entities.
 			for leftover in case.get_children():
 				case.remove_child(leftover)

@@ -509,7 +509,9 @@ Early Ambush        ⚠️ 40% Win            ✅ 60% Win
 
 The target is 40–60 % hero wins per monster on both sides
 (`MONSTER=<id> tools/sim.sh 48 heroes 6` and `... 48 monster 6`, reproducible
-since 6.2). A timeout is a monster win at the 10-minute clock.
+since 6.2). A timeout is a monster win at the 10-minute clock. These tables are
+fresh saves, threat 0; the balance at each Opponent Threat level is under
+"Opponent Threat".
 
 | Grount | Heroes side | Monster side | Timeouts (H / M) | Median Stage 3 | Median first contact |
 | ------ | ----------- | ------------ | ---------------- | -------------- | -------------------- |
@@ -528,8 +530,9 @@ since 6.2). A timeout is a monster win at the 10-minute clock.
   Grount killed by mobs.
 - Capstone check (`SAVE=` the branch-2 capstones, River's Pathfinder among
   them, 24 seeds, heroes side): 75 % (71 % before 6.3). Pathfinder still brings
-  the first contact to about 64 s, Stage 1, where the heroes win most fights;
-  Opponent Threat (6.8) gives the AI monster its own build.
+  the first contact to about 64 s, Stage 1, where the heroes win most fights.
+  That save owns one rank per hero tree (power ranks 0), so under Opponent
+  Threat (6.8) the AI Grount still plays threat 0, unbuilt.
 
 | Nyxa | Heroes side | Monster side | Timeouts (H / M) | Median Stage 3 | Median first contact |
 | ---- | ----------- | ------------ | ---------------- | -------------- | -------------------- |
@@ -1351,7 +1354,9 @@ one new ability script. Every default is Grount's old behaviour:
   evolution, the lifesteal and the armour themselves are MonsterBase's,
   `deal()`'s and MonsterStats'.
 - **F3** (`MonsterBase.debug_meta_line`): `<name> [<monster id>] S<stage> HP
-  ... nodes: ...`, then after ` | ` the live state each ability reports
+  ... <build> nodes: ...` (`<build>`: `save` when the player plays the
+  monster, else `AI T<threat> <own ranks>+<base ranks>`, its Opponent Threat
+  build), then after ` | ` the live state each ability reports
   through `AbilityBase.debug_tag()` ("" = nothing; Night Swarm: `swarm! 2.4 s
   left` / `swarm off`; Tusk Axe: `axe in hand` / `axe! flying out` /
   `axe! flying back`). Grount's abilities report none, so his line ends at
@@ -1778,7 +1783,14 @@ Every tool copies the project to a temp directory with its own `user://`
   timing, and hero deaths by the monster (the row's `monster_name`, the spawned
   node's name) or by mob. `OUT=<file>` keeps the raw JSON lines (every monster's;
   `sim_summary.py <file>` summarizes them the same way), `SAVE=<save.cfg>`
-  starts every match from that save. **Reproducible**: the copies turn off the
+  starts every match from that save (its power ranks set the threat; the
+  summary prints it). `THREAT=<0-4>` (or a list, `THREAT="0 2 4"`, or
+  `THREAT=all` = 0..4, one summary per threat and monster) is the Opponent
+  Threat parity check: each seed's fresh save gets the played side's parity
+  build at that threat (`MetaSkillManager.parity_build`, P = 6T), so the AI
+  opponent plays its threat-T build; `SAVE` and `THREAT` together exit 2.
+  `sim_match.gd` takes it as `threat=<N>`, and every result line carries the
+  match's `threat` and the played side's `power`. **Reproducible**: the copies turn off the
   navigation server's asynchronous map and region iterations (as
   `sim_trace.sh` does) and every seed starts from a fresh `user://` (or
   `SAVE`), so the same tree gives the same numbers on every run, whatever the
@@ -1820,7 +1832,9 @@ Every tool copies the project to a temp directory with its own `user://`
   - The hashes depend on the engine build and the CPU: after an engine
     upgrade or on another machine, re-record before comparing.
 - Typical runs: `MONSTER=all tools/sim.sh 48 heroes 6` and `... 48 monster 6`
-  (balance target 40–60 % hero wins per monster), `MONSTER=all tools/bench.sh 5 2 900 300`.
+  (balance target 40–60 % hero wins per monster), `MONSTER=all THREAT=all
+  tools/sim.sh 24 heroes 8` (the Opponent Threat parity check, 35–65 % at
+  every threat), `MONSTER=all tools/bench.sh 5 2 900 300`.
 - `tools/bake_nav.sh`, `tools/build_rigs.sh` and `tools/build_skill_trees.sh`
   regenerate the navigation bake, the rig sheets and bodies, and the skill tree
   resources on their copy and copy only the generated files back.
@@ -1934,6 +1948,11 @@ paid on both sides. Economy only: nothing here feeds back into the match.
 
 **Gold**: Win 100, Loss 50, +2 per mob killed.
 
+**Opponent Threat bonus**: currency and Gold x (1 + 0.1 T) at the match's
+threat T (0-4, "Opponent Threat"), rounded half up
+(`MatchRewards.with_threat_bonus`; `GameManager` passes `match_threat`, and
+`Result.threat` echoes it for the result screen). XP is not scaled.
+
 **Permanent XP** (unchanged by v2; every character on the played side gets it):
 Win 25, Loss 10, +2 per kill, +3 per minute, +5 per survivor (Heroes) or
 +10 per stage (Monster).
@@ -1943,6 +1962,7 @@ Win 25, Loss 10, +2 per kill, +3 per minute, +5 per survivor (Heroes) or
 - Heroes win at 8 minutes with 3 survivors after killing 40 mobs
 - Steel: 150 (win) + 600 (kills) + 40 (time) + 60 (survivors) = **850 Steel**
 - Gold: 100 (win) + 80 (kills) = **180 Gold**; XP: 25 + 80 + 24 + 15 = **144 XP**
+- At threat 3: **1,105 Steel** and **234 Gold** (x 1.3), still 144 XP
 
 **Target income** (what the tree prices are balanced against, measured with
 the design tool `income.py` over sim matches, medians): about **800 Steel**
@@ -2004,9 +2024,10 @@ stat, one ability property, or a behaviour key.
   `skill_ranked`, then `skills_changed`; analytics log ranks 2+ as
   `skill_ranked`), `unlock` (rank 1 only), `get_rank`, `is_maxed`,
   `next_rank_cost`, `is_tier_open`, `points_spent`, `equipped_capstone`,
-  `equip_capstone`, `applied_ranks` (what a spawn applies) and
-  `card_progress(tree)` → `{owned_ranks, open_ranks, upgrade_ready}` for the
-  card pill. `ai_build_order` on the tree lists the ranks an AI side buys.
+  `equip_capstone`, `applied_ranks` (what a spawn of the played side applies)
+  and `card_progress(tree)` → `{owned_ranks, open_ranks, upgrade_ready}` for
+  the card pill. `ai_build_order` on the tree lists the ranks an AI side buys;
+  the Opponent Threat API is under "Opponent Threat" below.
 - **Save v3** (`PersistedData`): `[skill_ranks] <tree_id> = {"node_id": rank}`
   and `[capstones] <tree_id> = "node_id"`. Loading a v1/v2 save backs it up
   (`save.cfg.v2.bak`), turns every id of the old `[skills]` lists into rank 1,
@@ -2085,8 +2106,10 @@ Executioner's Mark, War Cry, Deadeye) 50%, branch 1 (Guardian Angel, Sanguine
 Feast, Pack of Two, Chain Heal) 71%, branch 2 (Rallying Taunt, Cluster Mines,
 Spiked Cage, Pathfinder) 42%; Pathfinder brings the first hero-monster contact
 from about 400 s to 81 s. All four hero trees fully ranked: 92% with any
-branch's capstones and 92% without one. The trees, not the capstones, decide
-that matchup until the AI monster gets its build from Opponent Threat (6.8).
+branch's capstones and 92% without one. The trees, not the capstones, decided
+that matchup; since Opponent Threat (6.8) the AI Grount meets such a save with
+its threat-4 build: 79% without capstones, 96% / 100% / 92% with branch 0 / 1
+/ 2 (24 seeds).
 These 5.4 numbers predate the reproducible sim (6.2) and the Trap Cage fix;
 6.3's re-measure is under "Measured Balance".
 
@@ -2124,7 +2147,103 @@ wins (matches end at a median 86 s), Rampage 29%, Trample 33%. Nyxa: 0% with
 each of her three capstones (one timeout each). Gorrak: 0% with each of his
 three. A fully ranked monster beats fresh heroes, as fully ranked heroes beat
 a fresh Grount (92%, above); Titan Form is the one capstone that decides
-Grount's matchup on its own. Opponent Threat (6.8) gives the AI side a build.
+Grount's matchup on its own. Since Opponent Threat (6.8) such a save (power
+ranks 70+, threat 4) meets AI heroes with their threat-4 build instead of
+fresh ones.
+
+#### Opponent Threat (the side rule and AI builds)
+
+The player owns trees on both sides, but only the side they play uses them.
+The AI opponent gets a fixed build that grows with the player's own
+investment (6.8). Before 6.8 both sides read the save, so a player's Monster
+unlocks made the AI monster stronger in their Heroes matches (and the other
+way round).
+
+- **Side rule.** The **played side** (`GameManager.chosen_side`) applies the
+  save's trees (`applied_ranks`: owned ranks, the equipped capstone). The **AI
+  opponent** applies its **AI build** (`MetaSkillManager.spawn_ranks(tree,
+  side)` picks one per spawn: `HeroBase._ready` through
+  `apply_unlocked_to_hero`, `MonsterBase._load_meta_modifiers` through
+  `collect_monster_modifiers` and `apply_ability_nodes_to_monster`). A fresh
+  save is threat 0 with an empty AI build, so fresh matches, the determinism
+  trace and the committed baselines are unchanged.
+- **Power ranks** `P` (`power_ranks(side, monster_id)`): ranks owned in the
+  played side's base tree plus in the played character's tree, each node
+  capped at its max rank (`owned_ranks`, the card pill's count). Heroes: the
+  floor of the mean over the roster's four hero trees. Monster: the played
+  monster's own tree (`GameManager.selected_monster_id`). Ranks in the other
+  side's trees never count.
+- **Threat** `T = min(4, floor(P / 6))` (`threat_for_power`, `threat_for`,
+  `opponent_threat()` for this match). `GameManager.match_threat` takes it
+  when the match starts; the spawns read the same value.
+- **AI build at threat T** (`ai_build_ranks(tree, ai_build_entries(tree,
+  T))`): the first 3T entries of the opponent character tree's
+  `ai_build_order` and the first 2T of its side's base tree's. Each entry is
+  one more rank of that node (capped at its max); unknown and hidden ids are
+  skipped; the order's one capstone comes last and applies (threat 4). No
+  RNG. When the player plays the monster, every AI hero takes its own order
+  plus `hero_base`'s. `side_ai_build(side, monster_id, T)` lists a whole side
+  (tree id -> node id -> rank).
+- **The monster orders (6.8 retune).** The design's orders were never
+  simulated; on the parity check (below) they gave Grount 25 % hero wins at
+  threat 2 and Gorrak 96 % (heroes side) / 92 % (monster side) at threat 4.
+  6.8 reordered them in the `.tres` (`SkillTreeDataV2` keeps the design's):
+  - `monster_base`: `mb_claws, mt1_xp, mt1_hp, mb_bark, mt2_dmg, mt1_hp,
+    mb_claws, mt2_evo`, then as designed (the same ranks at threat 4: a +10 %
+    HP rank and the XP rank no longer both come at threat 1).
+  - Grount: `g1_hide, g1_speed, g3_slam, g2_cleavecd, g1_dmg, g3_dash, g2_hp,
+    g1_dmg, g2_evo, g1_stun, g3_dmg, g4_titan` (the same ranks; damage,
+    Ravenous and Stunning Charge later: an early-built Grount reached Stage 3
+    before the heroes had their levels).
+  - Nyxa: `ny_hp, ny_dmg, ny_hp, ny_evo, ny_dmg, ny_leech, ny_hp, ny_speed,
+    ny_swoopcd, ny_swarm, ny_swarmdur, ny_brood` (Wide Shriek and Night
+    Recovery out, a third Dusk Hide and a second Piercing Shriek rank in).
+  - Gorrak: `gk_dmg, gk_hp, gk_dmg, gk_dmg, gk_axedmg, gk_dmg, gk_axedmg,
+    gk_dmg, gk_axedmg, gk_hp, gk_hp, gk_whirl`: Heavy Cleaver and Honed Tusks
+    with Whirlwind. With his design order (armour, regeneration, stun,
+    Unstoppable) and with every HP, stun or Call of the Herd variant tried,
+    the heroes won 83-96 % at threat 4; only the axe damage moved it (71 %).
+  - The hero orders are as designed.
+- **Balance** (6.8, `MONSTER=all THREAT=all tools/sim.sh 24 <side> 8`, hero
+  wins, heroes side / monster side; threat 0 is a fresh save):
+
+  | threat | Grount | Nyxa | Gorrak |
+  |---|---|---|---|
+  | 0 | 50 % / 54 % | 58 % / 62 % | 38 % / 46 % |
+  | 1 | 46 % / 50 % | 46 % / 54 % | 62 % / 42 % |
+  | 2 | 42 % / 33 % | 67 % / 62 % | 58 % / 67 % |
+  | 3 | 46 % / 33 % | 71 % / 67 % | 62 % / 71 % |
+  | 4 | 58 % / 50 % | 42 % / 50 % | 71 % / 75 % |
+
+  21 of the 30 cells are inside 35-65 %, the other 9 within 10 points of it
+  (24 seeds: one standard error is about 10 points). Gorrak at threats 3-4
+  is the weak spot: the heroes' tier-3 nodes and capstones outgrow his tree.
+- **A player at the threshold** (a real save, `SAVE=`: the first 12
+  `ai_build_order` entries of the base tree and of each played character
+  tree, P 24, threat 4 by the rule) owns 24 ranks to the AI's 20 and wins
+  most matches: heroes side 100 % (Grount), 71 % (Nyxa), 88 % (Gorrak);
+  monster side 12 %, 12 %, 38 % hero wins. The fully ranked hero saves of
+  "Hero capstones and behaviour nodes" (power ranks 39-42, threat 4) beat the
+  threat-4 Grount 79 % without capstones and 92-100 % with them (92 % against
+  an unbuilt Grount before 6.8). The 2T base entries keep the AI behind the
+  player; giving it 3T would make a threshold player a parity match.
+- **Rewards**: currency and Gold x (1 + 0.1 T) ("Earning Rates v2").
+- **F3**: a "Threat" line (`GameManager.debug_threat_line()`: `Threat 2
+  played heroes P 13  AI monster: 6 nyxa + 4 base ranks`, or `AI heroes:
+  6/6/6/6 + 4 base ranks`), and the monster's line shows its build (`save` or
+  `AI T2 6+4`).
+- **Sims**: `tools/sim.sh` `THREAT=N` is the parity check: both sides hold
+  their threat-N AI build (the AI opponent through
+  `MetaSkillManager.threat_override`, a sims-only override of
+  `opponent_threat()`; the played side through its save, `side_ai_build`).
+  `SAVE=` runs the rule on a real save instead.
+- For the pre-round screen's Threat box (8.1): `threat_for(side, monster)`
+  and `side_ai_build` / `ai_build_size` give the threat and the AI build.
+- Checks: `test/test_opponent_threat.gd` (the maths, the side rule on seeded
+  saves both ways, the AI build prefixes, the parity check, the F3 lines),
+  `test/test_rewards.gd` (the bonus). Tests that seed a monster tree play the
+  monster side (`TestCase.play_side`; the runner restores the side after every
+  test).
 
 #### Tree content v2 (Data/SkillTrees)
 
@@ -2161,8 +2280,9 @@ roster).
   (was "Unnamed Ability"). Every ability name has an EN/DE entry in
   `strings.csv`. The F3 overlay lists the followed hero's ability copies with
   their cooldown and tree modifiers ("Trap Cage  cd 4.00 s  tree cooldown x0.80").
-- **AI build orders** (`ai_build_order`, 12 ranks per character tree, capstone
-  last) wait for the Opponent Threat rule.
+- **AI build orders** (`ai_build_order`: 12 entries per character tree,
+  capstone last; 18 in `hero_base`, 14 in `monster_base`): the AI opponent
+  takes a prefix of them at each threat ("Opponent Threat").
 
 Nodes, "branch: tier node (ranks)", `<-` = requires any. No shipped node is
 hidden any more (every hero node has its code since 5.4, every monster node

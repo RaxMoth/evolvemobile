@@ -13,6 +13,8 @@ extends RefCounted
 ##     + 20 per surviving hero          (hero side only)
 ##     + 25 per monster stage reached   (monster side only)
 ##   Gold:      win 100 / loss 50, + 2 per mob killed
+##   Opponent Threat T (0-4, README "Opponent Threat"): currency and Gold
+##     x (1 + 0.1 T), rounded; XP is not scaled.
 ##   Permanent XP: see compute() (unchanged by v2).
 ##
 ## "Currency" means Steel for hero side, Leaves for monster side. Economy
@@ -30,6 +32,8 @@ const CURRENCY_PER_STAGE := 25
 const GOLD_WIN := 100
 const GOLD_LOSS := 50
 const GOLD_PER_KILL := 2
+## Reward bonus per Opponent Threat level, in tenths: x (10 + T) / 10.
+const THREAT_BONUS_TENTHS := 1
 
 
 class Result:
@@ -43,6 +47,8 @@ class Result:
 	var mob_kills: int = 0
 	var heroes_alive: int = 0
 	var monster_stage: int = 1
+	## The match's Opponent Threat (0-4): currency and Gold carry its bonus.
+	var threat: int = 0
 
 	# Earned currency (each side only fills its own).
 	var steel: int = 0
@@ -66,7 +72,8 @@ static func compute(
 	duration_sec: float,
 	mob_kills: int,
 	heroes_alive: int,
-	monster_stage: int
+	monster_stage: int,
+	threat: int = 0
 ) -> Result:
 	var r := Result.new()
 	r.side = side
@@ -75,6 +82,7 @@ static func compute(
 	r.mob_kills = maxi(0, mob_kills)
 	r.heroes_alive = maxi(0, heroes_alive)
 	r.monster_stage = clampi(monster_stage, 1, 3)
+	r.threat = maxi(0, threat)
 
 	# A timeout counts as a LOSS for whichever side's failure caused it.
 	# Currently: timeout → monster wins (heroes failed to find them in time).
@@ -85,10 +93,10 @@ static func compute(
 	var currency := CURRENCY_WIN if won else CURRENCY_LOSS
 	currency += r.mob_kills * CURRENCY_PER_KILL + minutes * CURRENCY_PER_MINUTE
 	if side == Side.HEROES:
-		r.steel = currency + r.heroes_alive * CURRENCY_PER_SURVIVOR
+		r.steel = with_threat_bonus(currency + r.heroes_alive * CURRENCY_PER_SURVIVOR, r.threat)
 	else:
-		r.leaves = currency + r.monster_stage * CURRENCY_PER_STAGE
-	r.gold = (GOLD_WIN if won else GOLD_LOSS) + r.mob_kills * GOLD_PER_KILL
+		r.leaves = with_threat_bonus(currency + r.monster_stage * CURRENCY_PER_STAGE, r.threat)
+	r.gold = with_threat_bonus((GOLD_WIN if won else GOLD_LOSS) + r.mob_kills * GOLD_PER_KILL, r.threat)
 
 	# Permanent XP — a flat per-match chunk scaled by performance. Each
 	# participating character on the played side receives this amount.
@@ -100,6 +108,12 @@ static func compute(
 		r.xp += r.monster_stage * 10
 
 	return r
+
+
+## `amount` x (1 + 0.1 T), rounded half up. The product is a whole number of
+## tenths, so a half is exact: 195 at threat 1 is 2145 / 10 = 214.5 -> 215.
+static func with_threat_bonus(amount: int, threat: int) -> int:
+	return roundi(amount * (10 + maxi(0, threat) * THREAT_BONUS_TENTHS) / 10.0)
 
 
 ## GameManager tracks outcomes from the heroes' perspective (WIN = monster

@@ -234,4 +234,4 @@ branches = PackedStringArray("Tusks", "Bristles", "Warband")
 gate_kind = 1
 tier_gates = Array[int]([1, 3, 5, 8])
 owner_id = &"gorrak"
-ai_build_order = Array[StringName]([&"gk_hp", &"gk_dmg", &"gk_hp", &"gk_bark", &"gk_arc", &"gk_stompstun", &"gk_speed", &"gk_regen", &"gk_axedmg", &"gk_stomp", &"gk_evo", &"gk_unstoppable"])
+ai_build_order = Array[StringName]([&"gk_dmg", &"gk_hp", &"gk_dmg", &"gk_dmg", &"gk_axedmg", &"gk_dmg", &"gk_axedmg", &"gk_dmg", &"gk_axedmg", &"gk_hp", &"gk_hp", &"gk_whirl"])

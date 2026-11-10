@@ -27,6 +27,7 @@ func test_hero_and_monster_ids_come_from_resources() -> void:
 func test_per_monster_tree_reaches_the_spawned_monster() -> void:
 	if not require_isolated():
 		return
+	play_side(MatchRewards.Side.MONSTER)  # the played side applies the save's trees
 	PersistedData.add_currency(PersistedData.LEAVES, 500)
 	assert_true(MetaSkillManager.unlock(MetaSkillManager.monster_tree_id(&"grount"), &"g1_dmg"))
 	var grount := await spawn_entity(GROUNT, Vector2(3000, 0))

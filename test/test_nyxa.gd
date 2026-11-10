@@ -21,6 +21,8 @@ const TREE := &"monster_nyxa"
 ## Her numbers are the stock ones: no purchase from an earlier file applies,
 ## and the tree ranks bought here never leak into later files.
 func before_each() -> void:
+	# Every tree these tests seed is a monster's: the played side applies it.
+	play_side(MatchRewards.Side.MONSTER)
 	if is_isolated():
 		PersistedData.wipe_progress(false)
 
