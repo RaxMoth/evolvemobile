@@ -3,8 +3,9 @@ extends TestCase
 ## MenuRoot (the main scene) and its home screen, the LobbyScreen: every screen
 ## signal connected scene-side, push / pop with the slide and ui_cancel as
 ## back, the lobby's side choice (dim, frame, HUNT pop, cheer, nav glow) and
-## its requests, the locked teasers in the lair, the chosen side persisted
-## through GameManager, the first-run tutorial, the rosters, Growth and the
+## its requests, the locked monsters in the lair (padlock, price, rule) and
+## the unlock sheet they open (the purchase through MenuRoot, the refresh, back
+## closing it), the chosen side persisted through GameManager, the first-run tutorial, the rosters, Growth and the
 ## character detail each request opens (nav tabs switch, cards push), the
 ## purchases and capstone swaps MenuRoot makes for the detail screen and the
 ## refresh after them, the nav bars' red dots for buyable ranks, and the old
@@ -276,6 +277,8 @@ func test_lair_teasers_are_locked_and_the_cast_is_the_roster() -> void:
 		assert_true((character.get_node("%Rig") as RigView).silhouette, "%s is a silhouette" % teaser)
 		assert_true((character.get_node("%Lock") as CanvasItem).visible, "%s wears the padlock" % teaser)
 		assert_true((character.get_node("%Rig") as RigView).rig != null, "over its built rig")
+		assert_true((character.get_node("%LockInfo") as CanvasItem).visible, "%s shows its price" % teaser)
+		assert_eq((character.get_node("%PriceLabel") as Label).text, CurrencyChip.format_amount(character.character.unlock_cost))
 	lobby.queue_free()
 
 
@@ -407,8 +410,90 @@ func test_the_detail_opens_buys_and_goes_back() -> void:
 	root.detail.back_requested.emit()
 	await _settle()
 	(root.lobby.get_node("MonsterStage/Nyxa") as BaseButton).pressed.emit()
-	assert_eq(root.top(), root.lobby, "a locked teaser has no detail yet")
+	assert_eq(root.top(), root.lobby, "a locked monster has no detail")
+	assert_true(root.unlock_sheet.is_open(), "it opens the unlock sheet instead")
 	root.queue_free()
+
+
+## A locked monster opens the unlock sheet (its rule and price), never a
+## detail; UNLOCK buys it through MenuRoot, the lobby, the roster and the nav
+## dots refresh, and it becomes the player's own monster. Back closes the sheet
+## before it pops a screen.
+func test_the_unlock_sheet_buys_a_locked_monster() -> void:
+	if not require_isolated():
+		return
+	GameManager.choose_side(MONSTER, false)
+	var root := await _menu_root()
+	var sheet := root.unlock_sheet
+	var nyxa := GameManager.ROSTER.find(&"nyxa")
+	assert_false(sheet.visible or sheet.is_open(), "closed at first")
+	(root.lobby.get_node("MonsterStage/Nyxa") as BaseButton).pressed.emit()
+	assert_true(sheet.is_open() and sheet.visible, "the padlocked Nyxa opens the sheet")
+	assert_eq(sheet.character, nyxa)
+	assert_eq(root.top(), root.lobby, "no detail for a locked monster")
+	assert_eq(sheet.state, CharacterProgress.UnlockState.GATED)
+	var unlock := sheet.get_node("%Unlock") as Button
+	assert_true(unlock.disabled, "the rule is unmet")
+	assert_eq((sheet.get_node("%CostValue") as Label).text, "2,500", "the price")
+	assert_eq((sheet.get_node("%Rule") as Label).text, "Reach Lv 3 with any monster you own (best: Lv 1).")
+	assert_eq((sheet.get_node("%Name") as Label).text, "Unlock Nyxa?")
+	unlock.pressed.emit()
+	assert_false(CharacterProgress.is_unlocked(nyxa), "a disabled UNLOCK buys nothing")
+	_press_back(root)
+	await _settle()
+	assert_false(sheet.is_open() or sheet.visible, "back closes the sheet")
+	assert_eq(root.top(), root.lobby, "and pops nothing")
+	PersistedData.add_monster_xp(&"grount", 300)  # Grount Lv 3
+	PersistedData.add_currency(PersistedData.LEAVES, 2600)
+	await wait_frames(1)
+	assert_true((root.lobby.get_node("%NavBar") as NavBar).notify_tabs.has(&"monsters"), "a monster to buy lights Monsters")
+	root.lobby.roster_requested.emit(MONSTER)
+	await _settle()
+	var card := root.monster_roster.cards()[1]
+	assert_eq(card.character, nyxa)
+	assert_true((card.get_node("%Dot") as CanvasItem).visible, "buyable now: the card's dot")
+	card.pressed.emit()
+	assert_true(sheet.is_open(), "the roster card opens the sheet too")
+	assert_eq(root.top(), root.monster_roster)
+	assert_eq(sheet.state, CharacterProgress.UnlockState.READY)
+	assert_false(unlock.disabled)
+	assert_eq(unlock.text, "UNLOCK")
+	unlock.pressed.emit()
+	assert_true(CharacterProgress.is_unlocked(nyxa), "MenuRoot buys her")
+	assert_eq(PersistedData.get_currency(PersistedData.LEAVES), 100, "for 2,500 Leaves")
+	assert_eq(GameManager.played_monster_id(), &"nyxa", "she is the player's own monster now")
+	await _settle()
+	assert_false(sheet.visible, "the sheet closes")
+	assert_true(card.unlocked, "the roster refreshed")
+	assert_eq((root.monster_roster.get_node("%Count") as Label).text, "2/3")
+	var lair_nyxa := root.lobby.get_node("MonsterStage/Nyxa") as StageCharacter
+	assert_false((lair_nyxa.get_node("%Rig") as RigView).silhouette, "the lair refreshed")
+	assert_false((lair_nyxa.get_node("%LockInfo") as CanvasItem).visible)
+	card.pressed.emit()
+	assert_eq(root.top(), root.detail, "the owned Nyxa opens her detail")
+	assert_false(sheet.is_open())
+	root.queue_free()
+
+
+func test_the_unlock_sheet_is_wired_scene_side() -> void:
+	var state := MENU_ROOT.get_state()
+	var root := MENU_ROOT.instantiate() as MenuRoot
+	assert_eq(root.unlock_sheet, root.get_node("UnlockSheet"), "over every screen")
+	var wired := 0
+	for i in state.get_connection_count():
+		if String(state.get_connection_source(i)) == "UnlockSheet":
+			wired += 1
+			assert_eq(state.get_connection_signal(i), &"unlock_confirmed")
+			assert_eq(String(state.get_connection_method(i)), "_on_unlock_confirmed")
+	assert_eq(wired, 1, "unlock_confirmed goes to MenuRoot in MenuRoot.tscn")
+	var sheet_state := (load("res://Scenes/UI/Components/UnlockSheet.tscn") as PackedScene).get_state()
+	var inside: Array[String] = []
+	for i in sheet_state.get_connection_count():
+		inside.append("%s.%s" % [sheet_state.get_connection_source(i), sheet_state.get_connection_signal(i)])
+	inside.sort()
+	assert_eq(", ".join(inside), "Scrim.gui_input, Slide/Sheet/Column/Buttons/Cancel.pressed, Slide/Sheet/Column/Buttons/Unlock.pressed",
+			"the sheet's own wiring is in its scene")
+	root.free()
 
 
 ## Every nav bar under the menu lights Heroes, Monsters and Growth while that

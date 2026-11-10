@@ -112,7 +112,11 @@ func test_upgrades_ready_counts_buyable_nodes() -> void:
 	assert_eq(CharacterProgress.upgrades_ready(_locked_def(100)), 0, "a locked character has none")
 
 
-func test_unlocked_comes_from_the_def() -> void:
+## A fresh save owns what the defs own by default; a bought monster joins
+## through PersistedData's [monsters] owned.
+func test_unlocked_comes_from_the_def_and_the_owned_set() -> void:
+	if not require_isolated():
+		return
 	for d in GameManager.ROSTER.all():
 		assert_eq(CharacterProgress.is_unlocked(d), d.unlocked_by_default, "%s: unlocked_by_default" % d.character_id())
 	assert_true(CharacterProgress.is_unlocked(GameManager.ROSTER.find(&"grount")), "Grount ships unlocked")
@@ -120,6 +124,11 @@ func test_unlocked_comes_from_the_def() -> void:
 	assert_false(CharacterProgress.is_unlocked(GameManager.ROSTER.find(&"gorrak")), "Gorrak ships locked (bought with Leaves)")
 	assert_false(CharacterProgress.is_unlocked(_locked_def(2500)))
 	assert_false(CharacterProgress.is_unlocked(null))
+	PersistedData.add_owned_monster(&"nyxa")
+	assert_true(CharacterProgress.is_unlocked(GameManager.ROSTER.find(&"nyxa")), "bought: owned")
+	assert_false(CharacterProgress.is_unlocked(GameManager.ROSTER.find(&"gorrak")), "the other one stays locked")
+	assert_eq(CharacterProgress.unlock_state(GameManager.ROSTER.find(&"nyxa")), CharacterProgress.UnlockState.OWNED)
+	assert_false(CharacterProgress.is_unlocked(_locked_def(2500)), "the owned set is by id: a def without one is not in it")
 
 
 # --------------------------------------------------------------- cards ----
@@ -192,8 +201,38 @@ func test_locked_purchasable_card() -> void:
 			"card_locked silhouette")
 	assert_eq(_variation(card, "Frame"), &"CharacterCardLocked")
 	assert_eq(_variation(card, "Inner"), &"CardInnerLocked")
+	assert_false(_visible(card, "Rule"), "no level gate, no rule")
 	var free_lock := _card(_locked_def(0))
 	assert_true(_visible(free_lock, "Lock") and not _visible(free_lock, "Price"), "no price chip without a price")
+
+
+## Nyxa's card on her way to owned: the rule under the padlock while no monster
+## is Lv 3, then (gate met) no rule, and the red dot once the Leaves are there.
+func test_locked_card_shows_the_rule_then_the_dot() -> void:
+	if not require_isolated():
+		return
+	var nyxa := GameManager.ROSTER.find(&"nyxa")
+	var card := _card(nyxa, false)
+	assert_eq(card.unlock_state, CharacterProgress.UnlockState.GATED)
+	assert_true(_visible(card, "Rule"), "the rule under the padlock")
+	assert_eq(_text(card, "Rule"), "Needs a Lv 3 monster")
+	assert_true(_visible(card, "Price") and _text(card, "PriceLabel") == "2,500", "and the price")
+	assert_false(_visible(card, "Dot"))
+	PersistedData.add_monster_xp(&"grount", 300)  # Grount Lv 3
+	card.refresh()
+	assert_eq(card.unlock_state, CharacterProgress.UnlockState.SHORT)
+	assert_false(_visible(card, "Rule"), "the rule is met")
+	assert_false(_visible(card, "Dot"), "but the Leaves are short")
+	PersistedData.add_currency(PersistedData.LEAVES, 2500)
+	card.refresh()
+	assert_eq(card.unlock_state, CharacterProgress.UnlockState.READY)
+	assert_true(_visible(card, "Dot"), "buyable now: the red dot")
+	assert_true(_visible(card, "Lock") and _visible(card, "Price"), "still locked until bought")
+	assert_true(CharacterProgress.unlock(nyxa))
+	card.refresh()
+	assert_true(card.unlocked, "bought")
+	assert_false(_visible(card, "Lock") or _visible(card, "Price") or _visible(card, "Rule"))
+	assert_eq(_text(card, "Name"), "Nyxa")
 
 
 func test_rumour_card() -> void:
@@ -294,11 +333,22 @@ func test_stage_character_idles_per_instance_and_cheers() -> void:
 				"%s period %.3f within 0.85-1.2 x bob_period" % [sc.name, sc.period])
 	var lock_b := _node(b, "Lock") as CanvasItem
 	assert_false(lock_b.visible, "an owned character has no padlock")
+	assert_false(_visible(b, "LockInfo"), "nor a price")
 	var locked := STAGE_CHARACTER.instantiate() as StageCharacter
 	locked.character = _locked_def(2500)
 	add_child(locked)
 	assert_true(_visible(locked, "Lock"), "padlock")
 	assert_true((_node(locked, "Rig") as RigView).silhouette, "silhouette")
+	assert_true(_visible(locked, "LockInfo"), "the price under the padlock")
+	assert_eq(_text(locked, "PriceLabel"), "2,500")
+	assert_false(_visible(locked, "Rule"), "no level gate, no rule")
+	var gated := STAGE_CHARACTER.instantiate() as StageCharacter
+	gated.character = GameManager.ROSTER.find(&"gorrak")
+	add_child(gated)
+	if is_isolated():
+		assert_true(_visible(gated, "Rule"), "Gorrak's rule while no monster is Lv 3")
+		assert_eq(_text(gated, "Rule"), "Needs a Lv 3 monster")
+		assert_eq(_text(gated, "PriceLabel"), "3,000")
 	var hop := _node(b, "Hop") as Control
 	b.cheer(0.0)
 	await wait_seconds(0.12)

@@ -4,7 +4,9 @@ extends Button
 ## A tappable roster character standing on a menu stage (the lobby's campfire
 ## and lair, the detail screen): its live rig (RigView) with a soft
 ## squash-and-bob idle on top of the rig's own breathing, and cheer() when its
-## side is chosen. A locked character stands as a silhouette under a padlock.
+## side is chosen. A locked character stands as a silhouette under a padlock,
+## with its price chip and, while unmet, its unlock rule ("Needs a Lv 3
+## monster") under the lock when it can be bought.
 ##
 ## Individuality: each instance bobs with its own period (bob_period x
 ## 0.85-1.2) and phase, drawn from a PRIVATE RandomNumberGenerator seeded by
@@ -50,6 +52,10 @@ var _rest_y := 0.0
 @onready var _hop: Control = %Hop
 @onready var _rig: RigView = %Rig
 @onready var _lock: TextureRect = %Lock
+@onready var _lock_info: Control = %LockInfo
+@onready var _price_icon: TextureRect = %PriceIcon
+@onready var _price_label: Label = %PriceLabel
+@onready var _rule: Label = %Rule
 
 
 func _ready() -> void:
@@ -61,12 +67,23 @@ func _ready() -> void:
 	start_idle()
 
 
-## Re-reads whether the character is unlocked (silhouette and padlock).
+## Re-reads whether the character is unlocked (silhouette and padlock) and,
+## when locked, its price and rule.
 func refresh() -> void:
 	_rig.character = character
 	var locked := character != null and not CharacterProgress.is_unlocked(character)
 	_rig.silhouette = locked
 	_lock.visible = locked
+	var state := CharacterProgress.unlock_state(character)
+	_lock_info.visible = locked and state != CharacterProgress.UnlockState.NOT_FOR_SALE
+	if not _lock_info.visible:
+		return
+	var currency := character.currency()
+	_price_icon.texture = CurrencyChip.icon_for(currency)
+	_price_label.text = CurrencyChip.format_amount(character.unlock_cost)
+	_price_label.add_theme_color_override(&"font_color", UiPalette.get_default().color(currency))
+	_rule.text = CharacterProgress.unlock_rule_short(character)
+	_rule.visible = state == CharacterProgress.UnlockState.GATED and not _rule.text.is_empty()
 
 
 ## The idle loop: after a random share of one period, squash and rise, then

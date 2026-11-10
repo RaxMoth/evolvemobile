@@ -8,9 +8,18 @@ extends Node
 ##   [hero_xp]   river, vlad, ted, irelia (per-character permanent XP)
 ##   [skill_ranks] <tree_id> = {"skill_id_1": 1, "skill_id_2": 3, ...}  (v3+)
 ##   [capstones] <tree_id> = "node_id"  (v3+; the tree's equipped capstone)
+##   [monsters]  owned = ["nyxa", ...]  the locked monsters the player bought
+##               (CharacterProgress.unlock; a roster def's unlocked_by_default
+##               monster, Grount, is owned without an entry), last_quarry (the
+##               monster the heroes hunted last), locked_quarry (the one the
+##               pre-round Change picker fixed; "" = random)
+##   [codex]     monsters = ["grount", ...]  the quarries the heroes have met
+##               (their Codex entries; GameManager.begin_hunt adds them)
 ##   [settings]  music_volume, sfx_volume, etc.
 ## ([skills] <tree_id> = ["skill_id", ...] was the v1/v2 layout: every listed id
-##  migrates to rank 1, so no purchase is lost or re-priced.)
+##  migrates to rank 1, so no purchase is lost or re-priced.) [monsters] and
+## [codex] need no migration: a save without them owns no bought monster and
+## has met no quarry yet.
 ##
 ## Loaded once at startup. Mutations go through helper methods so signals
 ## fire and so we never have stale reads. Save is explicit (call save_data()
@@ -32,6 +41,8 @@ extends Node
 signal currency_changed(currency: StringName, new_amount: int)
 signal hero_xp_changed(hero_id: StringName, new_xp: int)
 signal monster_xp_changed(monster_id: StringName, new_xp: int)
+## A locked monster joined [monsters] owned (a purchase).
+signal monster_owned(monster_id: StringName)
 signal data_loaded
 signal data_saved
 
@@ -63,7 +74,11 @@ const SECTION_MONSTER_XP := "monster_xp"
 const SECTION_SKILLS := "skills"  ## v1/v2 only: read by the v2 -> v3 migration.
 const SECTION_SKILL_RANKS := "skill_ranks"
 const SECTION_CAPSTONES := "capstones"
+const SECTION_MONSTERS := "monsters"
+const SECTION_CODEX := "codex"
 const SECTION_SETTINGS := "settings"
+## Codex kinds (keys of [codex]).
+const CODEX_MONSTERS: StringName = &"monsters"
 
 var _config: ConfigFile = ConfigFile.new()
 var _loaded: bool = false
@@ -276,8 +291,8 @@ static func _as_non_negative_int(value: Variant) -> int:
 	return 0
 
 
-## Reset Progress: clears currency, XP, skill ranks, equipped capstones and
-## match counters but KEEPS the [settings] section (volumes, language,
+## Reset Progress: clears currency, XP, skill ranks, equipped capstones, the
+## bought monsters, the quarry history, the Codex and match counters but KEEPS the [settings] section (volumes, language,
 ## analytics opt-out, tutorial flag, last match strategy) — those are device
 ## preferences, not progress.
 ## `keep_settings = false` is the factory reset the tests use.
@@ -461,6 +476,92 @@ func set_equipped_capstone(tree_id: StringName, node_id: StringName) -> void:
 			_config.erase_section_key(SECTION_CAPSTONES, tree_id)
 	else:
 		_config.set_value(SECTION_CAPSTONES, tree_id, String(node_id))
+	_dirty = true
+
+
+# ============================================
+# Monsters: the bought ones and the Heroes-side quarry
+# ============================================
+
+## Ids of the monsters the player bought ([monsters] owned), in purchase order.
+## Monsters a roster def owns by default are not listed
+## (CharacterProgress.is_unlocked reads both).
+func get_owned_monsters() -> Array[StringName]:
+	return _id_list(SECTION_MONSTERS, "owned")
+
+
+func owns_monster(monster_id: StringName) -> bool:
+	return get_owned_monsters().has(monster_id)
+
+
+## Adds a bought monster (monster_owned fires once). Never saves by itself.
+func add_owned_monster(monster_id: StringName) -> void:
+	if monster_id == &"" or owns_monster(monster_id):
+		return
+	_append_id(SECTION_MONSTERS, "owned", monster_id)
+	monster_owned.emit(monster_id)
+
+
+## The monster of the last Heroes-side hunt (&"" before the first one).
+func get_last_quarry() -> StringName:
+	return StringName(String(_config.get_value(SECTION_MONSTERS, "last_quarry", "")))
+
+
+func set_last_quarry(monster_id: StringName) -> void:
+	_config.set_value(SECTION_MONSTERS, "last_quarry", String(monster_id))
+	_dirty = true
+
+
+## The quarry the pre-round Change picker fixed; &"" = a random one each hunt.
+func get_locked_quarry() -> StringName:
+	return StringName(String(_config.get_value(SECTION_MONSTERS, "locked_quarry", "")))
+
+
+func set_locked_quarry(monster_id: StringName) -> void:
+	_config.set_value(SECTION_MONSTERS, "locked_quarry", String(monster_id))
+	_dirty = true
+
+
+# ============================================
+# Codex (what the player has met)
+# ============================================
+
+## The entries of one Codex kind (CODEX_MONSTERS: the quarries met), in the
+## order they were added.
+func get_codex_entries(kind: StringName) -> Array[StringName]:
+	return _id_list(SECTION_CODEX, String(kind))
+
+
+func has_codex_entry(kind: StringName, id: StringName) -> bool:
+	return get_codex_entries(kind).has(id)
+
+
+## Adds an entry; true when it is new (a first sighting). Never saves by itself.
+func add_codex_entry(kind: StringName, id: StringName) -> bool:
+	if id == &"" or has_codex_entry(kind, id):
+		return false
+	_append_id(SECTION_CODEX, String(kind), id)
+	return true
+
+
+## A saved list of ids (Strings in the file), typed; anything else in it is
+## skipped, so a hand-edited or damaged list never breaks a read.
+func _id_list(section: String, key: String) -> Array[StringName]:
+	var out: Array[StringName] = []
+	var raw: Variant = _config.get_value(section, key, [])
+	if raw is Array:
+		for entry: Variant in raw:
+			if (entry is String or entry is StringName) and not String(entry).is_empty() and not out.has(StringName(entry)):
+				out.append(StringName(entry))
+	return out
+
+
+func _append_id(section: String, key: String, id: StringName) -> void:
+	var ids: Array = []
+	for existing in _id_list(section, key):
+		ids.append(String(existing))
+	ids.append(String(id))
+	_config.set_value(section, key, ids)
 	_dirty = true
 
 

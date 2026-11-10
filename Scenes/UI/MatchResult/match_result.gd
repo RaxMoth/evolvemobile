@@ -72,6 +72,9 @@ func _color_for_outcome(outcome: int) -> Color:
 
 func _on_play_again() -> void:
 	get_tree().paused = false
+	# The next hunt picks its monster like HUNT does (the Heroes side never
+	# meets the same quarry twice in a row).
+	GameManager.begin_hunt()
 	# Reload the current scene cleanly. Defer so we don't free our own UI
 	# from inside its own input callback.
 	get_tree().reload_current_scene.call_deferred()

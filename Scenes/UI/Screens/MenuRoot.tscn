@@ -5,8 +5,9 @@
 [ext_resource type="PackedScene" uid="uid://cle50s1lcs20c" path="res://Scenes/UI/Screens/LobbyScreen.tscn" id="3_lobby"]
 [ext_resource type="PackedScene" uid="uid://bt7r3nkv0yq2d" path="res://Scenes/UI/Screens/RosterScreen.tscn" id="4_roster"]
 [ext_resource type="PackedScene" uid="uid://cj2h7sdqk5w0m" path="res://Scenes/UI/Screens/CharacterDetail.tscn" id="5_detail"]
+[ext_resource type="PackedScene" path="res://Scenes/UI/Components/UnlockSheet.tscn" id="6_unlock_sheet"]
 
-[node name="MenuRoot" type="Control" node_paths=PackedStringArray("lobby", "hero_roster", "monster_roster", "detail", "growth")]
+[node name="MenuRoot" type="Control" node_paths=PackedStringArray("lobby", "hero_roster", "monster_roster", "detail", "growth", "unlock_sheet")]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -20,6 +21,7 @@ hero_roster = NodePath("Screens/HeroRoster")
 monster_roster = NodePath("Screens/MonsterRoster")
 detail = NodePath("Screens/CharacterDetail")
 growth = NodePath("Screens/Growth")
+unlock_sheet = NodePath("UnlockSheet")
 
 [node name="Screens" type="Control" parent="."]
 unique_name_in_owner = true
@@ -53,6 +55,10 @@ visible = false
 layout_mode = 1
 mode = 1
 
+[node name="UnlockSheet" parent="." instance=ExtResource("6_unlock_sheet")]
+visible = false
+layout_mode = 1
+
 [connection signal="side_chosen" from="Screens/LobbyScreen" to="." method="_on_side_chosen"]
 [connection signal="hunt_requested" from="Screens/LobbyScreen" to="." method="_on_hunt_requested"]
 [connection signal="roster_requested" from="Screens/LobbyScreen" to="." method="_on_roster_requested"]
@@ -73,3 +79,4 @@ mode = 1
 [connection signal="tab_selected" from="Screens/Growth" to="." method="_on_tab_selected"]
 [connection signal="upgrade_requested" from="Screens/Growth" to="." method="_on_upgrade_requested"]
 [connection signal="equip_requested" from="Screens/Growth" to="." method="_on_equip_requested"]
+[connection signal="unlock_confirmed" from="UnlockSheet" to="." method="_on_unlock_confirmed"]

@@ -63,6 +63,16 @@ texture = ExtResource("3_lock")
 expand_mode = 1
 stretch_mode = 5
 
+[node name="Rule" type="Label" parent="Frame/Column/Inner"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+size_flags_vertical = 8
+theme_type_variation = &"PillText"
+text = "Needs a Lv 3 monster"
+horizontal_alignment = 1
+autowrap_mode = 3
+
 [node name="RumourBox" type="VBoxContainer" parent="Frame/Column/Inner"]
 unique_name_in_owner = true
 visible = false

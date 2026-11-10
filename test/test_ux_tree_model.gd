@@ -325,6 +325,13 @@ func test_live_states_agree_with_the_shop() -> void:
 	PersistedData.add_currency(PersistedData.STEEL, 300)
 	PersistedData.add_currency(PersistedData.GOLD, 100)
 	_assert_agree("seeded save")
+	# A bought monster's card counts its buyable ranks like any owned one;
+	# Gorrak, still locked, keeps 0.
+	PersistedData.add_owned_monster(&"nyxa")
+	assert_true(CharacterProgress.is_unlocked(GameManager.ROSTER.find(&"nyxa")), "Nyxa is bought")
+	assert_true(CharacterProgress.upgrades_ready(GameManager.ROSTER.find(&"nyxa")) > 0, "1,000 Leaves buy her tier-1 ranks")
+	assert_eq(CharacterProgress.upgrades_ready(GameManager.ROSTER.find(&"gorrak")), 0, "Gorrak is still locked")
+	_assert_agree("bought Nyxa")
 
 
 func _assert_agree(label: String) -> void:
@@ -357,7 +364,8 @@ func _assert_agree(label: String) -> void:
 				assert_eq(state, open_state, tag)
 				assert_false(m.can_buy(n), tag)
 		assert_eq(m.buyable_count(), available, "%s %s: buyable count" % [label, tree_id])
-	# A locked character (Nyxa) shows no up-arrows: its detail does not open.
+	# A locked character (Nyxa or Gorrak until bought) shows no up-arrows: its
+	# detail does not open.
 	for def in GameManager.ROSTER.all():
 		var m := UxTreeModel.from_ranked_manager(def.skill_tree_id())
 		var expected: int = m.buyable_count() if CharacterProgress.is_unlocked(def) else 0

@@ -9,10 +9,12 @@ extends Control
 ## stalker, swarm) and the owned / total count. When the screen opens the cards
 ## drop in one after another (CARD_STAGGER).
 ##
-## Tapping an owned character asks for its detail (character_requested);
-## tapping a locked card or the rumour shakes it. The screen only reports:
-## MenuRoot connects every signal scene-side, calls open() before it slides the
-## screen in and refresh() when the save changes (currencies, skills).
+## Tapping an owned character asks for its detail (character_requested); so
+## does a locked one that can be bought (Nyxa, Gorrak: MenuRoot opens the
+## unlock confirm sheet with its rule and price instead). The rumour and a
+## locked card without a price shake. The screen only reports: MenuRoot
+## connects every signal scene-side, calls open() before it slides the screen
+## in and refresh() when the save changes (currencies, skills, purchases).
 
 signal character_requested(character: CharacterDef)
 signal back_requested
@@ -96,7 +98,7 @@ func open() -> void:
 	play_intro()
 
 
-## Re-reads levels, XP and ready upgrades (the save changed).
+## Re-reads levels, XP, ready upgrades and what is owned (the save changed).
 func refresh() -> void:
 	var owned := 0
 	for card in _cards:
@@ -172,7 +174,8 @@ func _make_card() -> CharacterCard:
 	return card
 
 
-## A card that cannot open (locked, rumour) shakes side to side.
+## A card that opens nothing (the rumour, a locked card without a price)
+## shakes side to side.
 func _shake(card: Control) -> void:
 	var x := card.position.x
 	var t := card.create_tween()
@@ -181,7 +184,7 @@ func _shake(card: Control) -> void:
 
 
 func _on_card_pressed(character: CharacterDef, card: CharacterCard) -> void:
-	if character == null or not CharacterProgress.is_unlocked(character):
+	if CharacterProgress.unlock_state(character) == CharacterProgress.UnlockState.NOT_FOR_SALE:
 		_shake(card)
 		return
 	character_requested.emit(character)

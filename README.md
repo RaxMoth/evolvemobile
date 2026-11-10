@@ -24,7 +24,9 @@
 
 **Pre-Round Phase** (Strategic Setup):
 
-1. **Choose Side**: Heroes or Monster
+1. **Choose Side**: Heroes or Monster. The Heroes side hunts tonight's
+   quarry (a random monster they have met, see Opponent Choice and Monster
+   Unlocks); the Monster side plays the player's own monster.
 2. **Configure Strategy**:
     - Hero team: Composition (4 heroes from roster), formation, exploration strategy
     - Monster: Evolution strategy, farming routes, engagement timing
@@ -55,6 +57,61 @@
 - **Heroes Win**: Kill the monster at any stage
 - **Monster Wins**: Kill all 4 heroes
 - **No draws**: One side must be eliminated
+
+### Opponent Choice and Monster Unlocks
+
+- **Heroes side: tonight's quarry.** The pool is every roster monster the
+  save has played enough matches (either side) to meet:
+  `PersistedData.get_total_matches() >= CharacterDef.opponent_after_matches`
+  (Grount 0, Nyxa 3, Gorrak 6). It does not depend on what the Monster side
+  owns, so a heroes-only player still meets every monster.
+  `GameManager.quarry_pool()`, `hunts_until_quarry(def)` (the Change picker's
+  "appears after N hunts").
+    - The pick (`next_quarry()`) is random among the pool, never the last
+      quarry again while the pool has two or more (`roll_quarry(pool, last,
+      rng)`). It is drawn with GameManager's PRIVATE RandomNumberGenerator
+      (the global RNG drives gameplay and the determinism trace), rolled once
+      and kept until a hunt starts, so reopening the pre-round shows the same
+      monster.
+    - `lock_quarry(id)` is the Change picker (the new pre-round screen, Phase
+      8): it fixes a monster of the pool for every hunt, repeats allowed, until
+      `lock_quarry(&"")` (Random). `locked_quarry()` ignores a lock outside the
+      pool.
+    - `is_new_quarry(id)`: true until the heroes have hunted it once, the
+      NEW QUARRY flag (the old pre-round names the quarry with it; the banner
+      is Phase 8).
+    - `begin_hunt(quarry_id = &"")` runs right before a menu loads World (HUNT,
+      the old main menu, Play Again): on the Heroes side it spawns
+      `quarry_id` when it is in the pool, else `next_quarry()`
+      (`MatchConfig.quarry_id` carries the pre-round's pick), records it as the
+      last quarry and adds its Codex entry (`[codex] monsters`, a first
+      sighting). The Monster side plays the player's own monster
+      (`played_monster_id()`). The sim tools never call it: they pick with
+      `select_monster(id, false)` (`monster=<id>`, or the saved default), so
+      every trace is unchanged.
+- **Monster side: owned monsters.** Grount is owned from the start
+  (`unlocked_by_default`). Nyxa (2,500 Leaves) and Gorrak (3,000 Leaves) are
+  bought once ANY owned monster has reached Lv 3 (`unlock_requires_level`;
+  a level on a monster not owned yet does not count, hero levels never do).
+  The lobby's lair and the monster roster show them padlocked with their
+  price and, while unmet, the rule ("Needs a Lv 3 monster"); the card's red
+  dot and the nav bar's Monsters dot light once one can be bought now. A tap
+  opens the `UnlockSheet` (rule, price, UNLOCK), and the purchase
+  (`CharacterProgress.unlock`) spends the Leaves, adds the monster to
+  `[monsters] owned`, saves, and makes it the player's own monster
+  (`GameManager.choose_monster`; the new pre-round's picker switches between
+  owned ones in Phase 8).
+- **Save** (`PersistedData`, no migration: a save without the sections owns no
+  bought monster and has met no quarry): `[monsters] owned` (the bought ids;
+  default-owned ones are not listed), `last_quarry`, `locked_quarry`, and
+  `[codex] monsters` (the quarries met). Reset Progress clears them; damaged
+  entries are skipped on read.
+- `test/test_quarry_pick.gd`: the defs' rules, pool membership by matches
+  played, no repeat over 300 draws, the global RNG untouched by 25 picks and
+  hunts, the pick kept until a hunt, the lock, the Codex entry and NEW flag,
+  the old pre-round's quarry line, the Lv 3 gate before the price, any owned
+  monster opening the gate, the exact prices, the save, the Monster side's
+  own monster, junk-proof lists.
 
 ---
 
@@ -244,8 +301,9 @@ off lone heroes, retreats early and punishes a clumped team with her swarm.
 Her scene `Scenes/NPCs/Monster/Nyxa/Nyxa.tscn` inherits
 `monster_base_class.tscn` with the bat-matriarch rig (`nyxa_body`, FLYER);
 her numbers are the gamedesign's final config (v9). Not owned by default:
-2,500 Leaves once any owned monster is Lv.3 (the unlock flow is Phase 6.7),
-and the Heroes side meets her after 3 hunts (`opponent_after_matches`).
+2,500 Leaves once any owned monster is Lv.3 (bought on the unlock sheet, see
+Opponent Choice and Monster Unlocks), and the Heroes side meets her after 3
+hunts (`opponent_after_matches`).
 
 | Attribute        | Stage 1 (Duskling) | Stage 2 (Night Hunter) | Stage 3 (Dusk Matriarch) |
 | ---------------- | ------------------ | ---------------------- | ------------------------ |
@@ -290,8 +348,8 @@ stomp that stuns the pack. He never flees with his axe. His scene
 with the boar-king rig (`gorrak_body`, QUADRUPED); his numbers are the
 gamedesign's final config (v6), except Stage 3 HP, retuned 1600 → 1500 in 6.5
 (see Balance). Not owned by default: 3,000 Leaves once any owned monster is
-Lv.3 (the unlock flow is Phase 6.7), and the Heroes side meets him after 6
-hunts (`opponent_after_matches`).
+Lv.3 (bought on the unlock sheet, see Opponent Choice and Monster Unlocks),
+and the Heroes side meets him after 6 hunts (`opponent_after_matches`).
 
 | Attribute        | Stage 1 (Tusker) | Stage 2 (Warlord)   | Stage 3 (Boar King)  |
 | ---------------- | ---------------- | ------------------- | -------------------- |
@@ -1331,7 +1389,8 @@ entity registers it and draws from the global RNG).
     King), `opponent_after_matches` (Heroes-side quarry pool: Grount 0, Nyxa
     3, Gorrak 6), `unlock_requires_level` (Nyxa and Gorrak 3), and `tip`, the
     counterplay hint for the heroes.
-  - progression: `unlocked_by_default` (false for Nyxa and Gorrak),
+  - progression: `unlocked_by_default` (false for Nyxa and Gorrak; the bought
+    ones join `PersistedData`'s `[monsters] owned`),
     `unlock_cost` (in `currency()`: Steel for heroes, Leaves for monsters;
     Nyxa 2,500, Gorrak 3,000) and
     `skill_tree`, the character's
@@ -1351,10 +1410,15 @@ entity registers it and draws from the global RNG).
   at exactly the old point of the enter pass, before `Spawns._ready` shuffles the
   camps. Spawning it from `World._ready` would change every match.
   `test_roster` guards the index and the enter-pass spawn.
-- **Selection**: `GameManager.select_monster(id, persist = true)` (persisted as
-  the `selected_monster` setting) and `selected_monster_def()`. The old main
-  menu's monster tree button and level row follow the selection. The
-  `match_ended` analytics event carries `monster`.
+- **Selection**: `GameManager.selected_monster_id` is the next match's monster
+  (played or hunted); `GameManager.begin_hunt()` sets it for the chosen side
+  right before a menu loads World (see Opponent Choice and Monster Unlocks).
+  `select_monster(id, persist = true)` sets it directly (the sim tools, with
+  persist off); the `selected_monster` setting is the player's own monster
+  (`choose_monster(id)`, owned only; `played_monster_id()` reads it back and
+  falls back to the default). The old main menu's monster tree button and
+  level row follow the player's own monster. The `match_ended` analytics
+  event carries `monster`.
 - **Tools**: `MONSTER=<id>` or `MONSTER=all` for `tools/sim.sh`, `tools/sim_trace.sh`
   and `tools/bench.sh` (`sim_match.gd` / `bench_match.gd ... monster=<id>`), with a
   per-monster trace baseline in `tools/baselines/`; see Headless Tools below.
@@ -1374,8 +1438,8 @@ entity registers it and draws from the global RNG).
 ### Menu Component Kit (cards, rigs, top bar, nav bar)
 
 The building blocks of the Phase 3 menu screens (lobby, roster, character
-detail). They read the roster and the save, never write them, and take every
-colour from the theme or `UiPalette`. Signals are wired scene-side; the only
+detail). They read the roster and the save, never write them (purchases go
+through MenuRoot), and take every colour from the theme or `UiPalette`. Signals are wired scene-side; the only
 code connections are to autoloads (`PersistedData.currency_changed`).
 
 - **`CharacterProgress`** (`Scripts/Progression/character_progress.gd`, static
@@ -1383,8 +1447,13 @@ code connections are to autoloads (`PersistedData.currency_changed`).
   `xp_needed` on the one XP curve of `PersistedData.level_progress` (levels
   come from XP alone, nothing buys them), `upgrades_ready` (nodes of the
   character's own tree that `MetaSkillManager` reports AVAILABLE: tier open and
-  affordable now) and `is_unlocked` (`unlocked_by_default` until the monster
-  unlock flow adds bought characters).
+  affordable now) and `is_unlocked` (`unlocked_by_default`, or a monster in
+  `PersistedData`'s `[monsters] owned`). The unlock rules: `unlock_state`
+  (OWNED, NOT_FOR_SALE, GATED, SHORT, READY), `best_owned_level(side)`,
+  `unlock_gate_met`, `can_unlock`, the rule in words (`unlock_rule_short`
+  "Needs a Lv 3 monster" for cards, `unlock_rule` for the sheet) and
+  `unlock(def)`, the purchase (only from READY: spends the price, adds the
+  monster to the owned set, saves); the only helper that writes.
 - **`CharacterCard.tscn`** (`CharacterCard`, a Button): the collection card.
   Size presets S 150x238 (pickers, the pre-round squad), M 160x262 (the
   4-column grid) and L 280x446 (the quarry card) scale layout and type from
@@ -1399,7 +1468,9 @@ code connections are to autoloads (`PersistedData.currency_changed`).
       N skill ranks can be bought now;
     - locked: the portrait through `card_locked.gdshader`, the padlock, the name
       "???", no level or pill, and a price chip in the currency's colour when
-      `unlock_cost` > 0;
+      `unlock_cost` > 0; while the unlock rule is unmet it reads under the
+      padlock ("Needs a Lv 3 monster", `%Rule`), and once the character can be
+      bought now the red notify dot shows (`unlock_state`);
     - `rumour`: the one "???" slot each side ends with ("Rumours in the deep
       jungle", no character).
   `refresh()` re-reads the save (screens call it on currency or skill
@@ -1421,8 +1492,20 @@ code connections are to autoloads (`PersistedData.currency_changed`).
   with a bounce landing). Period (`bob_period` x 0.85-1.2) and phase come from
   a private RandomNumberGenerator seeded by `hash(name) ^ hash(path)`, so a
   stage looks the same every launch and the global RNG is never touched.
-  Locked characters stand as a silhouette under a padlock.
+  Locked characters stand as a silhouette under a padlock with their price
+  chip and, while unmet, the unlock rule under it (`%LockInfo`).
   `character_pressed(character)`.
+- **`UnlockSheet.tscn`** (`UnlockSheet`, `unlock_sheet.gd`): the confirm sheet
+  of a character purchase, one instance over every MenuRoot screen. `open_for(def)`
+  slides it up from the bottom edge (0.22 s, cubic) over a `bg_void` scrim:
+  the character as a locked silhouette under the padlock (`CardInnerLocked`),
+  "Unlock Nyxa?", the role line and tagline, the rule (`unlock_rule`: what is
+  missing in `DangerLabel` with a padlock, or met in `NextLabel` with a check),
+  CANCEL (`ButtonCopper`) and UNLOCK (`ButtonMonster`) with the currency icon
+  and the price inside it (in `danger` while the wallet is short). UNLOCK is
+  disabled unless `unlock_state` is READY and reads "Need 340 more" while the
+  wallet is short. It only reports `unlock_confirmed(character)`; CANCEL, a
+  tap on the scrim and `ui_cancel` close it. Its wiring is in its scene.
 - **`TopBar.tscn`**: a round left button (`left_icon`, `left_pressed`), the
   title, and the `CurrencyChip`s the screen's side shows (`show_gold`,
   `show_steel`, `show_leaves`; `chip(currency)`).
@@ -1476,13 +1559,15 @@ code connections are to autoloads (`PersistedData.currency_changed`).
   re-laid out on resize. `build(model)` keeps the selection; `select(id)`
   reports `node_selected`; `pop(id)` after a purchase pops the node and fades
   its vines from their old colour to the new one over 0.45 s.
-- `test/test_character_card.gd` covers the progress numbers, the card states
-  (normal, upgrade-ready, locked-purchasable, rumour, monster, selected) with
+- `test/test_character_card.gd` covers the progress numbers, the owned set,
+  the card states (normal, upgrade-ready, locked-purchasable, a locked
+  monster's rule then dot on its way to bought, rumour, monster, selected) with
   their pill text and variations, the size presets, the RigView fit, flip and
   silhouette, the stage idle and cheer, the global RNG left untouched, the nav
   bar's group and notify API, and the chips. `tools/preview/CardGrid.tscn`
   renders the grid and nav (default page) and the L / S cards and stage
-  characters (`-- --page=sizes`) from sample numbers, never the save.
+  characters (`-- --page=sizes`) from sample numbers, never the save; every
+  character there is its roster def.
 
 ### Menu Root and Lobby (the main scene)
 
@@ -1513,23 +1598,31 @@ button until the Phase 8 screens retire it.
       `switch_to(screen)`: the screen slides in and then sits right above the
       lobby (back returns home; tabs do not stack up), or, when it is already
       on the stack, the screens above it slide away (`pop_to`). A character's
-      detail is pushed over the screen that asked. Locked characters (Nyxa
-      and Gorrak until they are bought) open nothing yet.
+      detail is pushed over the screen that asked. A locked character with a
+      price (Nyxa and Gorrak until bought) opens the `UnlockSheet` instead.
     - Purchases: a detail's `upgrade_requested(tree_id, node_id)` →
       `MetaSkillManager.rank_up` (the next rank; the shop decides: gates,
       price), and `equip_requested(tree_id, node_id)` →
-      `MetaSkillManager.equip_capstone` (free). On
-      `MetaSkillManager.skills_changed` and `PersistedData.currency_changed`
-      (connected in code: autoloads) every roster and detail on the stack
-      re-reads the save, once per frame at most.
+      `MetaSkillManager.equip_capstone` (free). The sheet's
+      `unlock_confirmed(character)` → `CharacterProgress.unlock` (the rule and
+      the wallet decide) and `GameManager.choose_monster` (the bought monster
+      becomes the player's own), then the sheet closes (or refreshes when the
+      purchase did not go through). On `MetaSkillManager.skills_changed`,
+      `PersistedData.currency_changed` and `PersistedData.monster_owned`
+      (connected in code: autoloads) the lobby, every roster and detail on the
+      stack and an open sheet re-read the save, once per frame at most.
     - Red nav dots: on entry, after every such refresh and when the side
       changes, every nav bar under the menu (`NavBar.GROUP`) shows Heroes /
       Monsters while a character of that side has a rank to buy now
-      (`CharacterProgress.upgrades_ready`) and Growth while the chosen side's
+      (`CharacterProgress.upgrades_ready`) or can itself be bought
+      (`CharacterProgress.can_unlock`), and Growth while the chosen side's
       account tree has one (`MetaSkillManager.card_progress`).
     - Until their new screens land, HUNT opens the old `PreRoundSetup` overlay on
-      the hero side (the monster side starts the match at once), Codex the
-      tutorial and the gear Settings.
+      the hero side (it names tonight's quarry, "NEW QUARRY" on a first
+      sighting, and hands it on in `MatchConfig.quarry_id`; the monster side
+      starts the match at once), Codex the tutorial and the gear Settings.
+      Every start goes through `GameManager.begin_hunt()` first; so does the
+      old match result's Play Again.
 - **`LobbyScreen`** (`lobby_screen.gd`, the nav bar's HUNT tab): a split jungle
   stage under the top bar (gear, Gold, Steel, Leaves) and above the nav bar.
     - Hero stage (y 84-624): the campfire clearing (`Assets/UI/Lobby/lobby_heroes.svg`),
@@ -1537,9 +1630,11 @@ button until the Phase 8 screens retire it.
       live `StageCharacter` rigs around the fire, the right pair facing inward.
     - Monster stage (y 616 down to the nav bar): the fanged lair
       (`lobby_monsters.svg`) with Grount large in the middle. Nyxa and Gorrak
-      stand beside him as padlocked silhouettes: their roster defs
-      (`nyxa_def.tres`, `gorrak_def.tres`, wired scene-side, locked until
-      bought).
+      stand beside him as padlocked silhouettes with their price and, while
+      unmet, the unlock rule: their roster defs (`nyxa_def.tres`,
+      `gorrak_def.tres`, wired scene-side, locked until bought). A tap asks
+      for them like any character (MenuRoot opens the unlock sheet);
+      `refresh()` re-reads the save after a purchase.
     - Between them the HEROES and MONSTERS plaques, each side's HUNT button
       (`ButtonPrimary` / `ButtonMonster`) and the VS badge (`vs_badge.svg`).
     - Tapping a stage chooses that side in place: the other stage tweens to
@@ -1561,7 +1656,9 @@ button until the Phase 8 screens retire it.
   to MenuRoot (no code connections); push / pop and `ui_cancel`; the click on
   every button; the side choice (frames, HUNT pop, cheer stagger, tints, nav
   glow) and `side_tap_opens_roster`; each request; the cast is the roster plus
-  the locked teasers; the chosen side persists; the first-run tutorial; the
+  the locked monsters with their prices; the unlock sheet (opened from the
+  lair and the roster, back closes it, the purchase, the refresh of lobby,
+  roster and dots, its scene-side wiring); the chosen side persists; the first-run tutorial; the
   screens each request opens (nav tabs switch, cards push, back); a purchase
   and a capstone swap through the detail and the refresh of the screens under
   it; the nav dots follow buyable ranks; the main scene is MenuRoot.
@@ -1579,8 +1676,9 @@ button until the Phase 8 screens retire it.
   shows Gold plus the side's Steel or Leaves. `open()` builds the grid on the
   first visit, re-reads the save and plays the intro (the shown cards drop in
   0.04 s apart). An owned character's card asks for its detail
-  (`character_requested`); a locked card or the rumour shakes. `refresh()`
-  re-reads levels, XP and ready upgrades.
+  (`character_requested`), and so does a locked one with a price (MenuRoot
+  opens the unlock sheet); the rumour and a locked card without a price
+  shake. `refresh()` re-reads levels, XP, ready upgrades and what is owned.
 - **`CharacterDetail`** (`CharacterDetail.tscn`, `character_detail.gd`):
     - OVERVIEW: the character on its stage (`CharacterCard` /
       `CharacterCardMonster` frame, its live rig as a `StageCharacter` with the
@@ -1655,8 +1753,8 @@ button until the Phase 8 screens retire it.
   capstones following the equipped one; icons; the live states, rank totals
   and equipped capstone agree with `node_state`, `card_progress` and
   `equipped_capstone` on every node of every tree, fresh and seeded),
-  `test_roster_screen` (grid, rumour, filters, count, intro, taps, refresh,
-  wiring), `test_character_detail` (stat rows, overview, level / XP / badge,
+  `test_roster_screen` (grid, rumour, filters, count, intro, taps, the locked
+  monsters asking and a purchase counting, refresh, wiring), `test_character_detail` (stat rows, overview, level / XP / badge,
   tree mode and sheet with the purchase juice, the sheet opening on a buyable
   node, capstones equipping from the sheet, the top bar counting down, every
   character and account tree fits 720x1280 with its gutter, plaques, arches
@@ -1777,7 +1875,8 @@ res://
 │     ├─ Minimap/ (Minimap: fog map + side-fair dots, inside the MatchHud frame)
 │     ├─ Components/ (menu kit: CharacterCard, StageCharacter, TopBar,
 │     │               CurrencyChip, NavBar, NavTab, NavArch, PressFeedback,
-│     │               StatTile, AbilityTile, SkillNodeButton, SkillTreeView)
+│     │               StatTile, AbilityTile, SkillNodeButton, SkillTreeView,
+│     │               UnlockSheet)
 │     ├─ Widgets/ (rig_view.gd: RigView, a puppet rig inside a Control)
 │     └─ Theme/
 │        ├─ ui_theme.tres (generated project Theme, gui/theme/custom)

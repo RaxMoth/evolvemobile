@@ -3,6 +3,7 @@
 [ext_resource type="Script" uid="uid://13tfljd5va1j" path="res://Scenes/UI/Components/stage_character.gd" id="1_script"]
 [ext_resource type="Script" uid="uid://wq6shkpfj8or" path="res://Scenes/UI/Widgets/rig_view.gd" id="2_rig"]
 [ext_resource type="Texture2D" uid="uid://b250ke07i0yes" path="res://Assets/UI/Kit/padlock.svg" id="3_lock"]
+[ext_resource type="Texture2D" uid="uid://b5uxakr60rax8" path="res://Assets/UI/Icons/Currency/currency_leaves.svg" id="4_leaves"]
 
 [node name="StageCharacter" type="Button"]
 custom_minimum_size = Vector2(120, 160)
@@ -52,6 +53,59 @@ mouse_filter = 2
 texture = ExtResource("3_lock")
 expand_mode = 1
 stretch_mode = 5
+
+[node name="LockInfo" type="VBoxContainer" parent="Hop"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.5
+anchor_top = 0.55
+anchor_right = 0.5
+anchor_bottom = 0.55
+offset_left = -100.0
+offset_top = 42.0
+offset_right = 100.0
+offset_bottom = 106.0
+grow_horizontal = 2
+mouse_filter = 2
+theme_override_constants/separation = 2
+
+[node name="Price" type="PanelContainer" parent="Hop/LockInfo"]
+layout_mode = 2
+size_flags_horizontal = 4
+mouse_filter = 2
+theme_type_variation = &"Pill"
+
+[node name="PriceRow" type="HBoxContainer" parent="Hop/LockInfo/Price"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 4
+alignment = 1
+
+[node name="PriceIcon" type="TextureRect" parent="Hop/LockInfo/Price/PriceRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(24, 24)
+layout_mode = 2
+size_flags_vertical = 4
+mouse_filter = 2
+texture = ExtResource("4_leaves")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="PriceLabel" type="Label" parent="Hop/LockInfo/Price/PriceRow"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"Counter"
+text = "0"
+vertical_alignment = 1
+
+[node name="Rule" type="Label" parent="Hop/LockInfo"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"PillText"
+text = "Needs a Lv 3 monster"
+horizontal_alignment = 1
 
 [connection signal="button_down" from="." to="." method="_on_button_down"]
 [connection signal="button_up" from="." to="." method="_on_button_up"]

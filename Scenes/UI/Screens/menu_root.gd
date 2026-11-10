@@ -16,16 +16,21 @@ extends Control
 ##   - autoloads: the tree unpaused on entry (a match result pauses it), the
 ##     menu music, the UI click on every button press, the first-run tutorial,
 ##     GameManager's chosen side (persisted), the background World load, the
-##     skill purchases (MetaSkillManager.rank_up) and capstone swaps
-##     (equip_capstone), the refresh of the open screens when skills or
-##     currencies change, and the nav bars' red dots: Heroes / Monsters while a
-##     character of that side has a rank to buy, Growth while the chosen side's
-##     account tree has one.
+##     match's monster (GameManager.begin_hunt: the Heroes side's quarry or the
+##     player's own monster) right before World loads, the skill purchases
+##     (MetaSkillManager.rank_up) and capstone swaps (equip_capstone), the
+##     character purchases (CharacterProgress.unlock, confirmed on the
+##     UnlockSheet; the bought monster becomes the player's own), the refresh
+##     of the open screens when skills, currencies or owned monsters change,
+##     and the nav bars' red dots: Heroes / Monsters while a character of that
+##     side has a rank to buy (Monsters also while a locked monster can be
+##     bought), Growth while the chosen side's account tree has one.
 ## The rosters (Heroes / Monsters and the lobby's plaques) open a character's
-## detail; Growth opens the chosen side's account-wide tree in the detail
-## screen. Until their new screens land, HUNT opens the old PreRoundSetup
-## overlay (heroes; the monster side starts at once), Codex the tutorial and
-## the gear SettingsScreen.
+## detail, or the unlock sheet for a locked character with a price; Growth
+## opens the chosen side's account-wide tree in the detail screen. Until
+## their new screens land, HUNT opens the old PreRoundSetup overlay (heroes;
+## it names tonight's quarry; the monster side starts at once with the
+## player's own monster), Codex the tutorial and the gear SettingsScreen.
 
 const SLIDE_TIME := 0.22
 ## Seconds after entry before the first-run tutorial opens.
@@ -42,6 +47,8 @@ const TUTORIAL_SCENE: PackedScene = preload("res://Scenes/UI/Tutorial/TutorialOv
 @export var detail: CharacterDetail
 ## The chosen side's account-wide tree (nav bar Growth).
 @export var growth: CharacterDetail
+## The purchase confirm sheet of a locked character (over every screen).
+@export var unlock_sheet: UnlockSheet
 
 ## The screens on the way back, the home screen first and the shown one last.
 var _stack: Array[Control] = []
@@ -69,14 +76,15 @@ func _ready() -> void:
 	get_tree().node_added.connect(_on_node_added)
 	MetaSkillManager.skills_changed.connect(_queue_refresh)
 	PersistedData.currency_changed.connect(_on_currency_changed)
+	PersistedData.monster_owned.connect(_on_monster_owned)
 	if not TutorialOverlay.has_been_seen():
 		get_tree().create_timer(TUTORIAL_DELAY).timeout.connect(_auto_open_tutorial)
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	# An open overlay owns back (PreRoundSetup and the tutorial close
-	# themselves on ui_cancel before it reaches us).
-	if event.is_action_pressed(&"ui_cancel") and _stack.size() > 1 and not _overlay_open():
+	# An open overlay or the unlock sheet owns back (they close themselves on
+	# ui_cancel before it reaches us).
+	if event.is_action_pressed(&"ui_cancel") and _stack.size() > 1 and not _overlay_open() and not unlock_sheet.is_open():
 		get_viewport().set_input_as_handled()
 		pop()
 
@@ -212,22 +220,27 @@ func _queue_refresh() -> void:
 func _refresh_screens() -> void:
 	_refresh_queued = false
 	for screen in _stack:
-		if screen is RosterScreen:
+		if screen is LobbyScreen:
+			(screen as LobbyScreen).refresh()
+		elif screen is RosterScreen:
 			(screen as RosterScreen).refresh()
 		elif screen is CharacterDetail:
 			(screen as CharacterDetail).refresh()
+	if unlock_sheet.is_open():
+		unlock_sheet.refresh()
 	_update_nav_notify()
 
 
 ## The red dots of every nav bar under the menu (NavBar.GROUP): Heroes and
 ## Monsters while a character of that side has a rank to buy now
-## (CharacterProgress.upgrades_ready), Growth while the chosen side's account
+## (CharacterProgress.upgrades_ready) or can itself be bought
+## (CharacterProgress.can_unlock), Growth while the chosen side's account
 ## tree has one (MetaSkillManager.card_progress).
 func _update_nav_notify() -> void:
 	var heroes := false
 	var monsters := false
 	for def in GameManager.ROSTER.all():
-		if CharacterProgress.upgrades_ready(def) > 0:
+		if CharacterProgress.upgrades_ready(def) > 0 or CharacterProgress.can_unlock(def):
 			if def.is_monster():
 				monsters = true
 			else:
@@ -248,11 +261,18 @@ func _on_currency_changed(_currency: StringName, _amount: int) -> void:
 	_queue_refresh()
 
 
+func _on_monster_owned(_monster_id: StringName) -> void:
+	_queue_refresh()
+
+
 func _roster(side: int) -> RosterScreen:
 	return monster_roster if side == MatchRewards.Side.MONSTER else hero_roster
 
 
-func _start_match() -> void:
+## Picks the match's monster for the chosen side (the Heroes side hunts
+## `quarry_id`, the pre-round's quarry) and loads the match.
+func _start_match(quarry_id: StringName = &"") -> void:
+	GameManager.begin_hunt(quarry_id)
 	get_tree().change_scene_to_packed.call_deferred(GameManager.get_world_scene())
 
 
@@ -279,8 +299,8 @@ func _on_hunt_requested(side: int) -> void:
 	_open_overlay(setup)
 
 
-func _on_pre_round_start_requested(_config: MatchConfig) -> void:
-	_start_match()
+func _on_pre_round_start_requested(config: MatchConfig) -> void:
+	_start_match(config.quarry_id)
 
 
 ## A side's collection (the lobby's plaques, the nav bar's Heroes / Monsters).
@@ -292,13 +312,32 @@ func _on_roster_requested(side: int) -> void:
 
 
 ## An owned character's overview, over the screen that asked (a roster card or
-## the lobby, which has already chosen the character's side). Locked
-## characters (the lair's teasers) have no detail yet.
+## the lobby, which has already chosen the character's side). A locked
+## character with a price (Nyxa, Gorrak) opens the unlock sheet instead: its
+## rule, its price and the purchase.
 func _on_character_requested(character: CharacterDef) -> void:
-	if character == null or not CharacterProgress.is_unlocked(character) or _stack.has(detail):
+	if character == null or unlock_sheet.is_open():
+		return
+	if not CharacterProgress.is_unlocked(character):
+		if CharacterProgress.unlock_state(character) != CharacterProgress.UnlockState.NOT_FOR_SALE:
+			unlock_sheet.open_for(character)
+		return
+	if _stack.has(detail):
 		return
 	detail.show_character(character)
 	push(detail)
+
+
+## UNLOCK on the sheet: buy the character (the rule and the wallet decide) and
+## make it the player's own monster; the screens refresh on the signals the
+## purchase fires. A purchase that does not go through leaves the sheet open
+## on the new numbers.
+func _on_unlock_confirmed(character: CharacterDef) -> void:
+	if CharacterProgress.unlock(character):
+		GameManager.choose_monster(character.character_id())
+		unlock_sheet.close()
+	else:
+		unlock_sheet.refresh()
 
 
 ## The chosen side's account-wide tree (nav bar Growth).

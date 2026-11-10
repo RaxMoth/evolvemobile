@@ -1,0 +1,187 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" uid="uid://btdoenn1vuu4k" path="res://Scenes/UI/Components/unlock_sheet.gd" id="1_script"]
+[ext_resource type="Texture2D" uid="uid://b250ke07i0yes" path="res://Assets/UI/Kit/padlock.svg" id="2_lock"]
+[ext_resource type="Texture2D" uid="uid://b5uxakr60rax8" path="res://Assets/UI/Icons/Currency/currency_leaves.svg" id="3_leaves"]
+[ext_resource type="Theme" uid="uid://eroe1xxhr5fc" path="res://Scenes/UI/Theme/ui_theme.tres" id="4_theme"]
+
+[node name="UnlockSheet" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme = ExtResource("4_theme")
+script = ExtResource("1_script")
+
+[node name="Scrim" type="ColorRect" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Slide" type="Control" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Sheet" type="PanelContainer" parent="Slide"]
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 16.0
+offset_top = -430.0
+offset_right = -16.0
+offset_bottom = -24.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_type_variation = &"SheetPanel"
+
+[node name="Column" type="VBoxContainer" parent="Slide/Sheet"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="Head" type="HBoxContainer" parent="Slide/Sheet/Column"]
+layout_mode = 2
+theme_override_constants/separation = 18
+
+[node name="Art" type="PanelContainer" parent="Slide/Sheet/Column/Head"]
+custom_minimum_size = Vector2(170, 190)
+layout_mode = 2
+mouse_filter = 2
+theme_type_variation = &"CardInnerLocked"
+
+[node name="Portrait" type="TextureRect" parent="Slide/Sheet/Column/Head/Art"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Lock" type="TextureRect" parent="Slide/Sheet/Column/Head/Art"]
+custom_minimum_size = Vector2(58, 68)
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 4
+mouse_filter = 2
+texture = ExtResource("2_lock")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Info" type="VBoxContainer" parent="Slide/Sheet/Column/Head"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+alignment = 1
+
+[node name="Name" type="Label" parent="Slide/Sheet/Column/Head/Info"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"HeaderSmall"
+theme_override_font_sizes/font_size = 34
+text = "Unlock ?"
+text_overrun_behavior = 3
+
+[node name="Role" type="Label" parent="Slide/Sheet/Column/Head/Info"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"HintLabel"
+theme_override_font_sizes/font_size = 19
+
+[node name="Tagline" type="Label" parent="Slide/Sheet/Column/Head/Info"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"BodyDim"
+theme_override_font_sizes/font_size = 19
+autowrap_mode = 3
+
+[node name="RuleRow" type="HBoxContainer" parent="Slide/Sheet/Column"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="RuleIcon" type="TextureRect" parent="Slide/Sheet/Column/RuleRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(30, 30)
+layout_mode = 2
+size_flags_vertical = 4
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Rule" type="Label" parent="Slide/Sheet/Column/RuleRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"DangerLabel"
+autowrap_mode = 3
+
+[node name="Buttons" type="HBoxContainer" parent="Slide/Sheet/Column"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Cancel" type="Button" parent="Slide/Sheet/Column/Buttons"]
+custom_minimum_size = Vector2(0, 66)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 0.6
+theme_type_variation = &"ButtonCopper"
+text = "CANCEL"
+
+[node name="Unlock" type="Button" parent="Slide/Sheet/Column/Buttons"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 66)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"ButtonMonster"
+disabled = true
+text = "UNLOCK"
+alignment = 0
+text_overrun_behavior = 3
+
+[node name="Cost" type="HBoxContainer" parent="Slide/Sheet/Column/Buttons/Unlock"]
+layout_mode = 1
+anchors_preset = 11
+anchor_left = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -150.0
+offset_right = -16.0
+offset_bottom = -6.0
+grow_horizontal = 0
+grow_vertical = 2
+mouse_filter = 2
+theme_override_constants/separation = 6
+alignment = 2
+
+[node name="CostIcon" type="TextureRect" parent="Slide/Sheet/Column/Buttons/Unlock/Cost"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(34, 34)
+layout_mode = 2
+size_flags_vertical = 4
+mouse_filter = 2
+texture = ExtResource("3_leaves")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="CostValue" type="Label" parent="Slide/Sheet/Column/Buttons/Unlock/Cost"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"Counter"
+theme_override_font_sizes/font_size = 24
+text = "0"
+vertical_alignment = 1
+
+[connection signal="gui_input" from="Scrim" to="." method="_on_scrim_gui_input"]
+[connection signal="pressed" from="Slide/Sheet/Column/Buttons/Cancel" to="." method="_on_cancel_pressed"]
+[connection signal="pressed" from="Slide/Sheet/Column/Buttons/Unlock" to="." method="_on_unlock_pressed"]

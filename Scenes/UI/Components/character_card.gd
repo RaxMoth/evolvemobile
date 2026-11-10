@@ -9,8 +9,11 @@ extends Button
 ##   - PillProgressReady "up-arrow N" plus the red notify dot: N skill ranks of
 ##     the character's tree can be bought now (CharacterProgress).
 ## A locked character is a card_locked silhouette of its portrait under the
-## padlock, named "???", with a price chip when it can be bought. `rumour` is
-## the "???" slot each side ends with (no character, no name, no numbers).
+## padlock, named "???", with a price chip when it can be bought, its unlock
+## rule under the padlock while that is unmet ("Needs a Lv 3 monster") and the
+## red notify dot once it can be bought now (CharacterProgress.unlock_state).
+## `rumour` is the "???" slot each side ends with (no character, no name, no
+## numbers).
 ##
 ## The art is the character's live rig (RigView) when `animated`, or its
 ## static portrait (<id>.svg) for big grids. Size presets S / M / L scale the
@@ -75,6 +78,8 @@ var xp_into: int = 0
 var xp_needed: int = 0
 var upgrades: int = 0
 var unlocked: bool = true
+## A locked character's way to owning it (refresh() / _show read the save).
+var unlock_state: CharacterProgress.UnlockState = CharacterProgress.UnlockState.OWNED
 
 ## Each scaled node's M-design values, recorded once in _ready.
 var _base_font: Dictionary[Control, int] = {}
@@ -89,6 +94,7 @@ var _intro: Tween = null
 @onready var _portrait: TextureRect = %Portrait
 @onready var _rig: RigView = %Rig
 @onready var _lock: TextureRect = %Lock
+@onready var _rule: Label = %Rule
 @onready var _level: Label = %Level
 @onready var _name: Label = %Name
 @onready var _pill: ProgressBar = %Pill
@@ -104,7 +110,7 @@ var _intro: Tween = null
 
 
 func _ready() -> void:
-	for label: Label in [_level, _name, _pill_label, _price_label, _rumour_mark, _rumour_text]:
+	for label: Label in [_level, _name, _pill_label, _price_label, _rumour_mark, _rumour_text, _rule]:
 		_base_font[label] = label.get_theme_font_size(&"font_size")
 		_base_outline[label] = label.get_theme_constant(&"outline_size")
 	for c: Control in [_lock, _up_icon, _price_icon, _pill, _dot, %Bottom]:
@@ -156,9 +162,11 @@ func _show() -> void:
 	_dot.visible = unlocked and upgrades > 0
 	_name.text = character.get_display_name() if unlocked else "???"
 	_price.visible = not unlocked and character.unlock_cost > 0
+	_rule.visible = false
 	if not unlocked:
-		_show_price()
+		_show_locked()
 		return
+	unlock_state = CharacterProgress.UnlockState.OWNED
 	_level.text = tr("Lv.%d") % level
 	var can_upgrade := upgrades > 0
 	_pill.theme_type_variation = &"PillProgressReady" if can_upgrade else &"PillProgress"
@@ -182,6 +190,7 @@ func _show_rumour() -> void:
 	_name.visible = false
 	_pill.visible = false
 	_price.visible = false
+	_rule.visible = false
 	_dot.visible = false
 	_rumour_box.visible = true
 
@@ -208,6 +217,17 @@ func _apply_art() -> void:
 	_portrait.visible = not live
 	_portrait.texture = character.portrait
 	_portrait.material = null if unlocked else locked_material()
+
+
+## Price, rule and dot of a locked character, from its unlock state.
+func _show_locked() -> void:
+	unlock_state = CharacterProgress.unlock_state(character)
+	var rule := CharacterProgress.unlock_rule_short(character)
+	_rule.text = rule
+	_rule.visible = unlock_state == CharacterProgress.UnlockState.GATED and not rule.is_empty()
+	_dot.visible = unlock_state == CharacterProgress.UnlockState.READY
+	if _price.visible:
+		_show_price()
 
 
 func _show_price() -> void:

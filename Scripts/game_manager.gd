@@ -63,11 +63,28 @@ const DEFAULT_MONSTER_ID: StringName = &"grount"
 ## Every playable character (one CharacterDef each). World's MonsterSlot spawns
 ## ROSTER.resolve_monster(selected_monster_id).
 const ROSTER: Roster = preload("res://Scenes/NPCs/roster.tres")
+## The player's own monster (Monster side), an owned one: written by
+## choose_monster() (and select_monster(id) with persist), read back by
+## played_monster_id().
 const SETTING_SELECTED_MONSTER: StringName = &"selected_monster"
-## The monster of the NEXT match (played or opposed), always a roster id. Set
-## through select_monster() by the menus and the sim tools before World loads;
-## persisted as a setting.
+## The monster of the NEXT match (played or hunted), always a roster id.
+## begin_hunt() sets it for the chosen side right before the menus load World
+## (the quarry, or the player's own monster); the sim tools set it with
+## select_monster(id, false). Starts as the saved own monster.
 var selected_monster_id: StringName = DEFAULT_MONSTER_ID
+
+# --- Heroes side: tonight's quarry ---
+# The pool is every roster monster the save has played enough matches to meet
+# (PersistedData total matches >= CharacterDef.opponent_after_matches: Grount 0,
+# Nyxa 3, Gorrak 6), independent of what the Monster side owns. The pick is
+# random among the pool, never the last quarry again while the pool has two or
+# more, unless the pre-round Change picker locked one (lock_quarry).
+## Draws the random quarry. PRIVATE: the global RNG drives gameplay (and the
+## determinism trace) and is never touched by a menu pick.
+var _quarry_rng := RandomNumberGenerator.new()
+## This session's random pick, kept until a hunt starts, so reopening the
+## pre-round shows the same quarry.
+var _rolled_quarry: StringName = &""
 
 
 func _ready() -> void:
@@ -79,6 +96,7 @@ func _ready() -> void:
 	# ALWAYS so _process keeps running while the result screen pauses the tree;
 	# the clock itself only advances while unpaused (see _process).
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	_quarry_rng.randomize()
 	var saved_monster: Variant = PersistedData.get_setting(SETTING_SELECTED_MONSTER, String(ROSTER.default_monster_id))
 	select_monster(StringName(str(saved_monster)), false)
 	var saved_side: Variant = PersistedData.get_setting(SETTING_CHOSEN_SIDE, MatchRewards.Side.HEROES)
@@ -104,6 +122,107 @@ func select_monster(monster_id: StringName, persist: bool = true) -> void:
 
 func selected_monster_def() -> CharacterDef:
 	return ROSTER.resolve_monster(selected_monster_id)
+
+
+## The player's own monster (Monster side): the saved choice while the player
+## owns it (CharacterProgress.is_unlocked), else the roster default.
+func played_monster_id() -> StringName:
+	var saved := StringName(str(PersistedData.get_setting(SETTING_SELECTED_MONSTER, "")))
+	var def := ROSTER.find(saved)
+	if def != null and def.is_monster() and CharacterProgress.is_unlocked(def):
+		return saved
+	return ROSTER.resolve_monster(ROSTER.default_monster_id).character_id()
+
+
+## Makes an owned monster the player's own (Monster side) and persists it;
+## the next Monster-side hunt plays it (begin_hunt). False (nothing changes)
+## for a monster the player does not own.
+func choose_monster(monster_id: StringName) -> bool:
+	var def := ROSTER.find(monster_id)
+	if def == null or not def.is_monster() or not CharacterProgress.is_unlocked(def):
+		return false
+	PersistedData.set_setting(SETTING_SELECTED_MONSTER, String(monster_id))
+	PersistedData.save_data()
+	return true
+
+
+## The Heroes-side quarry pool, in roster order (see "tonight's quarry" above).
+func quarry_pool() -> Array[StringName]:
+	var out: Array[StringName] = []
+	var played := PersistedData.get_total_matches()
+	for d in ROSTER.monsters:
+		if d != null and played >= d.opponent_after_matches:
+			out.append(d.character_id())
+	return out
+
+
+## Hunts still to play before `def` joins the quarry pool (0: in it). The
+## Change picker's silhouettes read "appears after N hunts".
+func hunts_until_quarry(def: CharacterDef) -> int:
+	return 0 if def == null else maxi(0, def.opponent_after_matches - PersistedData.get_total_matches())
+
+
+## A random quarry from `pool` drawn with `rng`, never `last` while the pool
+## has two or more; the roster default for an empty pool.
+func roll_quarry(pool: Array[StringName], last: StringName, rng: RandomNumberGenerator) -> StringName:
+	var picks: Array[StringName] = []
+	for id in pool:
+		if pool.size() < 2 or id != last:
+			picks.append(id)
+	if picks.is_empty():
+		return ROSTER.default_monster_id
+	return picks[rng.randi_range(0, picks.size() - 1)]
+
+
+## Tonight's quarry: the locked one while it is in the pool, else this
+## session's random pick (rolled on first ask, kept until a hunt starts).
+func next_quarry() -> StringName:
+	var pool := quarry_pool()
+	var locked := locked_quarry()
+	if locked != &"":
+		return locked
+	if not pool.has(_rolled_quarry):
+		_rolled_quarry = roll_quarry(pool, PersistedData.get_last_quarry(), _quarry_rng)
+	return _rolled_quarry
+
+
+## The quarry the Change picker fixed while it is in the pool; &"" = random.
+func locked_quarry() -> StringName:
+	var locked := PersistedData.get_locked_quarry()
+	return locked if locked != &"" and quarry_pool().has(locked) else &""
+
+
+## The Change picker: fix the quarry to `monster_id` (one of the pool) or,
+## with &"" (Random), go back to a random pick each hunt. Persisted.
+func lock_quarry(monster_id: StringName) -> void:
+	if monster_id != &"" and not quarry_pool().has(monster_id):
+		return
+	PersistedData.set_locked_quarry(monster_id)
+	PersistedData.save_data()
+
+
+## True until the heroes have hunted `monster_id` once: its NEW QUARRY flag.
+## The first hunt adds its Codex entry (begin_hunt).
+func is_new_quarry(monster_id: StringName) -> bool:
+	return not PersistedData.has_codex_entry(PersistedData.CODEX_MONSTERS, monster_id)
+
+
+## The menus call this right before they load World (HUNT, Play Again): it
+## sets the match's monster for the chosen side. The Heroes side hunts
+## `quarry_id` when it is in the pool, else next_quarry(), records it as the
+## last quarry and adds its Codex entry (a first sighting); the Monster side
+## plays played_monster_id(). The sim tools never call it: they pick the
+## monster with select_monster.
+func begin_hunt(quarry_id: StringName = &"") -> void:
+	if chosen_side == MatchRewards.Side.HEROES:
+		var id := quarry_id if quarry_pool().has(quarry_id) else next_quarry()
+		select_monster(id, false)
+		PersistedData.set_last_quarry(selected_monster_id)
+		PersistedData.add_codex_entry(PersistedData.CODEX_MONSTERS, selected_monster_id)
+		_rolled_quarry = &""
+	else:
+		select_monster(played_monster_id(), false)
+	PersistedData.save_data()
 
 
 ## The side the player plays next (the lobby's choice). Anything but MONSTER

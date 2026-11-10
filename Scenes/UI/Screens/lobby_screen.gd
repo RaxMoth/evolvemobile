@@ -16,9 +16,10 @@ extends Control
 ##
 ## The screen only reports (side_chosen, hunt_requested, ...): MenuRoot
 ## connects every signal scene-side and acts on it, and every connection inside
-## the screen is in LobbyScreen.tscn. Monsters that are not in the roster yet
-## stand in the lair as padlocked silhouettes: scene-local CharacterDefs,
-## locked, over their built rigs.
+## the screen is in LobbyScreen.tscn. Monsters the player has not bought yet
+## (Nyxa, Gorrak) stand in the lair as padlocked silhouettes with their price
+## and unlock rule; tapping one asks for it like any character (MenuRoot opens
+## the unlock confirm sheet). refresh() re-reads that after a purchase.
 
 signal side_chosen(side: int)
 signal hunt_requested(side: int)
@@ -72,6 +73,13 @@ func choose(side: int) -> void:
 	chosen_side = picked
 	_apply_side(true)
 	side_chosen.emit(chosen_side)
+
+
+## Every character on both stages re-reads whether it is owned (a purchase).
+func refresh() -> void:
+	for stage: Control in [_hero_stage, _monster_stage]:
+		for character in stage_characters(stage):
+			character.refresh()
 
 
 ## The characters standing on a stage, in scene order (the cheer order).

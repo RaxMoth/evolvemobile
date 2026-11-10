@@ -171,3 +171,11 @@ Capstone,Capstone,Schlussstein
 EQUIP,EQUIP,AUSRÜSTEN
 EQUIPPED,EQUIPPED,AUSGERÜSTET
 Ranks %d/%d,Ranks %d/%d,Ränge %d/%d
+Needs a Lv %d monster,Needs a Lv %d monster,Benötigt ein Monster auf Lv %d
+A monster of yours has reached Lv %d.,A monster of yours has reached Lv %d.,Eines deiner Monster hat Lv %d erreicht.
+Reach Lv %d with any monster you own (best: Lv %d).,Reach Lv %d with any monster you own (best: Lv %d).,Bring eines deiner Monster auf Lv %d (bestes: Lv %d).
+Unlock %s?,Unlock %s?,%s freischalten?
+UNLOCK,UNLOCK,FREISCHALTEN
+CANCEL,CANCEL,ABBRECHEN
+Tonight's quarry: %s,Tonight's quarry: %s,Heutige Beute: %s
+NEW QUARRY,NEW QUARRY,NEUE BEUTE

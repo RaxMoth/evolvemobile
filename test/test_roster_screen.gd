@@ -3,8 +3,9 @@ extends TestCase
 ## RosterScreen, a side's collection: the roster's characters as a 4-column
 ## grid of M cards plus the one rumour card, the role filters of each side, the
 ## owned / total count, the staggered card intro, the taps (an owned character
-## asks for its detail, the rumour shakes), refresh() re-reading the save, and
-## its own wiring in RosterScreen.tscn. Tests that write the save run only in
+## asks for its detail, so does a locked monster with a price, for the unlock
+## sheet; the rumour shakes), refresh() re-reading the save (a purchase too),
+## and its own wiring in RosterScreen.tscn. Tests that write the save run only in
 ## the isolated test user dir.
 
 const ROSTER_SCREEN := preload("res://Scenes/UI/Screens/RosterScreen.tscn")
@@ -157,6 +158,35 @@ func test_taps() -> void:
 	nav.tab(&"codex").chosen.emit(&"codex")
 	assert_eq(nav.active_tab, &"heroes", "the roster keeps its own tab lit")
 	assert_eq(", ".join(events), "detail %s, back, tab codex" % card.character.character_id())
+	screen.queue_free()
+
+
+## The lair's locked monsters are asked for like owned ones (MenuRoot opens
+## the unlock sheet); a bought one counts as owned after a refresh.
+func test_locked_monsters_ask_and_a_purchase_counts() -> void:
+	if not require_isolated():
+		return
+	var screen := _screen(MONSTER)
+	screen.open()
+	await wait_frames(1)
+	var count := screen.get_node("%Count") as Label
+	assert_eq(count.text, "1/3", "Grount of three")
+	var asked: Array[StringName] = []
+	screen.character_requested.connect(func(def: CharacterDef) -> void: asked.append(def.character_id()))
+	for card in screen.cards():
+		assert_eq(card.unlocked, card.character.unlocked_by_default, "%s" % card.character.character_id())
+		var x := card.position.x
+		card.pressed.emit()
+		await wait_frames(2)
+		assert_near(card.position.x, x, 0.01, "%s does not shake" % card.character.character_id())
+	assert_eq(str(asked), str(GameManager.ROSTER.monster_ids()), "every monster is asked for (Grount, Nyxa, Gorrak)")
+	PersistedData.add_monster_xp(&"grount", 300)
+	PersistedData.add_currency(PersistedData.LEAVES, 2500)
+	assert_true(CharacterProgress.unlock(GameManager.ROSTER.find(&"nyxa")))
+	screen.refresh()
+	assert_eq(count.text, "2/3", "Nyxa is owned")
+	assert_true(screen.cards()[1].unlocked and screen.cards()[1].character.character_id() == &"nyxa")
+	assert_false(screen.cards()[2].unlocked, "Gorrak still locked")
 	screen.queue_free()
 
 

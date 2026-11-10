@@ -161,7 +161,7 @@ func _wire_skill_buttons() -> void:
 		hero_updates_btn.pressed.connect(_open_meta_skills.bind(MetaSkillManager.hero_tree_id(GameManager.KNOWN_HERO_IDS[0])))
 	if monster_updates_btn:
 		monster_updates_btn.tooltip_text = "Individual monster upgrades (Leaves)"
-		monster_updates_btn.pressed.connect(_open_meta_skills.bind(MetaSkillManager.monster_tree_id(GameManager.selected_monster_id)))
+		monster_updates_btn.pressed.connect(_open_meta_skills.bind(MetaSkillManager.monster_tree_id(GameManager.played_monster_id())))
 
 
 func _open_meta_skills(preselect_tree_id: StringName) -> void:
@@ -208,12 +208,14 @@ func _on_play_as_hero() -> void:
 	add_child(setup)
 
 
-func _start_hero_match(_config: MatchConfig) -> void:
+func _start_hero_match(config: MatchConfig) -> void:
+	GameManager.begin_hunt(config.quarry_id)
 	get_tree().change_scene_to_packed.call_deferred(GameManager.get_world_scene())
 
 
 func _on_play_as_monster() -> void:
 	GameManager.chosen_side = MatchRewards.Side.MONSTER
+	GameManager.begin_hunt()
 	get_tree().change_scene_to_packed.call_deferred(GameManager.get_world_scene())
 
 
@@ -235,7 +237,7 @@ func _build_progression() -> void:
 	_insert_before_filler(heroes_card, hero_panel)
 
 	var monster_panel := _make_progression_panel(_MONSTER_ACCENT)
-	var monster_id: StringName = GameManager.selected_monster_id
+	var monster_id: StringName = GameManager.played_monster_id()
 	_monster_level_label = _add_level_row(monster_panel, _display_name(monster_id))
 	_monster_progress_bar = ProgressBar.new()
 	_monster_progress_bar.custom_minimum_size = Vector2(0, 6)
@@ -308,7 +310,7 @@ func _on_hero_xp_changed(hero_id: StringName, new_xp: int) -> void:
 
 
 func _on_monster_xp_changed(monster_id: StringName, new_xp: int) -> void:
-	if monster_id == GameManager.selected_monster_id:
+	if monster_id == GameManager.played_monster_id():
 		_refresh_monster_progress(new_xp)
 
 

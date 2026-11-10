@@ -5,6 +5,9 @@ extends CanvasLayer
 ## Emits start_requested(config) — the caller changes the scene; this screen
 ## only edits and persists a MatchConfig. Layout + button wiring live in
 ## PreRoundSetup.tscn; slider value_changed needs bound args, so it is wired here.
+## It names tonight's quarry (GameManager.next_quarry(), "NEW QUARRY" on a
+## first sighting) and hands it on in the config's quarry_id; the Change picker
+## and the banner are the new pre-round screen's (Phase 8).
 
 signal start_requested(config: MatchConfig)
 signal cancelled
@@ -17,6 +20,10 @@ signal cancelled
 @onready var exploration_value: Label = %ExplorationValue
 @onready var formation_picker: OptionButton = %FormationPicker
 @onready var preview_label: Label = %Preview
+@onready var quarry_label: Label = %Quarry
+
+## The monster this hunt faces (GameManager.next_quarry() when the screen opens).
+var quarry_id: StringName = &""
 
 const FORMATION_LABELS: Array[String] = ["Tight", "Spread", "Line"]
 
@@ -37,6 +44,11 @@ func _ready() -> void:
 		label.text = _percent(slider.value)
 	formation_picker.item_selected.connect(func(_i: int) -> void: _refresh_preview())
 	_refresh_preview()
+	quarry_id = GameManager.next_quarry()
+	var quarry := GameManager.ROSTER.find(quarry_id)
+	quarry_label.text = tr("Tonight's quarry: %s") % (quarry.get_display_name() if quarry != null else String(quarry_id))
+	if GameManager.is_new_quarry(quarry_id):
+		quarry_label.text += "  ·  " + tr("NEW QUARRY")
 
 
 func collect_config() -> MatchConfig:
@@ -45,6 +57,7 @@ func collect_config() -> MatchConfig:
 	cfg.farming = farming_slider.value
 	cfg.exploration = exploration_slider.value
 	cfg.formation = clampi(formation_picker.selected, 0, MatchConfig.Formation.size() - 1) as MatchConfig.Formation
+	cfg.quarry_id = quarry_id
 	return cfg
 
 
@@ -75,6 +88,7 @@ func _on_start_pressed() -> void:
 	AnalyticsSink.track(&"pre_round_setup", {
 		"aggression": cfg.aggression, "farming": cfg.farming,
 		"exploration": cfg.exploration, "formation": int(cfg.formation),
+		"quarry": String(cfg.quarry_id),
 	})
 	start_requested.emit(cfg)
 	queue_free()

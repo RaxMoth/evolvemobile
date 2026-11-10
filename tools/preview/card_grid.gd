@@ -6,24 +6,19 @@ extends Control
 ## chips a preview_amount, so the sheet looks the same on any machine and
 ## never writes user://.
 ##   default page: heroes 4/4 + rumour, monsters (Grount upgrade-ready, Nyxa
-##                 and Gorrak locked with prices, rumour), nav on the hero side.
-##   "-- --page=sizes": the L quarry card, S cards (one selected, one locked,
-##                 a rumour), the lobby's StageCharacters (cheering, the outer
-##                 pair flipped; Grount at stage 3, Nyxa locked) and the nav on
-##                 the monster side.
+##                 and Gorrak locked with their prices and unlock rule, rumour),
+##                 nav on the hero side.
+##   "-- --page=sizes": the L quarry card, S cards (one selected, Gorrak
+##                 locked, a rumour), the lobby's StageCharacters (cheering, the
+##                 outer pair flipped; Grount at stage 3, Nyxa locked with her
+##                 price and rule) and the nav on the monster side.
+## Every character is its roster def (GameManager.ROSTER).
 ## Render muted on a copy of the project:
 ##   godot --path <copy> --audio-driver Dummy --fixed-fps 30 --resolution 720x1280
 ##         --write-movie <dir>/f.png --quit-after 60 res://tools/preview/CardGrid.tscn [-- --page=sizes]
 
 const CARD := preload("res://Scenes/UI/Components/CharacterCard.tscn")
 const STAGE_CHARACTER := preload("res://Scenes/UI/Components/StageCharacter.tscn")
-## Monsters the roster does not ship yet: preview-only defs over their built
-## rigs and portraits, locked with the planned prices. An id the roster has
-## (Nyxa and Gorrak, today) shows its real, locked def instead.
-const LOCKED_PREVIEW: Array[Array] = [
-	["nyxa", 2500],
-	["gorrak", 3000],
-]
 
 @onready var _list: VBoxContainer = %List
 @onready var _top_bar: TopBar = %TopBar
@@ -53,11 +48,7 @@ func _grid_page() -> void:
 		var card := _card(grid, heroes[i], CharacterCard.CardSize.M, s[4])
 		card.apply_progress(s[0], s[1], s[2], s[3], true)
 	_rumour(grid, false, CharacterCard.CardSize.M)
-	var monsters: Array[CharacterDef] = []
-	monsters.append_array(GameManager.ROSTER.monsters)
-	for pick in LOCKED_PREVIEW:
-		if GameManager.ROSTER.find(StringName(pick[0])) == null:
-			monsters.append(_locked_def(pick[0], pick[1]))
+	var monsters := GameManager.ROSTER.monsters
 	var owned := monsters.filter(func(d: CharacterDef) -> bool: return d.unlocked_by_default).size()
 	_list.add_child(_banner("MONSTERS  %d/%d" % [owned, monsters.size()], &"BannerMonster"))
 	grid = _grid()
@@ -92,7 +83,7 @@ func _sizes_page() -> void:
 	var small2 := HBoxContainer.new()
 	small2.add_theme_constant_override(&"separation", 12)
 	side.add_child(small2)
-	_card(small2, _locked_def("gorrak", 3000), CharacterCard.CardSize.S, false).apply_progress(1, 0, 100, 0, false)
+	_card(small2, GameManager.ROSTER.find(&"gorrak"), CharacterCard.CardSize.S, false).apply_progress(1, 0, 100, 0, false)
 	_rumour(small2, true, CharacterCard.CardSize.S)
 	_list.add_child(_banner("AT THE CAMPFIRE", &"BannerHero"))
 	var stage := HBoxContainer.new()
@@ -112,8 +103,6 @@ func _sizes_page() -> void:
 	_list.add_child(lair)
 	for pick: Array in [["grount", 3], ["nyxa", 1]]:
 		var def := GameManager.ROSTER.find(StringName(pick[0]))
-		if def == null:
-			def = _locked_def(pick[0], 2500)
 		var sc := STAGE_CHARACTER.instantiate() as StageCharacter
 		sc.name = "Lair%s" % String(pick[0]).capitalize()
 		sc.character = def
@@ -140,19 +129,6 @@ func _rumour(parent: Control, monster: bool, preset: CharacterCard.CardSize) -> 
 	card.monster_side = monster
 	card.size_preset = preset
 	parent.add_child(card)
-
-
-## A locked monster that is not in the roster yet, over its built art.
-func _locked_def(id: String, price: int) -> CharacterDef:
-	var d := CharacterDef.new()
-	d.side = CharacterDef.MONSTER
-	d.display_name = id.capitalize()
-	d.portrait = load("res://Assets/Characters/%s/%s.svg" % [id, id]) as Texture2D
-	d.rig_body = load("res://Assets/Characters/%s/%s_body.tscn" % [id, id]) as PackedScene
-	d.rig_profile = load("res://Assets/Characters/%s/%s_motion.tres" % [id, id]) as RigProfile
-	d.unlocked_by_default = false
-	d.unlock_cost = price
-	return d
 
 
 func _grid() -> GridContainer:

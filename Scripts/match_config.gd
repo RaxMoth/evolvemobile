@@ -5,6 +5,9 @@ extends Resource
 ## Chosen on the PreRoundSetup screen, persisted in PersistedData settings so
 ## the last choice is the default next time, and read by the AI consumers
 ## through the derived getters below (never by poking the raw sliders).
+## It also names the hunt's quarry (quarry_id), which the menu hands to
+## GameManager.begin_hunt(); that one is chosen per hunt and never persisted
+## here (the Change picker's lock lives in PersistedData).
 
 enum Formation { TIGHT, SPREAD, LINE }
 
@@ -17,6 +20,9 @@ const KEY_FORMATION: StringName = &"match_formation"
 @export_range(0.0, 1.0) var farming: float = 0.5      ## prefer mob camps vs. hunting the monster
 @export_range(0.0, 1.0) var exploration: float = 0.5  ## roam fast and wide vs. methodically
 @export var formation: Formation = Formation.SPREAD
+## The monster the heroes hunt (a roster id from GameManager.next_quarry()),
+## shown on the pre-round screen; &"" = GameManager picks at the start.
+@export var quarry_id: StringName = &""
 
 
 static func from_settings() -> MatchConfig:
