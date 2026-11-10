@@ -59,6 +59,81 @@ func test_rally_cry_speeds_up_attacks() -> void:
 	ted.queue_free()
 
 
+## The TrapCage a cast added under `parent` since `before`, or null.
+func _new_cage(parent: Node, before: Array[Node]) -> TrapCage:
+	for n in parent.get_children():
+		if n is TrapCage and not before.has(n):
+			return n as TrapCage
+	return null
+
+
+## Trap Cage closes where it lands: centred on its target at the README's
+## 150 px, with the enemies around the target trapped from its first frame.
+## Ted's parent is a plain Node here, as World's "Heros". Until 6.3 the cage
+## scanned at the world origin before it moved there, with the scene's 150 px,
+## and then shrank to the ability's area_of_effect of 2.
+func test_trap_cage_traps_the_enemies_around_its_target() -> void:
+	var ted := await spawn_frozen(TED, Vector2(0, 0))
+	var grount := await spawn_frozen(GROUNT, Vector2(2000, 0))
+	var near_hog := await spawn_frozen(HOG, Vector2(2100, 0))
+	var far_hog := await spawn_frozen(HOG, Vector2(2400, 0))
+	var vlad := await spawn_frozen(VLAD, Vector2(2000, 60))
+	var ult: AbilityBase = (ted.get_node("AbilitySystem") as AbilitySystem).ultimate_ability
+	assert_eq(ult.area_of_effect, 150.0, "Ted's copy carries the cage radius")
+	var before: Array[Node] = get_children()
+	ult.execute(ted, grount)
+	var cage := _new_cage(self, before)
+	assert_true(cage != null, "the cast drops a cage")
+	if cage == null:
+		for n: Node in [ted, grount, near_hog, far_hog, vlad]:
+			n.queue_free()
+		return
+	assert_eq(cage.global_position, grount.global_position, "centred on the target")
+	assert_eq(cage.cage_radius, 150.0)
+	var shape := (cage.get_node("CollisionShape2D") as CollisionShape2D).shape as CircleShape2D
+	assert_eq(shape.radius, 150.0, "the collision shape matches the radius")
+	assert_eq(cage.duration, 6.0)
+	assert_true(cage.trapped_enemies.has(grount), "the monster is trapped")
+	assert_true(cage.trapped_enemies.has(near_hog), "and the mob 100 px from it")
+	assert_false(cage.trapped_enemies.has(far_hog), "not the mob 400 px away")
+	assert_false(cage.trapped_enemies.has(vlad), "never a hero, even inside")
+	# Out past the bars: the cage puts it back just inside, on the side it
+	# left by (the push used to mirror it across the cage).
+	grount.global_position = cage.global_position + Vector2(300, 0)
+	await wait_frames(2)
+	var offset: Vector2 = grount.global_position - cage.global_position
+	assert_true(offset.length() < cage.cage_radius, "a trapped enemy cannot walk out (%s)" % str(offset))
+	assert_true(offset.x > 100.0, "held at the edge it left by (%s)" % str(offset))
+	for n: Node in [ted, grount, near_hog, far_hog, vlad, cage]:
+		n.queue_free()
+
+
+## A caster under a moved Node2D: the cage still lands on the target in world
+## space (outside the tree, global_position would be the parent-local one).
+func test_trap_cage_lands_on_the_target_under_a_moved_parent() -> void:
+	var holder := Node2D.new()
+	holder.position = Vector2(500, -300)
+	add_child(holder)
+	var ted := (load(TED) as PackedScene).instantiate() as Node2D
+	ted.position = Vector2(-500, 300)
+	holder.add_child(ted)
+	await wait_physics_frames(4)
+	await wait_frames(1)
+	get_tree().root.get_node(^"TickScheduler").unregister(ted)
+	var hog := await spawn_frozen(HOG, Vector2(2000, 0))
+	var ult: AbilityBase = (ted.get_node("AbilitySystem") as AbilitySystem).ultimate_ability
+	var before: Array[Node] = holder.get_children()
+	ult.execute(ted, hog)
+	var cage := _new_cage(holder, before)
+	assert_true(cage != null, "the cage goes under Ted's parent")
+	if cage != null:
+		assert_true(cage.global_position.is_equal_approx(hog.global_position),
+			"on the target: %s" % str(cage.global_position))
+		assert_true(cage.trapped_enemies.has(hog), "and traps it")
+	hog.queue_free()
+	holder.queue_free()
+
+
 ## Rally Cry's flash ends at WHITE, not at the tint it found when it started:
 ## a Divine Shield that broke mid-flash used to leave Ted blue for good.
 func test_rally_flash_ends_white_when_a_shield_breaks_mid_flash() -> void:

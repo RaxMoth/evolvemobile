@@ -7,4 +7,5 @@ script = ExtResource("1_q54ng")
 monster_id = &"grount"
 monster_name = "Grount"
 stage_2_xp = 150
+stage_3_damage_multiplier = 1.8
 metadata/_custom_type_script = "uid://ddjum8l4u4tan"

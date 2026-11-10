@@ -179,7 +179,7 @@ Power Level
 | ---------------- | -------------------- | ------------------- | ----------------------- |
 | **HP**           | 800                  | 1400 (+600 heal)    | 2200 (+800 heal)        |
 | **Speed**        | 60                   | 80 (+33%)           | 110 (+83%)              |
-| **Damage Mult**  | 1.0x                 | 1.4x                | 2.0x                    |
+| **Damage Mult**  | 1.0x                 | 1.4x                | 1.8x (2.0x × 0.9, 6.3)  |
 | **Attack Range** | 80 (flat × Monster Base range skill) | 80 | 80                 |
 | **XP Required**  | Start                | 150 XP              | 300 XP                  |
 
@@ -191,7 +191,7 @@ Power Level
 | ----- | ------ | -------- | ---------- | -------------------- |
 | 1     | 12     | 4.5s     | 50°        | Basic frontal cleave |
 | 2     | 17     | 3.0s     | 60°        | Faster, wider        |
-| 3     | 12     | 1.8s     | 75°        | Rapid, massive cone (lighter hits, highest DPS) |
+| 3     | 10.8   | 1.8s     | 75°        | Rapid, massive cone (lighter hits, highest DPS) |
 
 #### Ram Dash (Ability 2)
 
@@ -199,7 +199,7 @@ Power Level
 | ----- | ------ | -------- | ----- | ------------------------- |
 | 1     | 18     | 12.0s    | 300   | Charge forward, knockback |
 | 2     | 25     | 8.0s     | 300   | Faster cooldown           |
-| 3     | 36     | 5.0s     | 300   | Spam dash                 |
+| 3     | 32.4   | 5.0s     | 300   | Spam dash                 |
 
 #### Ground Slam (Ability 3 - Ultimate)
 
@@ -207,7 +207,7 @@ Power Level
 | ----- | ------ | --------- | ------ | ----------------------- |
 | 1     | -      | 🔒 LOCKED | -      | Not available           |
 | 2     | 32     | 15.0s     | 120    | Unlocked: Jump and slam |
-| 3     | 25     | 9.0s      | 180    | Massive AoE, faster recast |
+| 3     | 22.5   | 9.0s      | 180    | Massive AoE, faster recast |
 
 ### Evolution Mechanics
 
@@ -333,7 +333,8 @@ Early Ambush        ⚠️ 40% Win            ✅ 60% Win
 
 - Increase hero starting stats (+10 HP each)
 - Improve hero level scaling (+1 dmg per level)
-- Reduce monster Stage 3 damage multiplier (2.0x → 1.8x)
+- Reduce monster Stage 3 damage multiplier (2.0x → 1.8x) — applied to Grount in 6.3: his
+  tabled Stage 3 damage × 0.9 (see Measured Balance below)
 
 **If Matches Too Long (>10 min)**:
 
@@ -346,6 +347,32 @@ Early Ambush        ⚠️ 40% Win            ✅ 60% Win
 - Increase all HP pools (+20%)
 - Reduce damage (-15%)
 - Add more escape/kiting abilities
+
+### Measured Balance (headless sim, fresh save)
+
+The target is 40–60 % hero wins per monster on both sides
+(`MONSTER=<id> tools/sim.sh 48 heroes 6` and `... 48 monster 6`, reproducible
+since 6.2). A timeout is a monster win at the 10-minute clock.
+
+| Grount | Heroes side | Monster side | Timeouts (H / M) | Median Stage 3 | Median first contact |
+| ------ | ----------- | ------------ | ---------------- | -------------- | -------------------- |
+| before 6.3 (`16aed14`) | 19 % | 25 % | 4 / 4 | 324 s / 325 s | 409 s / 389 s |
+| 6.3: Trap Cage fixed + Stage 3 damage × 0.9 | **46 %** | **48 %** | 4 / 3 | 322 s / 323 s | 400 s / 408 s |
+
+- 6.3 changed two things. Ted's Trap Cage now traps what it lands on (it
+  trapped almost nothing; see "Hero capstones and behaviour nodes"), which
+  alone takes the heroes side to 33 %. Grount's
+  tabled Stage 3 damage went × 0.9: Front Cleave 12 → 10.8, Ram Dash 36 → 32.4,
+  Ground Slam 25 → 22.5, and `stage_3_damage_multiplier` 2.0 → 1.8 for an
+  untabled ability. Nothing below Stage 3 changed.
+- By Grount's stage at the first contact: at Stage 1 (6–9 of 48 matches) the
+  heroes win nearly all; at Stage 3 (34–38 of 48) they now win 38–42 %
+  (before: 8–14 %). The 3–5 matches without a contact are timeouts or a
+  Grount killed by mobs.
+- Capstone check (`SAVE=` the branch-2 capstones, River's Pathfinder among
+  them, 24 seeds, heroes side): 75 % (71 % before 6.3). Pathfinder still brings
+  the first contact to about 64 s, Stage 1, where the heroes win most fights;
+  Opponent Threat (6.8) gives the AI monster its own build.
 
 ---
 
@@ -1754,10 +1781,18 @@ own ability copy (`AbilitySystem.make_abilities_unique`), never on the shared
 | rv_chain CAP | `extra_heal_targets` 1, `chain_heal_radius` 160 (Adaptive Weapon) | a staff heal also heals the most hurt other hero (lowest HP fraction, below full) within 160 px of the healed one, never River herself |
 | rv_pathfinder CAP | `team_speed_aura` 1.12 (Adaptive Movement) | River's copy posts it once on the heroes' `TeamBlackboard` (`set_move_speed_aura`); `HeroBase._get_move_speed` multiplies by `move_speed_aura()`, the product of the living sources, so it ends the moment River dies (and leaves with her from the team). F3 "tree keys:" shows "team speed x1.12" |
 
-Trap Cage takes its `duration` before it enters the tree (its `_ready` starts
-the expiry timer), so Sturdy Cage lengthens it; `ted_ultimate.tres` now says
-6 s, the cage's own default that every cage used while the ability's 2 s
-arrived too late.
+Trap Cage takes everything its `_ready` reads before it enters the tree: its
+position (on the target, in its parent's space), `cage_radius` (the ability's
+`area_of_effect`, 150 px in `ted_ultimate.tres`, the README radius),
+`duration` (the expiry timer, so Sturdy Cage lengthens it) and the spikes.
+`_ready` then sizes the collision shape, traps the enemies inside and starts
+the timer. Until 6.3 the cage entered the tree first: it scanned at its
+parent's origin (World's `Heros` is a plain Node, so the world origin by the
+heroes' start) with the scene's 150 px, moved onto the target afterwards and
+then shrank to the ability's 2 px, so it trapped (almost) nothing. A trapped
+enemy that reaches the bars is put back just inside the edge it tried to leave
+by (the push used to mirror it to the opposite side). `test_hero_actives`
+covers both.
 
 Balance check (`SAVE=<save.cfg> tools/sim.sh 24 heroes 6`: every match starts
 from that save; 5.4, against a fresh-save Grount). A fresh save: heroes win 33%.
@@ -1768,6 +1803,8 @@ Spiked Cage, Pathfinder) 42%; Pathfinder brings the first hero-monster contact
 from about 400 s to 81 s. All four hero trees fully ranked: 92% with any
 branch's capstones and 92% without one. The trees, not the capstones, decide
 that matchup until the AI monster gets its build from Opponent Threat (6.8).
+These 5.4 numbers predate the reproducible sim (6.2) and the Trap Cage fix;
+6.3's re-measure is under "Measured Balance".
 
 Haste rule (`HeroBase.apply_attack_speed_boost`, Rally Cry and the
 capstones above): a weaker boost never replaces a stronger one that is still
@@ -2111,11 +2148,10 @@ Max out hero trees → Unlock new heroes → Compete on leaderboards
       has its own respawn timer on Ted's own copy of the passive (`TedPassivePet.pets` /
       `respawn_timers`), so nothing is shared between Teds or matches; heroes do not respawn, so a
       dead Ted's pets end with him
-- [ ] Trap Cage traps (almost) nothing: `TrapCage._ready` scans for enemies before
-      `TedUltimateTrapCage` moves it onto the target (it scans at the world origin, by the heroes'
-      start) and before `cage_radius` arrives (`area_of_effect` is 2 in `ted_ultimate.tres`, the
-      scene says 150); setting position and radius before `add_child` changes default gameplay, so
-      it waits for a balance pass. The spikes of Spiked Cage use the cage's 150 px shape where it lands
+- [x] Trap Cage trapped (almost) nothing — fixed in 6.3 with the Grount retune: the cage gets its
+      position, radius (`area_of_effect` 150 in `ted_ultimate.tres`, was 2) and duration before
+      `add_child`, so its `_ready` traps the enemies around the target; the push at the bars no
+      longer mirrors a trapped enemy across the cage
 - [x] Fog of war flickered at the screen edge — fixed: the fog quad is static and world-covering
       (it chased the camera a frame late), the world size snaps to whole tiles, and outside the map
       is always fogged

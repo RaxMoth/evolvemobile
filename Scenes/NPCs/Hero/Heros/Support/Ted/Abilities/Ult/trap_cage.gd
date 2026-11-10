@@ -70,8 +70,9 @@ func _process(delta: float) -> void:
 		
 		var dist = enemy.global_position.distance_to(global_position)
 		if dist > cage_radius - 15:
-			# Push back inside
-			var dir: Vector2 = (global_position - enemy.global_position).normalized()
+			# Push back inside, at the edge it tried to leave by (the push
+			# used to mirror it to the opposite side of the cage).
+			var dir: Vector2 = (enemy.global_position - global_position).normalized()
 			var push_pos = global_position + dir * (cage_radius - 20)
 			# Never through a wall (the push teleports).
 			enemy.global_position = GameUtils.clamp_to_nav_segment(get_world_2d(), enemy.global_position, push_pos)

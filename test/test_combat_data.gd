@@ -64,9 +64,12 @@ func test_vlad_actually_swings_at_an_adjacent_enemy() -> void:
 func test_monster_ability_damage_matches_the_readme_per_stage() -> void:
 	# README tables already include the stage multiplier. Stage 3 hits lighter
 	# than stage 2 but much more often (v13 balance), so the DPS still rises.
+	# 6.3 took stage 3 x0.9 (the user's knob): 12 / 36 / 25 -> 10.8 / 32.4 / 22.5,
+	# and the stats' stage-3 multiplier (untabled abilities) 2.0 -> 1.8.
 	var g := await spawn_frozen(MONSTER, Vector2(4000, 4000))
 	var m := g as MonsterBase
-	var expected := {1: [12.0, 18.0], 2: [17.0, 25.0, 32.0], 3: [12.0, 36.0, 25.0]}
+	assert_near(m.monster_stats.get_damage_mult_for_stage(3), 1.8, 0.0001, "Grount's stage-3 multiplier")
+	var expected := {1: [12.0, 18.0], 2: [17.0, 25.0, 32.0], 3: [10.8, 32.4, 22.5]}
 	for stage in [1, 2, 3]:
 		if stage > 1:
 			m.gain_xp(1000.0)
