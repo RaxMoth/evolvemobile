@@ -1,9 +1,10 @@
 extends CanvasLayer
-class_name MatchResultScreen
 
-## MatchResultScreen — overlay shown when a match ends.
-## Populated by GameManager via `populate(result)`. Stays visible while
-## the world is paused (process_mode = ALWAYS) so its buttons still work.
+## The OLD match result overlay, retired: GameManager shows
+## Scenes/UI/Screens/MatchResultScreen.tscn (class MatchResultScreen) since
+## Phase 8, and the Phase 8 cleanup deletes this scene with the old main menu.
+## Populated via `populate(result)`. Stays visible while the world is paused
+## (process_mode = ALWAYS) so its buttons still work.
 
 # Preloaded packed scene → bypasses runtime path resolution, never silently
 # fails on a typo. change_scene_to_packed is the safest way to swap scenes.

@@ -8,7 +8,7 @@ extends RefCounted
 ##
 ## Formula (README "Earning Rates v2"):
 ##   Currency:  win 150 / loss 75
-##     + 15 per mob killed
+##     + 15 per mob killed              (by the played side)
 ##     +  5 per full minute survived
 ##     + 20 per surviving hero          (hero side only)
 ##     + 25 per monster stage reached   (monster side only)
@@ -37,18 +37,27 @@ const THREAT_BONUS_TENTHS := 1
 
 
 class Result:
-	## Plain data bag. The MatchResult screen reads these for its display
+	## Plain data bag. The MatchResultScreen reads these for its display
 	## and GameManager applies them to PersistedData.
 	var side: int = Side.HEROES
 	var outcome: int = Outcome.WIN
 
 	# Stats (echoed back so the screen can show them).
 	var duration_sec: float = 0.0
+	## The played side's mob kills (GameManager.played_side_kills(): the
+	## heroes' or the monster's), the number the formula pays.
 	var mob_kills: int = 0
 	var heroes_alive: int = 0
 	var monster_stage: int = 1
 	## The match's Opponent Threat (0-4): currency and Gold carry its bonus.
 	var threat: int = 0
+
+	# The cast (data only, filled by GameManager after compute(); the result
+	# screen shows it): the heroes counted at the match's census, in tree
+	# order, the ones that fell (in order of death) and the monster.
+	var hero_ids: Array[StringName] = []
+	var fallen_hero_ids: Array[StringName] = []
+	var monster_id: StringName = &""
 
 	# Earned currency (each side only fills its own).
 	var steel: int = 0

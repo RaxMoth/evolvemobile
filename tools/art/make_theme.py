@@ -297,7 +297,10 @@ for name, art, cm in (("PanelInset", "panel_inset", (12, 12, 12, 12)),
                       ("CardInnerLocked", "card_inner_locked", (4, 4, 4, 4)),
                       ("Banner", "banner", (46, 8, 46, 16)),
                       ("BannerHero", "banner_hero", (46, 8, 46, 16)),
-                      ("BannerMonster", "banner_monster", (46, 8, 46, 16))):
+                      ("BannerMonster", "banner_monster", (46, 8, 46, 16)),
+                      ("BannerVictory", "banner_victory", (46, 8, 46, 16)),
+                      ("BannerVictoryMonster", "banner_victory_monster", (46, 8, 46, 16)),
+                      ("BannerDefeat", "banner_defeat", (46, 8, 46, 16))):
     p(f"{name}/base_type", '&"PanelContainer"')
     p(f"{name}/styles/panel", SR(sb_tex(f"{name}_sb", art, cm)))
 

@@ -1,7 +1,9 @@
 extends Node
 
 ## GameManager — match orchestration: timer, kill tracking, end conditions,
-## currency grant, result screen.
+## currency grant, result screen (MatchResultScreen; its Lobby goes back to
+## MenuRoot, and its "upgrades ready" asks MenuRoot for that side's roster
+## through request_menu_roster()).
 ##
 ## Match end paths:
 ##   • All heroes dead   → MONSTER win  (heroes-side LOSS for the player)
@@ -10,7 +12,7 @@ extends Node
 
 signal match_ended(winner: String, time: float)
 
-const MATCH_RESULT_SCENE: PackedScene = preload("res://Scenes/UI/MatchResult/MatchResult.tscn")
+const MATCH_RESULT_SCENE: PackedScene = preload("res://Scenes/UI/Screens/MatchResultScreen.tscn")
 
 # Hard time cap — README "Design Debt: no clear loss condition timer" → fixed.
 const DEFAULT_MAX_DURATION_SEC: float = 600.0  # 10 minutes
@@ -49,7 +51,15 @@ const MAX_CLOCK_STEP: float = 0.25
 var heroes_alive: int = 0
 var monster_alive: bool = false
 var monster_stage_reached: int = 1
+## Every mob death this match, whoever killed it (the determinism trace hashes
+## it: keep its meaning).
 var mob_kills: int = 0
+## The mobs each side killed (killer_side()): the heroes' (a hero, Ted's pet,
+## or a trap, mine or cage, which name their caster) and the monster's own. The
+## played side's count (played_side_kills()) pays the rewards and shows in the
+## HUD's kills chip and the result.
+var hero_mob_kills: int = 0
+var monster_mob_kills: int = 0
 ## This match's Opponent Threat (README "Opponent Threat"), taken when it
 ## starts (MetaSkillManager.opponent_threat(), from the played side's save):
 ## the AI opponent's build and the rewards' bonus. Entities read the same
@@ -59,7 +69,12 @@ var match_threat: int = 0
 # Characters that participated this match, captured at census so permanent XP
 # can be awarded even after their nodes are freed by match end.
 var _participating_hero_ids: Array[StringName] = []
+## The heroes that died this match, in order (MatchRewards.Result.fallen_hero_ids).
+var _fallen_hero_ids: Array[StringName] = []
 var _monster_id: StringName = DEFAULT_MONSTER_ID
+## The side whose roster MenuRoot opens on its next entry (the match result's
+## "upgrades ready"); -1 = none. request_menu_roster() / take_menu_roster().
+var _menu_roster_side: int = -1
 
 # Substrings identifying each hero by node name (mirrors world.gd vision_map).
 const KNOWN_HERO_IDS: Array[StringName] = [&"river", &"vlad", &"ted", &"irelia"]
@@ -272,8 +287,11 @@ func start_new_match() -> void:
 	monster_alive = false
 	monster_stage_reached = 1
 	mob_kills = 0
+	hero_mob_kills = 0
+	monster_mob_kills = 0
 	match_threat = MetaSkillManager.opponent_threat()
 	_participating_hero_ids.clear()
+	_fallen_hero_ids.clear()
 
 	await get_tree().process_frame
 	await get_tree().process_frame
@@ -344,13 +362,18 @@ func _on_monster_evolved(_monster: Node, stage: int) -> void:
 	monster_stage_reached = maxi(monster_stage_reached, stage)
 
 
-func _on_entity_died(entity: Node, _killer: Node) -> void:
+func _on_entity_died(entity: Node, killer: Node) -> void:
 	if not is_instance_valid(entity):
 		return
 
-	# Kill counters (used by reward calc).
+	# Kill counters: every mob death, and each side's own (the rewards).
 	if entity is MobBase:
 		mob_kills += 1
+		match killer_side(killer):
+			MatchRewards.Side.HEROES:
+				hero_mob_kills += 1
+			MatchRewards.Side.MONSTER:
+				monster_mob_kills += 1
 
 	# Track the highest stage the monster reached so the result screen and
 	# reward formula know what we faced.
@@ -367,6 +390,7 @@ func _on_entity_died(entity: Node, _killer: Node) -> void:
 		_end_match_with_outcome(MatchRewards.Outcome.WIN)
 	elif entity is HeroBase:
 		heroes_alive -= 1
+		_fallen_hero_ids.append(_hero_id_from(entity))
 		if heroes_alive <= 0:
 			_end_match_with_outcome(MatchRewards.Outcome.LOSS)
 
@@ -390,15 +414,20 @@ func _end_match_with_outcome(outcome: int) -> void:
 	# `outcome` is the heroes' perspective (match_ended below keeps it).
 	# Rewards, label and jingle must use the PLAYED side's perspective.
 	var player_outcome := MatchRewards.outcome_for_side(chosen_side, outcome)
+	# The played side's kills pay (README "Earning Rates v2": a kill by the
+	# played side), not every mob death.
 	var result := MatchRewards.compute(
 		chosen_side,
 		player_outcome,
 		duration,
-		mob_kills,
+		played_side_kills(),
 		maxi(0, heroes_alive),
 		monster_stage_reached,
 		match_threat
 	)
+	result.hero_ids.assign(_participating_hero_ids)
+	result.fallen_hero_ids.assign(_fallen_hero_ids)
+	result.monster_id = _monster_id
 
 	# match_ended feeds analytics, audio and the sim.
 	if outcome == MatchRewards.Outcome.WIN:
@@ -432,7 +461,7 @@ func _apply_rewards_to_save(result: MatchRewards.Result) -> void:
 
 
 func _show_result_screen(result: MatchRewards.Result) -> void:
-	var screen: MatchResultScreen = MATCH_RESULT_SCENE.instantiate()
+	var screen := MATCH_RESULT_SCENE.instantiate() as MatchResultScreen
 	# Add to current scene root so the screen lives until the next reload /
 	# scene change (which is exactly when its buttons free it).
 	var host: Node = get_tree().current_scene
@@ -452,6 +481,39 @@ func get_match_elapsed() -> float:
 
 func get_mob_kills() -> int:
 	return mob_kills
+
+
+## The played side's mob kills: the heroes' on the Heroes side, the monster's
+## own on the Monster side (the HUD's kills chip, the rewards, the result).
+func played_side_kills() -> int:
+	return monster_mob_kills if chosen_side == MatchRewards.Side.MONSTER else hero_mob_kills
+
+
+## The side a killing blow came from: MONSTER for a MonsterBase, HEROES for a
+## HeroBase or anything else in the "Hero" group (Ted's pet; traps, mines and
+## the cage deal their damage as their caster), -1 for the rest (a mob, a freed
+## source, World's debug kill).
+func killer_side(killer: Node) -> int:
+	if killer == null or not is_instance_valid(killer):
+		return -1
+	if killer is MonsterBase:
+		return MatchRewards.Side.MONSTER
+	if killer is HeroBase or killer.is_in_group(&"Hero"):
+		return MatchRewards.Side.HEROES
+	return -1
+
+
+## The match result's "upgrades ready": the next MenuRoot opens `side`'s
+## roster (MatchRewards.Side) on entry.
+func request_menu_roster(side: int) -> void:
+	_menu_roster_side = MatchRewards.Side.MONSTER if side == MatchRewards.Side.MONSTER else MatchRewards.Side.HEROES
+
+
+## The roster side MenuRoot should open on entry, once (-1: none); clears it.
+func take_menu_roster() -> int:
+	var side := _menu_roster_side
+	_menu_roster_side = -1
+	return side
 
 
 ## The F3 overlay's threat line: the played side and its power ranks P, the

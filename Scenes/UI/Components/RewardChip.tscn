@@ -1,0 +1,61 @@
+[gd_scene format=3 uid="uid://cfpxljnw36reo"]
+
+[ext_resource type="Script" uid="uid://dnh6lg43l7yiw" path="res://Scenes/UI/Components/reward_chip.gd" id="1_script"]
+
+[node name="RewardChip" type="PanelContainer"]
+custom_minimum_size = Vector2(150, 112)
+offset_right = 150.0
+offset_bottom = 112.0
+size_flags_horizontal = 3
+mouse_filter = 2
+theme_type_variation = &"PanelInset"
+script = ExtResource("1_script")
+
+[node name="Column" type="VBoxContainer" parent="."]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 0
+alignment = 1
+
+[node name="Row" type="HBoxContainer" parent="Column"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 8
+alignment = 1
+
+[node name="Icon" type="TextureRect" parent="Column/Row"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(42, 42)
+layout_mode = 2
+size_flags_vertical = 4
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Amount" type="Label" parent="Column/Row"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"BigNumberLabel"
+theme_override_font_sizes/font_size = 32
+text = "+0"
+
+[node name="Foot" type="HBoxContainer" parent="Column"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 6
+alignment = 1
+
+[node name="Caption" type="Label" parent="Column/Foot"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"Caption"
+theme_override_font_sizes/font_size = 16
+text = "Gold"
+
+[node name="Bonus" type="Label" parent="Column/Foot"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_type_variation = &"AmberLabel"
+theme_override_font_sizes/font_size = 16
+text = "+10%"

@@ -237,7 +237,7 @@ func test_top_bar_pause_and_follow() -> void:
 
 	# Top bar labels.
 	await wait_seconds(0.3)
-	assert_eq((hud.get_node(^"%Kills") as Label).text, str(GameManager.mob_kills))
+	assert_eq((hud.get_node(^"%Kills") as Label).text, str(GameManager.played_side_kills()), "the played side's kills")
 	assert_eq((hud.get_node(^"%Clock") as Label).text, MatchHud.clock_text(floori(GameManager.get_match_elapsed())))
 
 	world.queue_free()

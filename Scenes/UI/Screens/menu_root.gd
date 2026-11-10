@@ -14,7 +14,9 @@ extends Control
 ##     to the lobby), or, when it is already on the stack, the screens above it
 ##     slide away instead.
 ##   - autoloads: the tree unpaused on entry (a match result pauses it), the
-##     menu music, the UI click on every button press, the first-run tutorial,
+##     roster the match result's "upgrades ready" asked for
+##     (GameManager.take_menu_roster) opened on entry, the menu music, the UI
+##     click on every button press, the first-run tutorial,
 ##     GameManager's chosen side (persisted), the background World load, the
 ##     match's monster (GameManager.begin_hunt: the Heroes side's quarry or the
 ##     player's own monster) right before World loads, the skill purchases
@@ -76,6 +78,10 @@ func _ready() -> void:
 	_stack = [lobby]
 	_settle()
 	lobby.show_side(GameManager.chosen_side)
+	# The match result's "upgrades ready": straight on to that side's roster.
+	var roster_side := GameManager.take_menu_roster()
+	if roster_side >= 0:
+		_on_roster_requested(roster_side)
 	_update_nav_notify()
 	AudioManager.play_music(&"menu")
 	_wire_clicks(self)

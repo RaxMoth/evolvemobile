@@ -46,7 +46,9 @@
 
 **Post-Round Phase** (Rewards & Upgrade):
 
-1. View battle summary (kills, damage, time survived)
+1. View battle summary (the match result screen: duration, the played side's
+   kills, survivors or the stage reached, rewards counting up, each
+   character's XP bar)
 2. Earn currencies:
     - **Steel** (Hero-specific) - Earned when playing as Heroes
     - **Leaves** (Monster-specific) - Earned when playing as Monster
@@ -627,10 +629,12 @@ dangerous (`monster` #C2334A, `monster_purple` #7B3F95).
 - **UI kit** (`Assets/UI/`, all generated: edit the generators, never the
   files). Every SVG imports as a DPITexture (`importer="svg"`), so it stays
   crisp at any Control size and canvas scale.
-    - `Kit/` (65): card frames and inner panels (hero / monster / selected /
+    - `Kit/` (68): card frames and inner panels (hero / monster / selected /
       locked), carved-wood nav plaques and the mossy-stone HUNT arch, buttons
       (primary, secondary, copper, hero, monster, round) with hover / pressed
-      art, panels and banners, ability slot frames (basic, active, passive,
+      art, panels and banners (plus the match result's outcome ribbons:
+      `banner_victory` copper, `banner_victory_monster` crimson,
+      `banner_defeat` grey stone), ability slot frames (basic, active, passive,
       ult, locked), the old round skill-tree rings (`node_minor`,
       `node_major` and their `_tint` versions; no theme type uses them since
       the square tiles of the ranked tree screen), toggles, padlock,
@@ -1053,7 +1057,9 @@ writes gameplay state, so `tools/sim_trace.sh` stays byte-identical.
     - Enemy tracker: heroes side, the monster's head, "STAGE II" and its HP;
       monster side, a head and mini HP bar per hero (the scene's `HeroChip`
       template, duplicated per hero), greyed when the hero falls.
-    - Kills chip (`ui_skull`, `GameManager.mob_kills`).
+    - Kills chip (`ui_skull`): the played side's mob kills
+      (`GameManager.played_side_kills()`, the number the rewards pay and the
+      match result shows), not every mob death.
     - Follow (`ui_follow`): `follow_requested` → `MainCam.recenter()` (leaves
       the debug fly-cam, centres on the followed entity).
 - **Minimap**: the match's `Minimap` lives in the HUD's copper frame
@@ -1729,7 +1735,10 @@ code connections are to autoloads (`PersistedData.currency_changed`).
   stage looks the same every launch and the global RNG is never touched.
   Locked characters stand as a silhouette under a padlock with their price
   chip and, while unmet, the unlock rule under it (`%LockInfo`).
-  `character_pressed(character)`.
+  `character_pressed(character)`. For the match result: `celebrate(delay)`
+  (the cheer hop every 0.7 s until `stop_celebrating()`) and `set_fallen(on)`
+  (no idle or cheering, the rig posed still, `UiPalette.FALLEN_MODULATE`,
+  tipped back 12 degrees on its feet and squashed to 0.94).
 - **`UnlockSheet.tscn`** (`UnlockSheet`, `unlock_sheet.gd`): the confirm sheet
   of a character purchase, one instance over every MenuRoot screen. `open_for(def)`
   slides it up from the bottom edge (0.22 s, cubic) over a `bg_void` scrim:
@@ -1761,6 +1770,15 @@ code connections are to autoloads (`PersistedData.currency_changed`).
   TRANS_BACK tween.
 - **`StatTile.tscn`**: a stat icon, a value in display type and a caption
   (`PanelInset`; `show_stat(icon, value, caption)`).
+- **`RewardChip.tscn`** (`RewardChip`): one match reward, an icon, "+N"
+  (`BigNumberLabel`, thousands separated) and a caption in a `PanelInset`;
+  `play(delay)` counts from 0 to `amount` over 0.7 s and pops the number;
+  `bonus_pct` > 0 shows the Opponent Threat's bonus ("+20%", `AmberLabel`).
+- **`XpRow.tscn`** (`XpRow`): one character's permanent XP after a match, the
+  head portrait in a ring of its signature colour, the name, "+N XP", an
+  `XpBar` that `play(delay)` fills from `total_before` to `total_before + gain`
+  over 0.9 s on the level curve, "Lv.N" and the LEVEL UP! pill (`PillReady`)
+  popping when the fill crosses a level; `fallen` greys the head under a skull.
 - **`AbilityTile.tscn`**: one ability (kind caption, its
   `get_display_icon()` as the HUD shows it, its name), a toggle button; the
   toggled tile wears `CharacterCardSelected` and reports `tile_pressed(index)`.
@@ -1833,9 +1851,9 @@ code connections are to autoloads (`PersistedData.currency_changed`).
 
 ### Menu Root and Lobby (the main scene)
 
-The game boots into `Scenes/UI/Screens/MenuRoot.tscn` (`application/run/main_scene`).
-The old `MainMenu.tscn` stays reachable from the match result's Main Menu
-button until the Phase 8 screens retire it.
+The game boots into `Scenes/UI/Screens/MenuRoot.tscn` (`application/run/main_scene`),
+and the match result's LOBBY returns to it. Nothing reaches the old
+`MainMenu.tscn` any more; the Phase 8 cleanup deletes it.
 
 - **`MenuRoot`** (`menu_root.gd`): every meta screen is a hidden child of
   `%Screens`, and every screen signal is connected in `MenuRoot.tscn`. The
@@ -1846,8 +1864,10 @@ button until the Phase 8 screens retire it.
       `UiPalette.COVERED_SCREEN_MODULATE` (0.6); `pop()` plays it backwards, and
       once a slide settles only the top screen is visible. `ui_cancel` is back on
       every screen; the home screen (the lobby) never pops.
-    - On entry: the tree is unpaused (a match result pauses it), the menu
-      music plays, `GameManager.request_world_load()` starts loading the match in
+    - On entry: the tree is unpaused (a match result pauses it), the roster
+      the match result's "upgrades ready" asked for
+      (`GameManager.request_menu_roster` / `take_menu_roster`, once) slides in
+      over the lobby, the menu music plays, `GameManager.request_world_load()` starts loading the match in
       the background (`GameManager.get_world_scene()` collects it), and on the
       first run the tutorial opens after 0.9 s. Every button under the menu,
       including ones a screen or overlay adds later, plays the UI click.
@@ -1887,8 +1907,8 @@ button until the Phase 8 screens retire it.
       makes the monster the player's own (`choose_monster`) and starts; the
       instinct is not applied yet (today's Ambusher behaviour); a second
       start while the match loads does nothing. Every start
-      goes through `GameManager.begin_hunt()` first; so does the old match
-      result's Play Again. Until their new screens land, Codex opens the
+      goes through `GameManager.begin_hunt()` first; so does the match
+      result's PLAY AGAIN. Until their new screens land, Codex opens the
       tutorial and the gear the old Settings.
 - **`LobbyScreen`** (`lobby_screen.gd`, the nav bar's HUNT tab): a split jungle
   stage under the top bar (gear, Gold, Steel, Leaves) and above the nav bar.
@@ -2007,6 +2027,78 @@ it adds `monster_start_requested(monster_id, instinct)`.
   the ThreatBox on both sides at threat 0 and above, the scene-side wiring),
   `test_menu_root` (HUNT pushes it once per side, back and `ui_cancel` pop
   it).
+
+### Match result screen (MatchResultScreen)
+
+The overlay at the end of a match (`Scenes/UI/Screens/MatchResultScreen.tscn`,
+`match_result_screen.gd`), a CanvasLayer at layer 30 with `process_mode`
+ALWAYS. It replaces the old `MatchResult` overlay with the same contract:
+`GameManager.MATCH_RESULT_SCENE` instantiates it over the paused World and calls
+`populate(result)` after the rewards are saved. Previews of the design:
+`result_heroes.png`, `result_monster.png`, `result_heroes_defeat.png`.
+
+- **Ribbon**: `MatchRewards.outcome_label` (VICTORY / DEFEAT / TIME UP, 54 px
+  `BannerTitle`) on `BannerVictory` (copper) for a heroes win,
+  `BannerVictoryMonster` (crimson) for a monster win and `BannerDefeat` (grey
+  stone) for a loss or TIME UP (kit art `banner_victory*`, `banner_defeat`).
+  Under it a line and the match time: "The beast is slain", "The jungle claims
+  your squad", "The beast slipped away" (heroes), "The jungle is yours", "The
+  hunters prevailed" (monster).
+- **Stage** (680x276): the played side's cast as live `StageCharacter` rigs on
+  the campfire (`FrameHero`) or in the lair (`FrameMonster`): the four heroes
+  the match counted (`Result.hero_ids`, the right pair facing inward) or the
+  match's monster at the stage it reached (`Result.monster_id`). On a win the
+  standing ones `celebrate()` (a cheer hop every 0.7 s, staggered 0.12 s); a
+  hero that fell (`Result.fallen_hero_ids`), every hero of a lost match and the
+  monster of a lost match `set_fallen(true)`: posed still, greyed
+  (`UiPalette.FALLEN_MODULATE`), tipped back 12 degrees and squashed to 0.94;
+  at TIME UP the survivors idle. The cast is a picture (no taps).
+- **Stats**: three `StatTile`s: Duration; the played side's kills
+  (`Result.mob_kills`: "Mobs slain" for the heroes, "Mobs devoured" for the
+  monster); Survivors "3 / 4" (heroes) or "Stage 3" / Evolution (monster).
+- **REWARDS**: `RewardChip`s (`Components/RewardChip.tscn`) for Gold, Steel
+  (heroes) or Leaves (monster) and XP ("XP each" for the heroes), counting up
+  from 0 over 0.7 s with a pop. At an Opponent Threat above 0 the header
+  shows "Threat 2: +20% Steel and Gold" (or Leaves) and the currency chips
+  carry an amber "+20%"; XP never has a bonus.
+- **XP rows**: an `XpRow` (`Components/XpRow.tscn`) per character, two columns
+  for the heroes: the head portrait in its signature-colour ring (greyed under
+  a skull if fallen), the name, "+N XP" and an `XpBar` filling over 0.9 s from
+  the pre-match total (the saved total minus the gain) on the
+  `PersistedData.level_progress` curve, "Lv.N" under it and the red LEVEL UP!
+  pill popping where it crosses a level.
+- **"N upgrades ready"** (`PillReady` with the level-up arrow) while the cast
+  can buy ranks now (`CharacterProgress.upgrades_ready` summed): it emits
+  `upgrades_requested(side)`, asks the menu for that side's roster
+  (`GameManager.request_menu_roster`) and returns to MenuRoot, which opens the
+  Heroes or Monsters roster on entry.
+- **Buttons**: LOBBY (wood, `lobby_scene_path` = MenuRoot.tscn) and PLAY AGAIN
+  (`ButtonPrimary` for the heroes, `ButtonMonster` for the monster), which calls
+  `GameManager.begin_hunt()` (the Heroes side never meets the same quarry twice
+  in a row) and reloads World. Both unpause the tree; a second press does
+  nothing. `changes_scene = false` (tests, render probes) keeps only the
+  signals (`lobby_requested`, `play_again_requested`, `upgrades_requested`).
+- **Intro**: the scrim fades in, the ribbon pops (0.4 → 1, TRANS_BACK) at
+  0.1 s, the sections fade in from 0.3 s (staggered 0.08 s), the chips count
+  from 0.6 s and the XP bars fill from 0.9 s; all settled by about 1.9 s.
+- **GameManager's side** (data only, the trace is unchanged): `mob_kills`
+  still counts every mob death (the determinism trace hashes it), and
+  `hero_mob_kills` / `monster_mob_kills` count each side's kills by
+  `killer_side(killer)` (MONSTER for the MonsterBase; HEROES for a HeroBase or
+  anything in the "Hero" group, i.e. Ted's pet; traps, mines and the cage deal
+  damage as their caster). `played_side_kills()` pays the rewards, fills
+  `Result.mob_kills` and drives the HUD's kills chip. Where `heroes_alive`
+  drops, the hero's id joins `Result.fallen_hero_ids`; `Result.hero_ids` is
+  the census and `Result.monster_id` the match's monster.
+- Colours come from the theme and `UiPalette` only (the scrim is `bg_void` at
+  86 %); strings are in `strings.csv` with German.
+- Tests: `test_match_result` (GameManager shows it and LOBBY goes to the main
+  scene; populate for heroes win / loss / TIME UP and monster win / loss:
+  ribbon, line, stage, frame, stats, chips, XP rows, the cast's poses; fallen
+  heroes; the threat bonus; the count-up and LEVEL UP!; "upgrades ready"; the
+  buttons' scene-side wiring; German; `killer_side` and the counters; a match
+  end paying the played side's kills with the fallen hero in the Result),
+  `test_menu_root` (the requested roster on entry).
 
 ### Roster and Character Detail (collections, overview, skill trees)
 
@@ -2225,8 +2317,10 @@ res://
 │  │  └─ MobSpawnArea/
 │  └─ UI/
 │     ├─ Screens/ (MenuRoot.tscn: the main scene, LobbyScreen.tscn,
-│     │            RosterScreen.tscn, CharacterDetail.tscn, ux_tree_model.gd)
-│     ├─ MainMenu/ (the old menu, reachable from the match result until Phase 8)
+│     │            RosterScreen.tscn, CharacterDetail.tscn, PreRoundScreen.tscn,
+│     │            MatchResultScreen.tscn, ux_tree_model.gd)
+│     ├─ MainMenu/, MatchResult/, PreRoundSetup/ (the old screens, unreachable;
+│     │            the Phase 8 cleanup deletes them)
 │     ├─ Hud/ (MatchHud: the in-match HUD under MainCam, HeroHudCard,
 │     │        MonsterHudPanel, AbilitySlot: ability icon with the cooldown sweep,
 │     │        MatchAnnouncer: match events -> the HUD's event toasts)
@@ -2234,7 +2328,7 @@ res://
 │     ├─ Components/ (menu kit: CharacterCard, StageCharacter, TopBar,
 │     │               CurrencyChip, NavBar, NavTab, NavArch, PressFeedback,
 │     │               StatTile, AbilityTile, SkillNodeButton, SkillTreeView,
-│     │               UnlockSheet)
+│     │               UnlockSheet, RewardChip, XpRow)
 │     ├─ Widgets/ (rig_view.gd: RigView, a puppet rig inside a Control)
 │     └─ Theme/
 │        ├─ ui_theme.tres (generated project Theme, gui/theme/custom)
@@ -2316,10 +2410,12 @@ on either side, about 150 XP. That fills every hero tree in about 53 hero
 matches, every monster tree in about 34 monster matches (plus the monster
 unlock prices) and both base trees in about 85 matches.
 
-"Mob killed" means a kill by the played side (the model above). Open item:
-`GameManager` still passes `mob_kills`, which counts every mob death on both
-sides, so a match pays more than the target until the result screen rework
-passes the played side's kills.
+"Mob killed" means a kill by the played side (the model above):
+`GameManager.played_side_kills()` (the heroes' kills, Ted's pet and their traps
+included, or the monster's own), which the result screen and the HUD's kills
+chip show too. Until Phase 8 GameManager passed `mob_kills` (every mob death on
+both sides), so a match paid about 1,340 Steel / 1,445 Leaves instead of the
+target.
 
 ### Skill Tree Structure
 
@@ -2852,8 +2948,8 @@ Max out hero trees → Unlock new heroes → Compete on leaderboards
 
 - [x] Lobby (the main scene, MenuRoot): the heroes' campfire and the monster lair as live rigs, tap a side to choose it (persisted)
 - [x] Roster screens (4-column collections with role filters) and the character detail (overview with stats and abilities, skill tree with upgrades); Growth shows the side's base tree
-- [x] Main Menu with side selection, Settings (volumes) and the Meta Skill screen (old; reachable from the match result)
-- [x] Match result screen (stats, currency + permanent XP rewards, Play Again / Main Menu)
+- [x] Main Menu with side selection, Settings (volumes) and the Meta Skill screen (old; replaced by the Lobby and unreachable)
+- [x] Match result screen (MatchResultScreen: outcome ribbon, the cast celebrating or fallen, stats, count-up rewards with the threat bonus, XP bars with LEVEL UP!, "upgrades ready" to the roster, Lobby / Play Again)
 - [x] Hero Base + Monster Base skill trees (MetaSkillManager, applied on spawn), ConfigFile save
 - [x] Permanent XP per hero/monster with level readout on the menu cards
 - [x] 10-minute match cap (loss-condition timer)

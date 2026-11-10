@@ -7,6 +7,7 @@ extends TestCase
 ## the unlock sheet they open (the purchase through MenuRoot, the refresh, back
 ## closing it), the chosen side persisted through GameManager, the first-run tutorial, the rosters, Growth and the
 ## character detail each request opens (nav tabs switch, cards push), the
+## roster the match result's "upgrades ready" asks for on entry, the
 ## purchases and capstone swaps MenuRoot makes for the detail screen and the
 ## refresh after them, the nav bars' red dots for buyable ranks, HUNT pushing
 ## the chosen side's PreRoundScreen, and the old overlays that still stand in
@@ -304,6 +305,27 @@ func test_chosen_side_is_persisted_and_restored() -> void:
 	again.queue_free()
 	GameManager.choose_side(5, false)
 	assert_eq(GameManager.chosen_side, HEROES, "a corrupt side reads as the heroes")
+
+
+## The match result's "upgrades ready" (GameManager.request_menu_roster): the
+## next MenuRoot opens on that side's roster, once.
+func test_entry_opens_the_roster_the_result_asked_for() -> void:
+	GameManager.request_menu_roster(MONSTER)
+	var root := await _menu_root()
+	await wait_seconds(MenuRoot.SLIDE_TIME + 0.1)
+	assert_true(root.top() == root.monster_roster, "the Monsters roster over the lobby")
+	assert_eq(root._stack.size(), 2, "back returns to the lobby")
+	assert_eq(GameManager.take_menu_roster(), -1, "the request is used up")
+	root.queue_free()
+	await wait_frames(1)
+	var plain := await _menu_root()
+	assert_true(plain.top() == plain.lobby, "without a request the menu opens on the lobby")
+	plain.queue_free()
+	GameManager.request_menu_roster(HEROES)
+	var heroes := await _menu_root()
+	await wait_seconds(MenuRoot.SLIDE_TIME + 0.1)
+	assert_true(heroes.top() == heroes.hero_roster, "or on the Heroes roster")
+	heroes.queue_free()
 
 
 func test_first_run_opens_the_tutorial() -> void:

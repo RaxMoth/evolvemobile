@@ -1,0 +1,314 @@
+[gd_scene format=3 uid="uid://d4aksasy1uh5f"]
+
+[ext_resource type="Script" uid="uid://bdimn7s7t8y37" path="res://Scenes/UI/Screens/match_result_screen.gd" id="1_script"]
+[ext_resource type="Theme" uid="uid://eroe1xxhr5fc" path="res://Scenes/UI/Theme/ui_theme.tres" id="2_theme"]
+[ext_resource type="Texture2D" uid="uid://cjop3dgsmtqp4" path="res://Assets/UI/Lobby/lobby_heroes.svg" id="3_heroes_bg"]
+[ext_resource type="PackedScene" uid="uid://dwq2gk7hm4ylc" path="res://Scenes/UI/Components/StatTile.tscn" id="4_stat_tile"]
+[ext_resource type="PackedScene" uid="uid://cfpxljnw36reo" path="res://Scenes/UI/Components/RewardChip.tscn" id="5_reward_chip"]
+[ext_resource type="Texture2D" uid="uid://y0kkgvtujfww" path="res://Assets/UI/Icons/Stats/stat_duration.svg" id="6_duration"]
+[ext_resource type="Texture2D" uid="uid://dys3gnhljaaxn" path="res://Assets/UI/Icons/UI/ui_skull.svg" id="7_skull"]
+[ext_resource type="Texture2D" uid="uid://chbesl68kxox7" path="res://Assets/UI/Icons/Nav/nav_heroes.svg" id="8_heroes"]
+[ext_resource type="Texture2D" uid="uid://cwuo8lwg5xi2y" path="res://Assets/UI/Icons/Stats/stat_threat.svg" id="9_threat"]
+[ext_resource type="Texture2D" uid="uid://b5axrvc160is4" path="res://Assets/UI/Icons/Currency/currency_gold.svg" id="10_gold"]
+[ext_resource type="Texture2D" uid="uid://b2w34qqld514p" path="res://Assets/UI/Icons/Currency/currency_steel.svg" id="11_steel"]
+[ext_resource type="Texture2D" uid="uid://b5uxakr60rax8" path="res://Assets/UI/Icons/Currency/currency_leaves.svg" id="12_leaves"]
+[ext_resource type="Texture2D" uid="uid://38j8pwjum2d8" path="res://Assets/UI/Icons/Stats/stat_xp.svg" id="13_xp"]
+[ext_resource type="Texture2D" uid="uid://684mufur33bv" path="res://Assets/UI/Icons/UI/ui_level_up.svg" id="14_level_up"]
+[ext_resource type="Texture2D" uid="uid://copfu63v7j3qw" path="res://Assets/UI/Icons/UI/ui_back.svg" id="15_back"]
+[ext_resource type="Texture2D" uid="uid://ylcevyvuqtlq" path="res://Assets/UI/Icons/UI/ui_play.svg" id="16_play"]
+
+[node name="MatchResultScreen" type="CanvasLayer"]
+process_mode = 3
+layer = 30
+script = ExtResource("1_script")
+
+[node name="Root" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme = ExtResource("2_theme")
+
+[node name="Scrim" type="ColorRect" parent="Root"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Margin" type="MarginContainer" parent="Root"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_constants/margin_left = 18
+theme_override_constants/margin_top = 26
+theme_override_constants/margin_right = 18
+theme_override_constants/margin_bottom = 22
+
+[node name="Column" type="VBoxContainer" parent="Root/Margin"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 10
+
+[node name="Ribbon" type="PanelContainer" parent="Root/Margin/Column"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(600, 108)
+layout_mode = 2
+size_flags_horizontal = 4
+mouse_filter = 2
+theme_type_variation = &"BannerVictory"
+
+[node name="Outcome" type="Label" parent="Root/Margin/Column/Ribbon"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"BannerTitle"
+theme_override_constants/outline_size = 14
+theme_override_font_sizes/font_size = 54
+text = "VICTORY"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Sub" type="Label" parent="Root/Margin/Column"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"BodyDim"
+theme_override_font_sizes/font_size = 22
+horizontal_alignment = 1
+
+[node name="Stage" type="Control" parent="Root/Margin/Column"]
+unique_name_in_owner = true
+clip_contents = true
+custom_minimum_size = Vector2(0, 276)
+layout_mode = 2
+mouse_filter = 2
+
+[node name="Backdrop" type="TextureRect" parent="Root/Margin/Column/Stage"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+texture = ExtResource("3_heroes_bg")
+expand_mode = 1
+stretch_mode = 6
+
+[node name="Cast" type="HBoxContainer" parent="Root/Margin/Column/Stage"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = -268.0
+offset_bottom = -6.0
+grow_horizontal = 2
+grow_vertical = 0
+mouse_filter = 2
+theme_override_constants/separation = 6
+alignment = 1
+
+[node name="StageFrame" type="Panel" parent="Root/Margin/Column/Stage"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_type_variation = &"FrameHero"
+
+[node name="Stats" type="HBoxContainer" parent="Root/Margin/Column"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 12
+
+[node name="StatTime" parent="Root/Margin/Column/Stats" instance=ExtResource("4_stat_tile")]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 70)
+layout_mode = 2
+size_flags_horizontal = 3
+icon = ExtResource("6_duration")
+caption = "Duration"
+
+[node name="StatKills" parent="Root/Margin/Column/Stats" instance=ExtResource("4_stat_tile")]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 70)
+layout_mode = 2
+size_flags_horizontal = 3
+icon = ExtResource("7_skull")
+caption = "Mobs slain"
+
+[node name="StatThird" parent="Root/Margin/Column/Stats" instance=ExtResource("4_stat_tile")]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 70)
+layout_mode = 2
+size_flags_horizontal = 3
+icon = ExtResource("8_heroes")
+caption = "Survivors"
+
+[node name="RewardsHead" type="HBoxContainer" parent="Root/Margin/Column"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 12
+
+[node name="Title" type="Label" parent="Root/Margin/Column/RewardsHead"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"HeaderSmall"
+theme_override_font_sizes/font_size = 26
+text = "REWARDS"
+
+[node name="ThreatBonus" type="PanelContainer" parent="Root/Margin/Column/RewardsHead"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+size_flags_vertical = 4
+mouse_filter = 2
+theme_type_variation = &"Pill"
+
+[node name="Row" type="HBoxContainer" parent="Root/Margin/Column/RewardsHead/ThreatBonus"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 6
+
+[node name="Icon" type="TextureRect" parent="Root/Margin/Column/RewardsHead/ThreatBonus/Row"]
+custom_minimum_size = Vector2(26, 26)
+layout_mode = 2
+size_flags_vertical = 4
+mouse_filter = 2
+texture = ExtResource("9_threat")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="ThreatText" type="Label" parent="Root/Margin/Column/RewardsHead/ThreatBonus/Row"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"PillText"
+theme_override_font_sizes/font_size = 17
+
+[node name="Rewards" type="HBoxContainer" parent="Root/Margin/Column"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 12
+
+[node name="Gold" parent="Root/Margin/Column/Rewards" instance=ExtResource("5_reward_chip")]
+unique_name_in_owner = true
+layout_mode = 2
+icon = ExtResource("10_gold")
+caption = "Gold"
+
+[node name="Steel" parent="Root/Margin/Column/Rewards" instance=ExtResource("5_reward_chip")]
+unique_name_in_owner = true
+layout_mode = 2
+icon = ExtResource("11_steel")
+caption = "Steel"
+
+[node name="Leaves" parent="Root/Margin/Column/Rewards" instance=ExtResource("5_reward_chip")]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+icon = ExtResource("12_leaves")
+caption = "Leaves"
+
+[node name="Xp" parent="Root/Margin/Column/Rewards" instance=ExtResource("5_reward_chip")]
+unique_name_in_owner = true
+layout_mode = 2
+icon = ExtResource("13_xp")
+caption = "XP each"
+
+[node name="XpGrid" type="GridContainer" parent="Root/Margin/Column"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/h_separation = 12
+theme_override_constants/v_separation = 10
+columns = 2
+
+[node name="Upgrades" type="Button" parent="Root/Margin/Column"]
+unique_name_in_owner = true
+visible = false
+custom_minimum_size = Vector2(400, 52)
+layout_mode = 2
+size_flags_horizontal = 4
+focus_mode = 0
+theme_type_variation = &"FlatButton"
+
+[node name="Pill" type="PanelContainer" parent="Root/Margin/Column/Upgrades"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_type_variation = &"PillReady"
+
+[node name="Row" type="HBoxContainer" parent="Root/Margin/Column/Upgrades/Pill"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 8
+alignment = 1
+
+[node name="Icon" type="TextureRect" parent="Root/Margin/Column/Upgrades/Pill/Row"]
+custom_minimum_size = Vector2(28, 28)
+layout_mode = 2
+size_flags_vertical = 4
+mouse_filter = 2
+texture = ExtResource("14_level_up")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="UpgradesText" type="Label" parent="Root/Margin/Column/Upgrades/Pill/Row"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"PillText"
+theme_override_font_sizes/font_size = 22
+text = "3 upgrades ready"
+
+[node name="Spacer" type="Control" parent="Root/Margin/Column"]
+layout_mode = 2
+size_flags_vertical = 3
+mouse_filter = 2
+
+[node name="Buttons" type="HBoxContainer" parent="Root/Margin/Column"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 92)
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="Lobby" type="Button" parent="Root/Margin/Column/Buttons"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(230, 0)
+layout_mode = 2
+theme_override_font_sizes/font_size = 26
+text = "LOBBY"
+icon = ExtResource("15_back")
+
+[node name="PlayAgain" type="Button" parent="Root/Margin/Column/Buttons"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"ButtonPrimary"
+theme_override_font_sizes/font_size = 30
+text = "PLAY AGAIN"
+icon = ExtResource("16_play")
+icon_alignment = 2
+
+[connection signal="pressed" from="Root/Margin/Column/Upgrades" to="." method="_on_upgrades_pressed"]
+[connection signal="pressed" from="Root/Margin/Column/Buttons/Lobby" to="." method="_on_lobby_pressed"]
+[connection signal="pressed" from="Root/Margin/Column/Buttons/PlayAgain" to="." method="_on_play_again_pressed"]

@@ -15,12 +15,20 @@ extends Button
 ##
 ## Two layers so the idle and the cheer never fight over a property: the idle
 ## squashes and bobs %Rig, cheer() hops %Hop (its parent).
+##
+## The match result's cast: celebrate() cheers over and over (a win),
+## set_fallen() lays the character down greyed (a fallen hero, a lost match).
 
 signal character_pressed(character: CharacterDef)
 
 ## Idle squash at the top of the bob (x grows, y shrinks).
 const SQUASH := Vector2(1.025, 0.975)
 const CHEER_HEIGHT := 26.0
+## Seconds between two hops of celebrate().
+const CELEBRATE_REST := 0.7
+## A fallen character tips backwards by this much and sags.
+const FALLEN_TILT_DEG := -12.0
+const FALLEN_SQUASH := Vector2(1.0, 0.94)
 
 @export var character: CharacterDef:
 	set(v):
@@ -44,9 +52,12 @@ const CHEER_HEIGHT := 26.0
 
 ## The idle period this instance drew (seconds).
 var period: float = 0.0
+## True while set_fallen(true) holds (celebrate() does nothing then).
+var fallen: bool = false
 
 var _rng := RandomNumberGenerator.new()
 var _idle: Tween = null
+var _party: Tween = null
 var _rest_y := 0.0
 
 @onready var _hop: Control = %Hop
@@ -112,12 +123,63 @@ func cheer(delay: float = 0.0) -> void:
 	t.tween_property(_hop, ^"position:y", 0.0, 0.22).set_trans(Tween.TRANS_BOUNCE).set_ease(Tween.EASE_OUT)
 
 
-## The squash pivots on the feet (the rig's bottom centre). The first layout
-## can resize the rig before _ready; start_idle() sets the pivot then.
+## A win: cheer() after `delay` seconds and then every CELEBRATE_REST, until
+## stop_celebrating() or set_fallen().
+func celebrate(delay: float = 0.0) -> void:
+	stop_celebrating()
+	if fallen:
+		return
+	_party = create_tween()
+	_party.tween_interval(delay)
+	_party.tween_callback(_celebrate_loop)
+
+
+func stop_celebrating() -> void:
+	if _party:
+		_party.kill()
+		_party = null
+	_hop.position.y = 0.0
+
+
+func is_celebrating() -> bool:
+	return _party != null and _party.is_valid()
+
+
+func _celebrate_loop() -> void:
+	_party = create_tween().set_loops()
+	_party.tween_callback(_rig.play_move.bind(&"cheer"))
+	_party.tween_property(_hop, ^"position:y", -CHEER_HEIGHT, 0.16).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	_party.tween_property(_hop, ^"position:y", 0.0, 0.22).set_trans(Tween.TRANS_BOUNCE).set_ease(Tween.EASE_OUT)
+	_party.tween_interval(CELEBRATE_REST)
+
+
+## Fallen (`on`): no idle and no cheering, the rig posed still, greyed
+## (UiPalette.FALLEN_MODULATE) and tipped back on its feet; off: standing again.
+func set_fallen(on: bool) -> void:
+	fallen = on
+	stop_celebrating()
+	_hop.rotation_degrees = (-FALLEN_TILT_DEG if flip else FALLEN_TILT_DEG) if on else 0.0
+	_hop.scale = FALLEN_SQUASH if on else Vector2.ONE
+	_hop.modulate = UiPalette.FALLEN_MODULATE if on else Color.WHITE
+	_rig.animated = not on
+	if on:
+		if _idle:
+			_idle.kill()
+			_idle = null
+			_rig.scale = Vector2.ONE
+			_rig.position.y = _rest_y
+	elif _idle == null:
+		start_idle()
+
+
+## The squash (and a fallen tilt) pivots on the feet (the bottom centre; %Rig
+## fills %Hop). The first layout can resize the rig before _ready; start_idle()
+## sets the pivot then.
 func _on_rig_resized() -> void:
 	if not is_node_ready():
 		return
 	_rig.pivot_offset = Vector2(_rig.size.x * 0.5, _rig.size.y)
+	_hop.pivot_offset = _rig.pivot_offset
 
 
 func _on_pressed() -> void:

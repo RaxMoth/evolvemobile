@@ -283,6 +283,11 @@ def banner(name, wood, shade, leaves=True):
 banner("banner", P["wood"], P["wood_dark"])
 banner("banner_hero", mix(P["wood"], P["hero"], 0.25), P["wood_dark"])
 banner("banner_monster", mix(P["monster_dark"], P["monster_purple"], 0.3), mix(P["monster_dark"], INK, 0.4), leaves=False)
+# The match result's outcome ribbons (MatchResultScreen): copper for a heroes
+# win, crimson for a monster win, grey stone for a loss or TIME UP.
+banner("banner_victory", P["copper"], P["copper_dark"])
+banner("banner_victory_monster", P["monster"], P["monster_dark"], leaves=False)
+banner("banner_defeat", P["stone"], P["stone_dark"], leaves=False)
 
 # =========================================================== HUD ABILITY SLOTS
 # 72x72 ring frames drawn OVER the 64x64 icon (icon at offset 4,4).

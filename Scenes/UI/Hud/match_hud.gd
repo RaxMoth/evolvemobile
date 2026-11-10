@@ -11,7 +11,8 @@ extends CanvasLayer
 ##   - the enemy tracker: heroes side, the monster's head, stage and HP;
 ##     monster side, a head and mini HP bar per hero (from the HeroChip
 ##     template in the scene), greyed when the hero falls;
-##   - the kills chip (GameManager.mob_kills);
+##   - the kills chip: the played side's mob kills
+##     (GameManager.played_side_kills(), the result screen's tally);
 ##   - Follow: follow_requested (MainCam.recenter, wired in MainCam.tscn).
 ## Under it, MinimapFrame holds the match's Minimap (its own frame hidden);
 ## a tap on the map selects the nearest hero (Minimap.hero_picked ->
@@ -151,8 +152,9 @@ func _refresh_top() -> void:
 	if seconds != _shown_seconds:
 		_shown_seconds = seconds
 		_clock.text = clock_text(seconds)
-	if GameManager.mob_kills != _shown_kills:
-		_shown_kills = GameManager.mob_kills
+	var kills := GameManager.played_side_kills()
+	if kills != _shown_kills:
+		_shown_kills = kills
 		_kills.text = str(_shown_kills)
 	if _heroes_side:
 		_refresh_enemy_monster()

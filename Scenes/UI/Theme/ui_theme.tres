@@ -44,6 +44,9 @@
 [ext_resource type="Texture2D" uid="uid://dasayrit6c0ek" path="res://Assets/UI/Kit/banner.svg" id="k_banner"]
 [ext_resource type="Texture2D" uid="uid://bbb2kdxfkyw7c" path="res://Assets/UI/Kit/banner_hero.svg" id="k_banner_hero"]
 [ext_resource type="Texture2D" uid="uid://cctmlvm0qa2lp" path="res://Assets/UI/Kit/banner_monster.svg" id="k_banner_monster"]
+[ext_resource type="Texture2D" uid="uid://db5047g6a380k" path="res://Assets/UI/Kit/banner_victory.svg" id="k_banner_victory"]
+[ext_resource type="Texture2D" uid="uid://bbqrrtpbfn7cs" path="res://Assets/UI/Kit/banner_victory_monster.svg" id="k_banner_victory_monster"]
+[ext_resource type="Texture2D" uid="uid://cp5jlxuao5ewd" path="res://Assets/UI/Kit/banner_defeat.svg" id="k_banner_defeat"]
 [ext_resource type="Texture2D" uid="uid://d1djsp78wprry" path="res://Assets/UI/Kit/slider_grabber.svg" id="k_slider_grabber"]
 [ext_resource type="Texture2D" uid="uid://dxhssrkgvo826" path="res://Assets/UI/Kit/toggle_on.svg" id="k_toggle_on"]
 [ext_resource type="Texture2D" uid="uid://cs25mr5o05tm2" path="res://Assets/UI/Kit/toggle_off.svg" id="k_toggle_off"]
@@ -624,6 +627,39 @@ content_margin_top = 8.0
 content_margin_right = 46.0
 content_margin_bottom = 16.0
 texture = ExtResource("k_banner_monster")
+texture_margin_left = 44.0
+texture_margin_top = 16.0
+texture_margin_right = 44.0
+texture_margin_bottom = 16.0
+
+[sub_resource type="StyleBoxTexture" id="BannerVictory_sb"]
+content_margin_left = 46.0
+content_margin_top = 8.0
+content_margin_right = 46.0
+content_margin_bottom = 16.0
+texture = ExtResource("k_banner_victory")
+texture_margin_left = 44.0
+texture_margin_top = 16.0
+texture_margin_right = 44.0
+texture_margin_bottom = 16.0
+
+[sub_resource type="StyleBoxTexture" id="BannerVictoryMonster_sb"]
+content_margin_left = 46.0
+content_margin_top = 8.0
+content_margin_right = 46.0
+content_margin_bottom = 16.0
+texture = ExtResource("k_banner_victory_monster")
+texture_margin_left = 44.0
+texture_margin_top = 16.0
+texture_margin_right = 44.0
+texture_margin_bottom = 16.0
+
+[sub_resource type="StyleBoxTexture" id="BannerDefeat_sb"]
+content_margin_left = 46.0
+content_margin_top = 8.0
+content_margin_right = 46.0
+content_margin_bottom = 16.0
+texture = ExtResource("k_banner_defeat")
 texture_margin_left = 44.0
 texture_margin_top = 16.0
 texture_margin_right = 44.0
@@ -1592,6 +1628,12 @@ BannerHero/base_type = &"PanelContainer"
 BannerHero/styles/panel = SubResource("BannerHero_sb")
 BannerMonster/base_type = &"PanelContainer"
 BannerMonster/styles/panel = SubResource("BannerMonster_sb")
+BannerVictory/base_type = &"PanelContainer"
+BannerVictory/styles/panel = SubResource("BannerVictory_sb")
+BannerVictoryMonster/base_type = &"PanelContainer"
+BannerVictoryMonster/styles/panel = SubResource("BannerVictoryMonster_sb")
+BannerDefeat/base_type = &"PanelContainer"
+BannerDefeat/styles/panel = SubResource("BannerDefeat_sb")
 Pill/base_type = &"PanelContainer"
 Pill/styles/panel = SubResource("pill_sb")
 PillReady/base_type = &"PanelContainer"
