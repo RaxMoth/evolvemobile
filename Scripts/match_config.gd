@@ -2,9 +2,10 @@ class_name MatchConfig
 extends Resource
 
 ## MatchConfig — the player's pre-round strategy for the hero team.
-## Chosen on the PreRoundSetup screen, persisted in PersistedData settings so
-## the last choice is the default next time, and read by the AI consumers
-## through the derived getters below (never by poking the raw sliders).
+## Chosen on the PreRoundScreen (heroes side), persisted in PersistedData
+## settings so the last choice is the default next time, and read by the AI
+## consumers through the derived getters below (never by poking the raw
+## sliders).
 ## It also names the hunt's quarry (quarry_id), which the menu hands to
 ## GameManager.begin_hunt(); that one is chosen per hunt and never persisted
 ## here (the Change picker's lock lives in PersistedData).

@@ -1,0 +1,733 @@
+[gd_scene format=3 uid="uid://itw021y2sgdc"]
+
+[ext_resource type="Script" uid="uid://hbmf5t1yxkfx" path="res://Scenes/UI/Screens/pre_round_screen.gd" id="1_script"]
+[ext_resource type="Theme" uid="uid://eroe1xxhr5fc" path="res://Scenes/UI/Theme/ui_theme.tres" id="2_theme"]
+[ext_resource type="Texture2D" uid="uid://d0us42nwu36it" path="res://Assets/UI/Kit/bg_texture.svg" id="3_bg"]
+[ext_resource type="PackedScene" uid="uid://da4ubvm6y0cvg" path="res://Scenes/UI/Components/TopBar.tscn" id="4_top_bar"]
+[ext_resource type="Texture2D" uid="uid://cjop3dgsmtqp4" path="res://Assets/UI/Lobby/lobby_heroes.svg" id="5_heroes_bg"]
+[ext_resource type="PackedScene" uid="uid://b4wggremdqavp" path="res://Scenes/UI/Components/StageCharacter.tscn" id="6_stage_character"]
+[ext_resource type="PackedScene" uid="uid://uylv5kodvef1" path="res://Scenes/UI/Components/CharacterCard.tscn" id="7_card"]
+[ext_resource type="PackedScene" uid="uid://ch78a6l6r4dk6" path="res://Scenes/UI/Components/ThreatBox.tscn" id="8_threat_box"]
+[ext_resource type="PackedScene" uid="uid://c1k6t3ypewm4l" path="res://Scenes/UI/Components/StrategyRow.tscn" id="9_strategy_row"]
+[ext_resource type="PackedScene" uid="uid://c6o8iymuxgrfp" path="res://Scenes/UI/Components/FormationTile.tscn" id="10_formation_tile"]
+[ext_resource type="PackedScene" uid="uid://whp13dj1pfvo" path="res://Scenes/UI/Components/InstinctTile.tscn" id="11_instinct_tile"]
+[ext_resource type="Script" uid="uid://wq6shkpfj8or" path="res://Scenes/UI/Widgets/rig_view.gd" id="12_rig_view"]
+[ext_resource type="Texture2D" uid="uid://kb3g3xxq50l5" path="res://Assets/UI/Icons/UI/ui_swap.svg" id="14_swap"]
+[ext_resource type="Texture2D" uid="uid://ylcevyvuqtlq" path="res://Assets/UI/Icons/UI/ui_play.svg" id="15_play"]
+[ext_resource type="Texture2D" uid="uid://1dp6mgje3b6n" path="res://Assets/UI/Icons/UI/ui_close.svg" id="16_close"]
+[ext_resource type="Texture2D" uid="uid://6u2j7xl0c5hn" path="res://Assets/UI/Icons/Stats/stat_damage.svg" id="17_aggression"]
+[ext_resource type="Texture2D" uid="uid://lje53m72ajqc" path="res://Assets/UI/Icons/Nav/nav_growth.svg" id="18_farming"]
+[ext_resource type="Texture2D" uid="uid://blbmt6dt7gsq2" path="res://Assets/UI/Icons/Stats/stat_vision.svg" id="19_vision"]
+[ext_resource type="Texture2D" uid="uid://cnoq1gc64fouu" path="res://Assets/UI/Icons/Stats/stat_cooldown.svg" id="20_cooldown"]
+[ext_resource type="Texture2D" uid="uid://38j8pwjum2d8" path="res://Assets/UI/Icons/Stats/stat_xp.svg" id="21_xp"]
+[ext_resource type="Texture2D" uid="uid://dys3gnhljaaxn" path="res://Assets/UI/Icons/UI/ui_skull.svg" id="22_skull"]
+[ext_resource type="Texture2D" uid="uid://bgk5hk8b80cvs" path="res://Assets/UI/Icons/Nav/nav_monsters.svg" id="23_horns"]
+
+[node name="PreRoundScreen" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme = ExtResource("2_theme")
+script = ExtResource("1_script")
+
+[node name="Background" type="TextureRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+texture = ExtResource("3_bg")
+stretch_mode = 1
+
+[node name="Scroll" type="ScrollContainer" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = 92.0
+offset_bottom = -132.0
+grow_horizontal = 2
+grow_vertical = 2
+horizontal_scroll_mode = 0
+
+[node name="Body" type="MarginContainer" parent="Scroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/margin_left = 20
+theme_override_constants/margin_top = 4
+theme_override_constants/margin_right = 20
+theme_override_constants/margin_bottom = 16
+
+[node name="Column" type="VBoxContainer" parent="Scroll/Body"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="QuarryHeader" type="PanelContainer" parent="Scroll/Body/Column" groups=["pre_round_heroes"]]
+layout_mode = 2
+size_flags_horizontal = 4
+theme_type_variation = &"BannerMonster"
+
+[node name="Title" type="Label" parent="Scroll/Body/Column/QuarryHeader"]
+layout_mode = 2
+theme_type_variation = &"BannerTitle"
+text = "TONIGHT'S QUARRY"
+horizontal_alignment = 1
+
+[node name="Quarry" type="HBoxContainer" parent="Scroll/Body/Column" groups=["pre_round_heroes"]]
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="QuarryCard" parent="Scroll/Body/Column/Quarry" instance=ExtResource("7_card")]
+unique_name_in_owner = true
+layout_mode = 2
+size_preset = 2
+
+[node name="QuarryInfo" type="VBoxContainer" parent="Scroll/Body/Column/Quarry"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="NewBanner" type="PanelContainer" parent="Scroll/Body/Column/Quarry/QuarryInfo"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 0
+mouse_filter = 2
+theme_type_variation = &"PillReady"
+
+[node name="Label" type="Label" parent="Scroll/Body/Column/Quarry/QuarryInfo/NewBanner"]
+layout_mode = 2
+theme_type_variation = &"PillText"
+theme_override_font_sizes/font_size = 20
+text = "NEW QUARRY"
+horizontal_alignment = 1
+
+[node name="QuarryName" type="Label" parent="Scroll/Body/Column/Quarry/QuarryInfo"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"HeaderLarge"
+text = "Grount"
+text_overrun_behavior = 3
+
+[node name="QuarryTagline" type="Label" parent="Scroll/Body/Column/Quarry/QuarryInfo"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"BodyDim"
+text = "The Alpha Bull. Eats the jungle, grows, then hunts."
+autowrap_mode = 3
+
+[node name="QuarryMoves" type="HBoxContainer" parent="Scroll/Body/Column/Quarry/QuarryInfo"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="Move1" type="PanelContainer" parent="Scroll/Body/Column/Quarry/QuarryInfo/QuarryMoves"]
+custom_minimum_size = Vector2(68, 68)
+layout_mode = 2
+theme_type_variation = &"NodeTile"
+
+[node name="Margin" type="MarginContainer" parent="Scroll/Body/Column/Quarry/QuarryInfo/QuarryMoves/Move1"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/margin_left = 6
+theme_override_constants/margin_top = 6
+theme_override_constants/margin_right = 6
+theme_override_constants/margin_bottom = 6
+
+[node name="Icon" type="TextureRect" parent="Scroll/Body/Column/Quarry/QuarryInfo/QuarryMoves/Move1/Margin"]
+layout_mode = 2
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Move2" type="PanelContainer" parent="Scroll/Body/Column/Quarry/QuarryInfo/QuarryMoves"]
+custom_minimum_size = Vector2(68, 68)
+layout_mode = 2
+theme_type_variation = &"NodeTile"
+
+[node name="Margin" type="MarginContainer" parent="Scroll/Body/Column/Quarry/QuarryInfo/QuarryMoves/Move2"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/margin_left = 6
+theme_override_constants/margin_top = 6
+theme_override_constants/margin_right = 6
+theme_override_constants/margin_bottom = 6
+
+[node name="Icon" type="TextureRect" parent="Scroll/Body/Column/Quarry/QuarryInfo/QuarryMoves/Move2/Margin"]
+layout_mode = 2
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Move3" type="PanelContainer" parent="Scroll/Body/Column/Quarry/QuarryInfo/QuarryMoves"]
+custom_minimum_size = Vector2(68, 68)
+layout_mode = 2
+theme_type_variation = &"NodeTile"
+
+[node name="Margin" type="MarginContainer" parent="Scroll/Body/Column/Quarry/QuarryInfo/QuarryMoves/Move3"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/margin_left = 6
+theme_override_constants/margin_top = 6
+theme_override_constants/margin_right = 6
+theme_override_constants/margin_bottom = 6
+
+[node name="Icon" type="TextureRect" parent="Scroll/Body/Column/Quarry/QuarryInfo/QuarryMoves/Move3/Margin"]
+layout_mode = 2
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="QuarryThreat" parent="Scroll/Body/Column/Quarry/QuarryInfo" instance=ExtResource("8_threat_box")]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="Change" type="Button" parent="Scroll/Body/Column/Quarry/QuarryInfo"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 64)
+layout_mode = 2
+theme_type_variation = &"ButtonCopper"
+text = "CHANGE"
+icon = ExtResource("14_swap")
+icon_alignment = 2
+
+[node name="StageBanner" type="PanelContainer" parent="Scroll/Body/Column"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 4
+theme_type_variation = &"BannerHero"
+
+[node name="StageTitle" type="Label" parent="Scroll/Body/Column/StageBanner"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"BannerTitle"
+text = "YOUR HUNTERS"
+horizontal_alignment = 1
+
+[node name="Stage" type="Control" parent="Scroll/Body/Column"]
+clip_contents = true
+custom_minimum_size = Vector2(0, 280)
+layout_mode = 2
+mouse_filter = 2
+
+[node name="Backdrop" type="TextureRect" parent="Scroll/Body/Column/Stage"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+texture = ExtResource("5_heroes_bg")
+expand_mode = 1
+stretch_mode = 6
+
+[node name="Squad" type="HBoxContainer" parent="Scroll/Body/Column/Stage" groups=["pre_round_heroes"]]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = -236.0
+offset_bottom = -6.0
+grow_horizontal = 2
+grow_vertical = 0
+mouse_filter = 2
+theme_override_constants/separation = 6
+alignment = 1
+
+[node name="BigMonster" parent="Scroll/Body/Column/Stage" groups=["pre_round_monster"] instance=ExtResource("6_stage_character")]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -120.0
+offset_top = -272.0
+offset_right = 120.0
+offset_bottom = -48.0
+grow_horizontal = 2
+grow_vertical = 0
+
+[node name="MonsterPlaque" type="PanelContainer" parent="Scroll/Body/Column/Stage" groups=["pre_round_monster"]]
+layout_mode = 1
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -230.0
+offset_top = -54.0
+offset_right = 230.0
+offset_bottom = -10.0
+grow_horizontal = 2
+grow_vertical = 0
+mouse_filter = 2
+theme_type_variation = &"ChipPanel"
+
+[node name="Row" type="HBoxContainer" parent="Scroll/Body/Column/Stage/MonsterPlaque"]
+layout_mode = 2
+theme_override_constants/separation = 12
+alignment = 1
+
+[node name="MonsterName" type="Label" parent="Scroll/Body/Column/Stage/MonsterPlaque/Row"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"Counter"
+text = "Grount  ·  Lv.1"
+
+[node name="MonsterRole" type="Label" parent="Scroll/Body/Column/Stage/MonsterPlaque/Row"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"BodyDim"
+text = "Brute · The Bull"
+
+[node name="StageFrame" type="Panel" parent="Scroll/Body/Column/Stage"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_type_variation = &"FrameHero"
+
+[node name="Picker" type="HBoxContainer" parent="Scroll/Body/Column" groups=["pre_round_monster"]]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 12
+alignment = 1
+
+[node name="InstinctHeader" type="Label" parent="Scroll/Body/Column"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_type_variation = &"HeaderSmall"
+text = "INSTINCT"
+
+[node name="Instincts" type="VBoxContainer" parent="Scroll/Body/Column"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="Lurker" parent="Scroll/Body/Column/Instincts" instance=ExtResource("11_instinct_tile")]
+unique_name_in_owner = true
+layout_mode = 2
+choice_id = &"lurker"
+title = "Lurker"
+description = "Hides and farms. Hunts only once fully evolved."
+icon_texture = ExtResource("19_vision")
+
+[node name="Ambusher" parent="Scroll/Body/Column/Instincts" instance=ExtResource("11_instinct_tile")]
+unique_name_in_owner = true
+layout_mode = 2
+button_pressed = true
+choice_id = &"ambusher"
+title = "Ambusher"
+description = "Picks off lone heroes from Stage II, retreats when hurt."
+icon_texture = ExtResource("22_skull")
+
+[node name="Ravager" parent="Scroll/Body/Column/Instincts" instance=ExtResource("11_instinct_tile")]
+unique_name_in_owner = true
+layout_mode = 2
+choice_id = &"ravager"
+title = "Ravager"
+description = "Hunts from Stage II and never backs down."
+icon_texture = ExtResource("23_horns")
+
+[node name="EvolutionHeader" type="Label" parent="Scroll/Body/Column" groups=["pre_round_monster"]]
+layout_mode = 2
+theme_type_variation = &"HeaderSmall"
+text = "EVOLUTION"
+
+[node name="Evolution" type="PanelContainer" parent="Scroll/Body/Column" groups=["pre_round_monster"]]
+layout_mode = 2
+theme_type_variation = &"PanelInset"
+
+[node name="Strip" type="HBoxContainer" parent="Scroll/Body/Column/Evolution"]
+layout_mode = 2
+theme_override_constants/separation = 4
+alignment = 1
+
+[node name="Stage1" type="VBoxContainer" parent="Scroll/Body/Column/Evolution/Strip"]
+layout_mode = 2
+size_flags_vertical = 8
+theme_override_constants/separation = 2
+
+[node name="Evo1" type="Control" parent="Scroll/Body/Column/Evolution/Strip/Stage1"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(170, 84)
+layout_mode = 2
+mouse_filter = 2
+script = ExtResource("12_rig_view")
+animated = false
+padding = 0.04
+
+[node name="EvoName1" type="Label" parent="Scroll/Body/Column/Evolution/Strip/Stage1"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"GutterCaption"
+text = "Stage I
+Bullcalf"
+horizontal_alignment = 1
+
+[node name="Arrow1" type="Label" parent="Scroll/Body/Column/Evolution/Strip"]
+layout_mode = 2
+size_flags_vertical = 4
+theme_type_variation = &"MonsterAccentLabel"
+theme_override_font_sizes/font_size = 36
+text = "›"
+
+[node name="Stage2" type="VBoxContainer" parent="Scroll/Body/Column/Evolution/Strip"]
+layout_mode = 2
+size_flags_vertical = 8
+theme_override_constants/separation = 2
+
+[node name="Evo2" type="Control" parent="Scroll/Body/Column/Evolution/Strip/Stage2"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(170, 106)
+layout_mode = 2
+mouse_filter = 2
+script = ExtResource("12_rig_view")
+stage = 2
+animated = false
+padding = 0.04
+
+[node name="EvoName2" type="Label" parent="Scroll/Body/Column/Evolution/Strip/Stage2"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"GutterCaption"
+text = "Stage II
+Rampager"
+horizontal_alignment = 1
+
+[node name="Arrow2" type="Label" parent="Scroll/Body/Column/Evolution/Strip"]
+layout_mode = 2
+size_flags_vertical = 4
+theme_type_variation = &"MonsterAccentLabel"
+theme_override_font_sizes/font_size = 36
+text = "›"
+
+[node name="Stage3" type="VBoxContainer" parent="Scroll/Body/Column/Evolution/Strip"]
+layout_mode = 2
+size_flags_vertical = 8
+theme_override_constants/separation = 2
+
+[node name="Evo3" type="Control" parent="Scroll/Body/Column/Evolution/Strip/Stage3"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(170, 130)
+layout_mode = 2
+mouse_filter = 2
+script = ExtResource("12_rig_view")
+stage = 3
+animated = false
+padding = 0.04
+
+[node name="EvoName3" type="Label" parent="Scroll/Body/Column/Evolution/Strip/Stage3"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"GutterCaption"
+text = "Stage III
+Alpha Bull"
+horizontal_alignment = 1
+
+[node name="MonsterThreat" parent="Scroll/Body/Column" groups=["pre_round_monster"] instance=ExtResource("8_threat_box")]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="StrategyHeader" type="Label" parent="Scroll/Body/Column" groups=["pre_round_heroes"]]
+layout_mode = 2
+theme_type_variation = &"HeaderSmall"
+text = "STRATEGY"
+
+[node name="Sliders" type="VBoxContainer" parent="Scroll/Body/Column" groups=["pre_round_heroes"]]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Aggression" parent="Scroll/Body/Column/Sliders" instance=ExtResource("9_strategy_row")]
+unique_name_in_owner = true
+layout_mode = 2
+title = "Aggression"
+icon = ExtResource("17_aggression")
+low_text = "Careful"
+high_text = "Reckless"
+
+[node name="Farming" parent="Scroll/Body/Column/Sliders" instance=ExtResource("9_strategy_row")]
+unique_name_in_owner = true
+layout_mode = 2
+title = "Farming"
+icon = ExtResource("18_farming")
+low_text = "Hunt the beast"
+high_text = "Clear camps"
+
+[node name="Exploration" parent="Scroll/Body/Column/Sliders" instance=ExtResource("9_strategy_row")]
+unique_name_in_owner = true
+layout_mode = 2
+title = "Exploration"
+icon = ExtResource("19_vision")
+low_text = "Methodical"
+high_text = "Roam wide"
+
+[node name="FormationHeader" type="Label" parent="Scroll/Body/Column" groups=["pre_round_heroes"]]
+layout_mode = 2
+theme_type_variation = &"HeaderSmall"
+text = "FORMATION"
+
+[node name="Formations" type="HBoxContainer" parent="Scroll/Body/Column" groups=["pre_round_heroes"]]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Tight" parent="Scroll/Body/Column/Formations" instance=ExtResource("10_formation_tile")]
+layout_mode = 2
+choice_id = &"tight"
+title = "Tight"
+glyph_formation = 0
+
+[node name="Spread" parent="Scroll/Body/Column/Formations" instance=ExtResource("10_formation_tile")]
+layout_mode = 2
+button_pressed = true
+choice_id = &"spread"
+title = "Spread"
+
+[node name="Line" parent="Scroll/Body/Column/Formations" instance=ExtResource("10_formation_tile")]
+layout_mode = 2
+choice_id = &"line"
+title = "Line"
+glyph_formation = 2
+
+[node name="Forecast" type="PanelContainer" parent="Scroll/Body/Column" groups=["pre_round_heroes"]]
+layout_mode = 2
+theme_type_variation = &"PanelInset"
+
+[node name="Rows" type="VBoxContainer" parent="Scroll/Body/Column/Forecast"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Ult" type="HBoxContainer" parent="Scroll/Body/Column/Forecast/Rows"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Icon" type="TextureRect" parent="Scroll/Body/Column/Forecast/Rows/Ult"]
+texture_filter = 5
+custom_minimum_size = Vector2(30, 30)
+layout_mode = 2
+size_flags_vertical = 4
+mouse_filter = 2
+texture = ExtResource("20_cooldown")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="ForecastUlt" type="Label" parent="Scroll/Body/Column/Forecast/Rows/Ult"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"BodyDim"
+autowrap_mode = 3
+
+[node name="Farm" type="HBoxContainer" parent="Scroll/Body/Column/Forecast/Rows"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Icon" type="TextureRect" parent="Scroll/Body/Column/Forecast/Rows/Farm"]
+texture_filter = 5
+custom_minimum_size = Vector2(30, 30)
+layout_mode = 2
+size_flags_vertical = 4
+mouse_filter = 2
+texture = ExtResource("21_xp")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="ForecastFarm" type="Label" parent="Scroll/Body/Column/Forecast/Rows/Farm"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"BodyDim"
+autowrap_mode = 3
+
+[node name="Scout" type="HBoxContainer" parent="Scroll/Body/Column/Forecast/Rows"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Icon" type="TextureRect" parent="Scroll/Body/Column/Forecast/Rows/Scout"]
+texture_filter = 5
+custom_minimum_size = Vector2(30, 30)
+layout_mode = 2
+size_flags_vertical = 4
+mouse_filter = 2
+texture = ExtResource("19_vision")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="ForecastScout" type="Label" parent="Scroll/Body/Column/Forecast/Rows/Scout"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"BodyDim"
+autowrap_mode = 3
+
+[node name="HeroStart" type="Button" parent="." groups=["pre_round_heroes"]]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 40.0
+offset_top = -120.0
+offset_right = -40.0
+offset_bottom = -26.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_type_variation = &"ButtonPrimary"
+theme_override_font_sizes/font_size = 32
+text = "START HUNT"
+icon = ExtResource("15_play")
+icon_alignment = 2
+
+[node name="MonsterStart" type="Button" parent="." groups=["pre_round_monster"]]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 40.0
+offset_top = -120.0
+offset_right = -40.0
+offset_bottom = -26.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_type_variation = &"ButtonMonster"
+theme_override_font_sizes/font_size = 32
+text = "UNLEASH"
+icon = ExtResource("15_play")
+icon_alignment = 2
+
+[node name="TopBar" parent="." instance=ExtResource("4_top_bar")]
+unique_name_in_owner = true
+layout_mode = 1
+title = "The Hunt"
+show_leaves = false
+
+[node name="QuarrySheet" type="Control" parent="."]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Scrim" type="ColorRect" parent="QuarrySheet"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Slide" type="Control" parent="QuarrySheet"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Sheet" type="PanelContainer" parent="QuarrySheet/Slide"]
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 16.0
+offset_top = -520.0
+offset_right = -16.0
+offset_bottom = -24.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_type_variation = &"SheetPanel"
+
+[node name="Column" type="VBoxContainer" parent="QuarrySheet/Slide/Sheet"]
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="Head" type="HBoxContainer" parent="QuarrySheet/Slide/Sheet/Column"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Title" type="Label" parent="QuarrySheet/Slide/Sheet/Column/Head"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"HeaderLarge"
+text = "TONIGHT'S QUARRY"
+vertical_alignment = 1
+
+[node name="Close" type="Button" parent="QuarrySheet/Slide/Sheet/Column/Head"]
+custom_minimum_size = Vector2(60, 60)
+layout_mode = 2
+size_flags_vertical = 4
+theme_type_variation = &"ButtonRound"
+icon = ExtResource("16_close")
+icon_alignment = 1
+expand_icon = true
+
+[node name="LockState" type="Label" parent="QuarrySheet/Slide/Sheet/Column"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"BodyDim"
+text = "Random pick: never the same quarry twice in a row."
+autowrap_mode = 3
+
+[node name="SheetCards" type="HBoxContainer" parent="QuarrySheet/Slide/Sheet/Column"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 238)
+layout_mode = 2
+theme_override_constants/separation = 12
+alignment = 1
+
+[node name="Random" type="Button" parent="QuarrySheet/Slide/Sheet/Column"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 64)
+layout_mode = 2
+theme_type_variation = &"ButtonCopper"
+text = "RANDOM"
+icon = ExtResource("14_swap")
+icon_alignment = 2
+
+[connection signal="card_pressed" from="Scroll/Body/Column/Quarry/QuarryCard" to="." method="_on_quarry_card_pressed"]
+[connection signal="pressed" from="Scroll/Body/Column/Quarry/QuarryInfo/Change" to="." method="_on_change_pressed"]
+[connection signal="chosen" from="Scroll/Body/Column/Instincts/Lurker" to="." method="_on_instinct_chosen"]
+[connection signal="chosen" from="Scroll/Body/Column/Instincts/Ambusher" to="." method="_on_instinct_chosen"]
+[connection signal="chosen" from="Scroll/Body/Column/Instincts/Ravager" to="." method="_on_instinct_chosen"]
+[connection signal="value_changed" from="Scroll/Body/Column/Sliders/Aggression" to="." method="_on_aggression_changed"]
+[connection signal="value_changed" from="Scroll/Body/Column/Sliders/Farming" to="." method="_on_farming_changed"]
+[connection signal="value_changed" from="Scroll/Body/Column/Sliders/Exploration" to="." method="_on_exploration_changed"]
+[connection signal="chosen" from="Scroll/Body/Column/Formations/Tight" to="." method="_on_formation_chosen"]
+[connection signal="chosen" from="Scroll/Body/Column/Formations/Spread" to="." method="_on_formation_chosen"]
+[connection signal="chosen" from="Scroll/Body/Column/Formations/Line" to="." method="_on_formation_chosen"]
+[connection signal="pressed" from="HeroStart" to="." method="_on_hero_start_pressed"]
+[connection signal="pressed" from="MonsterStart" to="." method="_on_monster_start_pressed"]
+[connection signal="left_pressed" from="TopBar" to="." method="_on_top_bar_left_pressed"]
+[connection signal="gui_input" from="QuarrySheet/Scrim" to="." method="_on_scrim_gui_input"]
+[connection signal="pressed" from="QuarrySheet/Slide/Sheet/Column/Head/Close" to="." method="_on_sheet_close_pressed"]
+[connection signal="pressed" from="QuarrySheet/Slide/Sheet/Column/Random" to="." method="_on_random_pressed"]

@@ -140,7 +140,7 @@ func apply_attack_speed_boost(multiplier: float, duration: float) -> void:
 func get_attack_speed_boost() -> float:
 	return _attack_speed_boost
 
-## Pre-round strategy (PreRoundSetup → MatchConfig). Called from _ready, so
+## Pre-round strategy (PreRoundScreen → MatchConfig). Called from _ready, so
 ## MatchConfig owns these values for every hero (the player's sliders, or the
 ## neutral defaults when the heroes are the AI opponent). priority_mob stays
 ## an EntityBase export because mobs and the monster use their scene value.

@@ -13,7 +13,8 @@ extends Button
 ## rule under the padlock while that is unmet ("Needs a Lv 3 monster") and the
 ## red notify dot once it can be bought now (CharacterProgress.unlock_state).
 ## `rumour` is the "???" slot each side ends with (no character, no name, no
-## numbers).
+## numbers). `locked_note` replaces a locked card's rule, price and dot with a
+## line of its own (the pre-round quarry sheet's "Appears after 3 hunts").
 ##
 ## The art is the character's live rig (RigView) when `animated`, or its
 ## static portrait (<id>.svg) for big grids. Size presets S / M / L scale the
@@ -69,6 +70,13 @@ static var _locked_material: ShaderMaterial = null
 @export var monster_side: bool = false:
 	set(v):
 		monster_side = v
+		if is_node_ready():
+			_show()
+## A locked card shows this under its padlock instead of its unlock rule, and
+## no price or notify dot ("" = the unlock rule, price and dot).
+@export var locked_note: String = "":
+	set(v):
+		locked_note = v
 		if is_node_ready():
 			_show()
 
@@ -161,7 +169,7 @@ func _show() -> void:
 	_pill.visible = unlocked
 	_dot.visible = unlocked and upgrades > 0
 	_name.text = character.get_display_name() if unlocked else "???"
-	_price.visible = not unlocked and character.unlock_cost > 0
+	_price.visible = not unlocked and character.unlock_cost > 0 and locked_note.is_empty()
 	_rule.visible = false
 	if not unlocked:
 		_show_locked()
@@ -222,6 +230,11 @@ func _apply_art() -> void:
 ## Price, rule and dot of a locked character, from its unlock state.
 func _show_locked() -> void:
 	unlock_state = CharacterProgress.unlock_state(character)
+	if not locked_note.is_empty():
+		_rule.text = locked_note
+		_rule.visible = true
+		_dot.visible = false
+		return
 	var rule := CharacterProgress.unlock_rule_short(character)
 	_rule.text = rule
 	_rule.visible = unlock_state == CharacterProgress.UnlockState.GATED and not rule.is_empty()

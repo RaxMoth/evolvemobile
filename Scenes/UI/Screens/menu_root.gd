@@ -27,15 +27,16 @@ extends Control
 ##     bought), Growth while the chosen side's account tree has one.
 ## The rosters (Heroes / Monsters and the lobby's plaques) open a character's
 ## detail, or the unlock sheet for a locked character with a price; Growth
-## opens the chosen side's account-wide tree in the detail screen. Until
-## their new screens land, HUNT opens the old PreRoundSetup overlay (heroes;
-## it names tonight's quarry; the monster side starts at once with the
-## player's own monster), Codex the tutorial and the gear SettingsScreen.
+## opens the chosen side's account-wide tree in the detail screen. HUNT (the
+## lobby's buttons, the nav bar's arch) pushes the PreRoundScreen of the
+## chosen side; its START HUNT starts the match against the quarry it shows
+## (MatchConfig.quarry_id), its UNLEASH with the monster it picked
+## (GameManager.choose_monster). Until their new screens land, Codex opens the
+## tutorial and the gear the SettingsScreen.
 
 const SLIDE_TIME := 0.22
 ## Seconds after entry before the first-run tutorial opens.
 const TUTORIAL_DELAY := 0.9
-const PRE_ROUND_SCENE: PackedScene = preload("res://Scenes/UI/PreRoundSetup/PreRoundSetup.tscn")
 const TUTORIAL_SCENE: PackedScene = preload("res://Scenes/UI/Tutorial/TutorialOverlay.tscn")
 
 ## The home screen, the bottom of the stack.
@@ -49,6 +50,8 @@ const TUTORIAL_SCENE: PackedScene = preload("res://Scenes/UI/Tutorial/TutorialOv
 @export var growth: CharacterDetail
 ## The purchase confirm sheet of a locked character (over every screen).
 @export var unlock_sheet: UnlockSheet
+## The step between HUNT and the match (both sides).
+@export var pre_round: PreRoundScreen
 
 ## The screens on the way back, the home screen first and the shown one last.
 var _stack: Array[Control] = []
@@ -58,6 +61,9 @@ var _overlay: Node = null
 ## A refresh of the open screens is queued for the end of the frame (a
 ## purchase changes currencies and skills in one go).
 var _refresh_queued := false
+## A match is on its way (the scene changes at the end of the frame): a second
+## tap on START HUNT / UNLEASH starts nothing.
+var _starting := false
 
 @onready var _screens: Control = %Screens
 
@@ -272,6 +278,9 @@ func _roster(side: int) -> RosterScreen:
 ## Picks the match's monster for the chosen side (the Heroes side hunts
 ## `quarry_id`, the pre-round's quarry) and loads the match.
 func _start_match(quarry_id: StringName = &"") -> void:
+	if _starting:
+		return
+	_starting = true
 	GameManager.begin_hunt(quarry_id)
 	get_tree().change_scene_to_packed.call_deferred(GameManager.get_world_scene())
 
@@ -284,23 +293,30 @@ func _on_side_chosen(side: int) -> void:
 	_update_nav_notify()
 
 
+## HUNT: the chosen side's pre-round first (README round structure step 1),
+## over the screen that asked. The pre-round persists its choices and only
+## asks us to start.
 func _on_hunt_requested(side: int) -> void:
-	if _overlay_open():
+	if _overlay_open() or unlock_sheet.is_open() or _stack.has(pre_round):
 		return
 	if side != GameManager.chosen_side:
 		GameManager.choose_side(side)
-	if GameManager.chosen_side == MatchRewards.Side.MONSTER:
-		_start_match()
-		return
-	# Strategy first (README round structure step 1); the screen persists the
-	# MatchConfig and only asks us to start. Runtime-instanced, so connected here.
-	var setup := PRE_ROUND_SCENE.instantiate() as PreRoundSetup
-	setup.start_requested.connect(_on_pre_round_start_requested)
-	_open_overlay(setup)
+		_update_nav_notify()
+	pre_round.open(GameManager.chosen_side)
+	push(pre_round)
 
 
+## START HUNT: the heroes hunt the quarry the pre-round showed.
 func _on_pre_round_start_requested(config: MatchConfig) -> void:
 	_start_match(config.quarry_id)
+
+
+## UNLEASH: the monster the pre-round picked plays (it is already the player's
+## own; choose_monster keeps that true whatever the screen did). The instinct
+## is today's behaviour until its presets are balanced.
+func _on_monster_start_requested(monster_id: StringName, _instinct: StringName) -> void:
+	GameManager.choose_monster(monster_id)
+	_start_match()
 
 
 ## A side's collection (the lobby's plaques, the nav bar's Heroes / Monsters).

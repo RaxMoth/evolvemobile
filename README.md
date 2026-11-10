@@ -27,9 +27,12 @@
 1. **Choose Side**: Heroes or Monster. The Heroes side hunts tonight's
    quarry (a random monster they have met, see Opponent Choice and Monster
    Unlocks); the Monster side plays the player's own monster.
-2. **Configure Strategy**:
-    - Hero team: Composition (4 heroes from roster), formation, exploration strategy
-    - Monster: Evolution strategy, farming routes, engagement timing
+2. **Configure Strategy** (the pre-round screen, `PreRoundScreen`):
+    - Hero team: tonight's quarry (free Change picker), the aggression /
+      farming / exploration dials, the formation, and a plain-words forecast
+    - Monster: which owned monster to play, its evolution path and the
+      Opponent Threat; instincts (evolution strategy, engagement timing) are
+      designed but hidden until their presets are balanced
 3. **Spend Resources**: Allocate Steel/Leaves/Gold on permanent upgrades
 4. **Start Round**: AI executes your strategy
 
@@ -73,15 +76,14 @@
       (the global RNG drives gameplay and the determinism trace), rolled once
       and kept until a hunt starts, so reopening the pre-round shows the same
       monster.
-    - `lock_quarry(id)` is the Change picker (the new pre-round screen, Phase
-      8): it fixes a monster of the pool for every hunt, repeats allowed, until
-      `lock_quarry(&"")` (Random). `locked_quarry()` ignores a lock outside the
-      pool.
-    - `is_new_quarry(id)`: true until the heroes have hunted it once, the
-      NEW QUARRY flag (the old pre-round names the quarry with it; the banner
-      is Phase 8).
-    - `begin_hunt(quarry_id = &"")` runs right before a menu loads World (HUNT,
-      the old main menu, Play Again): on the Heroes side it spawns
+    - `lock_quarry(id)` is the pre-round's Change picker: it fixes a monster
+      of the pool for every hunt, repeats allowed, until `lock_quarry(&"")`
+      (Random). `locked_quarry()` ignores a lock outside the pool.
+    - `is_new_quarry(id)`: true until the heroes have hunted it once: the
+      NEW QUARRY banner on the pre-round's quarry card.
+    - `begin_hunt(quarry_id = &"")` runs right before a menu loads World (the
+      pre-round's START HUNT / UNLEASH, the old main menu, Play Again): on the
+      Heroes side it spawns
       `quarry_id` when it is in the pool, else `next_quarry()`
       (`MatchConfig.quarry_id` carries the pre-round's pick), records it as the
       last quarry and adds its Codex entry (`[codex] monsters`, a first
@@ -99,8 +101,8 @@
   opens the `UnlockSheet` (rule, price, UNLOCK), and the purchase
   (`CharacterProgress.unlock`) spends the Leaves, adds the monster to
   `[monsters] owned`, saves, and makes it the player's own monster
-  (`GameManager.choose_monster`; the new pre-round's picker switches between
-  owned ones in Phase 8).
+  (`GameManager.choose_monster`; the pre-round's picker switches between
+  owned ones the same way).
 - **Save** (`PersistedData`, no migration: a save without the sections owns no
   bought monster and has met no quarry): `[monsters] owned` (the bought ids;
   default-owned ones are not listed), `last_quarry`, `locked_quarry`, and
@@ -109,7 +111,9 @@
 - `test/test_quarry_pick.gd`: the defs' rules, pool membership by matches
   played, no repeat over 300 draws, the global RNG untouched by 25 picks and
   hunts, the pick kept until a hunt, the lock, the Codex entry and NEW flag,
-  the old pre-round's quarry line, the Lv 3 gate before the price, any owned
+  the pre-round's quarry card (NEW banner, Lv.(T+1), its moves, the config's
+  quarry) and Change sheet (pool cards, "Appears after 3 hunts" silhouettes,
+  the lock, Random, `ui_cancel`), the Lv 3 gate before the price, any owned
   monster opening the gate, the exact prices, the save, the Monster side's
   own monster, junk-proof lists.
 
@@ -1701,7 +1705,9 @@ code connections are to autoloads (`PersistedData.currency_changed`).
       padlock ("Needs a Lv 3 monster", `%Rule`), and once the character can be
       bought now the red notify dot shows (`unlock_state`);
     - `rumour`: the one "???" slot each side ends with ("Rumours in the deep
-      jungle", no character).
+      jungle", no character);
+    - `locked_note`: a locked card's own line under the padlock instead of
+      its rule, price and dot (the quarry sheet's "Appears after 3 hunts").
   `refresh()` re-reads the save (screens call it on currency or skill
   changes); `apply_progress()` shows given numbers (previews, tests).
   `card_pressed(character)` (null for the rumour card). `play_intro(delay)`:
@@ -1788,6 +1794,33 @@ code connections are to autoloads (`PersistedData.currency_changed`).
   re-laid out on resize. `build(model)` keeps the selection; `select(id)`
   reports `node_selected`; `pop(id)` after a purchase pops the node and fades
   its vines from their old colour to the new one over 0.45 s.
+- **`StrategyRow.tscn`** (`StrategyRow`): one pre-round dial in a
+  `PanelInset`: icon, name (`Counter`), the value in `AmberLabel` ("50%"), the
+  themed HSlider (step 0.05) and the plain words at both ends (`HintLabel`).
+  `value_changed(value)` re-emits the slider; setting `value` moves it
+  without a report.
+- **`ChoiceTile`** (`choice_tile.gd`; `FormationTile.tscn`,
+  `InstinctTile.tscn`): one tile of a one-of-N choice, a toggle button whose
+  `%Frame` wears `CharacterCard` (copper), `CharacterCardSelected` (amber, with
+  an amber title) when picked, or `CharacterCardMonster` (crimson) for a
+  `monster` tile. `choice_id`, `title`, `description`, `icon_texture`,
+  `glyph_formation`; `chosen(choice_id)` when it becomes the picked one. The
+  screen puts the tiles of one choice in a ButtonGroup it makes in code (a
+  scene sub-resource would be shared by every screen instance, or copied per
+  tile when marked local to scene).
+- **`FormationGlyph`** (`formation_glyph.gd`): a formation drawn in `_draw`:
+  four dots in the heroes' signature tokens (`dot_tokens`), ink rims and a
+  highlight, spaced as `MatchConfig.Formation` spaces the squad (Tight,
+  Spread, Line), under an amber heading arrow.
+- **`ThreatBox.tscn`** (`ThreatBox`): the Opponent Threat in words in a
+  `PanelInset` with the threat icon: "Threat T" (`AmberLabel`) and "+10%
+  rewards" per level (`NextLabel`, hidden at 0), the AI side's build at T
+  (`MetaSkillManager.side_ai_build`): "AI build: 6 Nyxa ranks + 4 base ranks"
+  against the heroes, "AI heroes: 6 ranks each + 4 base ranks" (or per hero,
+  "6/5/6/6", when they differ) against the monster, "AI build: no upgrades
+  yet" at 0; and a hint: the quarry's counterplay `tip` for the heroes, what
+  the threat follows for the monster. `show_for(played_side, monster)`;
+  `threat`, `base_ranks`, `character_ranks` for tests.
 - `test/test_character_card.gd` covers the progress numbers, the owned set,
   the card states (normal, upgrade-ready, locked-purchasable, a locked
   monster's rule then dot on its way to bought, rumour, monster, selected) with
@@ -1846,12 +1879,17 @@ button until the Phase 8 screens retire it.
       (`CharacterProgress.upgrades_ready`) or can itself be bought
       (`CharacterProgress.can_unlock`), and Growth while the chosen side's
       account tree has one (`MetaSkillManager.card_progress`).
-    - Until their new screens land, HUNT opens the old `PreRoundSetup` overlay on
-      the hero side (it names tonight's quarry, "NEW QUARRY" on a first
-      sighting, and hands it on in `MatchConfig.quarry_id`; the monster side
-      starts the match at once), Codex the tutorial and the gear Settings.
-      Every start goes through `GameManager.begin_hunt()` first; so does the
-      old match result's Play Again.
+    - HUNT (the lobby's buttons, the nav bar's arch) pushes the chosen side's
+      `PreRoundScreen` (`pre_round.open(side)`, once: a second HUNT while it
+      is on the stack does nothing) over the screen that asked; its back pops
+      it. `start_requested(config)` starts the hunt on
+      `config.quarry_id`, `monster_start_requested(monster_id, instinct)`
+      makes the monster the player's own (`choose_monster`) and starts; the
+      instinct is not applied yet (today's Ambusher behaviour); a second
+      start while the match loads does nothing. Every start
+      goes through `GameManager.begin_hunt()` first; so does the old match
+      result's Play Again. Until their new screens land, Codex opens the
+      tutorial and the gear the old Settings.
 - **`LobbyScreen`** (`lobby_screen.gd`, the nav bar's HUNT tab): a split jungle
   stage under the top bar (gear, Gold, Steel, Leaves) and above the nav bar.
     - Hero stage (y 84-624): the campfire clearing (`Assets/UI/Lobby/lobby_heroes.svg`),
@@ -1888,9 +1926,87 @@ button until the Phase 8 screens retire it.
   the locked monsters with their prices; the unlock sheet (opened from the
   lair and the roster, back closes it, the purchase, the refresh of lobby,
   roster and dots, its scene-side wiring); the chosen side persists; the first-run tutorial; the
-  screens each request opens (nav tabs switch, cards push, back); a purchase
+  screens each request opens (HUNT pushes the pre-round of either side once,
+  back and `ui_cancel` pop it, nav tabs switch, cards push, back); a purchase
   and a capstone swap through the detail and the refresh of the screens under
   it; the nav dots follow buyable ranks; the main scene is MenuRoot.
+
+### Pre-round screen (PreRoundScreen)
+
+The step between HUNT and the match, one screen for both sides
+(`Scenes/UI/Screens/PreRoundScreen.tscn`, `pre_round_screen.gd`), a hidden
+child of MenuRoot's `%Screens` that HUNT pushes after `open(side)`. Under the
+top bar (back, Gold and the side's Steel or Leaves) the content scrolls
+(`%Scroll`) above the pinned start button. Sections carry the group
+`pre_round_heroes` or `pre_round_monster` in the scene and show for their side
+only. It replaces the old `PreRoundSetup` overlay with the same contract:
+`start_requested(config: MatchConfig)`, `cancelled`, the config persisted
+(`save_to_settings`) and tracked (`AnalyticsSink` `pre_round_setup`) on start;
+it adds `monster_start_requested(monster_id, instinct)`.
+
+- **Heroes ("The Hunt")**:
+    - TONIGHT'S QUARRY (`BannerMonster`): `GameManager.next_quarry()` (the
+      same monster until a hunt starts) as an L `CharacterCard` showing the AI
+      opponent it will be: Lv.(T+1) and a pill of its AI build's ranks out of
+      its threat-4 build (12), whatever the Monster side owns. Beside it the
+      NEW QUARRY pill (`PillReady`, pops in) while `is_new_quarry`, the name,
+      the tagline, the icons of its three moves (`NodeTile`), the `ThreatBox`
+      (threat, reward bonus, AI build, the monster's counterplay tip) and
+      CHANGE (`ButtonCopper`; a tap on the card does the same).
+    - The quarry sheet (`SheetPanel` sliding up over a `bg_void` scrim): every
+      roster monster as an S card, the pool's ones as AI cards (the current
+      quarry amber) and the others as silhouettes reading "Appears after N
+      hunts" (`hunts_until_quarry`, `CharacterCard.locked_note`), a line on the
+      mode ("Random pick: never the same quarry twice in a row." or "Nyxa every
+      hunt, until you pick Random."), and RANDOM (disabled while random). A
+      pool card locks it (`lock_quarry(id)`), RANDOM unlocks
+      (`lock_quarry(&"")`), a silhouette shakes; the sheet closes on a pick,
+      its close button, the scrim and `ui_cancel`.
+    - YOUR HUNTERS (`BannerHero`): the roster's heroes as live
+      `StageCharacter` rigs (150x200, the right pair facing the fire) on the
+      campfire backdrop in the amber `FrameHero`, "Lv.N" under each; they
+      cheer when the screen opens and when tapped.
+    - STRATEGY: three `StrategyRow`s (Aggression Careful ↔ Reckless, Farming
+      Hunt the beast ↔ Clear camps, Exploration Methodical ↔ Roam wide) and
+      FORMATION: three `FormationTile`s (Tight, Spread, Line) with their
+      `FormationGlyph`s, editing a `MatchConfig.from_settings()`; back keeps
+      the saved one. The forecast (`PanelInset`, three icon rows) puts
+      MatchConfig's derived values in words: "Ultimates fire at 3+ enemies, or
+      when an ally drops below 28% HP.", "Mob camps weigh 70 against 100 for
+      the monster.", "New targets every 3.2 s, scanning 450 px ahead, 100 px
+      apart."
+    - START HUNT (`ButtonPrimary`): the config with `quarry_id` = the quarry.
+- **Monster ("Your Beast")**:
+    - THE LAIR (`BannerMonster`): the picked monster big on the lair backdrop
+      in the crimson `FrameMonster`, with "Name · Lv.N" and its role on a
+      `ChipPanel`.
+    - The picker: every roster monster as an S card, then the "???" slot. An
+      owned monster becomes the player's own at once
+      (`GameManager.choose_monster`, persisted; `played_monster_id()` reads
+      it), takes the amber frame and cheers; a locked one (its price on the
+      card) or the rumour shakes. The screen opens on `played_monster_id()`.
+    - EVOLUTION: the monster's body at Stage I, II and III as posed
+      `RigView`s growing left to right, with "Stage I" and the def's stage
+      names (`CharacterDef.stage_names`).
+    - The `ThreatBox` (the AI heroes' build).
+    - INSTINCT: three `InstinctTile`s (Lurker, Ambusher, Ravager, crimson
+      when picked) built but hidden (`show_instincts = false`, a user
+      decision) until a gameplay batch balances their MonsterStrategy presets;
+      the monster plays `DEFAULT_INSTINCT` (Ambusher, today's behaviour).
+    - UNLEASH (`ButtonMonster`): tracked as `pre_round_monster`, emits
+      `monster_start_requested(monster_id, instinct)`.
+- Wiring: every connection inside the screen is in its scene; the runtime
+  cards and the squad are wired in code. Strings (headers, dials, buttons,
+  forecast, threat, sheet) are in `strings.csv` with German.
+- Tests: `test_match_config` (the saved strategy shown, the dials and tiles
+  editing it, the forecast, START persisting and emitting with the quarry,
+  back keeping the save), `test_quarry_pick` (quarry card and Change sheet),
+  `test_pre_round_screen` (each side's sections, top bar and frames, the
+  squad, the picker switching owned monsters and ignoring locked ones, the
+  evolution strip, hidden instincts and UNLEASH, shown instincts picking one,
+  the ThreatBox on both sides at threat 0 and above, the scene-side wiring),
+  `test_menu_root` (HUNT pushes it once per side, back and `ui_cancel` pop
+  it).
 
 ### Roster and Character Detail (collections, overview, skill trees)
 
@@ -2466,8 +2582,10 @@ way round).
   `MetaSkillManager.threat_override`, a sims-only override of
   `opponent_threat()`; the played side through its save, `side_ai_build`).
   `SAVE=` runs the rule on a real save instead.
-- For the pre-round screen's Threat box (8.1): `threat_for(side, monster)`
-  and `side_ai_build` / `ai_build_size` give the threat and the AI build.
+- The pre-round screen shows it before every match: its `ThreatBox`
+  (`threat_for(side, monster)` and the AI side's `side_ai_build`) and, on the
+  Heroes side, the quarry card's Lv.(T+1) and pill (`ai_build_size` of the
+  monster's tree at T out of its threat-4 build).
 - Checks: `test/test_opponent_threat.gd` (the maths, the side rule on seeded
   saves both ways, the AI build prefixes, the parity check, the F3 lines),
   `test/test_rewards.gd` (the bonus). Tests that seed a monster tree play the
@@ -2774,7 +2892,7 @@ Max out hero trees → Unlock new heroes → Compete on leaderboards
     - [x] Monster: Hide & Farm / Rest / Ambush / Hunt strategy layer + combo logic
     - [x] Heroes: role-ranked formation (tank leads), call-for-help, focus fire, auto-used actives
     - [ ] Heroes: threat assessment (flee from a Stage 3 monster)
-- [ ] **Pre-Round Setup — visual strategy preview** (the sliders and formation picker ship; a preview of the resulting behaviour does not yet)
+- [ ] **Pre-Round Setup — visual strategy preview** (the dials, the formation tiles with their glyphs and the plain-words forecast ship; an animated preview of the resulting behaviour does not yet)
 
 **Low Priority** (v0.2):
 

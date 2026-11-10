@@ -8,9 +8,10 @@ extends TestCase
 ## closing it), the chosen side persisted through GameManager, the first-run tutorial, the rosters, Growth and the
 ## character detail each request opens (nav tabs switch, cards push), the
 ## purchases and capstone swaps MenuRoot makes for the detail screen and the
-## refresh after them, the nav bars' red dots for buyable ranks, and the old
-## overlays that still stand in for the pre-round and settings screens. Tests
-## that write the save run only in the isolated test user dir.
+## refresh after them, the nav bars' red dots for buyable ranks, HUNT pushing
+## the chosen side's PreRoundScreen, and the old overlays that still stand in
+## for the codex and settings screens. Tests that write the save run only in
+## the isolated test user dir.
 
 const MENU_ROOT_PATH := "res://Scenes/UI/Screens/MenuRoot.tscn"
 const MENU_ROOT := preload("res://Scenes/UI/Screens/MenuRoot.tscn")
@@ -333,11 +334,29 @@ func test_requests_open_their_screens() -> void:
 	var root := await _menu_root()
 	var lobby := root.lobby
 	(lobby.get_node("%HeroHunt") as BaseButton).pressed.emit()
-	assert_eq(_overlays(root, &"PreRoundSetup").size(), 1, "HUNT (heroes) opens the strategy screen")
+	assert_eq(root.top(), root.pre_round, "HUNT (heroes) pushes the pre-round")
+	assert_eq(root.pre_round.side, HEROES)
+	assert_true(root.pre_round.quarry != null, "showing tonight's quarry")
 	lobby.hunt_requested.emit(HEROES)
-	assert_eq(_overlays(root, &"PreRoundSetup").size(), 1, "once")
-	_overlays(root, &"PreRoundSetup")[0].queue_free()
-	await wait_frames(1)
+	assert_eq(root._stack.size(), 2, "once")
+	root._starting = true
+	root.pre_round.start_requested.emit(root.pre_round.collect_config())
+	assert_eq(PersistedData.get_last_quarry(), &"", "a second START while a match is on its way starts nothing")
+	root._starting = false
+	await _settle()
+	(root.pre_round.get_node("%TopBar") as TopBar).left_pressed.emit()
+	assert_eq(root.top(), lobby, "its back returns to the lobby")
+	await _settle()
+	lobby.choose(MONSTER)
+	(lobby.get_node("%MonsterHunt") as BaseButton).pressed.emit()
+	assert_eq(root.top(), root.pre_round, "the monster side has one too")
+	assert_eq(root.pre_round.side, MONSTER)
+	assert_eq(root.pre_round.monster.character_id(), GameManager.played_monster_id(), "on the player's own monster")
+	await _settle()
+	_press_back(root)
+	assert_eq(root.top(), lobby, "ui_cancel goes back")
+	await _settle()
+	lobby.choose(HEROES)
 	(lobby.get_node("HeroRow/HeroRoster") as BaseButton).pressed.emit()
 	assert_eq(root.top(), root.hero_roster, "the HEROES plaque opens the hero roster")
 	assert_eq(root.hero_roster.cards().size(), GameManager.ROSTER.heroes.size(), "built when it opens")

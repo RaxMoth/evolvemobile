@@ -1,0 +1,73 @@
+[gd_scene format=3 uid="uid://c1k6t3ypewm4l"]
+
+[ext_resource type="Script" uid="uid://bkyqfmq4ks53k" path="res://Scenes/UI/Components/strategy_row.gd" id="1_script"]
+
+[node name="StrategyRow" type="PanelContainer"]
+custom_minimum_size = Vector2(0, 96)
+offset_right = 680.0
+offset_bottom = 96.0
+theme_type_variation = &"PanelInset"
+script = ExtResource("1_script")
+
+[node name="Row" type="HBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="Icon" type="TextureRect" parent="Row"]
+unique_name_in_owner = true
+texture_filter = 5
+custom_minimum_size = Vector2(48, 48)
+layout_mode = 2
+size_flags_vertical = 4
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Column" type="VBoxContainer" parent="Row"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 0
+
+[node name="Head" type="HBoxContainer" parent="Row/Column"]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="Row/Column/Head"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"Counter"
+text = "Aggression"
+
+[node name="Value" type="Label" parent="Row/Column/Head"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"AmberLabel"
+text = "50%"
+horizontal_alignment = 2
+
+[node name="Slider" type="HSlider" parent="Row/Column"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 36)
+layout_mode = 2
+max_value = 1.0
+step = 0.05
+value = 0.5
+
+[node name="Ends" type="HBoxContainer" parent="Row/Column"]
+layout_mode = 2
+
+[node name="Low" type="Label" parent="Row/Column/Ends"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"HintLabel"
+text = "Low"
+
+[node name="High" type="Label" parent="Row/Column/Ends"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"HintLabel"
+text = "High"
+horizontal_alignment = 2
+
+[connection signal="value_changed" from="Row/Column/Slider" to="." method="_on_slider_value_changed"]

@@ -179,3 +179,43 @@ UNLOCK,UNLOCK,FREISCHALTEN
 CANCEL,CANCEL,ABBRECHEN
 Tonight's quarry: %s,Tonight's quarry: %s,Heutige Beute: %s
 NEW QUARRY,NEW QUARRY,NEUE BEUTE
+TONIGHT'S QUARRY,TONIGHT'S QUARRY,HEUTIGE BEUTE
+CHANGE,CHANGE,WECHSELN
+YOUR HUNTERS,YOUR HUNTERS,DEINE JÄGER
+THE LAIR,THE LAIR,DIE HÖHLE
+INSTINCT,INSTINCT,INSTINKT
+EVOLUTION,EVOLUTION,EVOLUTION
+STRATEGY,STRATEGY,STRATEGIE
+FORMATION,FORMATION,FORMATION
+Careful,Careful,Vorsichtig
+Reckless,Reckless,Rücksichtslos
+Hunt the beast,Hunt the beast,Bestie jagen
+Clear camps,Clear camps,Lager räumen
+Methodical,Methodical,Methodisch
+Roam wide,Roam wide,Weit streifen
+START HUNT,START HUNT,JAGD STARTEN
+UNLEASH,UNLEASH,ENTFESSELN
+RANDOM,RANDOM,ZUFALL
+The Hunt,The Hunt,Die Jagd
+Your Beast,Your Beast,Deine Bestie
+Lurker,Lurker,Lauerer
+Ambusher,Ambusher,Wegelagerer
+Ravager,Ravager,Verwüster
+Hides and farms. Hunts only once fully evolved.,Hides and farms. Hunts only once fully evolved.,Versteckt sich und farmt. Jagt erst voll entwickelt.
+"Picks off lone heroes from Stage II, retreats when hurt.","Picks off lone heroes from Stage II, retreats when hurt.","Schnappt sich ab Stufe II einzelne Helden, zieht sich verletzt zurück."
+Hunts from Stage II and never backs down.,Hunts from Stage II and never backs down.,Jagt ab Stufe II und weicht nie zurück.
+Threat %d,Threat %d,Bedrohung %d
++%d%% rewards,+%d%% rewards,+%d%% Belohnungen
+AI build: no upgrades yet,AI build: no upgrades yet,KI-Ausbau: noch keine Upgrades
+AI build: %d %s ranks + %d base ranks,AI build: %d %s ranks + %d base ranks,KI-Ausbau: %d %s-Ränge + %d Basisränge
+AI heroes: %d ranks each + %d base ranks,AI heroes: %d ranks each + %d base ranks,KI-Helden: je %d Ränge + %d Basisränge
+AI heroes: %s ranks + %d base ranks,AI heroes: %s ranks + %d base ranks,KI-Helden: %s Ränge + %d Basisränge
+The AI heroes grow as your monster gains ranks.,The AI heroes grow as your monster gains ranks.,Die KI-Helden wachsen mit den Rängen deines Monsters.
+"Ultimates fire at %d+ enemies, or when an ally drops below %d%% HP.","Ultimates fire at %d+ enemies, or when an ally drops below %d%% HP.",Ultimates ab %d+ Gegnern oder wenn ein Verbündeter unter %d%% LP fällt.
+Mob camps weigh %d against 100 for the monster.,Mob camps weigh %d against 100 for the monster.,Mob-Lager zählen %d gegenüber 100 für das Monster.
+"New targets every %.1f s, scanning %d px ahead, %d px apart.","New targets every %.1f s, scanning %d px ahead, %d px apart.","Neue Ziele alle %.1f s, %d px voraus gescannt, %d px Abstand."
+Appears after 1 hunt,Appears after 1 hunt,Erscheint nach 1 Jagd
+Appears after %d hunts,Appears after %d hunts,Erscheint nach %d Jagden
+Random pick: never the same quarry twice in a row.,Random pick: never the same quarry twice in a row.,Zufällig: nie zweimal hintereinander dieselbe Beute.
+"%s every hunt, until you pick Random.","%s every hunt, until you pick Random.","%s bei jeder Jagd, bis du Zufall wählst."
+Stage %s,Stage %s,Stufe %s

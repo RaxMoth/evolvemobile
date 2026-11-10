@@ -1,0 +1,61 @@
+[gd_scene format=3 uid="uid://ch78a6l6r4dk6"]
+
+[ext_resource type="Script" uid="uid://yafepv86y8ug" path="res://Scenes/UI/Components/threat_box.gd" id="1_script"]
+[ext_resource type="Texture2D" uid="uid://cwuo8lwg5xi2y" path="res://Assets/UI/Icons/Stats/stat_threat.svg" id="2_threat"]
+
+[node name="ThreatBox" type="PanelContainer"]
+offset_right = 400.0
+offset_bottom = 120.0
+theme_type_variation = &"PanelInset"
+script = ExtResource("1_script")
+
+[node name="Row" type="HBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="Icon" type="TextureRect" parent="Row"]
+texture_filter = 5
+custom_minimum_size = Vector2(40, 40)
+layout_mode = 2
+size_flags_vertical = 0
+mouse_filter = 2
+texture = ExtResource("2_threat")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Column" type="VBoxContainer" parent="Row"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 2
+
+[node name="Head" type="HBoxContainer" parent="Row/Column"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Title" type="Label" parent="Row/Column/Head"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"AmberLabel"
+text = "Threat 0"
+
+[node name="Bonus" type="Label" parent="Row/Column/Head"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"NextLabel"
+text = "+0% rewards"
+horizontal_alignment = 2
+
+[node name="Build" type="Label" parent="Row/Column"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"BodyDim"
+text = "AI build: no upgrades yet"
+autowrap_mode = 3
+
+[node name="Hint" type="Label" parent="Row/Column"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"HintLabel"
+text = "Tip"
+autowrap_mode = 3

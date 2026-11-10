@@ -88,7 +88,7 @@ func _ready() -> void:
 	if heroes.size() > 0:
 		current_group_target = _calculate_group_center()
 
-## Pre-round strategy (PreRoundSetup → MatchConfig): the only writer of
+## Pre-round strategy (PreRoundScreen → MatchConfig): the only writer of
 ## exploration_update_interval, search_radius_per_check and formation_spread.
 func _apply_match_config(cfg: MatchConfig) -> void:
 	exploration_update_interval = cfg.exploration_update_interval()

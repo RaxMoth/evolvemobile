@@ -8,13 +8,15 @@ extends TestCase
 ##     RandomNumberGenerator so the global RNG (gameplay) is untouched, kept
 ##     until a hunt starts; the Change picker's lock; begin_hunt() recording the
 ##     last quarry and the first sighting's Codex entry (the NEW QUARRY flag);
-##     the old pre-round screen naming the quarry and handing it on.
+##     the PreRoundScreen's quarry card (NEW QUARRY banner, the AI build's
+##     card), its Change sheet (pool cards, "Appears after N hunts"
+##     silhouettes, the lock, Random) and the quarry it hands on.
 ##   - Monster side: the owned set ([monsters] owned, Grount by default), the
 ##     Lv 3 gate on ANY owned monster, the Leaves prices, the purchase, and the
 ##     player's own monster for the Monster-side hunt.
 ## Tests that write the save run only in the isolated test user dir.
 
-const PRE_ROUND := preload("res://Scenes/UI/PreRoundSetup/PreRoundSetup.tscn")
+const PRE_ROUND := preload("res://Scenes/UI/Screens/PreRoundScreen.tscn")
 
 var _side_before: int = MatchRewards.Side.HEROES
 var _monster_before: StringName = &""
@@ -203,26 +205,91 @@ func test_the_change_picker_locks_a_quarry() -> void:
 	assert_eq(PersistedData.get_codex_entries(PersistedData.CODEX_MONSTERS).size(), 0)
 
 
-## The old pre-round screen names tonight's quarry (NEW on a first sighting)
-## and hands it on in the MatchConfig.
-func test_pre_round_names_the_quarry() -> void:
+func _pre_round() -> PreRoundScreen:
+	var screen := PRE_ROUND.instantiate() as PreRoundScreen
+	add_child(screen)
+	screen.open(MatchRewards.Side.HEROES)
+	return screen
+
+
+## The pre-round shows tonight's quarry (NEW on a first sighting) as the AI
+## opponent it will be, and hands it on in the MatchConfig.
+func test_pre_round_shows_the_quarry() -> void:
 	if not require_isolated():
 		return
 	_play_matches(3)
 	GameManager.lock_quarry(&"nyxa")
-	var screen := PRE_ROUND.instantiate() as PreRoundSetup
-	add_child(screen)
-	assert_eq(screen.quarry_id, &"nyxa")
-	assert_eq(screen.quarry_label.text, "Tonight's quarry: Nyxa  ·  NEW QUARRY")
+	var screen := _pre_round()
+	assert_eq(screen.quarry, _def(&"nyxa"))
+	assert_eq((screen.get_node("%QuarryName") as Label).text, "Nyxa")
+	assert_eq((screen.get_node("%QuarryTagline") as Label).text, _def(&"nyxa").tagline)
+	assert_true((screen.get_node("%NewBanner") as Control).visible, "NEW QUARRY on a first sighting")
+	var card := screen.get_node("%QuarryCard") as CharacterCard
+	assert_eq(card.character, _def(&"nyxa"))
+	assert_true(card.unlocked, "shown although the Monster side does not own her")
+	assert_eq(card.level, 1, "threat 0: Lv.1")
+	assert_eq(card.xp_into, 0, "no AI ranks at threat 0")
+	assert_eq(card.xp_needed, MetaSkillManager.ai_build_size(&"monster_nyxa", MetaSkillManager.MAX_THREAT),
+			"out of the threat-4 build")
+	var moves := 0
+	for frame: Control in screen.get_node("%QuarryMoves").get_children():
+		if frame.visible:
+			moves += 1
+	assert_eq(moves, 3, "her three moves")
 	assert_eq(screen.collect_config().quarry_id, &"nyxa", "the config carries it")
-	screen.queue_free()
 	GameManager.choose_side(MatchRewards.Side.HEROES, false)
 	GameManager.begin_hunt()
-	screen = PRE_ROUND.instantiate() as PreRoundSetup
-	add_child(screen)
-	assert_eq(screen.quarry_label.text, "Tonight's quarry: Nyxa", "met: no flag")
+	screen.open(MatchRewards.Side.HEROES)
+	assert_false((screen.get_node("%NewBanner") as Control).visible, "met: no banner")
 	screen.queue_free()
 	assert_eq(MatchConfig.new().quarry_id, &"", "a new config leaves the pick to GameManager")
+
+
+## CHANGE: the pool's monsters to pick (the lock), the rest as silhouettes with
+## the hunts still to play, and Random.
+func test_pre_round_change_sheet() -> void:
+	if not require_isolated():
+		return
+	_play_matches(3)
+	var screen := _pre_round()
+	(screen.get_node("%Change") as BaseButton).pressed.emit()
+	assert_true(screen.is_sheet_open())
+	var cards := screen.sheet_cards()
+	assert_eq(cards.size(), GameManager.ROSTER.monsters.size(), "every roster monster")
+	var by_id: Dictionary[StringName, CharacterCard] = {}
+	for c in cards:
+		by_id[c.character.character_id()] = c
+	assert_true(by_id[&"grount"].unlocked and by_id[&"nyxa"].unlocked, "the pool's monsters")
+	var gorrak := by_id[&"gorrak"]
+	assert_false(gorrak.unlocked, "Gorrak is not in the pool after 3 hunts")
+	assert_eq(gorrak.locked_note, "Appears after 3 hunts")
+	assert_true((gorrak.get_node("%Rule") as Label).visible)
+	assert_eq((gorrak.get_node("%Rule") as Label).text, "Appears after 3 hunts", "instead of the unlock rule")
+	assert_false((gorrak.get_node("%Price") as Control).visible, "and no price")
+	assert_true(by_id[screen.quarry.character_id()].selected, "tonight's quarry is marked")
+	assert_true((screen.get_node("%Random") as BaseButton).disabled, "already random")
+	gorrak.pressed.emit()
+	assert_true(screen.is_sheet_open(), "a silhouette picks nothing")
+	assert_eq(GameManager.locked_quarry(), &"")
+	var other: StringName = &"grount" if screen.quarry.character_id() == &"nyxa" else &"nyxa"
+	by_id[other].pressed.emit()
+	assert_eq(GameManager.locked_quarry(), other, "a pick locks it")
+	assert_eq(screen.quarry.character_id(), other, "and shows it")
+	assert_eq(screen.collect_config().quarry_id, other)
+	assert_false(screen.is_sheet_open(), "the sheet closes")
+	screen.open_sheet()
+	assert_false((screen.get_node("%Random") as BaseButton).disabled)
+	assert_eq((screen.get_node("%LockState") as Label).text, "%s every hunt, until you pick Random." % _def(other).get_display_name())
+	(screen.get_node("%Random") as BaseButton).pressed.emit()
+	assert_eq(GameManager.locked_quarry(), &"", "Random unlocks")
+	assert_eq(screen.quarry.character_id(), GameManager.next_quarry(), "back to the random pick")
+	screen.open_sheet()
+	var back := InputEventAction.new()
+	back.action = &"ui_cancel"
+	back.pressed = true
+	get_viewport().push_input(back)
+	assert_false(screen.is_sheet_open(), "ui_cancel closes the sheet first")
+	screen.queue_free()
 
 
 # --------------------------------------------------------- the unlocks ----
