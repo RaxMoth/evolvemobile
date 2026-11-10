@@ -345,7 +345,7 @@ per-stage table, so the stage damage multiplier never applies to her.
 A slow, armoured brawler: wide chops, a ranged returning axe and an in-place
 stomp that stuns the pack. He never flees with his axe. His scene
 `Scenes/NPCs/Monster/Gorrak/Gorrak.tscn` inherits `monster_base_class.tscn`
-with the boar-king rig (`gorrak_body`, QUADRUPED); his numbers are the
+with the boar-king rig (`gorrak_body`, HUMANOID: he stands upright); his numbers are the
 gamedesign's final config (v6), except Stage 3 HP, retuned 1600 → 1500 in 6.5
 (see Balance). Not owned by default: 3,000 Leaves once any owned monster is
 Lv.3 (bought on the unlock sheet, see Opponent Choice and Monster Unlocks),
@@ -737,8 +737,8 @@ Ted's fox, Grount (all three stages), Nyxa, Gorrak and the Bat and Hog mobs.
   | id | who | parts | body plan | world_scale | sheet svg/scale | full_speed / stride |
   |---|---|---|---|---|---|---|
   | irelia, vlad, ted, river | heroes | 7 | HUMANOID | 0.4 | 3 | 75 / 80 / 85 / 85, stride 18.1 |
-  | grount | monster (3 stages: horns, eyes, spikes, cracks, chain) | 16 | QUADRUPED | 0.6 | 3 | 60, 24.3 |
-  | gorrak | monster | 7 | QUADRUPED | 0.6 | 3 | 56, 25.1 |
+  | grount | monster (3 stages: horns, eyes, spikes, cracks, chain) | 16 | HUMANOID | 0.6 | 3 | 60, 24.3 |
+  | gorrak | monster | 7 | HUMANOID | 0.6 | 3 | 56, 25.1 |
   | nyxa | monster | 6 | FLYER | 0.6 | 3 | 85 (no legs) |
   | hog | mob | 5 | QUADRUPED | 0.38 | 2 | 70, 19.1 |
   | bat | mob | 4 | FLYER | 0.32 | 2 | 150 (no legs) |
@@ -766,10 +766,12 @@ Ted's fox, Grount (all three stages), Nyxa, Gorrak and the Bat and Hog mobs.
   The output is deterministic text and generated only: art that no node tree
   can draw in z order, or parts that share an SVG id, are reported and nothing
   is written. Never edit the generated files; edit `src/` and rebuild.
-- **`RigProfile`** (`<id>_motion.tres`, shared): body plan (HUMANOID,
-  QUADRUPED, FLYER), `world_scale`, idle breathing, locomotion (`full_speed`,
-  `stride` so feet never slide, bounce, swings, lean), flyer flaps and hover,
-  hurt and attack reactions.
+- **`RigProfile`** (`<id>_motion.tres`, shared): body plan (HUMANOID: upright
+  on two legs with two arms, the heroes and the monsters Grount and Gorrak;
+  QUADRUPED: the Hog and Ted's fox; FLYER: the Bat and Nyxa), `world_scale`,
+  idle breathing, locomotion (`full_speed`, `stride` so feet never slide,
+  bounce, swings, lean), flyer flaps and hover, hurt and attack reactions, and
+  `moves`: the body plan's move library (see Moves below).
 - **`CharacterRig`** (`Scripts/Rig/character_rig.gd`) is the `Rig` node every
   entity has in `NPCBaseClass.tscn`; a migrated scene adds its body under it
   and sets `body`, `profile` and `tier`. It is presentation only and not a
@@ -781,9 +783,53 @@ Ted's fox, Grount (all three stages), Nyxa, Gorrak and the Bat and Hog mobs.
     - Events are wired in the scenes: `EntityBase.ability_cast(ability,
       target)` (sent by `announce_cast()`, which `EventBus.notify_ability_cast`
       and a mob's basic swing call; `ability` is null for the swing) plays the
-      attack / cast / ultimate move, `EntityBase.damaged(packet)` the hurt
-      flash and squash, `MonsterBase.evolved(stage)` → `Rig.set_stage` the
-      stage's parts.
+      ability's move (below), `EntityBase.damaged(packet)` the hurt flash and
+      squash plus the hurt move when no other move plays,
+      `MonsterBase.evolved(stage)` → `Rig.set_stage` the stage's parts.
+    - **Moves** (authored, not procedural): one `AnimationLibrary` per body
+      plan in `Assets/Characters/_moves/` (`humanoid_moves.tres` 22 moves,
+      `quadruped_moves.tres` 7, `flyer_moves.tres` 7), set as each profile's
+      `moves`, so one library fits every character of the plan. Every library
+      has `attack`, `cast`, `ultimate`, `hurt` and `cheer`; the humanoid one
+      also the signature moves `bash`, `shield_up`, `war_cry`, `place`,
+      `rally`, `throw`, `aim`, `point`, `twirl`, `point_up`, `cleave`, `chop`,
+      `slam`, `stomp`, `charge`, `spin` and `leap`; quadrupeds `charge` and
+      `leap`; flyers `shriek` and `swoop`. The poses are the anim area's
+      combat clips, ported and toned to the rule that a strike's contact frame
+      sits at or before 0.15 s (the hit lands at the cast). Tracks address the
+      parts (`%arm_f:rotation`; rest rotation is 0 in every generated body)
+      and, through `..`, the rig's root channels: `move_offset` (art units,
+      x forward, y down), `move_scale` (about the feet), `move_tilt` (a
+      forward lean) and `arm_f_reach` / `arm_b_reach` (an arm's offset from its
+      rest position, a weapon thrust to the sky). Keys are linear, eased in
+      and out per segment (transition -2), so a pose never overshoots. A part
+      or channel the body lacks is skipped (the Bat has no head or arm), and
+      the library stays editable in Godot's animation editor (an
+      AnimationPlayer rooted at a body).
+    - The rig samples the move itself (`Animation.value_track_interpolate`)
+      after its procedural layer and blends it over that layer: in over
+      0.06 s, out over the last 0.12 s, only on the channels the move keys, so
+      a cast that keys the arms leaves the legs walking. The root channels
+      follow the facing (a lunge goes the way the character looks) on top of
+      the rig's own flip, squash and hover. A cast replaces the move playing;
+      a flinch never cuts one short. A move the library lacks falls back to
+      the procedural swing.
+    - Which move a cast plays is data: `AbilityBase.move_name`
+      (presentation only, read through `get_move_name(caster)`), falling back
+      to `attack`, `cast` or `ultimate` by the ability's slot; a mob's swing
+      plays `attack`. Vlad: attack, place, ultimate; Irelia: bash, shield_up,
+      war_cry; Ted: attack, rally, throw; River: aim (rifle) or point
+      (`heal_move_name`, the heal staff), twirl, point_up; Grount: cleave,
+      charge, slam; Gorrak: chop (`full_circle_move_name` spin while
+      Whirlwind makes the cleave a full circle), throw, stomp; Nyxa: shriek,
+      swoop, ultimate; the fox, the Hog and the Bat: attack. The menus'
+      `StageCharacter.cheer()` plays `cheer` during its hop.
+    - Mid-body anchor: `CharacterRig.mid_body()` / `mid_body_of(node)` is
+      the middle of the drawn body (the art's box centre, raised by a flyer's
+      mean hover, at the rig's size and the entity's scale), the start and end
+      of line effects (Vlad's, Ted's and Irelia's strike trails, River's shot,
+      heal and Chain Heal lines, Monster Taunt's link), which used to run feet
+      to feet. A node without a rig keeps its own position.
     - Hit flash: the rig drives the body's modulate over 1 (palette white x
       `hurt_flash_gain`, easing back to white). Every generated body draws
       through ONE shared material, `Assets/Shaders/hit_flash_material.tres`
@@ -804,8 +850,8 @@ Ted's fox, Grount (all three stages), Nyxa, Gorrak and the Bat and Hog mobs.
       or `reset_pose`. The F3 overlay shows the rigs awake now, their mean
       since F3 was pressed and "mobs half rate" while over the budget.
     - Pooled mobs leave the tree and come back without a new `_ready`: a rig
-      leaving the tree sleeps and drops its hurt flash, attack swing and
-      walk, so the next life starts clean; on re-entry the notifier wakes it
+      leaving the tree sleeps and drops its hurt flash, attack swing, move
+      and walk, so the next life starts clean; on re-entry the notifier wakes it
       (or, under the tools' `force_awake`, the rig itself).
     - Contact shadow: every Rig's first child is a `Shadow` Sprite2D
       (NPCBaseClass.tscn, and TedsPet.tscn; wired to `shadow` scene-side)
@@ -880,7 +926,15 @@ Ted's fox, Grount (all three stages), Nyxa, Gorrak and the Bat and Hog mobs.
   `test/fixtures/rig_fixture/` (generated files fresh for every character,
   z order, stages, broken art refused, no global RNG, no entity writes,
   asleep off screen, inert without a body and its shadow hidden, the budget
-  rule, the stride following the entity's scale).
+  rule, the stride following the entity's scale, and moves: the procedural
+  pose taking over after one, blending over the walk on keyed channels only,
+  root channels and reach, skipped parts, the move picked per ability and
+  the flinch never cutting a move short). `test/test_rig_moves.gd` checks the
+  real libraries: each profile's library is its body plan's (Grount and
+  Gorrak HUMANOID), the generic and signature moves exist, every track is a
+  linear one-shot on a known channel ending at rest, every ability's move
+  exists in its caster's library, a cast in a match plays it while the rig
+  writes no entity state, and the mid-body anchor.
   `test/test_character_art.gd` checks the real art: the ten characters, their
   sheets' svg/scale and mipmaps, DPITexture portraits, body plans, world
   scales and the no-slide stride. `test/test_rigged_scenes.gd` checks the
@@ -896,6 +950,10 @@ Ted's fox, Grount (all three stages), Nyxa, Gorrak and the Bat and Hog mobs.
   rig and reports `rigs_awake_mean`. `tools/preview/RigGallery.tscn` shows
   three large puppets, then every character in idle / walk / run / attack /
   hurt / stage 2 poses, all rows at one scale so the world sizes compare.
+  `tools/preview/MoveSheet.tscn` is the moves' contact sheet: per character a
+  column per move it plays (its abilities', then hurt and cheer) and three
+  frozen moments of each (`-- group=heroes|monsters|small` or ids such as
+  `irelia,vlad`).
 
 ### Ground Style (pixel tiles under the chibi palette)
 
@@ -1847,6 +1905,7 @@ res://
 │  ├─ Characters/<id>/ (src/ SVG parts + rig_src.json, generated <id>_sheet.svg
 │  │                    and <id>_body.tscn, <id>_motion.tres, <id>.svg portrait,
 │  │                    <id>_def.tres CharacterDef for playable characters)
+│  ├─ Characters/_moves/ (humanoid / quadruped / flyer_moves.tres: the rig moves)
 │  ├─ Fonts/ (LilitaOne-Regular.ttf display font + LilitaOne-OFL.txt licence)
 │  ├─ Shaders/ (ground_grade; hit_flash + hit_flash_material.tres on every rig body)
 │  ├─ Vfx/svg/ (fx_star, fx_spark, fx_puff, fx_digits: in-world effect sprites)
@@ -1915,8 +1974,8 @@ res://
    │  (headless balance, determinism and performance; see Headless Tools)
    ├─ list_monsters.gd · monster_env.zsh (MONSTER=<id>|all for those three)
    ├─ baselines/ (trace_<id>.txt: each roster monster's determinism trace)
-   └─ preview/ (ThemeMockup, ThemeScreens, PaletteSheet, RigGallery, CardGrid,
-                SlotStrip proof scenes, not shipped)
+   └─ preview/ (ThemeMockup, ThemeScreens, PaletteSheet, RigGallery, MoveSheet,
+                CardGrid, SlotStrip proof scenes, not shipped)
 ```
 
 ---

@@ -9,6 +9,7 @@ cone_angle = 50.0
 cone_range = 110.0
 cone_angle_per_stage = Array[float]([50.0, 60.0, 70.0])
 ability_name = "Sonic Screech"
+move_name = &"shriek"
 icon = ExtResource("2_icon")
 description = "A shrieking cone that drinks blood: Nyxa heals for 20% of the damage (Stage 1: 8 dmg, Stage 2: 10 dmg, Stage 3: 8 dmg, a wider cone each stage)"
 damage = 8.0

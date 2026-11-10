@@ -6,6 +6,7 @@
 [resource]
 script = ExtResource("1_active")
 ability_name = "Rally Cry"
+move_name = &"rally"
 ability_type = 1
 icon = ExtResource("2_icon")
 cooldown = 10.0

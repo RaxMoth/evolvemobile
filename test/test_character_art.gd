@@ -18,7 +18,7 @@ const SHEET_SCALE := 3.0
 const BODY_PLANS: Dictionary[String, RigProfile.BodyPlan] = {
 	"irelia": RigProfile.BodyPlan.HUMANOID, "river": RigProfile.BodyPlan.HUMANOID,
 	"ted": RigProfile.BodyPlan.HUMANOID, "vlad": RigProfile.BodyPlan.HUMANOID,
-	"gorrak": RigProfile.BodyPlan.QUADRUPED, "grount": RigProfile.BodyPlan.QUADRUPED,
+	"gorrak": RigProfile.BodyPlan.HUMANOID, "grount": RigProfile.BodyPlan.HUMANOID,
 	"hog": RigProfile.BodyPlan.QUADRUPED, "pet": RigProfile.BodyPlan.QUADRUPED,
 	"bat": RigProfile.BodyPlan.FLYER, "nyxa": RigProfile.BodyPlan.FLYER,
 }

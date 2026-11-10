@@ -6,6 +6,7 @@
 [resource]
 script = ExtResource("1_b1fc5")
 ability_name = "Monster Taunt"
+move_name = &"war_cry"
 ability_type = 3
 icon = ExtResource("1_xlwob")
 description = "Force the monster to attack Irelia for 5 seconds"

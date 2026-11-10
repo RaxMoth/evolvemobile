@@ -43,7 +43,8 @@ func execute(caster: Node2D, target: Node2D = null, _override_damage: float = -1
 		_on_hit(caster, target)
 
 		if trail_enabled:
-			GameUtils.flash_line(caster.get_parent(), caster.global_position, target.global_position,
+			# Body to body (CharacterRig.mid_body_of), not feet to feet.
+			GameUtils.flash_line(caster.get_parent(), CharacterRig.mid_body_of(caster), CharacterRig.mid_body_of(target),
 					trail_color, trail_width, trail_fade)
 
 ## Executioner's Mark: the target's HP fraction is below execute_threshold.

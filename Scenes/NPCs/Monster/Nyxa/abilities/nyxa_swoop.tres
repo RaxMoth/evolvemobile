@@ -9,6 +9,7 @@ dash_distance = 260.0
 dash_speed = 700.0
 dash_stop_short = -60.0
 ability_name = "Shadow Swoop"
+move_name = &"swoop"
 icon = ExtResource("2_icon")
 description = "Swoops through the target and out the other side, healing for 30% of the damage; also her escape (Stage 1: 12 dmg, Stage 2: 16 dmg, Stage 3: 22 dmg)"
 damage = 12.0

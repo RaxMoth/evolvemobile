@@ -18,9 +18,24 @@ extends Node2D
 ##   - locomotion: distance travelled (step phase, feet never slide) and speed,
 ##   - time (breathing, wing beats; per-instance phase from a private RNG),
 ##   - decaying one-shot timers started by events (hurt, procedural attack),
-##   - an authored move playing on `moves` (AnimationPlayer; limbs are left to
-##     it while it plays, the root keeps flipping and hovering).
+##   - the authored move playing, if any, and its elapsed time.
 ## The entity's state chart stays the only state machine.
+##
+## Moves: authored one-shots (attack, cast, ultimate, hurt, cheer and the
+## signature moves) from the body plan's AnimationLibrary, the profile's
+## `moves` (Assets/Characters/_moves/<plan>_moves.tres). Their tracks address
+## the body's parts ("%arm_f:rotation"; rest rotation is 0 in every generated
+## body) and, through "..", this rig's root channels: `move_offset`,
+## `move_scale`, `move_tilt`, `arm_f_reach` and `arm_b_reach`, so one library
+## fits every character of the plan (a channel or part the body lacks is
+## skipped). The rig samples the move itself (Animation.value_track_interpolate),
+## after the procedural layer, and blends it over that layer: in over
+## MOVE_BLEND_IN, out over the last MOVE_BLEND_OUT seconds, and only on the
+## channels the move keys, so a cast that keys the arms leaves the legs walking.
+## Which move a cast plays is the ability's get_move_name() (its `move_name`),
+## falling back to attack, cast or ultimate by its slot; a mob's swing (no
+## ability) plays attack. A move the library lacks falls back to the
+## procedural swing.
 ##
 ## LOD: it processes only while the entity's ScreenNotifier reports it on
 ## screen (seeded in _ready, toggled by the scene-wired signals). BUDGETED rigs
@@ -36,6 +51,10 @@ extends Node2D
 ##
 ## Without an entity (menus, previews) it runs in puppet mode: always awake,
 ## facing right, `puppet_speed` walks it in place, play_move() for emotes.
+##
+## mid_body() (and the static mid_body_of) is the middle of the drawn body, the
+## origin and end of line, beam and projectile EFFECTS: the entity's position
+## is its feet.
 
 enum Tier { FULL, BUDGETED }
 
@@ -44,11 +63,24 @@ const BUDGET := 48
 const SHADOW_SPREAD := 1.5
 ## A frame step longer than this is a teleport, not a walk.
 const MAX_STEP := 64.0
+## Seconds an authored move takes to blend in over the procedural pose, and to
+## hand back to it at its end.
+const MOVE_BLEND_IN := 0.06
+const MOVE_BLEND_OUT := 0.12
+## The parts a move can rotate, in channel order ("legs" = a flyer's dangling
+## feet, which only moves animate).
+const LIMB_NAMES: Array[StringName] = [&"body", &"head", &"arm_f", &"arm_b", &"leg_f", &"leg_b",
+	&"wing_f", &"wing_b", &"tail", &"legs"]
+## Root channels after the limbs: "..:<name>" tracks of a move.
+const ROOT_CHANNELS: Array[StringName] = [&"move_offset", &"move_scale", &"move_tilt", &"arm_f_reach", &"arm_b_reach"]
+const CH_OFFSET := 10
+const CH_SCALE := 11
+const CH_TILT := 12
+const CH_REACH_F := 13
+const CH_REACH_B := 14
 
 @export var body: RigBody
 @export var profile: RigProfile
-## Optional authored one-shots (AnimationLibrary tracks on "%part:prop").
-@export var moves: AnimationPlayer
 @export var tier: Tier = Tier.BUDGETED
 ## The character it animates when that is not an EntityBase parent (Ted's pet:
 ## ".." in TedsPet.tscn). Empty: the parent if it is an EntityBase, else puppet
@@ -73,6 +105,15 @@ static var _awake: int = 0
 ## RIGS_AWAKE=1, tools/bench.sh rigs_awake=1): awake rigs must leave the match
 ## byte-identical.
 static var force_awake: bool = false
+## Root channels of the move playing (sampled from its "..:" tracks; rest
+## values otherwise). Art units, x forward and y down; a squash about the
+## feet; a forward lean in radians; the front and back arms' offsets from their
+## rest positions (a weapon thrust to the sky).
+var move_offset := Vector2.ZERO
+var move_scale := Vector2.ONE
+var move_tilt := 0.0
+var arm_f_reach := Vector2.ZERO
+var arm_b_reach := Vector2.ZERO
 
 ## Half the width of the shadow's dense core in world px, before the entity's
 ## own scale (the shadow grows with an evolving monster like the body); the
@@ -99,6 +140,13 @@ var _hurt := 0.0
 var _act := 0.0
 var _flashing := false
 var _flash_color := Color.WHITE
+## The authored move playing (null = none), its name and elapsed seconds.
+var _move: Animation = null
+var _move_name: StringName = &""
+var _move_t := 0.0
+var _move_channels: PackedInt32Array = PackedInt32Array()
+## The move's limb rotations this frame (NAN = the move does not key it).
+var _move_rot: PackedFloat32Array = PackedFloat32Array()
 
 var _torso: Node2D
 var _head: Node2D
@@ -109,6 +157,7 @@ var _leg_b: Node2D
 var _wing_f: Node2D
 var _wing_b: Node2D
 var _tail: Node2D
+var _legs: Node2D
 var _rest_rot: PackedFloat32Array = PackedFloat32Array()
 var _rest_pos: PackedVector2Array = PackedVector2Array()
 var _limbs: Array[Node2D] = []
@@ -117,8 +166,9 @@ var _limbs: Array[Node2D] = []
 # transform, so unchanged values are not written again. 64-bit so a held value
 # compares equal to the one computed again.
 var _cur_rot: PackedFloat64Array = PackedFloat64Array()
-var _cur_body_y := NAN
+var _cur_body_pos := Vector2(NAN, NAN)
 var _cur_body_scale := Vector2(NAN, NAN)
+var _cur_body_rot := NAN
 var _cur_torso_x := NAN
 var _cur_head_y := NAN
 
@@ -200,10 +250,8 @@ func _exit_tree() -> void:
 	_act = 0.0
 	_walk = 0.0
 	_skipped = 0.0
-	if moves and moves.is_playing():
-		moves.stop()
-		body.reset_pose()
-		_forget_pose()
+	if _move:
+		_end_move()
 	if _flashing:
 		body.modulate = Color.WHITE
 		_flashing = false
@@ -219,7 +267,10 @@ func _cache_parts() -> void:
 	_wing_f = body.part(&"wing_f")
 	_wing_b = body.part(&"wing_b")
 	_tail = body.part(&"tail")
-	_limbs = [_torso, _head, _arm_f, _arm_b, _leg_f, _leg_b, _wing_f, _wing_b, _tail]
+	_legs = body.part(&"legs")
+	# LIMB_NAMES order: a move's limb channel is the index into _limbs.
+	_limbs = [_torso, _head, _arm_f, _arm_b, _leg_f, _leg_b, _wing_f, _wing_b, _tail, _legs]
+	_move_rot.resize(_limbs.size())
 	_rest_rot.resize(_limbs.size())
 	_rest_pos.resize(_limbs.size())
 	_cur_rot.resize(_limbs.size())
@@ -236,6 +287,9 @@ func _forget_pose() -> void:
 	_cur_rot.fill(NAN)
 	_cur_torso_x = NAN
 	_cur_head_y = NAN
+	_cur_body_pos = Vector2(NAN, NAN)
+	_cur_body_scale = Vector2(NAN, NAN)
+	_cur_body_rot = NAN
 
 
 # ---------------------------------------------------------------- LOD ----
@@ -278,17 +332,12 @@ static func skips_frame(rig_tier: Tier, awake: int, frame: int, stagger: int) ->
 # ------------------------------------------------------------- events ----
 
 ## EntityBase.ability_cast (scene-wired). `ability` null = a mob's basic swing.
+## A cast always replaces the move playing (the latest action wins).
 func _on_entity_ability_cast(ability: AbilityBase, _target: Node) -> void:
 	if not _on_screen:
 		return
-	var move := _move_for(ability)
-	if moves and moves.has_animation(move):
-		body.reset_pose()
-		_forget_pose()
-		moves.play(move)
-		moves.seek(0.0, true)
-		return
-	_act = profile.attack_time
+	if not _start_move(move_for(ability, _entity)):
+		_act = profile.attack_time
 
 
 ## EntityBase.damaged (scene-wired).
@@ -309,34 +358,166 @@ func set_stage(stage: int) -> void:
 		_hurt = profile.hurt_time
 
 
-## Puppet / emote entry point (menus, result screen, previews).
-func play_move(move: StringName) -> void:
+## Puppet / emote entry point (menus, result screen, previews): the move
+## `move` from `at` seconds in (a pose sheet freezes a puppet there with
+## set_process(false)). A move the library lacks plays the procedural swing.
+func play_move(move: StringName, at: float = 0.0) -> void:
 	if not _active:
 		return
-	if moves and moves.has_animation(move):
-		body.reset_pose()
-		_forget_pose()
-		moves.play(move)
-	else:
+	if not _start_move(move, at):
 		_act = profile.attack_time
 
 
 ## The hurt reaction (flash and squash), for entities via `damaged` and for
-## puppets directly.
+## puppets directly, plus the hurt move when no other move is playing (a
+## flinch never cuts a swing or a cast short).
 func play_hurt() -> void:
-	if _active:
-		_hurt = profile.hurt_time
+	if not _active:
+		return
+	_hurt = profile.hurt_time
+	if _move == null:
+		_start_move(&"hurt")
 
 
-func _move_for(ability: AbilityBase) -> StringName:
+## True when this rig's library has `move`.
+func has_move(move: StringName) -> bool:
+	return _active and profile.moves != null and profile.moves.has_animation(move)
+
+
+## The move playing (&"" = none).
+func current_move() -> StringName:
+	return _move_name
+
+
+## The move a cast of `ability` plays: its get_move_name() when the library
+## has it, else attack, cast or ultimate by its slot (null = a mob's swing:
+## attack). The caster lets an ability pick by its state (River's weapon).
+func move_for(ability: AbilityBase, caster: Node = null) -> StringName:
 	if ability == null:
 		return &"attack"
-	match ability.ability_type:
+	var named := ability.get_move_name(caster)
+	if named != &"" and has_move(named):
+		return named
+	return default_move(ability.ability_type)
+
+
+## The body plan's generic move for an ability slot.
+static func default_move(ability_type: AbilityBase.AbilityType) -> StringName:
+	match ability_type:
 		AbilityBase.AbilityType.BASIC_ATTACK:
 			return &"attack"
 		AbilityBase.AbilityType.ULTIMATE:
 			return &"ultimate"
 	return &"cast"
+
+
+## Starts `move` at `at` seconds (replacing any move playing); false when the
+## library lacks it.
+func _start_move(move: StringName, at: float = 0.0) -> bool:
+	if not has_move(move):
+		return false
+	if _move:
+		_end_move()
+	_move = profile.moves.get_animation(move)
+	_move_name = move
+	_move_t = clampf(at, 0.0, _move.length)
+	_move_channels = channels_of(_move)
+	_act = 0.0
+	_pose()
+	return true
+
+
+## The move is over (or cut): the root channels back at rest, every part back
+## at its generated pose, and the procedural layer writes all of them again.
+func _end_move() -> void:
+	_move = null
+	_move_name = &""
+	_move_t = 0.0
+	move_offset = Vector2.ZERO
+	move_scale = Vector2.ONE
+	move_tilt = 0.0
+	arm_f_reach = Vector2.ZERO
+	arm_b_reach = Vector2.ZERO
+	body.reset_pose()
+	_forget_pose()
+
+
+## The channel each track of `anim` drives: a LIMB_NAMES index for a
+## "%<part>:rotation" track, CH_OFFSET.. for a "..:<root channel>" track, -1
+## for anything else (ignored). Parsed when a move starts (a dozen tracks).
+static func channels_of(anim: Animation) -> PackedInt32Array:
+	var out := PackedInt32Array()
+	out.resize(anim.get_track_count())
+	for i in anim.get_track_count():
+		out[i] = -1
+		if anim.track_get_type(i) != Animation.TYPE_VALUE:
+			continue
+		var path := anim.track_get_path(i)
+		if path.get_name_count() != 1:
+			continue
+		var node_name := String(path.get_name(0))
+		var prop := StringName(path.get_concatenated_subnames())
+		if node_name.begins_with("%") and prop == &"rotation":
+			out[i] = LIMB_NAMES.find(StringName(node_name.substr(1)))
+		elif node_name == "..":
+			var root := ROOT_CHANNELS.find(prop)
+			if root >= 0:
+				out[i] = CH_OFFSET + root
+	return out
+
+
+## Weight of the move over the procedural pose at its time: eases in over
+## MOVE_BLEND_IN, out over the last MOVE_BLEND_OUT seconds.
+func _move_weight() -> float:
+	if _move == null:
+		return 0.0
+	var w := minf(clampf(_move_t / MOVE_BLEND_IN, 0.0, 1.0), clampf((_move.length - _move_t) / MOVE_BLEND_OUT, 0.0, 1.0))
+	return w * w * (3.0 - 2.0 * w)
+
+
+## Samples the move at its time: the root channels into the move_* vars, the
+## limbs into _move_rot (NAN = not keyed).
+func _sample_move() -> void:
+	_move_rot.fill(NAN)
+	for i in _move_channels.size():
+		var ch := _move_channels[i]
+		if ch < 0:
+			continue
+		var v: Variant = _move.value_track_interpolate(i, _move_t)
+		if ch < CH_OFFSET:
+			_move_rot[ch] = float(v)
+		elif ch == CH_OFFSET:
+			move_offset = v
+		elif ch == CH_SCALE:
+			move_scale = v
+		elif ch == CH_TILT:
+			move_tilt = float(v)
+		elif ch == CH_REACH_F:
+			arm_f_reach = v
+		elif ch == CH_REACH_B:
+			arm_b_reach = v
+
+
+# ---------------------------------------------------------- anchors ----
+
+## The middle of the drawn body in global coordinates (the art's box centre,
+## raised by a flyer's mean hover, at the rig's size and the entity's scale):
+## where a line, beam or projectile EFFECT starts or ends on this character.
+## Presentation only; gameplay positions stay the entity's (its feet).
+func mid_body() -> Vector2:
+	var y := body.bounds.get_center().y
+	if profile.body_plan == RigProfile.BodyPlan.FLYER:
+		y -= profile.hover
+	return to_global(Vector2(0.0, y * profile.world_scale * _size))
+
+
+## mid_body() of `node`'s Rig when it has an active one (heroes, monsters,
+## mobs, Ted's pet), else the node's own position (a trap, a mine).
+static func mid_body_of(node: Node2D) -> Vector2:
+	var rig := node.get_node_or_null(^"Rig") as CharacterRig
+	if rig and rig._active:
+		return rig.mid_body()
+	return node.global_position
 
 
 # -------------------------------------------------------------- frame ----
@@ -369,6 +550,10 @@ func _process(delta: float) -> void:
 	_walk = move_toward(_walk, clampf(speed / profile.full_speed, 0.0, 1.0), dt * 6.0)
 	_hurt = maxf(_hurt - dt, 0.0)
 	_act = maxf(_act - dt, 0.0)
+	if _move:
+		_move_t += dt
+		if _move_t >= _move.length:
+			_end_move()
 	_pose()
 
 
@@ -383,24 +568,32 @@ func _pose() -> void:
 	else:
 		lift = -absf(sin(_walk_phase)) * p.bounce * _walk
 	var k := p.world_scale * _size
-	var body_y := lift * k
-	if body_y != _cur_body_y:
-		_cur_body_y = body_y
-		body.position = Vector2(0.0, body_y)
-	var body_scale := Vector2(_flip * (1.0 + squash), 1.0 - squash) * (k / body.sheet_scale)
+	# The move's root channels at its blend weight (rest when none plays).
+	var w := _move_weight()
+	if _move:
+		_sample_move()
+		# Every part channel is rewritten this frame: the procedural value
+		# first, then the move blended over the channels it keys.
+		_forget_pose()
+	var off := move_offset * w
+	var body_pos := Vector2(off.x * _flip, lift + off.y) * k
+	if body_pos != _cur_body_pos:
+		_cur_body_pos = body_pos
+		body.position = body_pos
+	var body_scale := Vector2(_flip * (1.0 + squash), 1.0 - squash) * (k / body.sheet_scale) * Vector2.ONE.lerp(move_scale, w)
 	if body_scale != _cur_body_scale:
 		_cur_body_scale = body_scale
 		body.scale = body_scale
+	var body_rot := move_tilt * w * _flip
+	if body_rot != _cur_body_rot:
+		_cur_body_rot = body_rot
+		body.rotation = body_rot
 	if hurt_k > 0.0:
 		body.modulate = Color.WHITE.lerp(_flash_color, hurt_k)
 		_flashing = true
 	elif _flashing:
 		body.modulate = Color.WHITE
 		_flashing = false
-	if moves and moves.is_playing():
-		body.sync_proxies()
-		_forget_pose()
-		return
 	var s := body.sheet_scale
 	var step := sin(_walk_phase * 2.0)
 	var atk := _attack_curve() if _act > 0.0 else 0.0
@@ -437,8 +630,28 @@ func _pose() -> void:
 			moved = _rot(7, flap * 0.8) or moved
 	if _tail:
 		moved = _rot(8, sin(_t * 2.0 + _phase) * 0.12 + step * 0.2 * _walk) or moved
+	if _legs:
+		moved = _rot(9, 0.0) or moved
+	if _move:
+		_blend_move(w, s)
+		moved = true
 	if moved:
 		body.sync_proxies()
+
+
+## The move over the procedural pose just written: each limb it keys toward
+## its sampled angle, the arms' reach offsets, all at weight `w`.
+func _blend_move(w: float, s: float) -> void:
+	for i in _limbs.size():
+		var a := _move_rot[i]
+		var limb := _limbs[i]
+		if limb == null or is_nan(a):
+			continue
+		limb.rotation = lerpf(limb.rotation, a, w)
+	if _arm_f:
+		_arm_f.position = _rest_pos[2] + arm_f_reach * (s * w)
+	if _arm_b:
+		_arm_b.position = _rest_pos[3] + arm_b_reach * (s * w)
 
 
 ## Limb i (it exists) at its rest angle + delta_rot; false when it already is.

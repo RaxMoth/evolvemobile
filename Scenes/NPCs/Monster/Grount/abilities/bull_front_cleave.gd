@@ -8,6 +8,9 @@ extends AbilityBase
 ## the caster (apply_stage_stats sets cone_angle to 360). 0 = off; the tree
 ## node sets 3.
 @export var full_circle_from_stage: int = 0
+## The rig move of a full-circle cleave (presentation; get_move_name).
+## Empty = the cleave's own move_name (Gorrak's tres: &"spin").
+@export var full_circle_move_name: StringName = &""
 
 const FULL_CIRCLE: float = 360.0
 
@@ -57,6 +60,13 @@ func _caster_range_bonus(caster: Node2D) -> float:
 	if caster != null and caster.has_method(&"get_range_bonus"):
 		return float(caster.call(&"get_range_bonus"))
 	return 0.0
+
+
+## A full-circle cleave (Whirlwind) spins instead of chopping. Reads only.
+func get_move_name(_caster: Node = null) -> StringName:
+	if cone_angle >= FULL_CIRCLE and full_circle_move_name != &"":
+		return full_circle_move_name
+	return move_name
 
 
 ## F3 (MonsterBase.debug_meta_line): Whirlwind, "!" while the cleave is a

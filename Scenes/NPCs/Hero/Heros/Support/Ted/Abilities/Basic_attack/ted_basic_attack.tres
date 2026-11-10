@@ -10,6 +10,7 @@ trail_color = Color(0.8, 0.5, 0.2, 1)
 trail_width = 2.5
 trail_fade = 0.2
 ability_name = "Claw Swipe"
+move_name = &"attack"
 ability_type = 2
 icon = ExtResource("2_icon")
 damage = 9.0

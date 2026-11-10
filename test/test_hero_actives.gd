@@ -187,13 +187,16 @@ func test_taunt_link_ends_on_irelia_under_a_scaled_monster() -> void:
 		grount.queue_free()
 		irelia.queue_free()
 		return
-	assert_true(link.to_global(link.get_point_position(1)).distance_to(irelia.global_position) <= 1.0,
+	# Body to body: both ends mid-body (above the feet), not at the origins.
+	var irelia_mid := CharacterRig.mid_body_of(irelia)
+	assert_true(irelia_mid.y < irelia.global_position.y - 10.0, "Irelia's mid-body is above her feet")
+	assert_true(link.to_global(link.get_point_position(1)).distance_to(irelia_mid) <= 1.0,
 		"the link ends on Irelia")
-	assert_true(link.to_global(link.get_point_position(0)).distance_to(grount.global_position) <= 1.0,
+	assert_true(link.to_global(link.get_point_position(0)).distance_to(CharacterRig.mid_body_of(grount)) <= 1.0,
 		"the link starts on the monster")
 	irelia.global_position = Vector2(60, 80)
 	await wait_frames(1)
-	assert_true(link.to_global(link.get_point_position(1)).distance_to(irelia.global_position) <= 1.0,
+	assert_true(link.to_global(link.get_point_position(1)).distance_to(CharacterRig.mid_body_of(irelia)) <= 1.0,
 		"the link follows Irelia the next frame")
 	await wait_seconds(ult.duration + 0.4)  # the taunt, then the 0.3 s fade
 	assert_false(is_instance_valid(link), "the link fades and frees itself after the taunt")
@@ -252,7 +255,9 @@ func test_basic_strike_trails_follow_the_tres() -> void:
 			assert_true(line.default_color.is_equal_approx(want[0]), "%s: trail colour %s" % [caster.name, line.default_color])
 			assert_near(line.width, float(want[1]), 0.001, "%s: trail width" % caster.name)
 			assert_eq(line.z_index, 10)
-			assert_eq(line.points, PackedVector2Array([caster.global_position, hog.global_position]), "%s: caster to target" % caster.name)
+			# Body to body (CharacterRig.mid_body_of), not feet to feet.
+			assert_eq(line.points, PackedVector2Array([CharacterRig.mid_body_of(caster), CharacterRig.mid_body_of(hog)]), "%s: caster to target" % caster.name)
+			assert_true(line.points[0].y < caster.global_position.y - 10.0, "%s: the trail starts above the feet" % caster.name)
 		all_trails.append_array(trails)
 	await wait_seconds(0.5)
 	for line in all_trails:

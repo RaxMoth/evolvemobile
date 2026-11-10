@@ -7,6 +7,7 @@
 script = ExtResource("1_8el7q")
 slam_radius = 120.0
 ability_name = "Ground Slam"
+move_name = &"slam"
 ability_type = 3
 icon = ExtResource("1_rgsdf")
 description = "LOCKED until Stage 2. Leaps and slams ground dealing AoE damage (Stage 2: 32 dmg, Stage 3: 22.5 dmg)"

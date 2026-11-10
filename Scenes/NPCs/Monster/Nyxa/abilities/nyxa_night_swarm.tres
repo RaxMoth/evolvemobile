@@ -7,6 +7,7 @@
 script = ExtResource("1_swarm")
 tick_interval = 0.5
 ability_name = "Night Swarm"
+move_name = &"ultimate"
 ability_type = 3
 icon = ExtResource("2_icon")
 description = "LOCKED until Stage 2. A bat swarm circles Nyxa for 3.5 s and bites everything close every 0.5 s, healing her for 25% (Stage 2: 4 dmg a bite within 110 px, Stage 3: 5 within 140 px)"

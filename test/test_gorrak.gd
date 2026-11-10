@@ -138,7 +138,7 @@ func test_motion_full_speed_is_his_stage_1_speed() -> void:
 	var g := await _gorrak()
 	var motion := load(GORRAK_MOTION) as RigProfile
 	assert_eq(motion.full_speed, g.monster_stats.stage_1_speed)
-	assert_eq(motion.body_plan, RigProfile.BodyPlan.QUADRUPED)
+	assert_eq(motion.body_plan, RigProfile.BodyPlan.HUMANOID, "an upright boar king: the humanoid moves")
 	await _free([g])
 
 

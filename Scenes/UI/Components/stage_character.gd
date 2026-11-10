@@ -102,10 +102,12 @@ func start_idle() -> void:
 	_idle.parallel().tween_property(_rig, ^"position:y", _rest_y, half).set_trans(Tween.TRANS_SINE)
 
 
-## The side was chosen: one hop with a bounce landing after `delay` seconds.
+## The side was chosen: one hop with a bounce landing after `delay` seconds,
+## the rig playing its body plan's cheer move (arms up) on the way.
 func cheer(delay: float = 0.0) -> void:
 	var t := create_tween()
 	t.tween_interval(delay)
+	t.tween_callback(_rig.play_move.bind(&"cheer"))
 	t.tween_property(_hop, ^"position:y", -CHEER_HEIGHT, 0.16).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	t.tween_property(_hop, ^"position:y", 0.0, 0.22).set_trans(Tween.TRANS_BOUNCE).set_ease(Tween.EASE_OUT)
 

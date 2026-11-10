@@ -8,6 +8,7 @@
 script = ExtResource("1_bm2ge")
 trap_scene = ExtResource("3_urshe")
 ability_name = "Trap Cage"
+move_name = &"throw"
 ability_type = 3
 icon = ExtResource("1_1gwko")
 description = "Drops a cage on the target. Enemies caught inside cannot leave until it breaks"

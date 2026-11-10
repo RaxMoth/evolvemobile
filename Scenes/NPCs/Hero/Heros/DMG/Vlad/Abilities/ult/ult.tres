@@ -6,6 +6,7 @@
 [resource]
 script = ExtResource("2_g8hh3")
 ability_name = "Blood Bomb"
+move_name = &"ultimate"
 ability_type = 3
 icon = ExtResource("1_7jdje")
 description = "Creates a devastating explosion that damages all enemies in range"

@@ -11,6 +11,7 @@ slam_radius = 100.0
 leap_distance = 0.0
 stun_duration = 0.6
 ability_name = "Warcry Stomp"
+move_name = &"stomp"
 ability_type = 3
 icon = ExtResource("2_icon")
 description = "Roars and stomps where he stands, stunning everything close for 0.6 s (Stage 1: 12 dmg within 100 px, Stage 2: 18 within 130, Stage 3: 22 within 160)"

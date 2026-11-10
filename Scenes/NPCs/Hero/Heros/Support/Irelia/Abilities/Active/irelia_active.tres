@@ -6,6 +6,7 @@
 [resource]
 script = ExtResource("1_7h08t")
 ability_name = "Divine Shield"
+move_name = &"shield_up"
 icon = ExtResource("1_5qiow")
 description = "Shield all heroes for 18 HP for 7 seconds"
 cooldown = 13.0

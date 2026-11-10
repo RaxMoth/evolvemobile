@@ -1,6 +1,7 @@
 [gd_resource type="Resource" script_class="RigProfile" format=3]
 
 [ext_resource type="Script" path="res://Scripts/Rig/rig_profile.gd" id="1_profile"]
+[ext_resource type="AnimationLibrary" path="res://Assets/Characters/_moves/quadruped_moves.tres" id="2_moves"]
 
 [resource]
 script = ExtResource("1_profile")
@@ -9,3 +10,4 @@ world_scale = 0.3
 full_speed = 120.0
 stride = 20.1
 leg_swing = 0.7
+moves = ExtResource("2_moves")

@@ -1,10 +1,11 @@
 [gd_resource type="Resource" script_class="RigProfile" format=3]
 
 [ext_resource type="Script" path="res://Scripts/Rig/rig_profile.gd" id="1_profile"]
+[ext_resource type="AnimationLibrary" path="res://Assets/Characters/_moves/humanoid_moves.tres" id="2_moves"]
 
 [resource]
 script = ExtResource("1_profile")
-body_plan = 1
+body_plan = 0
 world_scale = 0.6
 breathe_hz = 0.6
 breathe_amount = 0.03
@@ -15,3 +16,4 @@ leg_swing = 0.4
 lean = 0.06
 attack_time = 0.4
 shadow_per_width = 0.36
+moves = ExtResource("2_moves")

@@ -6,6 +6,7 @@
 [resource]
 script = ExtResource("1_us2jm")
 ability_name = "Ram Dash"
+move_name = &"charge"
 icon = ExtResource("1_nrmkh")
 description = "Charges forward damaging enemies (Stage 1: 18 dmg, Stage 2: 25 dmg, Stage 3: 32.4 dmg)"
 damage = 18.0

@@ -170,43 +170,162 @@ func test_puppet_never_draws_the_global_rng() -> void:
 	await wait_frames(1)
 
 
+## A one-move library: `tracks` = [[path, [[t, value], ...]], ...], cubic keys.
+func _library(move: StringName, length: float, tracks: Array) -> AnimationLibrary:
+	var anim := Animation.new()
+	anim.length = length
+	for track: Array in tracks:
+		var i := anim.add_track(Animation.TYPE_VALUE)
+		anim.track_set_path(i, NodePath(String(track[0])))
+		for key: Array in track[1]:
+			anim.track_insert_key(i, float(key[0]), key[1])
+	var lib := AnimationLibrary.new()
+	lib.add_animation(move, anim)
+	return lib
+
+
+## A FULL-tier puppet of the fixture whose profile (a copy: the shared .tres
+## is never touched) carries `lib`.
+func _puppet(lib: AnimationLibrary, speed: float = 0.0) -> CharacterRig:
+	var holder := Node2D.new()
+	var rig := CharacterRig.new()
+	var profile := (load(FIXTURE_MOTION) as RigProfile).duplicate() as RigProfile
+	profile.moves = lib
+	rig.profile = profile
+	rig.tier = CharacterRig.Tier.FULL
+	rig.puppet_speed = speed
+	var body := (load(FIXTURE_BODY) as PackedScene).instantiate() as RigBody
+	rig.add_child(body)
+	rig.body = body
+	holder.add_child(rig)
+	add_child(holder)
+	return rig
+
+
 ## The procedural layer writes only the channels that changed. An authored
 ## move writes the parts directly, so when it ends the rig must take every part
 ## back, even one whose procedural value never changed (an idle leg).
 func test_procedural_pose_takes_over_after_a_move() -> void:
-	var holder := Node2D.new()
-	var rig := CharacterRig.new()
-	rig.profile = load(FIXTURE_MOTION)
-	rig.tier = CharacterRig.Tier.FULL
-	var body := (load(FIXTURE_BODY) as PackedScene).instantiate() as RigBody
-	rig.add_child(body)
-	rig.body = body
-	var anim := Animation.new()
-	anim.length = 0.1
-	var track := anim.add_track(Animation.TYPE_VALUE)
-	anim.track_set_path(track, "%leg_f:rotation")
-	anim.track_insert_key(track, 0.0, 1.0)
-	anim.track_insert_key(track, 0.1, 1.0)
-	var lib := AnimationLibrary.new()
-	lib.add_animation(&"attack", anim)
-	var player := AnimationPlayer.new()
-	player.add_animation_library(&"", lib)
-	rig.add_child(player)
-	player.root_node = NodePath("../" + String(body.name))
-	rig.moves = player
-	holder.add_child(rig)
-	add_child(holder)
+	var rig := _puppet(_library(&"attack", 0.3, [["%leg_f:rotation", [[0.0, 1.0], [0.3, 1.0]]]]))
+	var body := rig.body
 	await wait_frames(3)
 	var leg := body.part(&"leg_f")
 	var rest := body.rest_of(&"leg_f").get_rotation()
 	assert_near(leg.rotation, rest, 0.0001, "an idle puppet's leg rests")
 	rig.play_move(&"attack")
-	await wait_frames(2)
-	assert_near(leg.rotation, 1.0, 0.0001, "the move drives the leg")
+	assert_eq(rig.current_move(), &"attack")
+	await wait_seconds(0.12)
+	assert_near(leg.rotation, 1.0, 0.0001, "the move drives the leg (fully blended in)")
 	await wait_seconds(0.3)
-	assert_false(player.is_playing(), "the move is over")
+	assert_eq(rig.current_move(), &"", "the move is over")
 	assert_near(leg.rotation, rest, 0.0001, "the procedural layer takes the leg back")
-	holder.queue_free()
+	rig.get_parent().queue_free()
+	await wait_frames(1)
+
+
+## A move blends over the locomotion on the channels it keys only: an arm
+## move leaves the legs walking; it eases in and hands back at its end.
+func test_move_blends_over_locomotion() -> void:
+	var rig := _puppet(_library(&"cast", 0.6, [["%arm_f:rotation", [[0.0, -1.5], [0.6, -1.5]]]]), 80.0)
+	var body := rig.body
+	await wait_frames(10)
+	rig.play_move(&"cast")
+	var arm := body.part(&"arm_f")
+	assert_true(absf(arm.rotation + 1.5) > 0.3, "blending in, not snapped (%.3f)" % arm.rotation)
+	await wait_seconds(0.2)
+	assert_near(arm.rotation, -1.5, 0.0001, "the keyed arm follows the move")
+	var leg := body.part(&"leg_f")
+	var legs: Array[float] = []
+	for i in 6:
+		legs.append(leg.rotation)
+		await wait_frames(1)
+	assert_true(legs.max() - legs.min() > 0.05, "the unkeyed legs keep walking (%s)" % str(legs))
+	await wait_seconds(0.5)
+	assert_eq(rig.current_move(), &"")
+	assert_true(absf(arm.rotation + 1.5) > 0.5, "the walk swing has the arm back (%.3f)" % arm.rotation)
+	rig.get_parent().queue_free()
+	await wait_frames(1)
+
+
+## The root channels ("..:move_offset", "..:move_tilt", "..:move_scale",
+## "..:arm_f_reach") move the body root and the arm, facing-relative, on top
+## of the rig's own flip and squash, and come back to rest after the move.
+## Tracks on parts or channels this body lacks are skipped silently.
+func test_move_root_channels_and_missing_parts() -> void:
+	var lib := _library(&"ultimate", 1.0, [
+		["..:move_offset", [[0.0, Vector2(10, -5)], [1.0, Vector2(10, -5)]]],
+		["..:move_tilt", [[0.0, 0.3], [1.0, 0.3]]],
+		["..:move_scale", [[0.0, Vector2(1.2, 0.8)], [1.0, Vector2(1.2, 0.8)]]],
+		["..:arm_f_reach", [[0.0, Vector2(0, -10)], [1.0, Vector2(0, -10)]]],
+		["%wing_f:rotation", [[0.0, 1.0], [1.0, 1.0]]],
+		["%no_such_part:rotation", [[0.0, 1.0], [1.0, 1.0]]],
+		["%head:modulate", [[0.0, Color.RED], [1.0, Color.RED]]],
+	])
+	assert_eq(CharacterRig.channels_of(lib.get_animation(&"ultimate")),
+		PackedInt32Array([CharacterRig.CH_OFFSET, CharacterRig.CH_TILT, CharacterRig.CH_SCALE, CharacterRig.CH_REACH_F, 6, -1, -1]),
+		"track channels: root ones, a wing (absent here), unknown ones ignored")
+	var rig := _puppet(lib)
+	var body := rig.body
+	await wait_frames(2)
+	var rest_scale := body.scale
+	var arm := body.part(&"arm_f")
+	var arm_rest := body.rest_of(&"arm_f").get_origin()
+	rig.play_move(&"ultimate", 0.5)
+	var k := rig.profile.world_scale * rig._size
+	assert_near(body.position.x, 10.0 * k, 0.001, "offset forward (puppets face right)")
+	assert_true(body.position.y < -5.0 * k + 0.5, "offset up (plus its own lift)")
+	assert_near(body.rotation, 0.3, 0.0001, "leans forward")
+	assert_near(body.scale.x / rest_scale.x, 1.2, 0.05, "stretched x")
+	assert_near(body.scale.y / rest_scale.y, 0.8, 0.05, "squashed y")
+	assert_near(arm.position.y, arm_rest.y - 10.0 * body.sheet_scale, 0.001, "the front arm reaches up (art units x sheet scale)")
+	assert_eq(body.part(&"head").modulate, Color.WHITE, "a non-move track writes nothing")
+	await wait_seconds(0.6)
+	assert_eq(rig.current_move(), &"")
+	assert_near(body.position.x, 0.0, 0.0001, "offset back at rest")
+	assert_near(body.rotation, 0.0, 0.0001, "upright again")
+	assert_eq(arm.position, arm_rest, "the arm back at its rest position")
+	assert_eq([rig.move_offset, rig.move_scale, rig.move_tilt, rig.arm_f_reach], [Vector2.ZERO, Vector2.ONE, 0.0, Vector2.ZERO],
+		"root channels at rest")
+	rig.get_parent().queue_free()
+	await wait_frames(1)
+
+
+## Which move a cast plays: the ability's get_move_name() when the library has
+## it, else attack / cast / ultimate by slot; a mob's swing (null) attacks. A
+## flinch never cuts a move short; a cast replaces whatever plays.
+func test_move_for_and_priorities() -> void:
+	var lib := _library(&"attack", 0.5, [["%arm_f:rotation", [[0.0, 0.5], [0.5, 0.5]]]])
+	for extra: StringName in [&"cast", &"ultimate", &"hurt", &"bash"]:
+		lib.add_animation(extra, lib.get_animation(&"attack").duplicate() as Animation)
+	var rig := _puppet(lib)
+	var named := AbilityBase.new()
+	named.ability_type = AbilityBase.AbilityType.BASIC_ATTACK
+	named.move_name = &"bash"
+	assert_eq(rig.move_for(named), &"bash", "the ability's own move")
+	named.move_name = &"no_such_move"
+	assert_eq(rig.move_for(named), &"attack", "unknown name: the basic slot's attack")
+	named.move_name = &""
+	named.ability_type = AbilityBase.AbilityType.ULTIMATE
+	assert_eq(rig.move_for(named), &"ultimate")
+	named.ability_type = AbilityBase.AbilityType.ACTIVE
+	assert_eq(rig.move_for(named), &"cast")
+	assert_eq(rig.move_for(null), &"attack", "a mob's swing")
+	rig.play_move(&"cast")
+	rig.play_hurt()
+	assert_eq(rig.current_move(), &"cast", "a flinch does not cut a cast short")
+	await wait_frames(1)
+	assert_true(rig.body.modulate.r > 1.0, "but it still flashes")
+	rig.play_move(&"bash")
+	assert_eq(rig.current_move(), &"bash", "a new move replaces the one playing")
+	await wait_seconds(0.6)
+	rig.play_hurt()
+	assert_eq(rig.current_move(), &"hurt", "an idle rig flinches with the hurt move")
+	await wait_seconds(0.6)
+	assert_false(rig.has_move(&"no_such_move"))
+	rig.play_move(&"no_such_move")
+	assert_eq(rig.current_move(), &"", "no move plays for a name the library lacks")
+	assert_true(rig._act > 0.0, "the procedural swing stands in")
+	rig.get_parent().queue_free()
 	await wait_frames(1)
 
 

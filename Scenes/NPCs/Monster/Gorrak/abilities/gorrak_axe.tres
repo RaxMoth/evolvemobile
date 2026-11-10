@@ -6,6 +6,7 @@
 [resource]
 script = ExtResource("1_axe")
 ability_name = "Tusk Axe"
+move_name = &"throw"
 icon = ExtResource("2_icon")
 description = "Throws a spinning axe up to 260 px at a hero; it flies back to his hand and can hit each target out and back (Stage 1: 10 dmg a hit, Stage 2: 14, Stage 3: 18). Walls stop it"
 damage = 10.0

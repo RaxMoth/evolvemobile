@@ -1,6 +1,7 @@
 [gd_resource type="Resource" script_class="RigProfile" format=3]
 
 [ext_resource type="Script" path="res://Scripts/Rig/rig_profile.gd" id="1_profile"]
+[ext_resource type="AnimationLibrary" path="res://Assets/Characters/_moves/flyer_moves.tres" id="2_moves"]
 
 [resource]
 script = ExtResource("1_profile")
@@ -13,3 +14,4 @@ flap_hz = 3.5
 flap_amount = 0.45
 hover = 6.0
 shadow_per_width = 0.21
+moves = ExtResource("2_moves")

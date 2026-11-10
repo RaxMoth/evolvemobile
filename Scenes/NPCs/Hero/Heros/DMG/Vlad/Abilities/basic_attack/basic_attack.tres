@@ -6,6 +6,7 @@
 [resource]
 script = ExtResource("2_2r0eq")
 ability_name = "Blood Strike"
+move_name = &"attack"
 ability_type = 2
 icon = ExtResource("1_lcs13")
 description = "A heavy blade strike on the enemy in front of Vlad"

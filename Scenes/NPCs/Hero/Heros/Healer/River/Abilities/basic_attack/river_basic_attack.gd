@@ -10,6 +10,9 @@ class_name RiverBasicAttack
 @export var heal_cooldown: float = 1.4
 ## The heal staff's icon; `icon` is the rifle's. get_display_icon picks one.
 @export var heal_icon: Texture2D
+## The rig move of a staff heal; `move_name` is the rifle shot's.
+## get_move_name picks one (presentation only).
+@export var heal_move_name: StringName = &""
 ## River tree "Triple Shot": each sniper shot also hits up to this many other
 ## enemies within extra_target_radius of the main target (0 = single target).
 @export var extra_targets: int = 0
@@ -52,6 +55,15 @@ func get_display_icon(caster: Node = null) -> Texture2D:
 			and caster.get_weapon_mode() == RiverActiveWeaponSwap.WeaponMode.HEAL_STAFF:
 		return heal_icon
 	return icon
+
+
+## River's rig shoulders the rifle or raises the staff, by her weapon mode.
+## Only reads the mode.
+func get_move_name(caster: Node = null) -> StringName:
+	if heal_move_name != &"" and caster != null and caster.has_method("get_weapon_mode") \
+			and caster.get_weapon_mode() == RiverActiveWeaponSwap.WeaponMode.HEAL_STAFF:
+		return heal_move_name
+	return move_name
 
 
 func _execute_sniper(caster: Node2D, target: Node2D) -> void:
@@ -142,7 +154,7 @@ func _chain_heal(caster: Node2D, healed: HeroBase) -> void:
 	var tint: Color = UiPalette.get_default().river_light
 	for hero in hurt.slice(0, extra_heal_targets):
 		hero.heal(heal_amount)
-		GameUtils.flash_line(caster.get_parent(), healed.global_position, hero.global_position, tint, 2.0, 0.4)
+		GameUtils.flash_line(caster.get_parent(), CharacterRig.mid_body_of(healed), CharacterRig.mid_body_of(hero), tint, 2.0, 0.4)
 
 ## F3: Deadeye's count toward the next crit.
 func debug_line() -> String:
@@ -151,8 +163,10 @@ func debug_line() -> String:
 		line += "  deadeye %d/%d" % [_sniper_shots % crit_every, crit_every]
 	return line
 
+## The shot and heal lines run body to body (CharacterRig.mid_body_of), not
+## feet to feet.
 func _create_sniper_effect(caster: Node2D, target: Node2D) -> void:
-	GameUtils.flash_line(caster.get_parent(), caster.global_position, target.global_position, Color.ORANGE, 2.0, 0.3)
+	GameUtils.flash_line(caster.get_parent(), CharacterRig.mid_body_of(caster), CharacterRig.mid_body_of(target), Color.ORANGE, 2.0, 0.3)
 
 func _create_heal_effect(caster: Node2D, target: Node2D) -> void:
-	GameUtils.flash_line(caster.get_parent(), caster.global_position, target.global_position, Color.GREEN, 3.0, 0.4)
+	GameUtils.flash_line(caster.get_parent(), CharacterRig.mid_body_of(caster), CharacterRig.mid_body_of(target), Color.GREEN, 3.0, 0.4)

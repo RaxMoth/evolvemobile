@@ -12,6 +12,10 @@ enum AbilityType {
 @export var ability_type: AbilityType = AbilityType.ACTIVE
 @export var icon: Texture2D
 @export var description: String = ""
+## Presentation only: the CharacterRig move a cast plays, from the caster's
+## body-plan library (Assets/Characters/_moves). Empty = the generic one by
+## slot: attack, cast or ultimate. Gameplay never reads it.
+@export var move_name: StringName = &""
 
 # Base stats (used if stage stats not provided)
 @export_group("Base Stats")
@@ -161,6 +165,13 @@ func deal(caster: Node, target: Node, amount: float) -> float:
 ## overrides it; without a caster it is the resource's own `icon`.
 func get_display_icon(_caster: Node = null) -> Texture2D:
 	return icon
+
+
+## The move a cast plays now (CharacterRig.move_for). Presentational and
+## read-only: an ability whose look follows its caster's state overrides it
+## (River's weapon, Gorrak's Whirlwind); by default it is `move_name`.
+func get_move_name(_caster: Node = null) -> StringName:
+	return move_name
 
 
 # Override these in specific ability scripts

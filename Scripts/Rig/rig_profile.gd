@@ -5,6 +5,9 @@ extends Resource
 ## every instance of the character (per-instance variation comes from the rig's
 ## private RNG, never from here). Numbers are art units / seconds / radians.
 
+## HUMANOID: upright on two legs with two arms (the heroes, and the monsters
+## Grount and Gorrak). QUADRUPED: on four legs (the Hog, Ted's fox). FLYER:
+## wings, hovers (the Bat, Nyxa). It picks the moves library.
 enum BodyPlan { HUMANOID, QUADRUPED, FLYER }
 
 @export var body_plan: BodyPlan = BodyPlan.HUMANOID
@@ -41,6 +44,14 @@ enum BodyPlan { HUMANOID, QUADRUPED, FLYER }
 @export var attack_windup: float = -1.1
 @export var attack_strike: float = 1.4
 @export var attack_lunge: float = 6.0
+
+@export_group("Moves")
+## The authored one-shots CharacterRig plays (attack, cast, ultimate, hurt,
+## cheer and the signature moves): the body plan's library,
+## Assets/Characters/_moves/<plan>_moves.tres (HUMANOID humanoid_moves,
+## QUADRUPED quadruped_moves, FLYER flyer_moves). Null = the procedural swing
+## only.
+@export var moves: AnimationLibrary
 
 @export_group("Ground")
 ## Contact shadow: the dense core's radius per world px of body width

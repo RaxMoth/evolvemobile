@@ -5,7 +5,8 @@ extends Line2D
 ## enemy (in the TransientEffect group, so MobBase.prepare_for_pool scrubs it
 ## when a mob is pooled) but top_level, so its points are global positions:
 ## an evolved or Titan monster's root scale neither stretches the line past
-## Irelia nor thickens it. Both ends are followed every frame. It frees itself
+## Irelia nor thickens it. Both ends are followed every frame, mid-body
+## (CharacterRig.mid_body_of), not at the feet. It frees itself
 ## when either end is gone, and fades out after the taunt's duration.
 ## Create it with `TauntLink.spawn(...)`.
 
@@ -25,7 +26,7 @@ static func spawn(enemy: Node2D, caster: Node2D, duration: float) -> TauntLink:
 	link.z_index = 11
 	link.default_color = COLOR
 	link.width = WIDTH
-	link.points = PackedVector2Array([enemy.global_position, caster.global_position])
+	link.points = PackedVector2Array([CharacterRig.mid_body_of(enemy), CharacterRig.mid_body_of(caster)])
 	link.add_to_group(&"TransientEffect")  # scrubbed by MobBase.prepare_for_pool
 	enemy.add_child(link)
 	var tween := link.create_tween()
@@ -39,5 +40,5 @@ func _process(_delta: float) -> void:
 	if not is_instance_valid(_enemy) or not is_instance_valid(_caster):
 		queue_free()
 		return
-	set_point_position(0, _enemy.global_position)
-	set_point_position(1, _caster.global_position)
+	set_point_position(0, CharacterRig.mid_body_of(_enemy))
+	set_point_position(1, CharacterRig.mid_body_of(_caster))

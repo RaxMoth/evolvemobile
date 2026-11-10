@@ -11,6 +11,7 @@ trail_color = Color(0.7, 0.7, 1, 1)
 trail_width = 1.5
 trail_fade = 0.25
 ability_name = "Shield Bash"
+move_name = &"bash"
 ability_type = 2
 icon = ExtResource("1_baakk")
 description = "A shield strike that also draws the struck enemy's attention to Irelia"
