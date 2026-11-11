@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="AbilityBase" load_steps=4 format=3 uid="uid://ccs50qow64lhh"]
+[gd_resource type="Resource" script_class="AbilityBase" format=3 uid="uid://ccs50qow64lhh"]
 
 [ext_resource type="Script" uid="uid://ckqkql3s1phrf" path="res://Scenes/NPCs/Hero/Abilities/ability_base.gd" id="1_evo"]
 [ext_resource type="Texture2D" uid="uid://cco1b53a65oyn" path="res://Assets/UI/Icons/Abilities/grount_passive_evolution.svg" id="2_evo"]

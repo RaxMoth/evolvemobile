@@ -1,4 +1,4 @@
-[gd_scene format=3 uid="uid://b7czhtkfagz8w"]
+[gd_scene format=3 uid="uid://b7c0htkfag08w"]
 
 [ext_resource type="Script" uid="uid://4bkhqx0xs1xt" path="res://tools/preview/slot_strip.gd" id="1_script"]
 [ext_resource type="Theme" uid="uid://eroe1xxhr5fc" path="res://Scenes/UI/Theme/ui_theme.tres" id="2_theme"]
