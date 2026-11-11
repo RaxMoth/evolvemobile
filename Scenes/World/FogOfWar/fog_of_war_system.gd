@@ -144,3 +144,13 @@ func is_tile_explored(world_position: Vector2) -> bool:
 		return false
 
 	return _ai_image.get_pixel(grid_x, grid_y).r > 0.5
+
+
+## True where the PLAYER's fog is cleared (the display image, not the AI
+## heroes' memory that is_tile_explored reads). Outside the map is always
+## fogged. Presentation only: the HUD asks it before it reports on an enemy.
+func is_revealed(world_position: Vector2) -> bool:
+	var cell: Vector2i = grid_cell(world_position)
+	if cell.x < 0 or cell.x >= grid_width or cell.y < 0 or cell.y >= grid_height:
+		return false
+	return exploration_image.get_pixel(cell.x, cell.y).r > 0.5

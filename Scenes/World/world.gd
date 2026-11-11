@@ -72,7 +72,20 @@ func _setup_player_vision():
 	## nothing here; monster-side play gives the monster one and stops the
 	## AI heroes' vision from clearing the player's fog.
 	if GameManager.chosen_side == MatchRewards.Side.MONSTER:
+		_keep_hero_vision_off_the_players_fog()
 		_setup_monster_vision()
+
+
+## Monster-side play: the AI heroes keep their scene VisionArea (it is their
+## exploration memory) but must not clear the monster player's fog: that leaked
+## their whole path onto the map and the minimap. Called from _ready, before
+## any VisionArea has processed a frame: waiting for the monster's placement
+## first let every hero's first reveal draw their spawn onto the minimap.
+func _keep_hero_vision_off_the_players_fog() -> void:
+	for hero in get_tree().get_nodes_in_group("Hero"):
+		var hero_vision := hero.get_node_or_null(^"VisionArea") as VisionArea
+		if hero_vision:
+			hero_vision.reveals_display = false
 
 func _setup_fog():
 	# Explicit type so the parser knows the script's exported properties
@@ -107,14 +120,6 @@ func _setup_monster_vision():
 		var monster_vision := FogOfWarHelper.add_vision_to_hero(monster, monster_vision_radius)
 		if monster_vision:
 			monster_vision.feeds_ai_memory = false
-
-	# The AI heroes keep their scene VisionArea (it is their exploration
-	# memory) but must not clear the monster player's fog: that leaked their
-	# whole path onto the map and the minimap.
-	for hero in get_tree().get_nodes_in_group("Hero"):
-		var hero_vision := hero.get_node_or_null(^"VisionArea") as VisionArea
-		if hero_vision:
-			hero_vision.reveals_display = false
 
 const HERO_EXPL_CTRL_SCENE: PackedScene = preload("res://Scenes/NPCs/Hero/HeroExplorationController.tscn")
 

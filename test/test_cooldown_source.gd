@@ -5,6 +5,8 @@ extends TestCase
 ## stage-gated abilities with their stage numeral, and never writes the
 ## entity's state. MonsterBase.get_cooldown_progress mirrors
 ## AbilitySystem.get_cooldown_progress (remaining / the cooldown cast with).
+## The F3 overlay prints the same readings as text (debug_state), so a HUD
+## slot can be cross-checked.
 
 const GROUNT := "res://Scenes/NPCs/Monster/Grount/Grount.tscn"
 const VLAD := "res://Scenes/NPCs/Hero/Heros/DMG/Vlad/Vlad.tscn"
@@ -88,5 +90,61 @@ func test_sources_never_write_the_entity() -> void:
 	assert_eq(g.ability_cooldowns, cooldowns, "ability_cooldowns untouched")
 	assert_eq(g._cooldown_totals, totals, "_cooldown_totals untouched")
 	assert_near(g.ability_2.cooldown, cast_cooldown, 0.0001)
+	g.queue_free()
+	await wait_frames(1)
+
+
+## The slot states as F3 text: the time left, "ready", "locked II", nothing
+## for a passive.
+func test_debug_state_names_the_time_left() -> void:
+	var v := await spawn_frozen(VLAD, Vector2(0, 0))
+	var sys := v.get_node("AbilitySystem") as AbilitySystem
+	var src := CooldownSource.Hero.new(sys)
+	var ult := AbilityBase.AbilityType.ULTIMATE
+	assert_eq(src.debug_state(2), "ready", "no cast yet")
+	sys.cooldowns[ult] = 11.42
+	sys._cooldown_totals[ult] = 20.0
+	assert_eq(src.debug_state(2), "left 11.42 s", "what the ultimate's slot counts down")
+	assert_eq(src.debug_state(3), "", "a passive never cools down")
+	assert_eq(src.debug_state(1), "ready", "the active")
+	v.queue_free()
+
+	var g := (await spawn_frozen(GROUNT, Vector2(4000, 0))) as MonsterBase
+	var monster_src := CooldownSource.Monster.new(g)
+	assert_eq(monster_src.debug_state(2), "locked II", "Ground Slam before Stage II")
+	assert_eq(monster_src.debug_state(3), "", "the passive slot")
+	assert_true(g._cast("ability_1", g.ability_1, null))
+	assert_eq(monster_src.debug_state(0), "left %.2f s" % g.get_ability_cooldown("ability_1"), "Front Cleave just cast")
+	assert_eq(monster_src.debug_state(1), "ready", "Ram Dash")
+	g.queue_free()
+	await wait_frames(1)
+
+
+## The F3 overlay shows the time left next to each of the followed hero's
+## abilities (it listed only the cooldown each one starts), and the same
+## lines for each monster's abilities.
+func test_f3_overlay_shows_the_time_left() -> void:
+	var overlay := DebugOverlay.new()
+	add_child(overlay)
+	var v := await spawn_frozen(VLAD, Vector2(0, 0))
+	var g := (await spawn_frozen(GROUNT, Vector2(4000, 0))) as MonsterBase
+	var sys := v.get_node("AbilitySystem") as AbilitySystem
+	var ult := AbilityBase.AbilityType.ULTIMATE
+	sys.cooldowns[ult] = 11.42
+	sys._cooldown_totals[ult] = 20.0
+	overlay._update_hud_label(v, null, null)
+	var text := overlay._hud_label.text
+	assert_true(text.contains("  %s  left 11.42 s" % sys.ultimate_ability.debug_line()), "the ultimate's time left:\n" + text)
+	assert_true(text.contains("  %s  ready" % sys.active_ability.debug_line()), "a ready active")
+	var passive_line := "  " + sys.passive_ability.debug_line()
+	assert_true(text.contains(passive_line + "\n") or text.ends_with(passive_line), "the passive has no cooldown state")
+	assert_true(text.contains("  %s  ready\n" % g.ability_1.debug_line()), "the monster's Front Cleave:\n" + text)
+	assert_true(text.contains("  %s  locked II\n" % g.ability_3.debug_line()), "its locked Ground Slam")
+	assert_true(g._cast("ability_1", g.ability_1, null))
+	overlay._update_hud_label(v, null, null)
+	assert_true(overlay._hud_label.text.contains("  %s  left %.2f s\n" % [g.ability_1.debug_line(),
+			g.get_ability_cooldown("ability_1")]), "and its time left after a cast")
+	overlay.queue_free()
+	v.queue_free()
 	g.queue_free()
 	await wait_frames(1)

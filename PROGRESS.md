@@ -8,7 +8,7 @@ data) + `Docs/INSTRUCTOR.md` (architecture guide). README "Current Status & Road
 summary of this file.
 
 **Before the hourly loop works on this tree**: the overhaul is 47 local commits after `885e86a`
-(origin/main); push them first. On the loop's runner re-record the trace baselines before comparing
+(origin/main), followed by its fix batches (F1 so far); push them first. On the loop's runner re-record the trace baselines before comparing
 anything (see "Verification gate").
 
 ## Done
@@ -62,6 +62,10 @@ anything (see "Verification gate").
       retired, Settings / Tutorial / Codex restyle and the first-run flow, this README / PROGRESS /
       INSTRUCTOR pass — `fdd3597` `53b039b` `4204a8c` `d5798bd`, `eca1e3e` (three header rewrites
       the 4.7 editor made, committed as they were) and the 8.5 docs commit
+- [x] **Fix batch F1** (after the walkthrough of the overhaul) — minimap dots, camera frame and
+      whole-world picture; ultimate toasts with the caster's name, only for casts the player
+      sees; dead slots on a fallen hero's card; the monster side's fog, clear colour and slot
+      row; the time left per ability on F3 (see Changelog)
 
 ## In Progress
 
@@ -144,6 +148,20 @@ Look and feel:
 - **Enemy HP bars are red** (palette `danger`), heroes and the fox stay green; the **minimap** uses
   side colours (amber hero dots, a crimson monster dot, moss explored ground over warm near-black
   fog); the in-world white level number became the **HUD level pill**.
+- **Ultimate toasts** (F1): every ultimate of the played side is announced with its caster
+  ("IRELIA · MONSTER TAUNT"), also off camera; an enemy's only while the camera shows the caster
+  on revealed ground. The same caster's ultimate shows at most once per 60 s
+  (`MatchAnnouncer.ultimate_repeat_guard`; it was 12 s), and a toast dropped because another one
+  was up still starts that minute. Replayed on the walkthrough's cast logs this gives 16 instead of
+  46 ultimate toasts in the 10-minute Nyxa match and 12 instead of 24 against Grount. Options: a
+  shorter guard, or own casts only while on camera.
+- **Monster panel slots** (F1): the row got larger slots (56 / 68 / 68 / 72 px) spread over the
+  free width instead of ability names under them; names plus larger slots need a taller panel
+  than 178 px.
+- **Clear colour** (F1): `default_clear_color` is the palette's `bg_void` for the whole project,
+  so wherever nothing is drawn (past the tile map's edge in a match) the screen is the fog's
+  near-black, not Godot's grey. 28 flowers and rocks of the Deko layer that stood outside the
+  ground were removed and one in a hole of the plateau's grass became a grass tile.
 - **Quarry Change picker**: locked cards only shake (they unlock by hunt count, not for sale).
 - **19.5:9 phones**: a band of about 280 px of plain background sits between the MONSTERS row and
   the lair in the lobby.
@@ -173,7 +191,7 @@ Look and feel:
 
 ## Verification gate
 
-Every change passes `tools/lint.sh` (errors=0) and `tools/run_tests.sh` (exit 0; 589 tests, the
+Every change passes `tools/lint.sh` (errors=0) and `tools/run_tests.sh` (exit 0; 600 tests, the
 run exits with nothing leaked). A change that must not alter gameplay also keeps the determinism
 trace byte-identical: `BASELINE=<parent trace> tools/sim_trace.sh > <new trace>` (exit 0): seeds 1-3
 × heroes/monster as full matches (~40 s). Every 60 frames the trace hashes each EntityRegistry
@@ -281,6 +299,51 @@ The machine was loaded (load 4-9) for all of these; compare only pairs run back 
       uses `GameManager.killer_side`; the sim could use the same rule. Low priority.
 
 ## Changelog
+### 2026-11-11 — fix batch F1: minimap, toasts, dead-hero slots and the monster-side view
+First fix batch after the walkthrough of the overhaul (`walk_match`, made on `d5798bd`).
+Presentational: the determinism traces of all three monsters are byte-identical to
+`tools/baselines` (Gorrak 2,774, Grount 2,503 and Nyxa 3,252 lines; run one seed per
+`MONSTER=all tools/sim_trace.sh "<seed>" "heroes monster"` call, two sims in parallel, and
+joined in the baselines' order).
+
+- **Minimap dots and camera frame** (high): the Control draws them in `_draw()` and its child
+  `%FogView` (95 % opaque) painted over them. `%Frame` and `%FogView` now have
+  `show_behind_parent` (Minimap.tscn). Rendered check: the pixel at a hero's map position is the
+  dot's `#e39a3b` (it was `#567c3a`, the fog picture).
+- **Minimap picture** (high): `%FogView` tiled the 235 x 188 texel exploration texture 1:1, so the
+  152 x 120 view showed only the top-left 41 % of the world and nothing lined up with the dots.
+  It scales now (the `stretch_mode = 1` line is gone). `Minimap.map_rect()` (FogView's rect, 2 px
+  inside the Control) is the one mapping of dots, camera frame, taps and picture.
+- **Ultimate toasts** (medium): `MatchAnnouncer.player_sees()`: the played side's casts always, an
+  enemy's only inside the camera view on ground the player's fog has cleared
+  (`FogOfWarSystem.is_revealed`, new). The toast names the caster ("VLAD · BLOOD BOMB",
+  "VLAD · BLUTBOMBE"), and `ultimate_repeat_guard` is 60 s (was 12 s). See Decisions.
+- **Dead hero's slots** (low): `AbilitySlot.set_dead()`: icon greyed, no sweep, no number, no
+  glow, a pop cut, final. A bound slot goes dead when its source's entity is freed (it used to
+  stop polling and keep "6" under the skull); `HeroHudCard` and `MonsterHudPanel` call it too.
+- **Monster side** (low): `World._ready` switches the heroes' `reveals_display` off before any
+  VisionArea processed a frame (it waited for the monster's placement, so their spawn showed on
+  the minimap); the clear colour is `bg_void` (project.godot) instead of the engine's grey; the
+  Deko layer's flowers and rocks outside the ground are gone (see Decisions).
+- **Monster panel slots** (coverage gap): 56 / 68 / 68 / 72 px (were 44 / 56 / 56 / 62) across
+  the width between the portrait and the tally.
+- **F3 time left** (coverage gap): `CooldownSource.debug_state()` ("left 2.31 s", "ready",
+  "locked II"); the overlay prints one line per ability of every monster and of the followed
+  hero ("Emergency Supply Drop  cd 25.00 s  left 19.27 s" next to a slot showing 20).
+- Tests: 589 → 600 (minimap draw order, world coverage and a rendered pixel test that the
+  headless runner skips and a windowed run of `test_minimap.gd` executes: it fails on the parent's
+  scene at the hero's dot and at a far-corner reveal; the heroes' reveals on the monster side;
+  the clear colour; decorations on ground; which ultimates are announced on either side; the dead
+  slot, also on a fallen hero's card; the monster panel's slot row; the F3 lines).
+- Gate: lint errors=0; `tools/bench.sh 2 2 900 300` parent / this tree, back to back, twice:
+  frame mean 1.546 / 1.595 and 1.531 / 1.525 ms, p99 3.309 / 3.514 and 3.523 / 3.201 ms (noise;
+  no rig or VFX code changed, so no rigs-awake runs).
+- Muted renders looked at: heroes vs Grount (hero dots, the monster's dot while a hero sees it,
+  the camera frame, "IRELIA · MONSTER TAUNT", "GROUNT · GROUND SLAM" with the monster in view, a
+  fallen hero's greyed slots, F3) and the monster side as Grount seed 4 and as Gorrak in German
+  (the near-black void at the map's edge, no hero-spawn patch on the minimap, no toast for the
+  heroes' unseen ultimates, the slot row).
+
 ### 2026-11-11 — the "Jungle Guild" overhaul: 40 batches in 8 phases (`6985f6e`..8.5)
 Run as a workflow from the plan in the session scratchpad (design deliverables backed up in
 `../evolvemobile-design-backup`): one batch per commit (5.4 and 6.6 as one commit per character),

@@ -117,10 +117,29 @@ func test_hero_cards_show_the_roster_and_the_real_slots() -> void:
 	assert_true(cam.follow_target == target, "MatchHud.hero_selected -> MainCam.switch_to_hero")
 	assert_true(hud.hero_at(0) == first.hero and hud.hero_at(4) == null, "hero_at (the 1-4 keys)")
 
-	# A fallen hero's card greys out under the skull.
+	# A fallen hero's card greys out under the skull, and its slots go dead:
+	# they used to freeze on their last countdown ("6" under the skull).
+	var fallen_system := first.hero.get_node("AbilitySystem") as AbilitySystem
+	for kind: AbilityBase.AbilityType in [AbilityBase.AbilityType.ACTIVE, AbilityBase.AbilityType.ULTIMATE]:
+		fallen_system.cooldowns[kind] = 6.0
+		fallen_system._cooldown_totals[kind] = 20.0
+	await wait_frames(2)  # the slots poll in _process
+	var fallen_ult := first.get_node(^"%Ult") as AbilitySlot
+	assert_true((fallen_ult.get_node(^"%CooldownNumber") as Label).visible, "the ultimate was counting down")
 	_kill(first.hero)
-	await wait_frames(1)
 	assert_true(first.is_dead(), "card 0 knows its hero fell")
+	for wait: int in [0, 3]:  # at once, and after the hero is freed
+		await wait_frames(wait)
+		for slot_name: String in ["Passive", "Active", "Ult", "Weapon"]:
+			var slot := first.get_node("%" + slot_name) as AbilitySlot
+			var where := "%s, %d frames after the fall" % [slot_name, wait]
+			assert_true(slot.is_dead(), "dead slot: " + where)
+			assert_false((slot.get_node(^"%CooldownNumber") as Label).visible, "no countdown: " + where)
+			assert_false((slot.get_node(^"%Glow") as CanvasItem).visible, "no glow: " + where)
+			var mat := (slot.get_node(^"%Icon") as TextureRect).material as ShaderMaterial
+			assert_near(float(mat.get_shader_parameter(&"progress")), 1.0, 0.0001, "no sweep: " + where)
+			assert_near(float(mat.get_shader_parameter(&"locked")), 1.0, 0.0001, "greyed: " + where)
+	assert_false((hud.cards[2].get_node(^"%Ult") as AbilitySlot).is_dead(), "a living hero's slots stay alive")
 	assert_eq(first.modulate, UiPalette.FALLEN_MODULATE)
 	assert_true((first.get_node(^"%Down") as CanvasItem).visible, "the skull shows")
 	assert_true(hud.active_hero == target, "a bystander's death leaves the focus alone")
@@ -284,6 +303,24 @@ func test_monster_side_panel_and_tracker() -> void:
 	var passive := panel.get_node(^"%Passive") as AbilitySlot
 	assert_true(passive.visible and passive.icon_texture != null
 		and passive.icon_texture.resource_path == EVOLUTION_ICON, "Grount's passive slot shows Evolution")
+	# The slot row uses the width left of the tally: 56 px for the passive,
+	# 68 / 68 / 72 px for the abilities (they were 44 and 56 / 56 / 62), inside
+	# the card and clear of the tally and the EVOLVE bar.
+	var card := panel.get_node(^"Card") as Control
+	var tally := panel.get_node(^"%Tally") as Control
+	var evo := panel.get_node(^"%Evo") as Control
+	var sizes: Dictionary[String, float] = {"Passive": 56.0, "A1": 68.0, "A2": 68.0, "A3": 72.0}
+	var last_right := 0.0
+	for slot_name: String in sizes:
+		var slot := panel.get_node("%" + slot_name) as Control
+		assert_eq(slot.size, Vector2.ONE * sizes[slot_name], "%s: its size" % slot_name)
+		assert_true(slot.size.x >= 44.0, "%s: at least 44 px" % slot_name)
+		assert_true(slot.position.x >= last_right + 8.0, "%s: clear of the slot before it" % slot_name)
+		assert_true(slot.position.y >= evo.position.y + evo.size.y, "%s: under the EVOLVE bar" % slot_name)
+		assert_true(slot.position.y + slot.size.y <= card.size.y, "%s: inside the card" % slot_name)
+		last_right = slot.position.x + slot.size.x
+	assert_true(last_right <= tally.position.x, "the row ends left of the tally")
+	assert_true(last_right >= 0.6 * card.size.x, "and fills the width (it ended at 374 of 684 px)")
 	panel._refresh()  # the panel polls at 10 Hz: read it and the monster in one go
 	var intent := panel.get_node(^"%Intent") as Label
 	assert_eq(intent.text, MonsterHudPanel.INTENT_NAMES[panel.current_intent()], "the intent pill names the plan")

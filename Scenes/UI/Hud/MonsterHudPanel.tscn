@@ -172,7 +172,7 @@ show_percentage = false
 [node name="EvoText" type="Label" parent="Card"]
 unique_name_in_owner = true
 layout_mode = 0
-offset_left = 400.0
+offset_left = 476.0
 offset_top = 88.0
 offset_right = 684.0
 offset_bottom = 110.0
@@ -183,42 +183,42 @@ vertical_alignment = 1
 
 [node name="Passive" parent="Card" groups=["tutorial_hud_slots"] instance=ExtResource("2_slot")]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(44, 44)
+custom_minimum_size = Vector2(56, 56)
 offset_left = 124.0
-offset_top = 108.0
-offset_right = 168.0
-offset_bottom = 152.0
+offset_top = 100.0
+offset_right = 180.0
+offset_bottom = 156.0
 slot_type = 0
 
 [node name="A1" parent="Card" groups=["tutorial_hud_slots"] instance=ExtResource("2_slot")]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(56, 56)
-offset_left = 180.0
-offset_top = 100.0
-offset_right = 236.0
-offset_bottom = 156.0
+custom_minimum_size = Vector2(68, 68)
+offset_left = 206.0
+offset_top = 94.0
+offset_right = 274.0
+offset_bottom = 162.0
 
 [node name="A2" parent="Card" groups=["tutorial_hud_slots"] instance=ExtResource("2_slot")]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(56, 56)
-offset_left = 246.0
-offset_top = 100.0
-offset_right = 302.0
-offset_bottom = 156.0
+custom_minimum_size = Vector2(68, 68)
+offset_left = 300.0
+offset_top = 94.0
+offset_right = 368.0
+offset_bottom = 162.0
 
 [node name="A3" parent="Card" groups=["tutorial_hud_slots"] instance=ExtResource("2_slot")]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(62, 62)
-offset_left = 312.0
-offset_top = 96.0
-offset_right = 374.0
-offset_bottom = 158.0
+custom_minimum_size = Vector2(72, 72)
+offset_left = 394.0
+offset_top = 92.0
+offset_right = 466.0
+offset_bottom = 164.0
 slot_type = 3
 
 [node name="Tally" type="Label" parent="Card"]
 unique_name_in_owner = true
 layout_mode = 0
-offset_left = 392.0
+offset_left = 476.0
 offset_top = 110.0
 offset_right = 684.0
 offset_bottom = 160.0

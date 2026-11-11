@@ -9,7 +9,7 @@ extends TestCase
 ## slight warm lift, the green pull), and a CPU copy of its maths shows they do
 ## what the art asks: the dirt and the grass come out darker and calmer while
 ## the dirt stays brown and the grass green. test_rigged_scenes checks the
-## rigs' contact shadows.
+## rigs' contact shadows. The small decorations all stand on ground.
 
 const WORLD := "res://Scenes/World/World.tscn"
 const GRADE := "res://Assets/Shaders/ground_grade.gdshader"
@@ -39,6 +39,36 @@ func test_tile_layers_share_the_grade() -> void:
 			others += 1
 	assert_eq(others, 0, "only the tiles are graded")
 	world.free()
+
+
+## The tileset's flowers, plants and rocks stand on a Ground tile: one past
+## the map's edge floated on the void as soon as the fog over it cleared (28
+## did, and one sat in a hole of the plateau's grass). The Deko layer's own
+## grass patches and its structures (stumps, cliffs, trees, the map's left
+## border) may cover cells the Ground layer leaves empty.
+func test_small_decorations_stand_on_ground() -> void:
+	var world := (load(WORLD) as PackedScene).instantiate()
+	var ground := world.get_node(^"Ground") as TileMapLayer
+	var deko := world.get_node(^"Deko") as TileMapLayer
+	var seen := 0
+	var floating: Array[Vector2i] = []
+	for cell: Vector2i in deko.get_used_cells():
+		if not _is_small_decoration(deko.get_cell_atlas_coords(cell)):
+			continue
+		seen += 1
+		if ground.get_cell_source_id(cell) == -1:
+			floating.append(cell)
+	assert_true(seen > 1000, "the Deko layer carries the flowers and rocks (%d)" % seen)
+	assert_eq(floating.size(), 0, "decorations with no ground under them: %s" % str(floating))
+	world.free()
+
+
+## tf_jungle_tileset.png: flowers and plants in rows 3-5 (columns 1-8), rocks
+## in rows 6-7 up to column 5 (columns 6-8 there are the hollow log).
+static func _is_small_decoration(atlas: Vector2i) -> bool:
+	if atlas.x < 1:
+		return false
+	return (atlas.y >= 3 and atlas.y <= 5 and atlas.x <= 8) or (atlas.y >= 6 and atlas.y <= 7 and atlas.x <= 5)
 
 
 func test_grade_defaults_are_the_spec() -> void:

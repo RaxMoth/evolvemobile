@@ -4,8 +4,9 @@ extends TestCase
 ## UI's: the in-world HP bars (HpBar2D tokens: heal for the hero side, danger
 ## for mobs and the monster, a panel_inset trough and an ink outline), the
 ## level badge next to a hero's or the monster's bar (the HUD's Pill and
-## PillText, none on mobs), and the world fog (FogOfWarSystem: bg_void). The
-## minimap's dots and fog map are test_minimap.gd's.
+## PillText, none on mobs), the world fog (FogOfWarSystem: bg_void) and the
+## clear colour behind the tile map (the same token). The minimap's dots and
+## fog map are test_minimap.gd's.
 
 const VLAD := "res://Scenes/NPCs/Hero/Heros/DMG/Vlad/Vlad.tscn"
 const PET := "res://Scenes/NPCs/Hero/Heros/Support/Ted/Abilities/Passive/TedsPet.tscn"
@@ -89,3 +90,12 @@ func test_world_fog_is_a_palette_token() -> void:
 	assert_eq(material.get_shader_parameter(&"fog_color"), expected, "the shader draws the token")
 	fog.queue_free()
 	await wait_frames(1)
+
+
+## Where the tile map has no ground (past its edge, in its holes) a revealed
+## view shows the clear colour. It is the fog's token, not the engine's grey
+## (project.godot holds the value; this keeps it in step with the palette).
+func test_clear_colour_is_the_fog_token() -> void:
+	var clear: Color = ProjectSettings.get_setting("rendering/environment/defaults/default_clear_color")
+	var fog_token := UiPalette.get_default().bg_void
+	assert_true(clear.is_equal_approx(fog_token), "default_clear_color %s is bg_void %s" % [clear, fog_token])

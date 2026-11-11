@@ -5,11 +5,13 @@ extends TestCase
 ## its own, writes the shader only when the progress moved, pops once when the
 ## ability becomes ready (ready_flash, became_ready, the ultimate's glow),
 ## locks with a padlock and the stage numeral, wears the kit frame of its slot
-## type, and follows the ability's display icon (River's weapon mode).
+## type, follows the ability's display icon (River's weapon mode), and goes
+## dead with its owner (no countdown frozen on a fallen hero's card).
 
 const SLOT := "res://Scenes/UI/Hud/AbilitySlot.tscn"
 const RIVER := "res://Scenes/NPCs/Hero/Heros/Healer/River/River.tscn"
 const GROUNT := "res://Scenes/NPCs/Monster/Grount/Grount.tscn"
+const VLAD := "res://Scenes/NPCs/Hero/Heros/DMG/Vlad/Vlad.tscn"
 const KIT := "res://Assets/UI/Kit/%s.svg"
 const READY_GLOW := "res://Assets/UI/Shaders/ready_glow.gdshader"
 
@@ -259,5 +261,102 @@ func test_monster_slot_unlocks_on_evolution_and_stops_with_the_monster() -> void
 	g.queue_free()
 	await wait_frames(2)
 	assert_false(slot.is_processing(), "the slot stops polling a freed monster")
+	assert_true(slot.is_dead(), "and goes dead")
+	assert_false(_glowing(slot), "a dead ultimate does not glow")
+	slot.queue_free()
+	await wait_frames(1)
+
+
+## set_dead(): no number, no sweep, no glow, the icon greyed under its own
+## frame; nothing feeds the slot afterwards and nothing pops.
+func test_dead_state() -> void:
+	var slot := _make_slot()
+	var src := FixedSource.new()
+	src.p = 0.4
+	src.rem = 6.0
+	var fired: Array[int] = []
+	slot.became_ready.connect(func(i: int) -> void: fired.append(i))
+	slot.bind(src, 0)
+	await wait_frames(1)
+	assert_true(_number(slot).visible and _number(slot).text == "6", "cooling: the countdown shows")
+	assert_near(_param(slot, &"progress"), 0.4, 0.0001)
+	assert_false(slot.is_dead())
+
+	slot.set_dead()
+	assert_true(slot.is_dead())
+	assert_false(_number(slot).visible, "no number")
+	assert_eq(_number(slot).text, "")
+	assert_near(_param(slot, &"progress"), 1.0, 0.0001, "no sweep")
+	assert_near(_param(slot, &"locked"), 1.0, 0.0001, "the icon greyed")
+	assert_false(slot.is_locked(), "dead is not locked")
+	assert_false((slot.get_node(^"%Lock") as CanvasItem).visible, "no padlock")
+	assert_true((slot.get_node(^"%Frame") as TextureRect).texture == slot.frame_ult, "its own frame")
+	assert_false(_glowing(slot))
+	assert_false(slot.is_processing(), "it stops polling")
+
+	# Nothing brings it back: the source, a card's calls, a new bind.
+	src.p = 1.0
+	src.rem = 0.0
+	await wait_frames(2)
+	slot.set_cooldown(0.2, 9.0)
+	slot.set_locked(true, "II")
+	slot.bind(src, 0)
+	await wait_frames(2)
+	assert_false(_number(slot).visible, "still no number")
+	assert_near(_param(slot, &"progress"), 1.0, 0.0001, "still no sweep")
+	assert_false(slot.is_locked() or _glowing(slot) or slot.is_processing(), "no lock, no glow, no polling")
+	assert_eq(fired.size(), 0, "a dead slot never reports ready")
+	slot.queue_free()
+
+	# A ready, glowing ultimate caught mid-pop.
+	var ready_slot := _make_slot()
+	var ready_src := FixedSource.new()
+	ready_src.p = 0.5
+	ready_slot.bind(ready_src, 0)
+	await wait_frames(1)
+	ready_src.p = 1.0
+	ready_src.rem = 0.0
+	await wait_frames(1)
+	assert_true(_glowing(ready_slot), "ready: the ultimate glows")
+	var body := ready_slot.get_node(^"%Body") as Control
+	ready_slot.set_dead()
+	assert_false(_glowing(ready_slot), "the glow goes out")
+	assert_eq(body.scale, Vector2.ONE, "the pop is cut")
+	assert_near(_param(ready_slot, &"ready_flash"), 0.0, 0.0001, "and its flash")
+	await wait_frames(3)
+	assert_eq(body.scale, Vector2.ONE, "no tween keeps running")
+	ready_slot.queue_free()
+
+	# Dead before it entered the tree (a card built for a hero already gone).
+	var early := (load(SLOT) as PackedScene).instantiate() as AbilitySlot
+	early.set_dead()
+	early.bind(src, 0)
+	add_child(early)
+	await wait_frames(1)
+	assert_true(early.is_dead() and not early.is_processing() and not _number(early).visible, "dead from its first frame")
+	assert_near(_param(early, &"locked"), 1.0, 0.0001)
+	early.queue_free()
+	await wait_frames(1)
+
+
+## A hero's slot mid-countdown when the hero is freed: it used to stop polling
+## and keep the last number and sweep ("6" under the skull).
+func test_slot_clears_its_countdown_when_the_hero_is_gone() -> void:
+	var vlad := await spawn_frozen(VLAD, Vector2.ZERO)
+	var system := vlad.get_node("AbilitySystem") as AbilitySystem
+	var ult := AbilityBase.AbilityType.ULTIMATE
+	var slot := _make_slot()
+	slot.bind(CooldownSource.Hero.new(system), 2)
+	system.cooldowns[ult] = 6.0
+	system._cooldown_totals[ult] = 20.0
+	await wait_frames(1)
+	assert_true(_number(slot).visible and _number(slot).text == "6", "the ultimate counts down")
+	assert_true(_param(slot, &"progress") < 0.75, "with its sweep")
+	vlad.queue_free()
+	await wait_frames(2)
+	assert_true(slot.is_dead(), "the hero is gone: the slot is dead")
+	assert_false(_number(slot).visible, "no frozen countdown")
+	assert_near(_param(slot, &"progress"), 1.0, 0.0001, "no frozen sweep")
+	assert_near(_param(slot, &"locked"), 1.0, 0.0001, "greyed")
 	slot.queue_free()
 	await wait_frames(1)

@@ -3,7 +3,11 @@ extends Control
 
 ## Minimap — fog exploration map + entity dots, refreshed at refresh_hz.
 ## The FogOfWarSystem's R8 exploration texture is drawn by %FogView through
-## minimap_fog.gdshader; this Control draws the dots and the camera frame.
+## minimap_fog.gdshader, scaled to the view (the whole world, whatever the
+## texture's size); this Control draws the dots and the camera frame. %Frame
+## and %FogView draw behind their parent (show_behind_parent in the scene), so
+## the dots sit on top of the picture. Dots, taps and the picture share one
+## mapping: map_rect(), FogView's rect.
 ##
 ## Fairness: the hero side only sees the monster while it is inside a hero's
 ## vision radius; the monster side only sees heroes inside its own vision.
@@ -105,13 +109,21 @@ func set_world_bounds(offset: Vector2, world_size: Vector2) -> void:
 
 # ---------- mapping ----------
 
+## Where the world is drawn inside this Control: FogView's rect (the picture
+## sits inside the frame's border).
+func map_rect() -> Rect2:
+	return Rect2(fog_view.position, fog_view.size)
+
+
 func world_to_map(world_pos: Vector2) -> Vector2:
 	var n := (world_pos - _world_offset) / _world_size
-	return Vector2(clampf(n.x, 0.0, 1.0) * size.x, clampf(n.y, 0.0, 1.0) * size.y)
+	var rect := map_rect()
+	return rect.position + Vector2(clampf(n.x, 0.0, 1.0), clampf(n.y, 0.0, 1.0)) * rect.size
 
 
 func map_to_world(local_pos: Vector2) -> Vector2:
-	var n := Vector2(local_pos.x / maxf(size.x, 1.0), local_pos.y / maxf(size.y, 1.0))
+	var rect := map_rect()
+	var n := (local_pos - rect.position) / rect.size.maxf(1.0)
 	return _world_offset + Vector2(clampf(n.x, 0.0, 1.0), clampf(n.y, 0.0, 1.0)) * _world_size
 
 

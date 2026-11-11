@@ -10,7 +10,8 @@ extends PanelContainer
 ##     its rest and its state chart;
 ##   - the HP bar with "1008 / 1400" and the EVOLVE bar with the XP towards the
 ##     next stage (hidden at the last stage);
-##   - the passive (Grount's Evolution) and ability_1..3 as AbilitySlots
+##   - the passive (Grount's Evolution, 56 px) and ability_1..3 (68, 68 and
+##     72 px: the row fills the width left of the tally) as AbilitySlots
 ##     bound to a CooldownSource.Monster: Ground Slam shows its padlock and
 ##     "II" until Stage II;
 ##   - a tally: heroes slain and mobs this monster devoured, counted from
@@ -134,6 +135,8 @@ func _refresh() -> void:
 	if not is_instance_valid(monster):
 		monster = null
 		modulate = UiPalette.FALLEN_MODULATE
+		for slot in _slots:
+			slot.set_dead()
 		set_process(false)
 		return
 	var stage := monster.get_stage()

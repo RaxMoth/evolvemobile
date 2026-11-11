@@ -65,9 +65,21 @@ func lock_hint(_slot: int) -> String:
 	return ""
 
 
-## False once the entity is gone; a bound slot then stops polling.
+## False once the entity is gone; a bound slot then goes dead.
 func is_valid() -> bool:
 	return false
+
+
+## The slot's state as F3 text, read the way an AbilitySlot reads it:
+## "locked II", "ready" or the time left ("left 2.31 s"); "" for a slot that
+## never cools down (a passive, an empty slot).
+func debug_state(slot: int) -> String:
+	if ability(slot) == null or slot_type(slot) == AbilityBase.AbilityType.PASSIVE:
+		return ""
+	if locked(slot):
+		return "locked " + lock_hint(slot)
+	var left := remaining(slot)
+	return "left %.2f s" % left if left > 0.0 else "ready"
 
 
 ## A hero's four abilities, read from its AbilitySystem.

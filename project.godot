@@ -112,4 +112,5 @@ locale/translations=PackedStringArray("res://Assets/Locale/strings.en.translatio
 
 [rendering]
 
+environment/defaults/default_clear_color=Color(0.11764706, 0.10980392, 0.101960786, 1)
 renderer/rendering_method="mobile"

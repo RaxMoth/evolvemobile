@@ -717,7 +717,8 @@ then optimize the hot path the numbers point at.
 1. `tools/bench.sh 5 2 900 300` on the parent and on the change, back to back
    (frame mean, p95, p99, LOD buckets; add `0 1` to wake every rig).
 2. Press **F3** in a match: FPS, process/physics ms, node count, Phys2D objects + collision pairs,
-   `Registry: H P M Mob`, `LOD FULL/NEAR/MID/FAR` counts, the VFX line, per-entity `state [LOD]`.
+   `Registry: H P M Mob`, `LOD FULL/NEAR/MID/FAR` counts, the VFX line, per-entity `state [LOD]`,
+   and each ability's time left (one line per ability of every monster and of the followed hero).
 3. Profile with the Godot profiler: `TickScheduler._process`, `_steer_along_nav`, Physics 2D.
 4. Optimize hot paths only; record before/after numbers in `PROGRESS.md`.
 
@@ -770,7 +771,9 @@ locale is pinned to `en`; deaths never end a match. A probe script run with
 [ ] Lobby: tap a side, HUNT, pre-round, START HUNT
 [ ] Heroes spawn in formation and explore; camps activate and deactivate (F3)
 [ ] The monster evolves at its thresholds (Grount 150 / 300 XP) with the flash and shake
-[ ] HUD: cooldown sweeps, the ultimate's ready glow, stage locks, toasts, minimap
+[ ] HUD: cooldown sweeps, the ultimate's ready glow, stage locks, a fallen hero's greyed slots
+[ ] Toasts name the caster ("VLAD · BLOOD BOMB"); none for an enemy the player cannot see
+[ ] Minimap: dots and the camera frame on the fog map, which covers the whole world (both sides)
 [ ] Abilities: each has its move and effect; AoE hits each target once
 [ ] Fog of war reveals properly (both sides)
 [ ] Killed mobs respawn from the pool after 40 s with full HP

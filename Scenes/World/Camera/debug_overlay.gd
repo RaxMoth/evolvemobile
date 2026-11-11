@@ -9,7 +9,9 @@ class_name DebugOverlay
 ##   • Each entity's HP bar mini-icon (red/green) above the head
 ##   • Each entity's name + state-chart state label
 ##   • Top-3 threat sources for each ally on the heroes team
-##   • The followed hero's abilities: cooldown and skill-tree modifiers
+##   • The abilities of each monster and of the followed hero: cooldown,
+##     skill-tree modifiers and what the HUD slot shows (time left, ready,
+##     locked)
 ##
 ## Designed to be cheap when off: when invisible, _draw and _process bail
 ## immediately. When active, redraws at a throttled rate (default 10 Hz)
@@ -334,6 +336,7 @@ func _update_hud_label(active_hero: Node, heroes_team: TeamBlackboard, enemies_t
 		if is_instance_valid(mon) and mon is MonsterBase:
 			lines.append((mon as MonsterBase).debug_meta_line())
 			lines.append("  " + (mon as MonsterBase).debug_keys_line())
+			_append_ability_lines(lines, CooldownSource.Monster.new(mon as MonsterBase))
 	if active_hero and is_instance_valid(active_hero):
 		lines.append("Camera focus: %s" % active_hero.name)
 		if active_hero is EntityBase:
@@ -341,12 +344,24 @@ func _update_hud_label(active_hero: Node, heroes_team: TeamBlackboard, enemies_t
 			if is_instance_valid(t):
 				lines.append("  → targeting: %s" % t.name)
 		# The tree keys without a stat of their own (damage taken, cooldowns,
-		# start level), then its own ability copies: the cooldown each starts
-		# and the skill-tree modifiers applied at spawn (MetaSkillManager).
+		# start level), then its own ability copies.
 		if active_hero is HeroBase:
 			lines.append("  " + (active_hero as HeroBase).debug_keys_line())
 		var abilities := active_hero.get_node_or_null("AbilitySystem") as AbilitySystem
 		if abilities:
-			for a in abilities.all_abilities():
-				lines.append("  " + a.debug_line())
+			_append_ability_lines(lines, CooldownSource.Hero.new(abilities))
 	_hud_label.text = "\n".join(lines)
+
+
+## One line per ability of `source`, in the HUD's slot order: the cooldown it
+## starts and the skill-tree modifiers applied at spawn (AbilityBase
+## .debug_line), then what its HUD slot shows, read through the same
+## CooldownSource ("Blood Bomb  cd 20.00 s  left 11.42 s", "... ready",
+## "Ground Slam  cd 999999.00 s  locked II"; nothing more for a passive).
+func _append_ability_lines(lines: Array[String], source: CooldownSource) -> void:
+	for slot in source.slot_count():
+		var a := source.ability(slot)
+		if a == null:
+			continue
+		var state := source.debug_state(slot)
+		lines.append("  " + a.debug_line() + ("" if state.is_empty() else "  " + state))

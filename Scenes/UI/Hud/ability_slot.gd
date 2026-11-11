@@ -16,10 +16,13 @@ extends Control
 ##   - Lock: the padlock and the stage numeral (set_locked(true, "II")).
 ## When the ability becomes ready: ready_flash 1 -> 0 over FLASH_TIME, a
 ## POP_SCALE pop and became_ready.
+## A fallen owner's slot is dead (set_dead): the icon greyed, no sweep, no
+## number, no glow, and nothing feeds it any more.
 ##
 ## Two ways to feed it: bind(CooldownSource, slot) polls the source every
 ## frame (icon, lock, cooldown), so River's basic-attack slot swaps its icon
-## with her weapon mode; or a card calls set_cooldown() / set_locked() itself.
+## with her weapon mode, and goes dead when the source's entity is gone; or a
+## card calls set_cooldown() / set_locked() / set_dead() itself.
 ## Either way the shader parameter is written only when the progress moved by
 ## PROGRESS_STEP and the label only when the shown number changes.
 
@@ -76,6 +79,7 @@ var _shown_progress: float = -1.0
 ## Tenths of a second the label shows (countdown_tenths; 0 = no label).
 var _shown_tenths: int = -1
 var _locked: bool = false
+var _dead: bool = false
 var _is_ready: bool = false
 ## False until the first value after _ready / bind(): the slot takes that
 ## state without popping (a slot that starts ready is not becoming ready).
@@ -91,15 +95,19 @@ func _ready() -> void:
 		_icon.texture = icon_texture
 	_apply_frame()
 	_apply_glow()
-	if _source != null:
+	if _dead:
+		_apply_dead()
+	elif _source != null:
 		_start()
 	else:
 		set_process(false)
 
 
 ## Polls `slot` of `source` every frame from now on (null unbinds). May be
-## called before the slot enters the tree.
+## called before the slot enters the tree. A dead slot stays dead.
 func bind(source: CooldownSource, slot: int) -> void:
+	if _dead:
+		return
 	_source = source
 	_slot = slot
 	if is_node_ready():
@@ -107,9 +115,9 @@ func bind(source: CooldownSource, slot: int) -> void:
 
 
 ## Mirrors a cooldown: progress 0 = just cast, 1 = ready; remaining in
-## seconds. Ignored while locked.
+## seconds. Ignored while locked or dead.
 func set_cooldown(progress: float, remaining: float) -> void:
-	if _locked:
+	if _locked or _dead:
 		return
 	_write_progress(progress)
 	var now_ready := progress >= READY_AT
@@ -121,6 +129,8 @@ func set_cooldown(progress: float, remaining: float) -> void:
 ## the icon greyed with no sweep and no number, the slot_locked frame.
 ## Unlocking into a ready ability pops the slot.
 func set_locked(locked: bool, hint: String = "") -> void:
+	if _dead:
+		return
 	_lock_text.text = hint
 	if locked == _locked:
 		return
@@ -138,6 +148,23 @@ func set_locked(locked: bool, hint: String = "") -> void:
 
 func is_locked() -> bool:
 	return _locked
+
+
+## The owner fell: the slot stops polling and shows nothing that counts down.
+## The icon is greyed (the shader's `locked` grey) under its own frame, the
+## sweep and the number are cleared, the glow is off and a pop in flight is
+## cut; a padlock stays as it was. Final: a slot never comes back to life.
+func set_dead() -> void:
+	if _dead:
+		return
+	_dead = true
+	_source = null
+	if is_node_ready():
+		_apply_dead()
+
+
+func is_dead() -> bool:
+	return _dead
 
 
 ## Tenths of a second a countdown shows for `remaining`, rounded up: whole
@@ -160,6 +187,21 @@ static func countdown_text(tenths: int) -> String:
 	return "%.1f" % (tenths * 0.1)
 
 
+func _apply_dead() -> void:
+	set_process(false)
+	if _juice:
+		_juice.kill()
+		_juice = null
+	_body.scale = Vector2.ONE
+	_set_flash(0.0)
+	_write_progress(1.0)
+	_show_seconds(0.0)
+	_mat.set_shader_parameter(&"locked", 1.0)
+	_ready_known = true
+	_is_ready = false
+	_apply_glow()
+
+
 func _start() -> void:
 	_ready_known = false
 	if _source == null or not _source.is_valid():
@@ -176,9 +218,10 @@ func _process(_delta: float) -> void:
 
 
 func _poll() -> void:
+	# The entity is gone (a fallen hero is freed): frozen on its last
+	# countdown, the slot read as an ability about to come back.
 	if not _source.is_valid():
-		_source = null
-		set_process(false)
+		set_dead()
 		return
 	var tex := _source.icon(_slot)
 	if tex != _icon.texture:

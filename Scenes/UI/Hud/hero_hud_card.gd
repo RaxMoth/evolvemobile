@@ -17,8 +17,9 @@ extends Button
 ##     attack's display icon, followed every frame, without a cooldown sweep
 ##     (a basic attack cools down every second or so).
 ## The selected card (set_active) lifts LIFT px and wears HudPanelSelected. A
-## dead hero's card greys out (UiPalette.FALLEN_MODULATE) under a skull. A
-## level-up pops the level badge (LEVEL_POP -> 1, TRANS_BACK).
+## dead hero's card greys out (UiPalette.FALLEN_MODULATE) under a skull and
+## its slots go dead (AbilitySlot.set_dead: no countdown, no sweep, no glow).
+## A level-up pops the level badge (LEVEL_POP -> 1, TRANS_BACK).
 ## Pressing the card emits `selected`; MatchHud decides whether the hero can
 ## take the focus. Presentation only: it reads the hero, never writes it.
 
@@ -190,6 +191,8 @@ func _set_dead() -> void:
 	_dead = true
 	modulate = UiPalette.FALLEN_MODULATE
 	_down.visible = true
+	for slot: AbilitySlot in [_passive, _active_slot, _ult, _weapon]:
+		slot.set_dead()
 	set_process(false)
 
 

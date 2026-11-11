@@ -3,7 +3,8 @@ shader_type canvas_item;
 // progress: 0 = just cast, 1 = ready. The not-yet-recovered sector (clockwise
 // from 12 o'clock, shrinking) is desaturated and veiled; an amber edge marks
 // the sweep. ready_flash (0..1, tweened 1 -> 0 on ready) whitens the icon.
-// locked = 1 greys the whole icon (Ground Slam before Stage 2).
+// locked = 1 greys the whole icon (Ground Slam before Stage 2, and a fallen
+// owner's slot: AbilitySlot.set_dead).
 uniform float progress : hint_range(0.0, 1.0) = 1.0;
 uniform float ready_flash : hint_range(0.0, 1.0) = 0.0;
 uniform float locked : hint_range(0.0, 1.0) = 0.0;

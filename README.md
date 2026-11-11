@@ -1164,17 +1164,32 @@ grade (they are not redrawn).
 
 ### Fog of War System
 
-- **Grid**: 32 px cells (2 x 2 of the 16 px ground tiles), 288 x 163 of them
-  over the 9200 x 5185 map (`FogOfWarSystem.tile_size`, an R8 exploration
+- **Grid**: 32 px cells (2 x 2 of the 16 px ground tiles), 235 x 188 of them
+  over the match's 7520 x 6016 world (`world.gd` asks for 7500 x 6000,
+  snapped up to whole tiles; `FogOfWarSystem.tile_size`, an R8 exploration
   image, one texture update per frame when something changed)
 - **Reveal Radius**: the played side's vision: heroes 200-300 px
   (`HeroStats.vision_radius`: River 300, Vlad 250, Ted 220, Irelia 200), the
   monster 350 px when the player is the monster
+- **Monster side**: the AI heroes keep their VisionArea as their exploration
+  memory, but `World._ready` switches its `reveals_display` off before any
+  VisionArea has processed a frame, so not even their first reveal shows
+  their spawn on the monster player's map. The monster gets its own
+  VisionArea once it stands at its match spawn
 - **Persistence**: Once revealed, stays visible
 - **Rendering**: World-space Node2D (not screen-space): a static
   world-covering quad in the palette's `bg_void` at 85 % (`fog_alpha`);
   outside the map is always fogged. The minimap shows the same exploration
-  texture
+  texture. `FogOfWarSystem.is_revealed(pos)` answers for the player's fog
+  (the HUD asks it; `is_tile_explored` is the hero AI's memory)
+- **Where the ground ends**: the tile map is not a rectangle (a third of its
+  bounding box has no ground tile, and the fog world is larger still). A
+  revealed spot without ground shows the clear colour, which is `bg_void`
+  too (`rendering/environment/defaults/default_clear_color` in
+  `project.godot`; `test_world_palette.gd` keeps it in step with the
+  palette), not the engine's grey. The Deko layer's flowers, plants and
+  rocks all stand on a Ground tile (`test_ground_style.gd`); its grass
+  patches and structures may cover cells the Ground layer leaves empty
 - **Purpose**: Strategic scouting value, monster can hide
 
 ### Match HUD (MatchHud)
@@ -1220,6 +1235,18 @@ writes gameplay state, so `tools/sim_trace.sh` stays byte-identical.
   at 0.8, the monster `monster`, the camera frame `text` at 0.55, and the
   fog map (`minimap_fog.gdshader`, on a material local to the minimap)
   `moss` for explored ground over `bg_void` fog, both at 0.95.
+    - The fog map is `%FogView`, a TextureRect that scales the exploration
+      texture (one texel per fog tile) to its rect, so it always shows the
+      whole world. `Minimap.map_rect()` is that rect (2 px inside the
+      Control); `world_to_map` / `map_to_world`, the dots, the camera frame
+      and the tap all map through it, so a dot sits on the fog tile its
+      entity stands on.
+    - The Control itself draws the dots and the camera frame. `%Frame` and
+      `%FogView` are its children with `show_behind_parent` on (set in
+      `Minimap.tscn`), so they draw under the dots.
+    - Fairness: the heroes side sees the monster's dot only while it is
+      inside a hero's vision radius, the monster side a hero's dot only
+      inside the monster's.
 - **In-world bars and badges** (every entity's `Hud` group, counter-scaled
   so it keeps its pixel size): the HP bar is an `HpBar2D` whose colours are
   palette tokens: a `panel_inset` trough at 0.85, an `ink` outline at 0.8 and
@@ -1249,7 +1276,9 @@ writes gameplay state, so `tools/sim_trace.sh` stays byte-identical.
       card follows the basic attack's display icon every frame, without a
       cooldown sweep;
     - the selected card lifts 8 px and wears `HudPanelSelected`; a fallen
-      hero's card greys out (`UiPalette.FALLEN_MODULATE`) under the skull.
+      hero's card greys out (`UiPalette.FALLEN_MODULATE`) under the skull
+      and its slots go dead (`AbilitySlot.set_dead()`: no countdown, no
+      sweep, no glow).
 - **Hero focus**: a card press, the 1-4 keys, Tab, a tap on a hero in the
   world or on the minimap all go through `select_hero` / `cycle_to_next_hero`,
   which keep the lifted card in sync and emit `hero_selected` →
@@ -1266,9 +1295,10 @@ writes gameplay state, so `tools/sim_trace.sh` stays byte-identical.
       Approach / Fight against a hero hunts, otherwise the strategy names it;
     - the HP bar ("1008 / 1400") and the EVOLVE bar (XP towards
       `MonsterBase.get_evolution_threshold()`, hidden at Stage III);
-    - the passive (every monster scene has a passive resource: Grount's
-      Evolution) and ability_1..3 bound to a `CooldownSource.Monster`: Ground
-      Slam shows its padlock and "II" until Stage II;
+    - the passive (56 px; every monster scene has a passive resource:
+      Grount's Evolution) and ability_1..3 (68, 68 and 72 px) bound to a
+      `CooldownSource.Monster`: Ground Slam shows its padlock and "II" until
+      Stage II. The row fills the width between the portrait and the tally;
     - a tally from `EventBus.entity_died`: heroes slain of the starting count,
       and the mobs this monster killed.
 - **Event toasts** (both sides): `MatchHud.show_toast(text, queued = true)`
@@ -1285,20 +1315,33 @@ writes gameplay state, so `tools/sim_trace.sh` stays byte-identical.
     - `monster_evolved`: "GROUNT EVOLVED · STAGE II" (queued);
     - `entity_died` of a HeroBase: "VLAD HAS FALLEN" (queued; mobs, the
       monster and Ted's pet are no news);
-    - `ability_cast` of an ultimate (hero or monster): its name, "BLOOD BOMB",
-      not queued, and the same ultimate at most once per
-      `ultimate_repeat_guard` (12 s of match time; Ted's Trap Cage is back
-      every few seconds).
+    - `ability_cast` of an ultimate: the caster and the ability,
+      "VLAD · BLOOD BOMB", not queued. Only a cast the player can know about
+      (`MatchAnnouncer.player_sees`): every cast of the played side
+      (`is_played_side`), and an enemy's only while the camera shows the
+      caster (`GameCamera.get_viewport_rect_in_world`) on ground the player's
+      fog has cleared (`FogOfWarSystem.is_revealed`). So a monster in the fog
+      or heroes far from the monster player never give themselves away. The
+      same caster's ultimate shows at most once per `ultimate_repeat_guard`
+      (60 s of match time: heroes cast theirs on cooldown, Trap Cage every
+      5 s; at 12 s one match showed 51 toasts). A cast that is not seen
+      starts no guard; one dropped because another toast is up does.
   Names are the roster's `CharacterDef` display names, upper-cased; each kind
   has an `announce_*` export.
 - Strings go through `Assets/Locale/strings.csv` (EN/DE), the toast lines too
   ("%s EVOLVED · STAGE %s", "%s HAS FALLEN"; the toast label does not
   auto-translate the finished line again).
-- `test/test_match_hud.gd` (cards, focus across deaths, HP bands, pause and
-  follow wiring, the monster panel and tracker, the intent mapping),
-  `test/test_match_toasts.gd` (toast texts in EN/DE, the queue, the scene-wired
-  Announcer through an evolution, a hero's fall and ultimates, the level badge
-  pop) and `test/test_hud_fog.gd` (the minimap in its frame, both sides).
+- `test/test_match_hud.gd` (cards, focus across deaths, a fallen hero's dead
+  slots, HP bands, pause and follow wiring, the monster panel with its slot
+  row and tracker, the intent mapping), `test/test_match_toasts.gd` (toast
+  texts in EN/DE, the queue, the scene-wired Announcer through an evolution,
+  a hero's fall and ultimates, which ultimates the player sees on either
+  side, the level badge pop), `test/test_hud_fog.gd` (the minimap in its
+  frame, both sides; the heroes never clear the monster player's fog) and
+  `test/test_minimap.gd` (the mapping through `map_rect()`, the fairness
+  rules, the dots above the picture, the picture covering the whole world,
+  and a rendered pixel check of a hero's dot and of reveals that the headless
+  runner skips: run that file in a window to use it).
 
 ### HUD Cooldown Slots (CooldownSource, AbilitySlot)
 
@@ -1321,6 +1364,12 @@ drifted from the real cooldown under attack-speed boosts and pauses).
       basic-attack slot follows her weapon mode), `progress` (0 just cast,
       1 ready), `remaining`, `locked` and `lock_hint`: an ability below its
       `unlock_stage` is locked with that stage's numeral (Ground Slam: "II").
+    - `debug_state(slot)`: the same readings as F3 text ("left 2.31 s",
+      "ready", "locked II"; nothing for a passive). The F3 overlay prints
+      one line per ability of each monster and of the followed hero, in slot
+      order: `AbilityBase.debug_line()` and that state ("Blood Bomb  cd
+      20.00 s  left 11.42 s", "Ram Dash  cd 12.00 s  ready"), so a slot's
+      number can be checked against the real timer.
 - **`AbilitySlot.tscn`** (`Scenes/UI/Hud/`, `AbilitySlot`): 72x72, scales
   freely; everything sits under `Body`, the part that pops (a container
   resets its children's scale when it sorts them).
@@ -1339,16 +1388,25 @@ drifted from the real cooldown under attack-speed boosts and pauses).
       halo while it is ready.
     - `set_locked(true, "II")`: the padlock and the stage numeral, the icon
       greyed (`locked`), no sweep or number, the `slot_locked` frame.
+    - `set_dead()`: the owner fell. The icon greyed (the shader's `locked`
+      grey) under its own frame, no sweep, no number, no glow, a pop in
+      flight cut; the slot stops polling and ignores every later call. A
+      bound slot goes dead by itself when its source's entity is freed
+      (before, it stopped polling and kept its last countdown);
+      `HeroHudCard` calls it on all its slots when the card goes dead, and
+      `MonsterHudPanel` when its monster is gone.
     - Fed by `bind(source, slot)` (polled every frame; callable before the
-      slot enters the tree, and a freed entity stops the polling) or by a
-      card calling `set_cooldown(progress, remaining)` / `set_locked()`. The shader parameter is written only when
-      the progress moved by 0.002 (and always when it reaches 1.0), the label
-      only when the shown number changes.
+      slot enters the tree) or by a card calling
+      `set_cooldown(progress, remaining)` / `set_locked()` / `set_dead()`.
+      The shader parameter is written only when the progress moved by 0.002
+      (and always when it reaches 1.0), the label only when the shown number
+      changes.
 - `test/test_cooldown_source.gd` (both sources against a real Grount and Vlad,
-  read-only) and `test/test_ability_slot.gd` (no shader or label write while
-  the value is unchanged, the number format, one pop per ready transition,
-  the lock state and frames, River's icon swap, Ground Slam unlocking on
-  evolution). `tools/preview/SlotStrip.tscn` renders the slots on HudPanels
+  read-only; the F3 texts and the overlay's lines) and
+  `test/test_ability_slot.gd` (no shader or label write while the value is
+  unchanged, the number format, one pop per ready transition, the lock state
+  and frames, the dead state, River's icon swap, Ground Slam unlocking on
+  evolution, a freed hero's slot clearing its countdown). `tools/preview/SlotStrip.tscn` renders the slots on HudPanels
   from scripted sources: sweeps, a lock, an ultimate coming ready, River's
   swap, Grount evolving.
 
@@ -3035,7 +3093,8 @@ roster).
   Monster Taunt cooldowns. Irelia's basic attack is named "Shield Bash"
   (was "Unnamed Ability"). Every ability name has an EN/DE entry in
   `strings.csv`. The F3 overlay lists the followed hero's ability copies with
-  their cooldown and tree modifiers ("Trap Cage  cd 4.00 s  tree cooldown x0.80").
+  their cooldown, tree modifiers and the time left ("Trap Cage  cd 4.00 s  tree
+  cooldown x0.80  left 2.31 s").
 - **AI build orders** (`ai_build_order`: 12 entries per character tree,
   capstone last; 18 in `hero_base`, 14 in `monster_base`): the AI opponent
   takes a prefix of them at each threat ("Opponent Threat").
@@ -3309,7 +3368,7 @@ changelog with numbers); this section is the summary.
       until real assets land in `Assets/Audio/`)
 - [x] Performance pass: faction collision layers, EntityRegistry, TickScheduler
       AI LOD, HpBar2D, mob pooling, rig sleep and budget
-- [x] Headless tools: `tools/lint.sh`, `tools/run_tests.sh` (589 tests),
+- [x] Headless tools: `tools/lint.sh`, `tools/run_tests.sh` (600 tests),
       `tools/sim.sh`, `tools/sim_trace.sh`, `tools/bench.sh`, and the art, rig,
       skill-tree and navigation builders
 

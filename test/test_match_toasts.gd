@@ -3,8 +3,9 @@ extends TestCase
 ## The MatchHud's event toasts and the HUD juice: the toast texts (EN/DE through
 ## strings.csv), the toast queue (at most one visible, the pop-in and fade, the
 ## pending cap, dropped unqueued toasts, no duplicates), the scene-wired
-## MatchAnnouncer (monster evolved, hero fell, ultimate cast with its repeat
-## guard) and the level badge's pop on a level-up.
+## MatchAnnouncer (monster evolved, hero fell, ultimate cast with the caster's
+## name and its repeat guard, only for a cast the player can see) and the
+## level badge's pop on a level-up.
 
 const WORLD := "res://Scenes/World/World.tscn"
 const HUD := "res://Scenes/UI/Hud/MatchHud.tscn"
@@ -18,10 +19,12 @@ func test_toast_texts_in_english_and_german() -> void:
 	assert_eq(MatchAnnouncer.evolved_text("Grount", 2), "GROUNT EVOLVED · STAGE II")
 	assert_eq(MatchAnnouncer.evolved_text("Grount", 3), "GROUNT EVOLVED · STAGE III")
 	assert_eq(MatchAnnouncer.fallen_text("Vlad"), "VLAD HAS FALLEN")
-	assert_eq(MatchAnnouncer.ultimate_text(load(VLAD_ULT) as AbilityBase), "BLOOD BOMB", "the ultimate's name")
+	assert_eq(MatchAnnouncer.ultimate_text("Vlad", load(VLAD_ULT) as AbilityBase), "VLAD · BLOOD BOMB",
+		"the caster and the ultimate's name")
 	TranslationServer.set_locale("de")
 	assert_eq(MatchAnnouncer.evolved_text("Grount", 2), "GROUNT ENTWICKELT · STUFE II")
 	assert_eq(MatchAnnouncer.fallen_text("Vlad"), "VLAD IST GEFALLEN")
+	assert_eq(MatchAnnouncer.ultimate_text("Vlad", load(VLAD_ULT) as AbilityBase), "VLAD · BLUTBOMBE")
 	TranslationServer.set_locale(before)
 
 
@@ -120,16 +123,20 @@ func test_announcer_feeds_the_hud_from_match_events() -> void:
 	var caster := hud.cards[0].hero as HeroBase
 	var system := caster.get_node("AbilitySystem") as AbilitySystem
 	var ult := system.ultimate_ability
+	var ult_text := MatchAnnouncer.ultimate_text(MatchAnnouncer.display_name_of(caster), ult)
+	assert_eq(ult_text, "%s · %s" % [GameManager.ROSTER.find(MetaSkillManager.hero_id_of(caster)).get_display_name().to_upper(),
+			ult.ability_name.to_upper()], "CASTER · ULTIMATE")
+	assert_near(announcer.ultimate_repeat_guard, 60.0, 0.001, "the same caster's ultimate at most once a minute")
 	EventBus.notify_ability_cast(caster, ult, null)
 	assert_eq(hud.pending_toasts().size(), 1, "the ultimate does not queue")
 	_flush(hud)
 
-	# Idle: the ultimate shows its name (no guard: the dropped cast above
-	# started one); the same one again inside the guard does not; a
+	# Idle: the ultimate shows its caster and name (no guard: the dropped cast
+	# above started one); the same one again inside the guard does not; a
 	# non-ultimate never does.
 	announcer.ultimate_repeat_guard = 0.0
 	EventBus.notify_ability_cast(caster, ult, null)
-	assert_eq(hud.current_toast(), MatchAnnouncer.ultimate_text(ult), "the ultimate's name")
+	assert_eq(hud.current_toast(), ult_text, "the caster and the ultimate's name")
 	_flush(hud)
 	announcer.ultimate_repeat_guard = 1000.0
 	EventBus.notify_ability_cast(caster, ult, null)
@@ -138,7 +145,7 @@ func test_announcer_feeds_the_hud_from_match_events() -> void:
 	assert_eq(hud.current_toast(), "", "actives are no news")
 	announcer.ultimate_repeat_guard = 0.0
 	EventBus.notify_ability_cast(caster, ult, null)
-	assert_eq(hud.current_toast(), MatchAnnouncer.ultimate_text(ult), "past the guard it shows again")
+	assert_eq(hud.current_toast(), ult_text, "past the guard it shows again")
 	_flush(hud)
 
 	# Switched off per export.
@@ -163,6 +170,109 @@ func test_announcer_feeds_the_hud_from_match_events() -> void:
 	GameManager.chosen_side = side_before
 	GameManager.match_ended_flag = true
 	TranslationServer.set_locale(locale_before)
+	AudioManager.stop_music()  # World started the match music
+
+
+## An ultimate is announced only when the player can know about it: any cast
+## of the played side, an enemy's only while the camera shows the caster on
+## revealed ground. An unseen cast shows nothing and starts no repeat guard.
+func test_ultimate_toasts_skip_casts_the_player_cannot_see() -> void:
+	# Heroes side: the monster's Ground Slam.
+	play_side(0)
+	var world := (load(WORLD) as PackedScene).instantiate()
+	add_child(world)
+	var cam := world.get_node("MainCam") as GameCamera
+	var hud := cam.hud
+	for i in range(60):  # the HUD binds two frames after _ready
+		if hud.cards.size() == 4:
+			break
+		await wait_frames(1)
+	GameManager.match_ended_flag = true
+	var announcer := hud.get_node(^"Announcer") as MatchAnnouncer
+	var fog := world.get_node("FogOfWar") as FogOfWarSystem
+	var grount := (world.get_node("MonsterSlot") as MonsterSlot).monster as MonsterBase
+	var slam := grount.ability_3
+	var slam_text := MatchAnnouncer.ultimate_text(MatchAnnouncer.display_name_of(grount), slam)
+	assert_eq(slam_text, "GROUNT · GROUND SLAM")
+	var hero := hud.cards[1].hero as HeroBase  # not the followed one: the camera stays put
+	var hero_ult := (hero.get_node("AbilitySystem") as AbilitySystem).ultimate_ability
+	var hero_text := MatchAnnouncer.ultimate_text(MatchAnnouncer.display_name_of(hero), hero_ult)
+	assert_true(MatchAnnouncer.is_played_side(hero) and not MatchAnnouncer.is_played_side(grount), "the heroes are the player's")
+	_flush(hud)
+	announcer.ultimate_repeat_guard = 1000.0
+
+	cam.zoom = Vector2(0.5, 0.5)  # a wide view: its edges lie far outside every hero's vision
+	var view := cam.get_viewport_rect_in_world()
+	var fogged := view.get_center() + Vector2(600, 1000)
+	assert_true(view.has_point(fogged) and not fog.is_revealed(fogged), "a fogged spot inside the view")
+	var off_camera := view.end + Vector2(400, 400)
+	fog.reveal_area(off_camera, 96.0)
+
+	grount.global_position = off_camera
+	assert_false(announcer.player_sees(grount), "revealed ground, but off camera")
+	EventBus.notify_ability_cast(grount, slam, null)
+	assert_eq(hud.current_toast(), "", "an enemy outside the view is no news")
+	grount.global_position = fogged
+	assert_false(announcer.player_sees(grount), "in the view, but under the fog")
+	EventBus.notify_ability_cast(grount, slam, null)
+	assert_eq(hud.current_toast(), "", "an enemy in the fog is no news")
+	fog.reveal_area(fogged, 96.0)
+	assert_true(announcer.player_sees(grount), "in the view on revealed ground")
+	EventBus.notify_ability_cast(grount, slam, null)
+	assert_eq(hud.current_toast(), slam_text, "seen: announced (the unseen casts started no guard)")
+	_flush(hud)
+	EventBus.notify_ability_cast(grount, slam, null)
+	assert_eq(hud.current_toast(), "", "and now the guard holds it back")
+
+	# The played side's own ultimate is news wherever it is cast.
+	hero.global_position = off_camera + Vector2(3000, 3000)
+	assert_true(announcer.player_sees(hero), "the player's own hero, off camera in the fog")
+	EventBus.notify_ability_cast(hero, hero_ult, null)
+	assert_eq(hud.current_toast(), hero_text, "own casts are always announced")
+	world.queue_free()
+	await wait_frames(2)
+
+	# Monster side: the heroes' ultimates.
+	play_side(1)
+	world = (load(WORLD) as PackedScene).instantiate()
+	add_child(world)
+	cam = world.get_node("MainCam") as GameCamera
+	hud = cam.hud
+	var panel := hud.get_node(^"%MonsterPanel") as MonsterHudPanel
+	for i in range(60):
+		if panel.monster != null:
+			break
+		await wait_frames(1)
+	GameManager.match_ended_flag = true
+	announcer = hud.get_node(^"Announcer") as MatchAnnouncer
+	announcer.ultimate_repeat_guard = 1000.0
+	fog = world.get_node("FogOfWar") as FogOfWarSystem
+	grount = panel.monster
+	hero = null
+	for h in get_tree().get_nodes_in_group("Hero"):
+		if h is HeroBase:
+			hero = h as HeroBase
+			break
+	hero_ult = (hero.get_node("AbilitySystem") as AbilitySystem).ultimate_ability
+	hero_text = MatchAnnouncer.ultimate_text(MatchAnnouncer.display_name_of(hero), hero_ult)
+	assert_true(MatchAnnouncer.is_played_side(grount) and not MatchAnnouncer.is_played_side(hero), "the monster is the player's")
+	_flush(hud)
+	view = cam.get_viewport_rect_in_world()
+	hero.global_position = view.end + Vector2(800, 800)
+	EventBus.notify_ability_cast(hero, hero_ult, null)
+	assert_eq(hud.current_toast(), "", "heroes out of sight do not give themselves away")
+	EventBus.notify_ability_cast(grount, grount.ability_3, null)
+	assert_eq(hud.current_toast(), slam_text, "the monster player's own ultimate")
+	_flush(hud)
+	var seen_spot := view.get_center() + Vector2(40, 40)
+	fog.reveal_area(seen_spot, 96.0)
+	hero.global_position = seen_spot
+	EventBus.notify_ability_cast(hero, hero_ult, null)
+	assert_eq(hud.current_toast(), hero_text, "a hero the monster player sees is announced")
+
+	world.queue_free()
+	await wait_frames(2)
+	GameManager.match_ended_flag = true
 	AudioManager.stop_music()  # World started the match music
 
 

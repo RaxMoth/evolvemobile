@@ -53,8 +53,12 @@ func test_ai_reveals_feed_memory_without_clearing_the_players_fog() -> void:
 	fog.reveal_area(Vector2(500, 500), 64.0, false)
 	assert_true(fog.is_tile_explored(Vector2(500, 500)), "the AI remembers what it explored")
 	assert_true(fog.exploration_image.get_pixel(15, 15).r < 0.5, "the player's fog stays closed")
+	assert_false(fog.is_revealed(Vector2(500, 500)), "is_revealed reads the player's fog, not the AI's memory")
 	fog.reveal_area(Vector2(1500, 1500), 64.0)
 	assert_true(fog.exploration_image.get_pixel(46, 46).r > 0.5, "player vision clears the fog")
+	assert_true(fog.is_revealed(Vector2(1500, 1500)), "revealed to the player")
+	assert_false(fog.is_revealed(Vector2(-40, 1500)), "outside the map is always fogged")
+	assert_false(fog.is_revealed(Vector2(1500, 3300)), "below the map too")
 	fog.queue_free()
 
 
@@ -109,6 +113,29 @@ func test_world_hero_vision_radii_in_both_play_modes() -> void:
 		world.queue_free()
 		await wait_frames(2)
 	GameManager.chosen_side = side_before
+	GameManager.match_ended_flag = true  # the runner's guard; World's start_new_match cleared it
+	AudioManager.stop_music()  # World started the match music
+
+
+## Monster-side play: the heroes' vision never clears the player's fog, not
+## even with its first reveal. World used to switch it off only once the
+## monster stood at its spawn (up to 3 s in), so the heroes' spawn showed on the
+## monster player's map and minimap from the first frame.
+func test_heroes_never_reveal_the_monster_players_fog() -> void:
+	play_side(1)
+	var world := (load(WORLD) as PackedScene).instantiate()
+	add_child(world)
+	for hero_name: String in HERO_VISION:
+		var vision := world.get_node("Heros/%s/VisionArea" % hero_name) as VisionArea
+		assert_false(vision.reveals_display, "%s: off before its first reveal" % hero_name)
+	var fog := world.get_node("FogOfWar") as FogOfWarSystem
+	await wait_frames(3)  # every VisionArea has revealed once
+	for hero_name: String in HERO_VISION:
+		var hero := world.get_node("Heros/%s" % hero_name) as Node2D
+		assert_false(fog.is_revealed(hero.global_position), "%s's spawn stays fogged for the monster player" % hero_name)
+		assert_true(fog.is_tile_explored(hero.global_position), "%s: the hero AI's own memory fills" % hero_name)
+	world.queue_free()
+	await wait_frames(2)
 	GameManager.match_ended_flag = true  # the runner's guard; World's start_new_match cleared it
 	AudioManager.stop_music()  # World started the match music
 
