@@ -619,6 +619,7 @@ sources/0 = SubResource("TileSetAtlasSource_0nbjp")
 shader = ExtResource("10_grade")
 
 [node name="World" type="Node2D"]
+y_sort_enabled = true
 script = ExtResource("1_hveh7")
 
 [node name="Ground" type="TileMapLayer" parent="." groups=["navigation_source"]]
@@ -663,8 +664,9 @@ position = Vector2(111, 228)
 zoom_speed = 0.5
 default_zoom = 2.0
 
-[node name="Spawns" type="Node" parent="." groups=["SpawnManager"]]
+[node name="Spawns" type="Node2D" parent="." groups=["SpawnManager"]]
 unique_name_in_owner = true
+y_sort_enabled = true
 script = ExtResource("4_ng1ea")
 
 [node name="BatArea7" parent="Spawns" instance=ExtResource("4_5jr8x")]
@@ -905,8 +907,9 @@ mob_scene = ExtResource("5_27jhl")
 mob_count = 3
 respawn_time = 40.0
 
-[node name="Heros" type="Node" parent="."]
+[node name="Heros" type="Node2D" parent="."]
 unique_name_in_owner = true
+y_sort_enabled = true
 
 [node name="Irelia" parent="Heros" instance=ExtResource("6_p7pgw")]
 position = Vector2(130, 188)
@@ -921,7 +924,8 @@ position = Vector2(93, 199)
 [node name="Ted" parent="Heros" instance=ExtResource("8_kuxid")]
 position = Vector2(70, 78)
 
-[node name="MonsterSlot" type="Node" parent="."]
+[node name="MonsterSlot" type="Node2D" parent="."]
+y_sort_enabled = true
 script = ExtResource("3_mslot")
 roster = ExtResource("3_roster")
 spawn_position = Vector2(4509, 1794)

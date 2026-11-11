@@ -8,7 +8,7 @@ data) + `Docs/INSTRUCTOR.md` (architecture guide). README "Current Status & Road
 summary of this file.
 
 **Before the hourly loop works on this tree**: the overhaul is 47 local commits after `885e86a`
-(origin/main), followed by its fix batches (F1 so far); push them first. On the loop's runner re-record the trace baselines before comparing
+(origin/main), followed by its fix batches (F1 and F2 so far); push them first. On the loop's runner re-record the trace baselines before comparing
 anything (see "Verification gate").
 
 ## Done
@@ -66,6 +66,10 @@ anything (see "Verification gate").
       whole-world picture; ultimate toasts with the caster's name, only for casts the player
       sees; dead slots on a fallen hero's card; the monster side's fog, clear colour and slot
       row; the time left per ability on F3 (see Changelog)
+- [x] **Fix batch F2** (fight readability) — rate-limited, softer hurt flash; casts face their
+      target; the cleave crescent outside the grown body; y-sorted characters; stacked in-world
+      HP bars and spread damage numbers; the death beat before the result screen; the Trap
+      Cage's freed entry (see Changelog)
 
 ## In Progress
 
@@ -88,6 +92,10 @@ anything (see "Verification gate").
       retuned `ai_build_order` (only the axe damage moved the result in 6.8).
 - [ ] **AI build size** (decision first): 3T character + 2T base entries keep the AI behind a player
       at the threshold (a P = 6T save wins 71-100 % as heroes at T4). Candidate: 3T + 3T.
+- [ ] **Death moves** — the death beat (F2) is procedural (a hop, the fall backwards, a fade); an
+      authored `death` move per body plan (humanoid, quadruped, flyer) could replace it.
+- [ ] **The fox's HP bar** is a plain HpBar2D outside the `EntityHud` stack (F2): give TedsPet a
+      `Hud` node if its 20x4 bar on top of a hero's bothers.
 - [ ] **Monster instincts** — PreRoundScreen's Lurker / Ambusher / Ravager tiles are built and hidden
       (`show_instincts = false`); balance three `MonsterStrategy` presets per monster (sim), then show.
 - [ ] **Pre-round scroll** — the heroes-side pre-round is about 1,500 px tall; on a 720x1280 phone
@@ -162,6 +170,25 @@ Look and feel:
   so wherever nothing is drawn (past the tile map's edge in a match) the screen is the fog's
   near-black, not Godot's grey. 28 flowers and rocks of the Deko layer that stood outside the
   ground were removed and one in a hole of the plateau's grass became a grass tile.
+- **Hurt flash** (F2): a body flashes at most once every 0.45 s
+  (`CharacterRig.hurt_flash_interval`), and the monsters' flash is a 55 % white mix at its peak
+  (`hurt_flash_gain` 1.55 on `monster_base_class.tscn`; heroes and mobs keep the full white).
+  Options: a longer interval, the same soft flash for heroes, or a flash only on big hits.
+- **Death beat** (F2): a dying hero, the fox and the monster pop up, fall backwards and fade in
+  0.8 s; the result screen follows 0.95 s after the deciding death. The match keeps running during
+  that second (decided, its clock stopped, Pause off): the survivors move on and the camera shake
+  and kill puffs play. The alternative is to freeze the match at the killing blow and let only
+  the corpse move.
+- **Draw order** (F2): characters are y-sorted, so a hero standing behind (north of) a big
+  monster's feet is behind its body. HP bars and level pills draw above every body, so the bar of
+  a hidden hero shows over the monster. Stand-off distances are the next gameplay batch (G1).
+- **Stacked HP bars** (F2): overlapping bars of heroes and the monster rise above each other in
+  rows of 20 px; the monster's bar never moves (the heroes' bars rise above it), and the order
+  among heroes is the order they came on screen. Options: fan them out sideways, or shrink the
+  bars of heroes that are not followed.
+- **Cleave crescent** (F2): it starts outside the monster's drawn body; when he swings upward (at
+  a target behind his body) it is drawn above his head, 16-60 px past the hit reach on the
+  ground, because at the hit reach it would cover his face.
 - **Quarry Change picker**: locked cards only shake (they unlock by hunt count, not for sale).
 - **19.5:9 phones**: a band of about 280 px of plain background sits between the MONSTERS row and
   the lair in the lobby.
@@ -260,6 +287,7 @@ The machine was loaded (load 4-9) for all of these; compare only pairs run back 
 | 7.3 `9e70025` → `22160b7` | 1.609 → 1.543 ms (p99 4.12 → 3.31) | 2.175 → 2.034 ms (p99 5.04 → 3.60) |
 | 7.4 `e656c1d` | 1.535 / 1.526 ms | 1.946 / 2.020 / 2.026 ms |
 | 8.4 `4204a8c` → `d5798bd` | 1.931 → 1.752 ms (p99 5.25 → 4.74) | |
+| F2 `9620a45` → fix batch F2 | 1.626 → 1.648, 1.640 → 1.627 ms (p99 3.27 → 3.55, 4.29 → 4.00) | 2.183 → 2.002, 2.163 → 2.105 ms (p99 4.88 → 4.49, 4.65 → 4.65) |
 
 - Total overhead of the overhaul against `885e86a`: about +0.03 ms with the rigs asleep and about
   +0.5 ms with all 232 awake (the limit was +0.6 ms).
@@ -299,6 +327,67 @@ The machine was loaded (load 4-9) for all of these; compare only pairs run back 
       uses `GameManager.killer_side`; the sim could use the same rule. Low priority.
 
 ## Changelog
+### 2026-11-11 — fix batch F2: fight readability
+Second fix batch after the walkthrough (`walk_match`, made on `d5798bd`). Presentational: the
+determinism traces of all three monsters are byte-identical to `tools/baselines`, plain and with
+every rig awake (Gorrak 2,774, Grount 2,503 and Nyxa 3,252 lines each time; one seed per
+`MONSTER=all [RIGS_AWAKE=1] tools/sim_trace.sh "<seed>" "heroes monster"` call, two sims in
+parallel, joined in the baselines' order).
+
+- **Hurt flash** (medium): `CharacterRig` starts a hurt reaction (flash, squash, hurt move) at
+  most once every `hurt_flash_interval` (0.45 s); it used to restart the 0.18 s flash on every
+  hit, and hits land every 0.15-0.2 s in a five-attacker fight. The monsters' `hurt_flash_gain`
+  is 1.55 (a 55 % white mix at the peak, scene-side on `monster_base_class.tscn`). Rendered
+  Stage III fights, logged per frame: Grount is flashing in 66 of 200 frames and above a 35 %
+  mix in 18 (9 %), never a white silhouette (34 hits); Gorrak 33 and 9 of 135 frames (25 hits).
+  The walkthrough saw a white or whitish Grount in 6 of 9 samples; now 2 of 9 show the soft
+  flash with the art readable.
+- **Cast facing** (low): a cast at a target sets the rig's side from target.x - caster.x and
+  holds it for 0.3 s (`_face_target`). 29 casts with a target clearly to one side checked in the
+  renders 4 frames later: none faced away (the walkthrough: 8 of 457).
+- **Cleave crescent** (low): Front Cleave, Cleaver Chop and Whirlwind's slashes sit outside the
+  caster's drawn body (`AbilityVfx._body_edge`: `CharacterRig.half_width_of` to the sides and
+  downward, the way up to the head top when the swing points up, plus 10 % of the reach). Stage I
+  keeps its spot at half the reach; at Stage III it is 58 px out instead of 40.
+- **Draw order** (medium, presentational part): `World.tscn` y-sorts its characters. The root and
+  the holders `Spawns`, `Heros` and `MonsterSlot` are y-sorted Node2Ds at the origin (the holders
+  were plain Nodes: tree order, the monster over everybody). `SpawnManager` and `MonsterSlot`
+  extend Node2D. No position or gameplay value changed (stand-off distances are batch G1).
+- **Stacked HP bars and pills** (medium): the `Hud` node is an `EntityHud`
+  (`Scripts/entity_hud.gd`) at z 1, above every body. Huds of heroes and the monster rise above
+  the ones they would overlap, a row at a time; the monster's bar ranks first and never moves.
+- **Damage numbers** (medium): a new number takes the next free column, then the row above,
+  when a live number of any target started on its spot less than 0.5 s ago
+  (`VfxManager._free_spot`).
+- **Death beat** (low): a FULL rig on screen leaves its dying entity (`died`, wired in
+  `NPCBaseClass.tscn` and `TedsPet.tscn`), pops up, falls backwards, fades and frees itself after
+  0.8 s; the entity is freed as before. `GameManager` settles the match at the deciding death
+  (outcome, clock, rewards, save, `match_ended`) and shows the result screen
+  `DEATH_BEAT_SEC` = 0.95 s of game time later (rendered: 29 frames at 30 fps after the monster's
+  death and after the last hero's). A timeout shows it at once; a match that is gone by then
+  shows nothing.
+- **Trap Cage** (low): `_process` and `_expire()` skip a trapped enemy that was freed inside the
+  cage (the monster; mobs are parked). The freed monster used to be passed on as a Node2D
+  argument: a script error, and the cage never faded or freed itself.
+- Tests: 600 → 610. `test_fight_readability.gd` (flash share and peak under fire for a hero and
+  the monster, cast facing with a carrier pointing up, the crescent at Stage I and III and aimed
+  up and down, hud stacking and its rank, number spots for eight targets on one point, the
+  World's y-sort, the corpse of a hero, the monster and the fox, none for a mob or off screen),
+  `test_match_result` (the result screen waits for the beat, is dropped after `abort_match`, a
+  timeout has none) and `test_hero_actives` (a caged monster dies and is freed; run against the
+  parent's `trap_cage.gd` it fails with the walkthrough's script error).
+- Gate: lint errors=0; `tools/bench.sh 3 2 900 300` parent / this tree, back to back, twice:
+  frame mean 1.626 / 1.648 and 1.640 / 1.627 ms, p99 3.27 / 3.55 and 4.29 / 4.00 ms; with every
+  rig awake (`... 0 1`) 2.183 / 2.002 and 2.163 / 2.105 ms, p99 4.88 / 4.49 and 4.65 / 4.65 ms.
+  Five earlier rounds on a machine at load 8-12 were noise (the parent between 2.0 and 8.2 ms
+  with the rigs awake). A headless run draws nothing, so the y-sort and the huds cost nothing
+  there; an awake rig pays three comparisons a frame.
+- Muted renders looked at (`impl_previews/fix_F2_*.png`): nine samples of a Stage III Grount
+  fight half a second apart (the monster readable in all nine, a hero in front of his feet drawn
+  in front, the bars in rows, the crescent beside and above him); the monster's death (white pop,
+  fall, fade, then the result screen); all four heroes dying against a Stage III Gorrak (the
+  corpses tip over and fade, DEFEAT follows).
+
 ### 2026-11-11 — fix batch F1: minimap, toasts, dead-hero slots and the monster-side view
 First fix batch after the walkthrough of the overhaul (`walk_match`, made on `d5798bd`).
 Presentational: the determinism traces of all three monsters are byte-identical to

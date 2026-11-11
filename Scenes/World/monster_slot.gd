@@ -1,5 +1,5 @@
 class_name MonsterSlot
-extends Node
+extends Node2D
 
 ## Spawns this match's monster (GameManager.selected_monster_id, resolved
 ## through the roster) as its only child.
@@ -13,7 +13,9 @@ extends Node
 ## slot leaves tools/sim_trace.sh byte-identical. Spawning from World._ready
 ## instead would move the draw behind the camp shuffle and change every match.
 ##
-## A plain Node (like "Heros"): the monster's position is its global position.
+## A Node2D at the origin with y_sort_enabled (like "Heros" and "Spawns", under
+## the y-sorted World): the monster's position is its global position, and it
+## draws behind every character standing in front of its feet.
 
 @export var roster: Roster
 ## Scene position of the old Grount instance; world.gd moves the monster to a

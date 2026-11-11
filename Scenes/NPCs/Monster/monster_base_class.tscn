@@ -11,6 +11,10 @@ preferred_distance = 45.0
 min_distance = 20.0
 taunt_strength = 1.5
 
+[node name="Hud" parent="." index="0"]
+stacks = true
+stack_priority = 1
+
 [node name="HealthBar" parent="Hud" index="0"]
 fill_token = &"danger"
 
@@ -19,6 +23,9 @@ collision_mask = 6
 
 [node name="Body" parent="." index="3"]
 collision_layer = 8
+
+[node name="Rig" parent="." index="7"]
+hurt_flash_gain = 1.55
 
 [node name="LevelBadge" type="Panel" parent="Hud"]
 unique_name_in_owner = true

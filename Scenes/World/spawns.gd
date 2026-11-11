@@ -1,4 +1,4 @@
-extends Node
+extends Node2D
 class_name SpawnManager
 
 ## SpawnManager — drives lazy activation of MobSpawnAreas based on hero

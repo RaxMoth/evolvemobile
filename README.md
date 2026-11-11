@@ -1001,7 +1001,35 @@ Gorrak and the Bat and Hog mobs.
       mixes the art toward white, a white silhouette instead of a brightened
       one, while ordinary tints (a trapped enemy's honey, Last Stand's glow)
       pass through. One shared material keeps a character in one draw and a
-      species' mobs batched together.
+      species' mobs batched together. The hurt reaction (flash, squash and
+      hurt move) starts at most once every `hurt_flash_interval` (0.45 s) per
+      rig: hits land every 0.15-0.2 s on a body four heroes and the fox
+      attack, and the 0.18 s flash used to restart on each, a white
+      silhouette for half the fight. Hits in between still show their number
+      and star. The monsters' rigs flash softer (`hurt_flash_gain` 1.55 on
+      `monster_base_class.tscn`, a 55 % mix at its peak; heroes and mobs keep
+      2.1), so the art and the move stay readable through it. A puppet's
+      `play_hurt()` always plays.
+    - Cast facing: a cast at a target turns the body to the target's side at
+      once (the sign of target.x - caster.x, held for `FACE_HOLD` 0.3 s). The
+      facing carrier turns smoothly and keeps its old side while it points up
+      or down, so Irelia could bash a target 50 px to her right facing left.
+      No target, the caster itself or one within 4 px sideways changes
+      nothing.
+    - Death beat: a FULL rig on screen outlives its entity. `EntityBase.died`
+      (wired to the rig in `NPCBaseClass.tscn`; `TedsPet.tscn` wires the
+      fox's) moves the rig to the entity's parent at the same place and size
+      as a puppet: it pops up, tips over backwards (`DEATH_TILT` 1.45 rad over
+      the first 60 %; a flyer drops to the ground with it), fades from 55 %
+      on and frees itself after `DEATH_TIME` 0.8 s. The entity dies and is
+      freed exactly as before (`visual_root()` is null from then on); a mob's
+      rig (BUDGETED, pooled with the mob) and a rig off screen play nothing.
+      `GameManager` holds the result screen back for it (see Match result
+      screen).
+    - `half_width()` / `half_width_of(node)` is how far the drawn body reaches
+      to either side of its feet (the art's box at the rig's size and the
+      entity's scale; 0 for a node without a rig): a swing effect starts
+      outside it.
     - `EntityBase.visual_root()` is what effects move or tint (Ground Slam's
       hop, Trap Cage's pulse, Vampiric Rebirth's fade): the rig (null only
       for a bare base scene without a body, which draws nothing).
@@ -1057,12 +1085,21 @@ Gorrak and the Bat and Hog mobs.
   instantiation), `profile` and `tier` (FULL for the heroes, the fox and the
   three monsters; the mobs keep the default BUDGETED), with
   `<Id>Body` (the instanced `<id>_body.tscn`) under it. No existing node is
-  reordered and World.tscn's node order and y-sort are untouched (it only
-  gained the ground grade, see Ground Style), so the match and its trace are
-  unchanged.
+  reordered (World.tscn only gained the ground grade, see Ground Style, and
+  its y-sort, below), so the match and its trace are unchanged.
     - The rig's origin is the character's feet at the entity's position (the
-      old sprites were centred on it), so the entity's y-sort now orders by
-      the feet.
+      old sprites were centred on it), so y-sorting orders by the feet.
+    - Draw order: `World.tscn` y-sorts its characters. The root and the three
+      holders `Spawns`, `Heros` and `MonsterSlot` are Node2Ds at the origin
+      with `y_sort_enabled` (the holders were plain Nodes, so everything drew
+      in tree order and the monster, the last child, covered every hero
+      inside its sprite). A character now draws in front of whatever stands
+      behind (north of) its feet: a hero in front of a Stage III monster's
+      feet is fully visible, one behind them is behind its body. The ground
+      layers and `Vfx` sit at y 0 and keep their order under and over the
+      characters (ties keep tree order; `Vfx` by its z 50). Mines, cages,
+      supply drops and corpses are children of the holders and sort the same
+      way.
     - The HP bar's bottom edge sits 6 px above the art: at
       -(round(h x `world_scale`) + 6), where h is `RigBody.art_height()` for
       a walker and, for a flyer (its art floats above its feet), the art's
@@ -1258,6 +1295,19 @@ writes gameplay state, so `tools/sim_trace.sh` stays byte-identical.
   (`PillText` at 12 px); mobs carry none. The world fog
   (`FogOfWarSystem.fog_token`) is `bg_void` at 0.85.
   `test/test_world_palette.gd` checks all three.
+  The `Hud` node is an `EntityHud` (`Scripts/entity_hud.gd`) at z 1, one
+  step above the bodies, so a bar is never hidden behind a character
+  standing in front of its owner. Stacked characters stay readable: a hud
+  with `stacks` on (heroes and the monster; mobs leave it off and never
+  process) rises above every hud it would overlap that ranks before it, a
+  row at a time (its 75x18 `footprint` plus a 2 px gap, eased at 160 px/s),
+  and comes back down once it is clear. The rank is `stack_priority` (the
+  monster's 1: its bar never moves for a hero's) and then the order the
+  huds came on screen, so the bars never swap places while the characters
+  mill around. Four heroes on one spot show four rows instead of one pile.
+  Awake only while the character's ScreenNotifier reports it on screen
+  (wired in `NPCBaseClass.tscn`); presentation only. The fox's 20x4 bar is
+  a plain HpBar2D and does not stack.
 - **Heroes side: `HeroHudCard`** (172x146, one per HeroBase in the "Hero"
   group, tree order):
     - the head portrait: `CharacterDef.head_texture()` (the def's
@@ -1431,14 +1481,22 @@ camera view (grown by 64 px):
   any zoom. It starts just above the target's HP bar, pops, floats up 18 px
   and fades over 0.8 s. Hits on one target within 0.15 s add up in one
   number; a target shows at most 3 numbers (side by side: centre, right,
-  left), and a hit past that adds up in its youngest.
+  left), and a hit past that adds up in its youngest. A new number never
+  starts on top of a live one, whoever it belongs to: when a number younger
+  than 0.5 s started within one column (16 world px, at least 1.5 glyph
+  heights on screen) and one row of its spot, it takes the next free column
+  (right, left, two right, two left), then the row above (three rows).
+  Heroes on one spot hit by one area attack used to show "12 12 12" as one
+  smear; their numbers also start above their own stacked HP bars.
 - **Heal number**: a heal an ability reports (`FxEvents.HEAL_SHOT`,
   `CHAIN_HEAL`, `KIT_PICKED`, `RAMPAGE`: River's staff, Chain Heal, the
   supply drop, Grount's Rampage) shows as "+N" (the glyph sheet's "+" cell, then the digits) in the
   palette's `heal` green, the HP actually healed (a heal on a full bar shows
   nothing). Heals add up with heals only, in their own number beside the
   damage numbers (`show_heal`, `heals_on`).
-- **Kill**: on a killing blow, 4 puffs (`fx_puff.svg`) and a star.
+- **Kill**: on a killing blow, 4 puffs (`fx_puff.svg`) and a star; a hero,
+  the fox and the monster also play the rig's death beat (see Character
+  Rigs).
 - **Hit flash**: the CharacterRig's hurt reaction rendered white by the
   shared hit flash shader (see Character Rigs). VfxManager does not flash.
 - **Screen shake**: camera trauma (`GameCamera.add_trauma`): 0.6 when the
@@ -1534,7 +1592,7 @@ changed (the trace is byte-identical).
 
 | Monster | Ability (cue) | Look |
 |---|---|---|
-| Grount | Front Cleave (`cleave`) | a cone telegraph (0.22 s) at the cone's live angle and reach (Titan Form's reach included), a big slash crescent through it at body height (0.14 s, `grount_light`), two dust clouds at its far edge |
+| Grount | Front Cleave (`cleave`) | a cone telegraph (0.22 s) at the cone's live angle and reach (Titan Form's reach included), a big slash crescent through it at body height (0.14 s, `grount_light`) that starts outside his drawn body (its half-width to the sides and downward, up to his head top when he swings upward, plus 10 % of the reach: half the reach at Stage I, 58 px out at Stage III, where the old spot was his own face), two dust clouds at its far edge |
 | Grount | Ram Dash (`ram_dash`) | `DASH_STARTED`: a lane telegraph to the end point at the hit radius (Trample: 70 px), its bar crossing with the dash; a trail follows him while `is_dashing`: a dust cloud every 44 px (at the lane's edges, side to side, under Trample) and two speed lines at body height; `DASH_ENDED`: a skid cloud and trauma 0.15. At most 6 dust clouds a cast |
 | Grount | Ground Slam (`slam`) | `SLAM_LEAP`: the landing circle telegraph fills over the airtime, dust at take-off; `SLAM_LANDED`: a crack left 3.5 s, a 3 px shockwave ring to the radius and a darker one after it, four dust clouds, four rocks, a 0.14 s star, trauma 0.35 |
 | Grount | Evolution (`rampage`) | Rampage, `RAMPAGE` (a hero kill): a danger ring and a darker one at his feet, an anger vein above his head, four amber sparks rising (the cooldowns back), a star, trauma 0.2, and VfxManager's "+N" for the HP healed |
@@ -1599,7 +1657,9 @@ attack move. Off screen or over the budget nothing is drawn or counted, and
 VfxManager's impact star and number show either way. The F3 "Ability FX" line
 counts them as `swings`.
 
-Planned: evolution transformation effects, death animations.
+Planned: evolution transformation effects. Death is the rig's procedural
+death beat (see Character Rigs); authored death moves per body plan are not
+built.
 
 ---
 
@@ -2375,6 +2435,16 @@ ALWAYS. It replaced the old `MatchResult` overlay (deleted in 8.3) with the same
 `populate(result)` after the rewards are saved. Previews of the design:
 `result_heroes.png`, `result_monster.png`, `result_heroes_defeat.png`.
 
+**Death beat**: a death that decides the match (the monster's, or the last
+hero's) settles everything at once, as before: the outcome, the clock, the
+rewards, the save and `match_ended`. The result screen and the pause follow
+`GameManager.DEATH_BEAT_SEC` (0.95 s of game time: the rig's 0.8 s fall and
+fade plus a breath) later, so the monster no longer vanishes under a result
+screen that pops in the same frame. During the beat the match runs on,
+decided: its clock is stopped and the HUD's Pause and the back button do
+nothing (`is_match_active()` is false). A match that is gone by then (a
+scene change: `abort_match()`) shows nothing. A timeout has no beat.
+
 - **Ribbon**: `MatchRewards.outcome_label` (VICTORY / DEFEAT / TIME UP, 54 px
   `BannerTitle`) on `BannerVictory` (copper) for a heroes win,
   `BannerVictoryMonster` (crimson) for a monster win and `BannerDefeat` (grey
@@ -2698,7 +2768,7 @@ res://
 ├─ Scripts/ (autoloads and shared systems: globals, types, game_utils,
 │  │         combat_events, event_bus, damage_packet, team_registry +
 │  │         team_blackboard, entity_registry, tick_scheduler, hp_bar_2d,
-│  │         ring_pulse, audio_manager, analytics_sink, persisted_data,
+│  │         entity_hud, ring_pulse, audio_manager, analytics_sink, persisted_data,
 │  │         locale_settings, audio_settings, game_manager, match_config,
 │  │         match_rewards, monster_strategy, back_button, spawn_zone)
 │  ├─ MetaSkills/ (MetaSkillManager, MetaSkillTree, MetaSkillNode; skill_tree_data_v2.gd: the trees' seed data)
@@ -2900,12 +2970,15 @@ position (on the target, in its parent's space), `cage_radius` (the ability's
 `duration` (the expiry timer, so Sturdy Cage lengthens it) and the spikes.
 `_ready` then sizes the collision shape, traps the enemies inside and starts
 the timer. Until 6.3 the cage entered the tree first: it scanned at its
-parent's origin (World's `Heros` is a plain Node, so the world origin by the
-heroes' start) with the scene's 150 px, moved onto the target afterwards and
+parent's origin (World's `Heros` sits at the world origin, by the heroes'
+start) with the scene's 150 px, moved onto the target afterwards and
 then shrank to the ability's 2 px, so it trapped (almost) nothing. A trapped
 enemy that reaches the bars is put back just inside the edge it tried to leave
 by (the push used to mirror it to the opposite side). `test_hero_actives`
-covers both.
+covers both. A trapped enemy that is freed inside the cage (the monster when
+it dies; mobs are parked, not freed) is skipped: `_expire()` used to pass it
+on as a Node2D argument, a script error that left the cage unfaded and never
+freed (`test_trap_cage_outlives_a_target_freed_inside_it`).
 
 Balance check (`SAVE=<save.cfg> tools/sim.sh 24 heroes 6`: every match starts
 from that save; 5.4, against a fresh-save Grount). A fresh save: heroes win 33%.

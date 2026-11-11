@@ -108,6 +108,42 @@ func test_trap_cage_traps_the_enemies_around_its_target() -> void:
 		n.queue_free()
 
 
+## The monster dies and is freed inside a cage (mobs are parked, not freed):
+## the cage keeps running and expiring without a script error. _expire() used
+## to pass the freed monster to _kill_sprite_tween ("previously freed" is no
+## Node2D argument), which aborted it before the fade, so the cage never
+## freed itself.
+func test_trap_cage_outlives_a_target_freed_inside_it() -> void:
+	var ted := await spawn_frozen(TED, Vector2(0, 0))
+	var grount := await spawn_frozen(GROUNT, Vector2(2000, 0))
+	var hog := await spawn_frozen(HOG, Vector2(2080, 0))
+	var ult: AbilityBase = (ted.get_node("AbilitySystem") as AbilitySystem).ultimate_ability
+	var before: Array[Node] = get_children()
+	ult.execute(ted, grount)
+	var cage := _new_cage(self, before)
+	assert_true(cage != null and cage.trapped_enemies.has(grount) and cage.trapped_enemies.has(hog), "both are caged")
+	if cage == null:
+		for n: Node in [ted, grount, hog]:
+			n.queue_free()
+		return
+	EventBus.deal_damage(ted, grount, 999999.0)
+	await wait_frames(3)
+	assert_false(is_instance_valid(grount), "the dead monster is freed")
+	# The cage's own frames pass the freed entry by; the hog stays held.
+	hog.global_position = cage.global_position + Vector2(300, 0)
+	await wait_frames(2)
+	assert_true(hog.global_position.distance_to(cage.global_position) < cage.cage_radius, "the hog is still held")
+	cage._expire()
+	assert_false(cage.cage_active, "the cage opens")
+	var hog_body := (hog as EntityBase).visual_root()
+	assert_true(hog_body.modulate.is_equal_approx(Color(1.0, 1.0, 1.0, hog_body.modulate.a)), "the hog's tint is cleared")
+	await wait_seconds(0.7)
+	assert_false(is_instance_valid(cage), "it fades and frees itself")
+	for n: Node in [ted, hog]:
+		n.queue_free()
+	await wait_frames(1)
+
+
 ## A caster under a moved Node2D: the cage still lands on the target in world
 ## space (outside the tree, global_position would be the parent-local one).
 func test_trap_cage_lands_on_the_target_under_a_moved_parent() -> void:

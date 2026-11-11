@@ -23,6 +23,9 @@ script = ExtResource("2_h674b")
 unique_name_in_owner = true
 script = ExtResource("2_c2olh")
 
+[node name="Hud" parent="." index="2"]
+stacks = true
+
 [node name="DetectionArea" parent="." index="4"]
 collision_mask = 12
 

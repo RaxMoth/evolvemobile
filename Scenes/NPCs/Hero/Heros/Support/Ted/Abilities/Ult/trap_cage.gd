@@ -52,9 +52,11 @@ func _process(delta: float) -> void:
 			_spike_timer -= SPIKE_INTERVAL
 			_spike()
 	
-	# Force trapped enemies to stay inside
+	# Force trapped enemies to stay inside. A freed entry (the monster died
+	# and was freed inside the cage; mobs are parked, not freed) is skipped
+	# before any typed call: a freed object is no Node2D argument.
 	for enemy in trapped_enemies:
-		if not _still_trapped(enemy) or _is_cc_immune(enemy):
+		if not is_instance_valid(enemy) or not _still_trapped(enemy) or _is_cc_immune(enemy):
 			continue
 		
 		var dist = enemy.global_position.distance_to(global_position)
@@ -197,9 +199,17 @@ func _expire() -> void:
 	cage_active = false
 	EventBus.notify_ability_event(self, source_ability, FxEvents.CAGE_OPENED, global_position, cage_radius)
 	
-	# Stop the trapped enemies' tint (each back to its own colours)
+	# Stop the trapped enemies' tint (each back to its own colours). An enemy
+	# freed inside the cage has no body left to clear; passing it on used to
+	# abort here ("previously freed" argument), so the cage never faded or
+	# freed itself. Its tween is stopped with whatever else is left below.
 	for enemy in trapped_enemies:
-		_kill_sprite_tween(enemy)
+		if is_instance_valid(enemy):
+			_kill_sprite_tween(enemy)
+	for tween: Tween in _sprite_tweens.values():
+		if tween and tween.is_valid():
+			tween.kill()
+	_sprite_tweens.clear()
 	
 	# Fade out
 	var tween = create_tween()

@@ -9,6 +9,11 @@ extends Node
 ##   • All heroes dead   → MONSTER win  (heroes-side LOSS for the player)
 ##   • Monster dead      → HEROES win   (heroes-side WIN for the player)
 ##   • 10-min timeout    → MONSTER win  (heroes failed to find them in time)
+##
+## A death that decides the match settles everything at once (outcome, clock,
+## rewards, save, match_ended), then the match runs on for DEATH_BEAT_SEC so
+## the monster's or the last hero's death beat plays (CharacterRig) before the
+## result screen comes up over the paused tree. A timeout shows it at once.
 
 signal match_ended(winner: String, time: float)
 
@@ -16,6 +21,10 @@ const MATCH_RESULT_SCENE: PackedScene = preload("res://Scenes/UI/Screens/MatchRe
 
 # Hard time cap — README "Design Debt: no clear loss condition timer" → fixed.
 const DEFAULT_MAX_DURATION_SEC: float = 600.0  # 10 minutes
+## Game seconds between the death that decided the match and the result
+## screen: the fall and fade of the monster or the last hero
+## (CharacterRig.DEATH_TIME) and a breath.
+const DEATH_BEAT_SEC: float = CharacterRig.DEATH_TIME + 0.15
 
 # ============================================
 # State
@@ -47,6 +56,9 @@ var _match_time: float = 0.0
 ## Largest frame delta the clock accepts (a resume from background can deliver
 ## one huge delta).
 const MAX_CLOCK_STEP: float = 0.25
+## Counts the matches started and aborted: a result held back for the death
+## beat is dropped when its match is no longer the current one.
+var _match_serial: int = 0
 
 var heroes_alive: int = 0
 var monster_alive: bool = false
@@ -280,6 +292,7 @@ func start_new_match() -> void:
 	## Called by world.gd on each World scene load (initial launch + every
 	## "Play Again"). Resets per-match state so kills/timer don't carry
 	## over from a previous match.
+	_match_serial += 1
 	_match_time = 0.0
 	_match_active = true
 	match_ended_flag = false
@@ -315,6 +328,7 @@ func _elapsed() -> float:
 ## World is leaving the tree without a decided match (scene change): stop the
 ## clock so nothing ends a match that no longer exists.
 func abort_match() -> void:
+	_match_serial += 1
 	_match_active = false
 
 
@@ -387,12 +401,12 @@ func _on_entity_died(entity: Node, killer: Node) -> void:
 		return
 	if entity is MonsterBase:
 		monster_alive = false
-		_end_match_with_outcome(MatchRewards.Outcome.WIN)
+		_end_match_with_outcome(MatchRewards.Outcome.WIN, DEATH_BEAT_SEC)
 	elif entity is HeroBase:
 		heroes_alive -= 1
 		_fallen_hero_ids.append(_hero_id_from(entity))
 		if heroes_alive <= 0:
-			_end_match_with_outcome(MatchRewards.Outcome.LOSS)
+			_end_match_with_outcome(MatchRewards.Outcome.LOSS, DEATH_BEAT_SEC)
 
 
 # ============================================
@@ -404,7 +418,10 @@ func _end_match_timeout() -> void:
 	_end_match_with_outcome(MatchRewards.Outcome.TIMEOUT)
 
 
-func _end_match_with_outcome(outcome: int) -> void:
+## Ends the match now: the result, the rewards, the save and match_ended.
+## `beat` > 0 (a deciding death) holds the result screen and the pause back
+## that many game seconds; nothing that happens in between changes the result.
+func _end_match_with_outcome(outcome: int, beat: float = 0.0) -> void:
 	if match_ended_flag:
 		return
 	match_ended_flag = true
@@ -436,6 +453,22 @@ func _end_match_with_outcome(outcome: int) -> void:
 		match_ended.emit("Monster", duration)
 
 	_apply_rewards_to_save(result)
+	if beat > 0.0:
+		_show_result_after(result, beat)
+		return
+	_show_result_screen(result)
+	get_tree().paused = true
+
+
+## The death beat: the decided match runs on (its clock stopped, the HUD's
+## pause off) for `beat` game seconds, then the result screen comes up over
+## the paused tree. Dropped when that World is gone by then (abort_match) or a
+## new match began.
+func _show_result_after(result: MatchRewards.Result, beat: float) -> void:
+	var serial := _match_serial
+	await get_tree().create_timer(beat, false).timeout
+	if serial != _match_serial or not match_ended_flag:
+		return
 	_show_result_screen(result)
 	get_tree().paused = true
 

@@ -163,6 +163,9 @@ const STUN_STAR_SIZE: float = 13.0
 ## A swarm's bats circle this share of the way from the caster's feet (its
 ## ground ring's centre) up to its body: over the ring, at flying height.
 const SWARM_LIFT_SHARE: float = 0.5
+## A cleave's crescent sits at least the caster's drawn half-width plus this
+## fraction of the reach out from its swing point.
+const CLEAVE_CLEAR: float = 0.1
 ## Seconds a cleave's or a screech's cone telegraph shows.
 const CONE_FLASH: float = 0.22
 ## Seconds Vampiric Rebirth's bats take to fly to the re-form point.
@@ -1061,7 +1064,10 @@ func _play_chain_heal(ally: Node2D, from: Vector2, fx: AbilityFxRecipe) -> void:
 ## telegraph), a big slash crescent cuts through it at body height
 ## (FLASH_LIFE) and dust kicks up at its far edge. Whirlwind (a full-circle
 ## cleave): a circle telegraph, four slashes spinning all around, a ring at
-## the reach and dust at the rim.
+## the reach and dust at the rim. The crescents sit outside the caster's
+## drawn body (_body_edge plus CLEAVE_CLEAR of the reach): the reach stays
+## 80 px while a Stage III body grows to 50 px either side and 133 px tall,
+## so the old spot at half the reach was the monster's own face.
 func _play_cleave(c: Node2D, cleave: BullFrontCleave, fx: AbilityFxRecipe) -> void:
 	if cleave == null:
 		return
@@ -1071,21 +1077,37 @@ func _play_cleave(c: Node2D, cleave: BullFrontCleave, fx: AbilityFxRecipe) -> vo
 	var accent := _palette.color(fx.accent)
 	var feet := c.global_position
 	var swing := feet.lerp(CharacterRig.mid_body_of(c), 0.6)
+	var clear: float = _body_edge(c, swing, ang) + reach * CLEAVE_CLEAR
 	_telegraph_cone(feet, ang, cleave.cone_angle, reach, CONE_FLASH, accent)
 	if cleave.cone_angle >= BullFrontCleave.FULL_CIRCLE:
 		for k in 4:
 			var a: float = ang + TAU * float(k) / 4.0
-			var slash: int = over.spawn(FxTex.SLASH, swing + Vector2.from_angle(a) * reach * 0.55, reach * 0.6,
+			var out: float = maxf(reach * 0.55, _body_edge(c, swing, a) + reach * CLEAVE_CLEAR)
+			var slash: int = over.spawn(FxTex.SLASH, swing + Vector2.from_angle(a) * out, reach * 0.6,
 					reach * 0.6, FLASH_LIFE, accent, FxSpriteBuffer.Anim.SWEEP, a)
 			over.spin[slash] = 9.0
 		_ring(feet, reach * 0.4, reach, 3.0, accent, 0.3)
 		_dust(feet, 3, 10.0 * fx.size, reach * 0.9)
 	else:
-		var slash: int = over.spawn(FxTex.SLASH, swing + Vector2.from_angle(ang) * reach * 0.5, reach * 0.85,
+		var slash: int = over.spawn(FxTex.SLASH, swing + Vector2.from_angle(ang) * maxf(reach * 0.5, clear), reach * 0.85,
 				reach * 0.85, FLASH_LIFE, accent, FxSpriteBuffer.Anim.SWEEP, ang + _rng.randf_range(-0.15, 0.15))
 		over.flip[slash] = 1.0 if _rng.randf() < 0.5 else -1.0
 		_dust(feet + Vector2.from_angle(ang) * reach * 0.8, 2, 9.0 * fx.size, 18.0)
 	_shake(fx.trauma)
+
+
+## How far `c`'s drawn body reaches from `from` (a point inside it, the
+## swing point) along `angle`: its half-width to either side and downward
+## (targets in front of its feet stand close), growing to the way up to its
+## head top as the angle turns upward (a quarter ellipse), where a target
+## stands behind the tall body. 0 for a node without a rig.
+func _body_edge(c: Node2D, from: Vector2, angle: float) -> float:
+	var half: float = CharacterRig.half_width_of(c)
+	var d := Vector2.from_angle(angle)
+	if half <= 0.0 or d.y >= 0.0:
+		return half
+	var up: float = maxf(from.y - CharacterRig.head_top_of(c).y, half)
+	return 1.0 / sqrt(d.x * d.x / (half * half) + d.y * d.y / (up * up))
 
 
 ## Sonic Screech: three ink-rimmed sound arcs roll out of Nyxa's body

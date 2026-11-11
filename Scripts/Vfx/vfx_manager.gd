@@ -32,7 +32,10 @@ extends Node2D
 ## hits outside the camera view are skipped, at most MAX_HITS_PER_FRAME hits
 ## per frame spawn sprites, hits on one target within MERGE_WINDOW add up in
 ## one number (heals in their own) and a target shows at most
-## NUMBERS_PER_TARGET numbers. Nothing is allocated per frame. The F3 overlay shows the pools (debug_line()).
+## NUMBERS_PER_TARGET numbers. A new number never starts on top of a live one,
+## whoever it belongs to: it takes the next free column beside it, then the
+## row above (stacked heroes hit by one area attack). Nothing is allocated per
+## frame. The F3 overlay shows the pools (debug_line()).
 ##
 ## DETERMINISM (tools/sim_trace.sh stays byte-identical): it never writes
 ## gameplay state and draws every random number from its private `_rng`.
@@ -53,6 +56,12 @@ const CULL_MARGIN: float = 64.0
 const NUMBER_LIFE: float = 0.8
 ## Seconds of a number's pop (also after a merge adds to it).
 const NUMBER_POP: float = 0.12
+## The columns (in column widths beside a number's own start) and the rows
+## above it a new number tries, nearest first, until one is free of live
+## numbers younger than NUMBER_CROWD_AGE (older ones have risen and fade).
+const NUMBER_COLUMNS: Array[float] = [0.0, 1.0, -1.0, 2.0, -2.0]
+const NUMBER_ROWS: int = 3
+const NUMBER_CROWD_AGE: float = 0.5
 const SPARKS_PER_HIT: int = 2
 ## At most 6 puffs per effect (the Phase 7 toning-down rules).
 const PUFFS_PER_KILL: int = 4
@@ -77,7 +86,9 @@ const MAX_DIGITS: int = 9
 ## World px above the target's HP bar where a number starts.
 @export var number_lift: float = 6.0
 ## World px a target's second number starts right of its first, its third
-## left of it, so numbers close together in time do not overlap.
+## left of it, so numbers close together in time do not overlap: the least
+## width of a number column (a zoomed-out view widens it to 1.5 glyph heights
+## on screen, where a number keeps its size).
 @export var number_spread: float = 16.0
 ## A hit of at least this much is big: a larger gold number, a bigger star and
 ## trauma when it hits a hero or the monster.
@@ -316,7 +327,8 @@ func _number_anchor(target: Node2D) -> Vector2:
 ## A hit within MERGE_WINDOW of the target's youngest number of its kind
 ## (damage or heal), or one past its NUMBERS_PER_TARGET, adds up in that
 ## number (which pops again); otherwise it takes the oldest slot, beside the
-## target's other numbers (number_spread).
+## target's other numbers (number_spread) and clear of every other live
+## number (_free_spot).
 func _add_number(target: Node2D, at: Vector2, amount: float, ours: bool, heal: bool = false) -> void:
 	var id: int = target.get_instance_id()
 	var kind: int = 1 if heal else 0
@@ -342,10 +354,38 @@ func _add_number(target: Node2D, at: Vector2, amount: float, ours: bool, heal: b
 	_n_age[j] = 0.0
 	_n_pop[j] = 0.0
 	var side: float = 0.0 if on_target == 0 else (1.0 if on_target == 1 else -1.0)
-	_n_pos[j] = at + Vector2(side * number_spread + _rng.randf_range(-2.0, 2.0), 0.0)
+	_n_pos[j] = _free_spot(at, side, j) + Vector2(_rng.randf_range(-2.0, 2.0), 0.0)
 	_n_target[j] = id
 	_n_ours[j] = 1 if ours else 0
 	_n_heal[j] = kind
+
+
+## Where a new number starts: column `side` of its target's anchor `at` (0,
+## then right, then left), unless a live number of any target started there
+## less than NUMBER_CROWD_AGE ago; then the nearest free column beside it,
+## then the rows above. Characters standing on one spot used to get their
+## numbers on one point ("12 12 12" as one smear). With every spot taken it
+## keeps the target's own column. `slot` is the new number's own slot.
+func _free_spot(at: Vector2, side: float, slot: int) -> Vector2:
+	var column: float = maxf(number_spread, 1.5 * number_px / _view_zoom)
+	var row: float = (number_px + 4.0) / _view_zoom
+	for r in NUMBER_ROWS:
+		for c: float in NUMBER_COLUMNS:
+			var spot := at + Vector2((side + c) * column, -float(r) * row)
+			if not _spot_taken(spot, column * 0.7, row * 0.9, slot):
+				return spot
+	return at + Vector2(side * column, 0.0)
+
+
+## True when a live number younger than NUMBER_CROWD_AGE (not `slot`'s)
+## started within `dx` and `dy` (world px) of `spot`: nearer than the next
+## column or row, whatever the start's few px of jitter.
+func _spot_taken(spot: Vector2, dx: float, dy: float, slot: int) -> bool:
+	for i in NUMBER_CAP:
+		if i != slot and _n_age[i] < NUMBER_CROWD_AGE and absf(_n_pos[i].x - spot.x) < dx \
+				and absf(_n_pos[i].y - spot.y) < dy:
+			return true
+	return false
 
 
 # ============================================

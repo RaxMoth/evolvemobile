@@ -390,3 +390,108 @@ func test_match_end_pays_the_played_sides_kills() -> void:
 	GameManager._participating_hero_ids.assign(heroes_before)
 	GameManager._fallen_hero_ids.clear()
 	await wait_frames(2)
+
+
+## The MatchResultScreen GameManager put up (a child of the root), or null.
+func _shown_result() -> MatchResultScreen:
+	for node in get_tree().root.get_children():
+		if node is MatchResultScreen and not node.is_queued_for_deletion():
+			return node as MatchResultScreen
+	return null
+
+
+## A death that decides the match: the outcome, the clock, the rewards, the
+## save and match_ended are settled at the death, as before; the result
+## screen and the pause follow GameManager.DEATH_BEAT_SEC of game time later,
+## after the death beat (README "Death beat"). A match that is gone by then (a
+## scene change: abort_match) shows nothing; a timeout has no beat.
+func test_result_screen_waits_for_the_death_beat() -> void:
+	if not require_isolated():
+		return
+	var saved := {
+		"active": GameManager._match_active, "ended": GameManager.match_ended_flag,
+		"alive": GameManager.heroes_alive, "time": GameManager._match_time,
+		"kills": [GameManager.mob_kills, GameManager.hero_mob_kills, GameManager.monster_mob_kills],
+		"threat": GameManager.match_threat, "monster": GameManager._monster_id,
+		"monster_alive": GameManager.monster_alive, "stage": GameManager.monster_stage_reached,
+	}
+	var heroes_before: Array[StringName] = GameManager._participating_hero_ids.duplicate()
+	GameManager.chosen_side = HEROES
+	GameManager._participating_hero_ids.assign(SQUAD)
+	GameManager._fallen_hero_ids.clear()
+	GameManager._monster_id = &"grount"
+	GameManager.match_threat = 0
+	GameManager.hero_mob_kills = 7
+	GameManager.heroes_alive = 4
+	GameManager.monster_stage_reached = 1
+	# No victory jingle: the headless dummy driver never reclaims a playback.
+	GameManager.match_ended.disconnect(AudioManager._on_match_ended)
+	var ended: Array = []
+	var on_end := func(winner: String, time: float) -> void: ended.append([winner, time])
+	GameManager.match_ended.connect(on_end)
+	var grount := MonsterBase.new()
+	var expected := MatchRewards.compute(HEROES, WIN, 125.0, 7, 4, 1, 0)
+	# 1: the monster dies, then the World goes away inside the beat.
+	GameManager._match_time = 125.0
+	GameManager._match_active = true
+	GameManager.match_ended_flag = false
+	GameManager._on_entity_died(grount, null)
+	assert_eq(ended, [["Heroes", 125.0]], "match_ended at the death, with the death's clock")
+	assert_false(GameManager.is_match_active(), "decided at the death")
+	assert_eq(PersistedData.get_currency(PersistedData.STEEL), expected.steel, "the rewards are in the save at the death")
+	assert_true(_shown_result() == null, "no result screen yet")
+	assert_false(get_tree().paused, "the match runs on for the beat")
+	GameManager.abort_match()
+	await wait_seconds(GameManager.DEATH_BEAT_SEC + 0.2)
+	assert_true(_shown_result() == null, "a match that is gone shows no result")
+	assert_false(get_tree().paused, "and pauses nothing")
+	# 2: the monster dies and the beat plays out.
+	GameManager._match_time = 125.0
+	GameManager._match_active = true
+	GameManager.match_ended_flag = false
+	GameManager._on_entity_died(grount, null)
+	assert_eq(ended.size(), 2, "the second match ends at its death")
+	await wait_seconds(GameManager.DEATH_BEAT_SEC - 0.15)
+	assert_true(_shown_result() == null, "still inside the beat")
+	assert_false(get_tree().paused, "still running")
+	assert_near(GameManager.get_match_elapsed(), 125.0, 0.001, "the clock stopped at the death")
+	await get_tree().create_timer(0.3).timeout
+	var screen := _shown_result()
+	assert_true(screen != null, "the result screen follows the death beat")
+	assert_true(get_tree().paused, "over the paused match")
+	assert_true(GameManager.DEATH_BEAT_SEC >= CharacterRig.DEATH_TIME, "the beat covers the rig's fall and fade")
+	if screen != null:
+		assert_eq([screen.result.outcome, screen.result.steel, screen.result.gold], [WIN, expected.steel, expected.gold],
+				"the result settled at the death")
+		assert_near(screen.result.duration_sec, 125.0, 0.001, "with the death's clock")
+		screen.queue_free()
+	get_tree().paused = false
+	await wait_frames(1)
+	# 3: a timeout shows the result at once.
+	GameManager._match_time = 125.0
+	GameManager._match_active = true
+	GameManager.match_ended_flag = false
+	GameManager._end_match_timeout()
+	screen = _shown_result()
+	assert_true(screen != null and get_tree().paused, "a timeout has no death beat")
+	if screen != null:
+		screen.queue_free()
+	get_tree().paused = false
+	GameManager.match_ended.disconnect(on_end)
+	GameManager.match_ended.connect(AudioManager._on_match_ended)
+	grount.free()
+	GameManager._match_active = saved["active"]
+	GameManager.match_ended_flag = saved["ended"]
+	GameManager.heroes_alive = saved["alive"]
+	GameManager._match_time = saved["time"]
+	var kills: Array = saved["kills"]
+	GameManager.mob_kills = kills[0]
+	GameManager.hero_mob_kills = kills[1]
+	GameManager.monster_mob_kills = kills[2]
+	GameManager.match_threat = saved["threat"]
+	GameManager._monster_id = saved["monster"]
+	GameManager.monster_alive = saved["monster_alive"]
+	GameManager.monster_stage_reached = saved["stage"]
+	GameManager._participating_hero_ids.assign(heroes_before)
+	GameManager._fallen_hero_ids.clear()
+	await wait_frames(2)

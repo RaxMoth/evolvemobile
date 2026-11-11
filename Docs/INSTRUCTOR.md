@@ -505,7 +505,25 @@ capped. F3 shows the pool use and the cost in ms.
 ### 8. HpBar2D
 
 In-world HP bars are one `Node2D` with a `_draw` (`Scripts/hp_bar_2d.gd`), written only through
-`EntityBase.set_hp_display`. Mobs hide the bar while full.
+`EntityBase.set_hp_display`. Mobs hide the bar while full. The bar and the level pill sit in the
+entity's `Hud` node, an `EntityHud` (`Scripts/entity_hud.gd`): it draws one z step above the
+bodies, and the huds of heroes and the monster (`stacks`) rise above each other when they would
+overlap, so four heroes on one spot show four rows.
+
+### 9. Fight readability (fix batch F2)
+
+- **Draw order**: `World.tscn` y-sorts its characters (the root and the holders `Spawns`, `Heros`,
+  `MonsterSlot` are y-sorted Node2Ds at the origin). Add a new holder the same way, or its
+  children draw in tree order again.
+- **Hurt flash**: `CharacterRig` starts a hurt reaction at most every `hurt_flash_interval`; the
+  monsters' `hurt_flash_gain` is lower. Do not flash from anywhere else.
+- **Cast facing**: the rig takes its side from the cast's target for 0.3 s, then from the facing
+  carrier again.
+- **Death beat**: on `died` a FULL rig on screen leaves its entity and plays the fall as a puppet
+  (`CharacterRig._on_entity_died`); the entity is freed as before. `GameManager` settles the
+  match at the deciding death and shows the result screen `DEATH_BEAT_SEC` later. Anything that
+  keeps a reference to a dead entity across frames must check `is_instance_valid` before passing
+  it on (the Trap Cage did not).
 
 ---
 

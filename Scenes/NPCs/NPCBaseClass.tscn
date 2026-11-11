@@ -1,4 +1,4 @@
-[gd_scene load_steps=12 format=3 uid="uid://cnmv786k3qi1c"]
+[gd_scene load_steps=13 format=3 uid="uid://cnmv786k3qi1c"]
 
 [ext_resource type="Script" uid="uid://blo8rclfc3t6r" path="res://Scenes/NPCs/npc_base_class.gd" id="1_517tc"]
 [ext_resource type="Texture2D" uid="uid://b8hlhq44dx3qv" path="res://Assets/icon.svg" id="2_okm3t"]
@@ -9,6 +9,7 @@
 [ext_resource type="Script" path="res://Scripts/hp_bar_2d.gd" id="7_hpbar"]
 [ext_resource type="Script" path="res://Scripts/Rig/character_rig.gd" id="8_rig"]
 [ext_resource type="Texture2D" uid="uid://cygm1ijrf37j7" path="res://Assets/Characters/shadow_blob.svg" id="9_shadow"]
+[ext_resource type="Script" uid="uid://bj7tq6my540a2" path="res://Scripts/entity_hud.gd" id="10_hud"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_50nec"]
 resource_local_to_scene = true
@@ -22,7 +23,9 @@ script = ExtResource("1_517tc")
 
 [node name="Hud" type="Node2D" parent="."]
 unique_name_in_owner = true
+z_index = 1
 position = Vector2(0, -40)
+script = ExtResource("10_hud")
 
 [node name="HealthBar" type="Node2D" parent="Hud"]
 unique_name_in_owner = true
@@ -152,5 +155,8 @@ texture = ExtResource("9_shadow")
 [connection signal="screen_exited" from="ScreenNotifier" to="." method="_on_screen_exited"]
 [connection signal="screen_entered" from="ScreenNotifier" to="Rig" method="_on_screen_entered"]
 [connection signal="screen_exited" from="ScreenNotifier" to="Rig" method="_on_screen_exited"]
+[connection signal="screen_entered" from="ScreenNotifier" to="Hud" method="_on_screen_entered"]
+[connection signal="screen_exited" from="ScreenNotifier" to="Hud" method="_on_screen_exited"]
+[connection signal="died" from="." to="Rig" method="_on_entity_died"]
 [connection signal="ability_cast" from="." to="Rig" method="_on_entity_ability_cast"]
 [connection signal="damaged" from="." to="Rig" method="_on_entity_damaged"]

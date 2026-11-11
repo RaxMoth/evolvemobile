@@ -62,10 +62,24 @@ extends Node2D
 ## Without an entity (menus, previews) it runs in puppet mode: always awake,
 ## facing right, `puppet_speed` walks it in place, play_move() for emotes.
 ##
+## Hurt reaction: a hit flashes and squashes the body (and plays the hurt
+## move) at most once every `hurt_flash_interval`; hits in between only show
+## VfxManager's numbers and stars, so a body five attackers hit keeps its art
+## and its moves readable. A cast at a target turns the body to the target's
+## side at once (the facing carrier turns smoothly and holds its side while it
+## points up or down).
+##
+## Death beat: a FULL rig on screen outlives its entity (`died`, scene-wired):
+## it moves to the entity's parent as a puppet, tips over and fades for
+## DEATH_TIME, then frees itself. The entity dies and is freed exactly as
+## before; mobs (BUDGETED, pooled) keep VfxManager's puff alone.
+##
 ## mid_body() (and the static mid_body_of) is the middle of the drawn body, the
 ## origin and end of line, beam and projectile EFFECTS: the entity's position
 ## is its feet. head_top() (head_top_of) is the top of the drawn body, where a
-## lasting status mark floats.
+## lasting status mark floats. half_width() (half_width_of) is how far the
+## drawn body reaches to either side of its feet: a swing effect starts
+## outside it.
 
 enum Tier { FULL, BUDGETED }
 
@@ -94,6 +108,20 @@ const CH_REACH_B := 14
 ## Slowest and fastest a leap's pose is stretched to its airtime.
 const MIN_MOVE_RATE := 0.25
 const MAX_MOVE_RATE := 4.0
+## Seconds a cast at a target holds the body on the target's side before the
+## facing carrier (still turning toward it) decides again, and the least
+## sideways distance (world px) that counts as a side.
+const FACE_HOLD := 0.3
+const FACE_MIN_DX := 4.0
+## The death beat (GameManager holds the result screen back this long): the
+## body pops up DEATH_HOP art units, tips DEATH_TILT radians backwards over
+## the first DEATH_FALL of the beat (a flyer drops to the ground with it) and
+## fades out from DEATH_FADE_FROM of it on.
+const DEATH_TIME := 0.8
+const DEATH_HOP := 10.0
+const DEATH_TILT := 1.45
+const DEATH_FALL := 0.6
+const DEATH_FADE_FROM := 0.55
 
 @export var body: RigBody
 @export var profile: RigProfile
@@ -113,6 +141,11 @@ const MAX_MOVE_RATE := 4.0
 ## Hit flash: the body's modulate at the start of a hurt reaction is the
 ## palette's white times this gain (an over-bright modulate).
 @export var hurt_flash_gain: float = 2.1
+## The least seconds between two hurt reactions (flash, squash and hurt move).
+## Hits land every 0.15-0.2 s on a body four heroes and the fox attack: the
+## 0.18 s flash used to restart on each and the body stayed a white
+## silhouette for half the fight.
+@export var hurt_flash_interval: float = 0.45
 ## Puppet mode only: world px/s it walks in place (0 = idle).
 @export var puppet_speed: float = 0.0
 ## The look of a swing that carries no ability (a mob's bite or claw, Ted's
@@ -160,7 +193,13 @@ var _walk_phase := 0.0
 var _flip := 1.0
 var _last_pos := Vector2.ZERO
 var _hurt := 0.0
+## Seconds until the next hit may start a hurt reaction again.
+var _hurt_wait := 0.0
 var _act := 0.0
+## Seconds the side a cast picked still holds against the facing carrier.
+var _face_hold := 0.0
+## Seconds left of the death beat (0 = not dying).
+var _dying := 0.0
 var _flashing := false
 var _flash_color := Color.WHITE
 ## The authored move playing (null = none), its name and elapsed seconds.
@@ -290,7 +329,9 @@ func _exit_tree() -> void:
 	if not _active:
 		return
 	_hurt = 0.0
+	_hurt_wait = 0.0
 	_act = 0.0
+	_face_hold = 0.0
 	_walk = 0.0
 	_skipped = 0.0
 	_dash = null
@@ -357,8 +398,9 @@ func _on_screen_entered() -> void:
 	set_on_screen(true)
 
 
+## A corpse stays awake: its entity's notifier leaves the tree with the entity.
 func _on_screen_exited() -> void:
-	if not force_awake:
+	if not force_awake and _dying <= 0.0:
 		set_on_screen(false)
 
 
@@ -393,12 +435,30 @@ func plays_moves() -> bool:
 
 ## EntityBase.ability_cast (scene-wired). `ability` null = a mob's basic swing.
 ## A cast always replaces the move playing (the latest action wins). Asleep it
-## plays nothing; over the budget (a mob) the procedural swing.
-func _on_entity_ability_cast(ability: AbilityBase, _target: Node) -> void:
+## plays nothing; over the budget (a mob) the procedural swing. A cast at a
+## target faces it first.
+func _on_entity_ability_cast(ability: AbilityBase, target: Node) -> void:
 	if not _on_screen:
 		return
+	_face_target(target)
 	if not (within_budget(tier, _awake) and _start_move(move_for(ability, _entity))):
 		_act = profile.attack_time
+
+
+## Turns the body to `target`'s side now and holds it for FACE_HOLD: the side
+## is the sign of target.x - caster.x. The facing carrier alone turns smoothly
+## and keeps its old side while it points up or down, so a bash at a target
+## 50 px to the right could play facing left. No target, the caster itself or
+## one straight above or below (within FACE_MIN_DX) changes nothing.
+func _face_target(target: Node) -> void:
+	var at := target as Node2D
+	if at == null or _entity == null:
+		return
+	var dx := at.global_position.x - _entity.global_position.x
+	if absf(dx) < FACE_MIN_DX:
+		return
+	_flip = signf(dx)
+	_face_hold = FACE_HOLD
 
 
 ## EntityBase.damaged (scene-wired): the flash and squash, plus the hurt move
@@ -456,13 +516,48 @@ func play_move(move: StringName, at: float = 0.0) -> void:
 ## flinch never cuts a swing or a cast short).
 func play_hurt() -> void:
 	if _active:
+		_hurt_wait = 0.0
 		_flinch(true)
 
 
+## One hurt reaction, unless the last one started less than
+## hurt_flash_interval ago (the hit still shows its number and star).
 func _flinch(with_move: bool) -> void:
+	if _hurt_wait > 0.0:
+		return
+	_hurt_wait = hurt_flash_interval
 	_hurt = profile.hurt_time
 	if with_move and _move == null:
 		_start_move(&"hurt")
+
+
+## EntityBase.died (scene-wired in NPCBaseClass.tscn; TedsPet.tscn wires the
+## fox's): the death beat. A FULL rig on screen leaves the dying entity, which
+## is freed this frame, for the entity's parent, at the same place and size:
+## from here on it is a puppet that tips over, fades and frees itself after
+## DEATH_TIME. Asleep, or a mob's (BUDGETED: the rig stays with the pooled
+## mob), nothing happens. Presentation only: nothing here feeds gameplay.
+func _on_entity_died() -> void:
+	if not _on_screen or tier != Tier.FULL or _entity == null or _dying > 0.0:
+		return
+	var host := _entity.get_parent()
+	if host == null:
+		return
+	if EventBus.ability_event.is_connected(_on_ability_event):
+		EventBus.ability_event.disconnect(_on_ability_event)
+	_entity = null
+	_facing = null
+	_dash = null
+	# Keeps the global transform; _exit_tree drops the reactions in flight.
+	reparent(host)
+	_dying = DEATH_TIME
+	_hurt = profile.hurt_time
+	set_on_screen(true)
+
+
+## True while this rig plays its death beat (it has no entity any more).
+func is_dying() -> bool:
+	return _dying > 0.0
 
 
 ## True when this rig's library has `move`.
@@ -620,6 +715,22 @@ static func mid_body_of(node: Node2D) -> Vector2:
 	return node.global_position
 
 
+## Half the width of the drawn body in world px (the art's box at the rig's
+## size and the entity's scale): how far the body reaches to either side of
+## its feet, 1.5 times further on a Stage III monster. Presentation only.
+func half_width() -> float:
+	return body.bounds.size.x * 0.5 * profile.world_scale * _size * absf(global_scale.x)
+
+
+## half_width() of `node`'s Rig when it has an active one, else 0 (a trap, a
+## plain node).
+static func half_width_of(node: Node2D) -> float:
+	var rig := node.get_node_or_null(^"Rig") as CharacterRig
+	if rig and rig._active:
+		return rig.half_width()
+	return 0.0
+
+
 ## The top of the drawn body in global coordinates (the art box's top edge,
 ## raised by a flyer's mean hover, at the rig's size and the entity's scale):
 ## where a lasting status mark (a taunt's anger vein, a "!") floats, clear of
@@ -659,7 +770,10 @@ func _process(delta: float) -> void:
 		speed = step / maxf(dt, 0.0001)
 		if step > 0.0:
 			_walk_phase += step / walk_stride() * PI
-		if _facing:
+		# A cast's side holds for FACE_HOLD; then the carrier decides again.
+		if _face_hold > 0.0:
+			_face_hold -= dt
+		elif _facing:
 			var c := cos(_facing.rotation)
 			if c > 0.25:
 				_flip = 1.0
@@ -670,6 +784,13 @@ func _process(delta: float) -> void:
 	_walk = move_toward(_walk, clampf(speed / profile.full_speed, 0.0, 1.0), dt * 6.0)
 	_hurt = maxf(_hurt - dt, 0.0)
 	_act = maxf(_act - dt, 0.0)
+	if _hurt_wait > 0.0:
+		_hurt_wait -= dt
+	if _dying > 0.0:
+		_dying -= dt
+		if _dying <= 0.0:
+			queue_free()
+			return
 	if _move:
 		_move_t += dt * _move_rate
 		if _move_t >= _contact:
@@ -700,6 +821,14 @@ func _pose() -> void:
 		# Every part channel is rewritten this frame: the procedural value
 		# first, then the move blended over the channels it keys.
 		_forget_pose()
+	var tilt := move_tilt * w
+	# The death beat: a hop, the fall backwards (a flyer drops with it), the fade.
+	if _dying > 0.0:
+		var death_k := 1.0 - _dying / DEATH_TIME
+		var fall := minf(death_k / DEATH_FALL, 1.0)
+		lift = lift * (1.0 - fall * fall) - sin(fall * PI) * DEATH_HOP
+		tilt -= DEATH_TILT * fall * fall
+		modulate.a = 1.0 - smoothstep(DEATH_FADE_FROM, 1.0, death_k)
 	var off := move_offset * w
 	var body_pos := Vector2(off.x * _flip, lift + off.y) * k
 	if body_pos != _cur_body_pos:
@@ -709,7 +838,7 @@ func _pose() -> void:
 	if body_scale != _cur_body_scale:
 		_cur_body_scale = body_scale
 		body.scale = body_scale
-	var body_rot := move_tilt * w * _flip
+	var body_rot := tilt * _flip
 	if body_rot != _cur_body_rot:
 		_cur_body_rot = body_rot
 		body.rotation = body_rot

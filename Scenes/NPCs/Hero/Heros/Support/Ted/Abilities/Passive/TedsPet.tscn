@@ -65,3 +65,4 @@ target_desired_distance = 4.0
 [connection signal="screen_exited" from="ScreenNotifier" to="Rig" method="_on_screen_exited"]
 [connection signal="ability_cast" from="." to="Rig" method="_on_entity_ability_cast"]
 [connection signal="damaged" from="." to="Rig" method="_on_entity_damaged"]
+[connection signal="died" from="." to="Rig" method="_on_entity_died"]
