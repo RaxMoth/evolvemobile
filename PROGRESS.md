@@ -8,7 +8,7 @@ data) + `Docs/INSTRUCTOR.md` (architecture guide). README "Current Status & Road
 summary of this file.
 
 **Before the hourly loop works on this tree**: the overhaul is 47 local commits after `885e86a`
-(origin/main), followed by its fix batches (F1 and F2 so far); push them first. On the loop's runner re-record the trace baselines before comparing
+(origin/main), followed by its fix batches (F1 to F3 so far); push them first. On the loop's runner re-record the trace baselines before comparing
 anything (see "Verification gate").
 
 ## Done
@@ -70,6 +70,10 @@ anything (see "Verification gate").
       target; the cleave crescent outside the grown body; y-sorted characters; stacked in-world
       HP bars and spread damage numbers; the death beat before the result screen; the Trap
       Cage's freed entry (see Changelog)
+- [x] **Fix batch F3** (match speed) — a running match plays 1.2 game seconds per real second
+      (`GameManager.MATCH_BASE_SPEED`) and the HUD's speed button doubles that; the pause menu,
+      the death beat, the result screen and the menus stay at normal speed; headless runs keep
+      game time (see Changelog)
 
 ## In Progress
 
@@ -114,7 +118,8 @@ anything (see "Verification gate").
       stress config on a Pixel 5a-class phone with F3 (`SpawnManager` min/max_active_spawns = 39,
       enable_lazy_activation = false, stress_mob_multiplier = 2), Compatibility vs Mobile renderer
       (`config/features` still says "GL Compatibility" while `rendering_method="mobile"`), physics
-      30 Hz, F3 at pinch zoom 0.5. `treat_warnings_as_errors` stays off until an editor pass shows 0
+      30 Hz, F3 at pinch zoom 0.5, and the same with the speed button on fast (F3: a frame costs
+      about twice as much there). `treat_warnings_as_errors` stays off until an editor pass shows 0
       warnings.
 - [ ] Real audio assets (user step): `Assets/Audio/<key>.ogg|wav`; the manager plays generated tones
       until then.
@@ -189,6 +194,34 @@ Look and feel:
 - **Cleave crescent** (F2): it starts outside the monster's drawn body; when he swings upward (at
   a target behind his body) it is drawn above his head, 16-60 px past the hit reach on the
   ground, because at the hit reach it would cover his face.
+- **Match speed** (F3, the request of 2026-11-11 for a slightly faster round): a running match
+  plays 1.2 game seconds per real second (`GameManager.MATCH_BASE_SPEED`, the one number to
+  retune; batch P1 raises the walking speeds on top) and the HUD's speed button doubles that
+  (2.4). The match clock, the 10-minute cap, the cooldown numbers and the result screen's
+  duration count game seconds, so they run 1.2 (2.4) times as fast as a wall clock: a full match
+  takes 8:20 (4:10). Options: another base, or a clock in real time.
+- **Two speeds, no third** (F3): in the stress bench a frame at the fast speed costs about twice
+  a frame at game time (3.3 against 1.6 ms, 3.9 against 2.1 ms with every rig awake). That fits
+  at 2.4; a third step at 3.6 would be about 5.5 ms mean and 10 ms p99 on the development Mac
+  before a phone's slower CPU and the drawing, and a 60 fps frame would be 1/17 game second.
+  Option: measure fast on the device first (Backlog), then add a step.
+- **A watched match steps coarser than a sim** (F3): the match logic runs once per drawn frame
+  (it always did), so at 60 fps the base speed plays 50 steps per game second and fast 25, the
+  sims 60. Same rules, not the same match step for step; fast on a 30 fps phone is 12.5 steps
+  per game second (the scheduler caps a step at 0.5 s). The alternative, several logic steps
+  per frame, needs the entity logic moved off `_process`.
+- **The speed button's look** (F3): one arrow on the grey round button at the normal speed, two
+  arrows on the amber one on fast, no number, so it stays true whatever the base is. Next to the
+  pause icon the single arrow can read as "play". Option: always two arrows, lit while fast.
+  The choice is saved (`match_fast`) and holds for the next launch. Option: every match starts
+  at the normal speed.
+- **A decided match plays at normal speed** (F3): the scale goes back to 1 at the deciding death,
+  so the death beat (0.95 s) and the result screen are real time, as are the pause menu and
+  every menu.
+- **Reading at speed** (F3): a toast holds at least 1.2 real seconds at any speed (on fast it is
+  up 1.47 s instead of 1.17 s); the first-match tips wait for a tap. Telegraphs and damage
+  numbers stay game time and get shorter: a damage number shows 0.67 s at the base speed and
+  0.33 s on fast, a cone flash 0.18 / 0.09 s. Option: hold them in real time too.
 - **Quarry Change picker**: locked cards only shake (they unlock by hunt count, not for sale).
 - **19.5:9 phones**: a band of about 280 px of plain background sits between the MONSTERS row and
   the lair in the lobby.
@@ -218,7 +251,7 @@ Look and feel:
 
 ## Verification gate
 
-Every change passes `tools/lint.sh` (errors=0) and `tools/run_tests.sh` (exit 0; 600 tests, the
+Every change passes `tools/lint.sh` (errors=0) and `tools/run_tests.sh` (exit 0; 618 tests, the
 run exits with nothing leaked). A change that must not alter gameplay also keeps the determinism
 trace byte-identical: `BASELINE=<parent trace> tools/sim_trace.sh > <new trace>` (exit 0): seeds 1-3
 × heroes/monster as full matches (~40 s). Every 60 frames the trace hashes each EntityRegistry
@@ -288,9 +321,20 @@ The machine was loaded (load 4-9) for all of these; compare only pairs run back 
 | 7.4 `e656c1d` | 1.535 / 1.526 ms | 1.946 / 2.020 / 2.026 ms |
 | 8.4 `4204a8c` → `d5798bd` | 1.931 → 1.752 ms (p99 5.25 → 4.74) | |
 | F2 `9620a45` → fix batch F2 | 1.626 → 1.648, 1.640 → 1.627 ms (p99 3.27 → 3.55, 4.29 → 4.00) | 2.183 → 2.002, 2.163 → 2.105 ms (p99 4.88 → 4.49, 4.65 → 4.65) |
+| F3 `5b55a21` → fix batch F3 (game time) | 1.532 → 1.568, 1.502 → 1.616 ms (p99 3.35 → 3.31, 3.40 → 3.56) | |
+
+Match speed (F3, `tools/bench.sh 3 2 900 300 0 <rigs_awake> <speed>`, back to back, load 4-5):
+
+| Speed (`Engine.time_scale`) | Rigs asleep (frame mean / p99) | All rigs awake |
+|---|---|---|
+| game time, 1.0 (every other row of this section) | 1.613 / 3.86 ms | 2.111 / 5.08 ms |
+| normal, 1.2 (what a player watches) | 1.829 / 4.47 ms | 2.418 / 5.61 ms |
+| fast, 2.4 | 3.341 / 6.42 ms | 3.945 / 7.79 ms |
 
 - Total overhead of the overhaul against `885e86a`: about +0.03 ms with the rigs asleep and about
   +0.5 ms with all 232 awake (the limit was +0.6 ms).
+- A frame costs more at speed because the game-time paced work (the mobs' 20 / 10 / 3 Hz AI
+  ticks first) comes more often per frame: +13-15 % at the base speed, about twice at fast.
 - Open: the same on a device, and the rigs-awake p99 on an idle machine (Backlog).
 
 ## Tech Debt / Improvements
@@ -327,6 +371,60 @@ The machine was loaded (load 4-9) for all of these; compare only pairs run back 
       uses `GameManager.killer_side`; the sim could use the same rule. Low priority.
 
 ## Changelog
+### 2026-11-11 — fix batch F3: match speed (a faster round and a speed button)
+Third fix batch after the walkthrough (`walk_match`: "the fight is a short burst after about 7
+minutes of farming, with no speed control"), widened by the user's request of 2026-11-11 for a
+slightly faster round. Presentational for the sims: a headless run keeps game time, and the
+determinism traces of all three monsters are byte-identical to `tools/baselines` (Gorrak 2,774,
+Grount 2,503 and Nyxa 3,252 lines; one seed per `MONSTER=all tools/sim_trace.sh "<seed>" "heroes
+monster"` call, two sims in parallel, joined in the baselines' order).
+
+- **Base speed**: `GameManager.MATCH_BASE_SPEED` = 1.2 game seconds per real second while a match
+  runs, one constant (README "Match Speed"; `test_readme_spec` checks its table).
+  `GameManager._sync_time_scale()` is the only writer of `Engine.time_scale`: `match_speed()`
+  while a match runs unpaused, 1 for a paused tree (the pause menu, the result screen), a
+  decided match (the death beat), a left World (`abort_match`) and the menus. It runs at match
+  start, end and abort, on a button press and once per frame (a pause has no signal).
+- **Speed button**: `%Speed` in `MatchHud.tscn`, right of Pause (the clock, the enemy tracker and
+  the kills chip moved 68 px to the right; the bar still fits 720 px), wired
+  scene-side to `_on_speed_pressed` → `GameManager.set_match_fast()`. Fast is the base x
+  `MATCH_FAST_FACTOR` (2): 2.4. It shows one arrow (`ui_play`, `ButtonRound`) or two
+  (`ui_fast_forward`, `ButtonRoundPrimary`), is 62x64 px, has the tooltip "Match speed" /
+  "Spieltempo" and saves the choice (setting `match_fast`).
+- **In step**: `Engine.time_scale` scales every delta, timer, tween, animation and particle, so
+  cooldowns, HUD numbers, toasts and effects speed up with the match. Rendered at 30 fps with the
+  HUD's slots compared with the real cooldowns every frame at both speeds: 7,912 checks, 0
+  mismatches. The clock advanced 1.1998 game seconds per real second at the normal speed and
+  2.4000 on fast, 0 while paused; `match_ended`, the death beat and the result screen saw 1.0.
+- **Readable**: a toast's hold is `maxf(2.2, 1.2 x Engine.time_scale)` game seconds
+  (`TOAST_MIN_REAL_HOLD`): on fast it was up 44 frames at 30 fps (1.47 s, 1.27 s at full alpha;
+  2.2 game seconds would be 1.17 and 0.98 s). The first-match tips wait for a tap.
+- **First-match tip**: the Speed button is in the `tutorial_pause` group, so the second tip
+  frames both buttons: "Pause and speed" / "Pause und Tempo" ("The arrow button next to it
+  speeds the hunt up."). Two lines in English, three in German.
+- **Headless**: `GameManager.speed_scaling` is false when the display server is headless, so the
+  sims, the trace and the tests play as before. `tools/bench.sh` takes a seventh argument
+  `speed` (0 game time, 1 the base speed, 2 fast) and prints the `time_scale`.
+- **F3 overlay**: "Speed x2.40  base 1.20  fast".
+- The clock's hitch cap (`MAX_CLOCK_STEP`, 0.25 s) is real time now (x `Engine.time_scale`), so
+  a slow frame on fast does not lose clock time.
+- Tests: 610 → 618. `test_match_speed.gd` (the two speeds, a headless match's game time, the
+  scale and the clock through start, fast, pause, resume and abort, the decided match hearing
+  1.0 at `match_ended`, the button's looks, place, size, tooltip and saved choice with the pause
+  menu and a left World, a toast's real hold on fast, the German strings),
+  `test_readme_spec` (the speed table), `test_tutorial` (the tip's group).
+- Gate: lint errors=0; `tools/bench.sh 3 2 900 300` parent / this tree at game time, back to
+  back, twice: frame mean 1.532 / 1.568 and 1.502 / 1.616 ms, p99 3.35 / 3.31 and 3.40 / 3.56 ms.
+  With the speed on (`... 0 0 <speed>`): game time 1.613 ms (p99 3.86), normal 1.829 (4.47),
+  fast 3.341 (6.42); with every rig awake (`... 0 1 <speed>`) 2.111 (5.08), 2.418 (5.61) and
+  3.945 ms (7.79). Fast costs about twice a frame at game time and stays well inside a 16.7 ms
+  frame on this Mac; that is not enough room to add a third step before a device run (see
+  Decisions). A first bench round ran into a machine at load 25-32 and was thrown away.
+- Muted renders looked at (`impl_previews/fix_F3_*.png`): the heroes' HUD at the normal speed
+  (one white arrow right of Pause), on fast with a toast (two arrows on the amber button), the
+  monster side's bar, the pause menu over a fast match, the F3 line, the result screen, and the
+  second first-match tip in English and German framing both buttons.
+
 ### 2026-11-11 — fix batch F2: fight readability
 Second fix batch after the walkthrough (`walk_match`, made on `d5798bd`). Presentational: the
 determinism traces of all three monsters are byte-identical to `tools/baselines`, plain and with

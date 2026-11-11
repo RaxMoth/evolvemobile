@@ -14,6 +14,13 @@ extends Node
 ## rewards, save, match_ended), then the match runs on for DEATH_BEAT_SEC so
 ## the monster's or the last hero's death beat plays (CharacterRig) before the
 ## result screen comes up over the paused tree. A timeout shows it at once.
+##
+## Match speed (README "Match Speed"): a running match plays MATCH_BASE_SPEED
+## game seconds per real second, times MATCH_FAST_FACTOR while the HUD's speed
+## button is on fast (match_speed()). _sync_time_scale() keeps
+## Engine.time_scale on that value while a match runs unpaused and on 1
+## everywhere else: the pause menu, the death beat, the result screen, the
+## menus. A headless run (the sims, the trace, the tests) keeps game time.
 
 signal match_ended(winner: String, time: float)
 
@@ -53,12 +60,29 @@ var _match_active: bool = false
 ## Unpaused GAME time since the match started (not wall clock: a paused tree or
 ## a backgrounded app must not eat into the 10-minute cap).
 var _match_time: float = 0.0
-## Largest frame delta the clock accepts (a resume from background can deliver
-## one huge delta).
+## Largest frame the clock accepts, in real seconds (a resume from background
+## can deliver one huge delta; the delta itself is in game seconds).
 const MAX_CLOCK_STEP: float = 0.25
 ## Counts the matches started and aborted: a result held back for the death
 ## beat is dropped when its match is no longer the current one.
 var _match_serial: int = 0
+
+# --- Match speed ---
+## The match's base speed: game seconds per real second while a match runs at
+## the speed button's normal setting. The one number that sets the pace of a
+## round (the clock, cooldowns, movement, effects and the HUD all follow it).
+const MATCH_BASE_SPEED: float = 1.2
+## The speed button's fast setting: the base speed times this.
+const MATCH_FAST_FACTOR: float = 2.0
+const SETTING_MATCH_FAST: StringName = &"match_fast"
+## The player's choice on the HUD's speed button, kept between matches and
+## sessions (set_match_fast).
+var match_fast: bool = false
+## False in a headless run (the sims, the determinism trace, the tests): with
+## nobody watching, a match keeps game time (Engine.time_scale 1) and plays
+## exactly as it always did. tools/bench.sh's speed argument and the speed
+## tests turn it on.
+var speed_scaling: bool = DisplayServer.get_name() != "headless"
 
 var heroes_alive: int = 0
 var monster_alive: bool = false
@@ -133,6 +157,7 @@ func _ready() -> void:
 	select_monster(StringName(str(saved_monster)), false)
 	var saved_side: Variant = PersistedData.get_setting(SETTING_CHOSEN_SIDE, MatchRewards.Side.HEROES)
 	choose_side(int(saved_side), false)
+	match_fast = bool(PersistedData.get_setting(SETTING_MATCH_FAST, false))
 	EventBus.entity_died.connect(_on_entity_died)
 	# Record evolution as it happens: the old death-only update paid a monster
 	# that WON (or survived to the timeout) as stage 1.
@@ -305,6 +330,7 @@ func start_new_match() -> void:
 	match_threat = MetaSkillManager.opponent_threat()
 	_participating_hero_ids.clear()
 	_fallen_hero_ids.clear()
+	_sync_time_scale()
 
 	await get_tree().process_frame
 	await get_tree().process_frame
@@ -312,10 +338,12 @@ func start_new_match() -> void:
 
 
 func _process(delta: float) -> void:
+	# Every frame: a pause (the pause menu, the result screen) has no signal.
+	_sync_time_scale()
 	if not _match_active or match_ended_flag:
 		return
 	if not get_tree().paused:
-		_match_time += minf(delta, MAX_CLOCK_STEP)
+		_match_time += minf(delta, MAX_CLOCK_STEP * Engine.time_scale)
 	# Check the hard cap every frame.
 	if _elapsed() >= max_match_duration:
 		_end_match_timeout()
@@ -330,10 +358,42 @@ func _elapsed() -> float:
 func abort_match() -> void:
 	_match_serial += 1
 	_match_active = false
+	_sync_time_scale()
 
 
 func is_match_active() -> bool:
 	return _match_active and not match_ended_flag
+
+
+# ============================================
+# Match speed
+# ============================================
+
+## The HUD's speed button: the normal or the fast setting, for this match and
+## the next ones (`persist` false: not written to the save).
+func set_match_fast(fast: bool, persist: bool = true) -> void:
+	match_fast = fast
+	if persist:
+		PersistedData.set_setting(SETTING_MATCH_FAST, fast)
+		PersistedData.save_data()
+	_sync_time_scale()
+
+
+## Game seconds per real second of a running match at the player's setting.
+func match_speed() -> float:
+	return MATCH_BASE_SPEED * (MATCH_FAST_FACTOR if match_fast else 1.0)
+
+
+## Puts Engine.time_scale where the match is: match_speed() while a match runs
+## unpaused, 1 for everything else (the pause menu, the death beat, the
+## result screen, a scene change, the menus) and for a run without
+## speed_scaling. Engine.time_scale scales every delta, timer, tween and
+## effect, so the whole match speeds up as one.
+func _sync_time_scale() -> void:
+	var running := speed_scaling and is_match_active() and not get_tree().paused
+	var time_scale := match_speed() if running else 1.0
+	if not is_equal_approx(Engine.time_scale, time_scale):
+		Engine.time_scale = time_scale
 
 
 # ============================================
@@ -426,6 +486,8 @@ func _end_match_with_outcome(outcome: int, beat: float = 0.0) -> void:
 		return
 	match_ended_flag = true
 	_match_active = false
+	# The death beat and the result screen play at normal speed.
+	_sync_time_scale()
 
 	var duration := _elapsed()
 	# `outcome` is the heroes' perspective (match_ended below keeps it).
@@ -547,6 +609,13 @@ func take_menu_roster() -> int:
 	var side := _menu_roster_side
 	_menu_roster_side = -1
 	return side
+
+
+## The F3 overlay's speed line: Engine.time_scale now, the base speed and the
+## speed button's setting ("Speed x2.40  base 1.20  fast").
+func debug_speed_line() -> String:
+	return "Speed x%.2f  base %.2f  %s%s" % [Engine.time_scale, MATCH_BASE_SPEED,
+		"fast" if match_fast else "normal", "" if speed_scaling else "  (game time: headless)"]
 
 
 ## The F3 overlay's threat line: the played side and its power ranks P, the

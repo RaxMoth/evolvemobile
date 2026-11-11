@@ -65,6 +65,9 @@ strategy, Opponent Threat) → the match with its HUD → the match result
 4. **Confrontation**: Teams clash based on strategy
 5. **Victory**: One side is eliminated, or the 10-minute clock runs out
 
+The round plays faster than real time and the HUD's speed button makes it
+faster still (see Match Speed).
+
 **Post-Round Phase** (Rewards & Upgrade):
 
 1. View battle summary (the match result screen: duration, the played side's
@@ -85,6 +88,61 @@ strategy, Opponent Threat) → the match with its HUD → the match result
   clock runs out (a timeout is a monster win; the clock counts unpaused game
   time, `GameManager`)
 - **No draws**
+
+### Match Speed
+
+A running match plays faster than real time, so a round does not feel like
+waiting, and the player can double that with the HUD's speed button.
+
+| Setting | Game seconds per real second | Where it is set |
+|---|---|---|
+| Normal (the base speed) | 1.2 | `GameManager.MATCH_BASE_SPEED` |
+| Fast (the speed button) | 2.4 | base x `GameManager.MATCH_FAST_FACTOR` (2) |
+
+- **One number sets the pace**: `MATCH_BASE_SPEED`. While a match runs,
+  `Engine.time_scale` is `GameManager.match_speed()` (the base, times the
+  factor on fast). Godot scales every delta, timer, tween, animation and
+  particle with it, so movement, cooldowns, the HUD's countdowns, toasts and
+  effects all speed up together and nothing drifts apart.
+- **Game seconds**: the match clock, the 10-minute cap, cooldown numbers and
+  every duration in this README count game seconds. At the base speed the
+  clock runs 1.2 times as fast as a wall clock (a full 10-minute match takes
+  8:20), on fast 2.4 times (4:10).
+- **Only a running match is scaled**: `GameManager._sync_time_scale()` puts
+  `Engine.time_scale` back to 1 for the pause menu (any paused tree), for a
+  decided match (the death beat and the result screen play at normal speed),
+  when the World leaves (a scene change, `abort_match`) and in every menu.
+  It runs at each of those moments and once per frame.
+- **The speed button** (`MatchHud`, right of Pause) calls
+  `GameManager.set_match_fast()`; the choice is the setting `match_fast`
+  (`PersistedData`), so it holds for the next matches and launches.
+- **Bigger steps, not more of them**: the match logic runs once per drawn
+  frame, so at 60 fps a frame is 1/50 game second at the base speed and 1/25
+  on fast (what a 25 fps device plays at real time). The sims play 60 steps
+  per game second, so a watched match is the same game but not the same
+  match step for step.
+- **Cost**: a frame costs more at speed, because everything that is paced in
+  game time comes more often per frame (the mobs' 20 / 10 / 3 Hz AI ticks
+  first of all). Stress bench on the development Mac
+  (`tools/bench.sh 3 2 900 300 0 <rigs_awake> <speed>`, 231 mobs, frame
+  mean / p99 of a 16.7 ms frame, nothing drawn): game time 1.61 / 3.86 ms,
+  base speed 1.83 / 4.47 ms, fast 3.34 / 6.42 ms; with every rig awake
+  2.11 / 5.08, 2.42 / 5.61 and 3.95 / 7.79 ms. Fast costs about twice a
+  frame at game time, which leaves room at 2.4 but not for a third step
+  (3.6 would be about 5.5 ms mean and 10 ms p99 here with the rigs awake,
+  before a phone's slower CPU and the drawing), so the button has two
+  settings.
+- **Staying readable**: a toast holds 2.2 game seconds but never less than
+  1.2 real seconds (`MatchHud.TOAST_MIN_REAL_HOLD`); the first-match tips
+  wait for a tap. Telegraphs and damage numbers are game time and get
+  shorter with the speed (a 0.8 s damage number shows for 0.67 s at the
+  base speed and 0.33 s on fast).
+- **Headless runs keep game time**: `GameManager.speed_scaling` is false
+  when the display server is headless (the sims, the determinism trace, the
+  tests), so those matches are the same as before the speed existed and the
+  trace stays byte-identical. `tools/bench.sh`'s `speed` argument and
+  `test/test_match_speed.gd` switch it on. The F3 overlay shows the speed
+  ("Speed x2.40  base 1.20  fast").
 
 ### Opponent Choice and Monster Unlocks
 
@@ -1251,11 +1309,18 @@ writes gameplay state, so `tools/sim_trace.sh` stays byte-identical.
       (`lobby_scene_path`; World's exit stops the clock), tracked as
       `match_quit`. Its `opened` / `resumed` swap the Pause icon (wired in
       MatchHud.tscn).
+    - Speed (`%Speed`, 62x64 like Pause, right of it; `pressed` wired in
+      MatchHud.tscn): switches the match between its normal and its fast
+      speed (`GameManager.set_match_fast`, see Match Speed). It shows the
+      setting, not a number: one arrow (`ui_play`) on the grey `ButtonRound`
+      at the normal speed, two arrows (`ui_fast_forward`) on the amber
+      `ButtonRoundPrimary` on fast. Tooltip "Match speed".
     - The first match plays the tutorial's HUD chapter 1.5 s after the HUD
       binds (TutorialOverlay `CHAPTER_HUD`, setting `tutorial_hud_seen`): the
-      cooldown slots, then the pause button. It never pauses the match, so a
-      headless sim plays the same match with or without it.
-    - Clock chip: `GameManager.get_match_elapsed()` as "03:42".
+      cooldown slots, then the pause and speed buttons. It never pauses the
+      match, so a headless sim plays the same match with or without it.
+    - Clock chip: `GameManager.get_match_elapsed()` as "03:42" (game
+      seconds: it runs with the match speed).
     - Enemy tracker: heroes side, the monster's head, "STAGE II" and its HP;
       monster side, a head and mini HP bar per hero (the scene's `HeroChip`
       template, duplicated per hero), greyed when the hero falls.
@@ -1354,7 +1419,9 @@ writes gameplay state, so `tools/sim_trace.sh` stays byte-identical.
 - **Event toasts** (both sides): `MatchHud.show_toast(text, queued = true)`
   drops the crimson `BannerMonster` ribbon (`BannerTitle` text) at y 250,
   centred (`Root/ToastBar`): it pops in 0.7 → 1 (TRANS_BACK, 0.3 s) while
-  fading in, holds 2.2 s and fades out in 0.3 s. At most one toast is
+  fading in, holds 2.2 s and fades out in 0.3 s (game time, like the match;
+  the hold is never under 1.2 real seconds, `TOAST_MIN_REAL_HOLD`, so a fast
+  match's toast can still be read). At most one toast is
   visible; the others wait in line (up to 3, a full line drops its oldest), a
   text already showing or waiting is not added twice, and `queued` false drops
   the toast when another one is up. The scene's `Announcer`
@@ -1391,7 +1458,10 @@ writes gameplay state, so `tools/sim_trace.sh` stays byte-identical.
   `test/test_minimap.gd` (the mapping through `map_rect()`, the fairness
   rules, the dots above the picture, the picture covering the whole world,
   and a rendered pixel check of a hero's dot and of reveals that the headless
-  runner skips: run that file in a window to use it).
+  runner skips: run that file in a window to use it) and
+  `test/test_match_speed.gd` (the Speed button's two looks, its place and
+  size, the saved choice, the scale in a running, paused, decided and left
+  match, a headless match's game time, a toast's real hold on fast).
 
 ### HUD Cooldown Slots (CooldownSource, AbilitySlot)
 
@@ -2301,7 +2371,8 @@ and the match result's LOBBY returns to it. The old `MainMenu.tscn`,
   it, merged: `tutorial_hero_stage` / `tutorial_monster_stage` (the lobby's
   two stages), `tutorial_hunt` (the nav bar's arch), `tutorial_codex` (its
   Codex tab), `tutorial_hud_slots` (the HUD's ability slots, hero cards or
-  the monster panel), `tutorial_pause` (the HUD's pause button). The groups
+  the monster panel), `tutorial_pause` (the HUD's pause and speed buttons).
+  The groups
   are set in the target scenes. The scrim (`bg_void` at 0.72, drawn by the
   overlay around a hole) darkens all but the target, the amber `SelectRing`
   frames it, the amber arrow (`ui_level_up.svg`) bobs toward it and the
@@ -2311,7 +2382,8 @@ and the match result's LOBBY returns to it. The old `MainMenu.tscn`,
   a target centres the bubble over the full scrim.
     - Camp tour (`LOBBY_STEPS`): the rules, the heroes' campfire, the
       monsters' lair, the HUNT arch, the Codex tab (growth and the Codex).
-    - HUD tips (`HUD_STEPS`): the cooldown slots, the pause button.
+    - HUD tips (`HUD_STEPS`): the cooldown slots, the pause and speed
+      buttons.
     - `has_been_seen(chapter)`, `mark_seen(chapter)`, `forget(chapter)`;
       `finished(completed)`; analytics `tutorial_finished` with the chapter.
 - **`CodexScreen`** (`Screens/CodexScreen.tscn`, `codex_screen.gd`, a
@@ -2615,6 +2687,8 @@ scene change: `abort_match()`) shows nothing. A timeout has no beat.
 Every tool copies the project to a temp directory with its own `user://`
 (`override.cfg`) and runs Godot headless there, never on the project directory
 (the editor may have it open), so no tool touches the real save or makes a sound.
+A headless match keeps game time: the match speed (see Match Speed) applies
+only with a display, so the sims, the trace and the tests are not affected by it.
 
 - `tools/lint.sh`: loads every script, scene and resource and checks the scene
   wiring; prints `errors=0`. `tools/run_tests.sh`: the headless suite
@@ -2650,9 +2724,13 @@ Every tool copies the project to a temp directory with its own `user://`
   for byte the same for the same tree. `BASELINE=<file>` diffs the output with
   a saved one and exits 1 on a difference; `RIGS_AWAKE=1` animates every rig
   and must not change it.
-- `tools/bench.sh [runs=5] [multiplier=2] [frames=1800] [warmup=600] [onscreen=0] [rigs_awake=0]`:
+- `tools/bench.sh [runs=5] [multiplier=2] [frames=1800] [warmup=600] [onscreen=0] [rigs_awake=0] [speed=0]`:
   performance in the stress config (all camps, `multiplier` mobs per slot),
-  run r plays seed r, medians of frame time, CPU time and LOD buckets. It
+  run r plays seed r, medians of frame time, CPU time and LOD buckets.
+  `speed` 1 plays the match's base speed and 2 its fast setting (0, the
+  default and the number to compare between commits, keeps game time); the
+  summary prints the `time_scale`, and a frame then covers that many
+  sixtieths of a game second, as on a 60 fps device at that speed. It
   keeps the asynchronous navigation on (the device's setting and part of the
   cost), so runs vary between invocations; a run whose match ends inside the
   window stops there (the tree pauses at the match end) and is flagged
@@ -3325,7 +3403,7 @@ Lv 3, 5 and 8 take about 2, 7 and 19 matches with that character.
    own monster, the strategy dials and the formation with a plain-words
    forecast, the Opponent Threat (0 on a fresh save), START HUNT
 2. The match plays itself; the HUD tips point at the cooldown slots and the
-   pause button once
+   pause and speed buttons once
 3. The result screen: VICTORY / DEFEAT / TIME UP, the rewards counting up
    (a hero win pays 150 Steel + 100 Gold plus the kill, time and survivor
    bonuses), each character's XP bar
@@ -3412,6 +3490,8 @@ changelog with numbers); this section is the summary.
 - [x] Pixel jungle tiles under the muted ground grade; fog of war (world-space)
 - [x] Match HUD: hero cards / monster panel, ability slots with the cooldown
       sweep, ready glow and stage locks, framed minimap, event toasts, pause menu
+- [x] Match speed: a round plays 1.2 game seconds per real second and the
+      HUD's speed button doubles it; menus, pause and the result stay at 1
 
 **Map**:
 
@@ -3441,7 +3521,7 @@ changelog with numbers); this section is the summary.
       until real assets land in `Assets/Audio/`)
 - [x] Performance pass: faction collision layers, EntityRegistry, TickScheduler
       AI LOD, HpBar2D, mob pooling, rig sleep and budget
-- [x] Headless tools: `tools/lint.sh`, `tools/run_tests.sh` (600 tests),
+- [x] Headless tools: `tools/lint.sh`, `tools/run_tests.sh` (618 tests),
       `tools/sim.sh`, `tools/sim_trace.sh`, `tools/bench.sh`, and the art, rig,
       skill-tree and navigation builders
 

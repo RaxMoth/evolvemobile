@@ -7,7 +7,7 @@ extends SceneTree
 ## line. Use through tools/bench.sh (temp copy, isolated user://).
 ##
 ##   godot --headless --fixed-fps 60 --max-fps 0 --path <copy> \
-##         -s res://tools/bench_match.gd -- <seed> [warmup_frames] [frames] [multiplier] [onscreen] [rigs_awake] [monster=<id>]
+##         -s res://tools/bench_match.gd -- <seed> [warmup_frames] [frames] [multiplier] [onscreen] [rigs_awake] [speed] [monster=<id>]
 ##
 ## "monster=<id>" picks the roster monster (GameManager.select_monster, not
 ## persisted; as in tools/sim_match.gd); without it the roster default plays.
@@ -24,6 +24,14 @@ extends SceneTree
 ## wakes EVERY rig (the zoomed-out worst case). `rigs_awake_mean` is the mean
 ## number of animating rigs (CharacterRig.awake_count()); a rig without a body
 ## (a character not migrated to SVG art yet) never wakes.
+##
+## `speed` is the match speed a player watches at (README "Match Speed"): 0
+## (default) keeps game time as every headless run does, 1 plays the match's
+## base speed and 2 the speed button's fast setting
+## (GameManager.speed_scaling / set_match_fast). Engine.time_scale then
+## stretches every frame's delta, so one frame covers `time_scale` / 60 game
+## seconds (the result's "time_scale") and the mobs' 20/10/3 Hz AI ticks come
+## that much more often per frame: the frame cost a device pays at that speed.
 ##
 ## `lod_counts` is the mean number of TickScheduler entries per LOD bucket.
 ## Headless, nothing is drawn, so the VisibleOnScreenNotifier2D signals never
@@ -47,6 +55,10 @@ var _frames: int = 1800
 var _multiplier: int = 2
 var _onscreen: bool = false
 var _rigs_awake: bool = false
+## 0 = game time, 1 = the match's base speed, 2 = its fast setting.
+var _speed: int = 0
+## Engine.time_scale in the measured window.
+var _time_scale: float = 1.0
 ## Roster id from "monster=<id>"; empty = the selection GameManager loaded.
 var _monster_id: String = ""
 ## _frame when GameManager's match_ended fired; -1 while the match runs.
@@ -95,6 +107,8 @@ func _initialize() -> void:
 		_onscreen = int(args[4]) != 0
 	if args.size() > 5:
 		_rigs_awake = int(args[5]) != 0
+	if args.size() > 6:
+		_speed = int(args[6])
 	_rig_script = load("res://Scripts/Rig/character_rig.gd")
 	_rig_script.set("force_awake", _rigs_awake)
 	# Autoloads are only reachable through the root once the tree runs.
@@ -108,6 +122,9 @@ func _start() -> void:
 	if _monster_id != "":
 		gm.call("select_monster", StringName(_monster_id), false)
 	gm.connect("match_ended", _on_match_ended)
+	if _speed > 0:
+		gm.set("speed_scaling", true)
+		gm.call("set_match_fast", _speed > 1, false)
 	var world := (load(WORLD) as PackedScene).instantiate()
 	var spawns := world.get_node("Spawns")
 	spawns.set("min_active_spawns", 39)
@@ -128,6 +145,7 @@ func _tick() -> void:
 	if _frame > _warmup:
 		# The bench's own marking (last tick, ~0.1 ms) is not game cost.
 		_frame_ms.append((now - _last_us - _mark_us) / 1000.0)
+		_time_scale = Engine.time_scale
 		_process_peak_ms += Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0
 		_physics_peak_ms += Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS) * 1000.0
 		_peak_nodes = maxi(_peak_nodes, int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT)))
@@ -190,6 +208,7 @@ func _finish() -> void:
 		"multiplier": _multiplier,
 		"onscreen": 1 if _onscreen else 0,
 		"rigs_awake": 1 if _rigs_awake else 0,
+		"time_scale": snappedf(_time_scale, 0.01),
 		"frame_ms_mean": snappedf(total / maxf(1.0, n), 0.001),
 		"frame_ms_p50": snappedf(sorted[int(n * 0.5)], 0.001),
 		"frame_ms_p95": snappedf(sorted[int(n * 0.95)], 0.001),

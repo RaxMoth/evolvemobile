@@ -10,12 +10,15 @@
 [ext_resource type="Texture2D" uid="uid://dys3gnhljaaxn" path="res://Assets/UI/Icons/UI/ui_skull.svg" id="8_skull"]
 [ext_resource type="Script" uid="uid://24c2ujjro1p7" path="res://Scenes/UI/Hud/match_announcer.gd" id="9_announcer"]
 [ext_resource type="PackedScene" uid="uid://cpa0semenu4x7" path="res://Scenes/UI/Hud/PauseMenu.tscn" id="10_pause_menu"]
+[ext_resource type="Texture2D" uid="uid://bqg0kfxrusxib" path="res://Assets/UI/Icons/UI/ui_fast_forward.svg" id="11_fast"]
 
 [node name="MatchHud" type="CanvasLayer"]
 layer = 5
 script = ExtResource("1_script")
 pause_icon = ExtResource("4_pause")
 play_icon = ExtResource("5_play")
+speed_normal_icon = ExtResource("5_play")
+speed_fast_icon = ExtResource("11_fast")
 
 [node name="Root" type="Control" parent="."]
 layout_mode = 3
@@ -47,11 +50,24 @@ theme_type_variation = &"ButtonRound"
 icon = ExtResource("4_pause")
 icon_alignment = 1
 
-[node name="ClockChip" type="PanelContainer" parent="Root/Top"]
+[node name="Speed" type="Button" parent="Root/Top" groups=["tutorial_pause"]]
+unique_name_in_owner = true
 layout_mode = 0
 offset_left = 78.0
+offset_top = 10.0
+offset_right = 138.0
+offset_bottom = 70.0
+tooltip_text = "Match speed"
+focus_mode = 0
+theme_type_variation = &"ButtonRound"
+icon = ExtResource("5_play")
+icon_alignment = 1
+
+[node name="ClockChip" type="PanelContainer" parent="Root/Top"]
+layout_mode = 0
+offset_left = 146.0
 offset_top = 16.0
-offset_right = 206.0
+offset_right = 274.0
 offset_bottom = 64.0
 mouse_filter = 2
 theme_type_variation = &"ChipPanel"
@@ -83,9 +99,9 @@ vertical_alignment = 1
 [node name="EnemyMonster" type="PanelContainer" parent="Root/Top"]
 unique_name_in_owner = true
 layout_mode = 0
-offset_left = 214.0
+offset_left = 282.0
 offset_top = 8.0
-offset_right = 452.0
+offset_right = 520.0
 offset_bottom = 72.0
 mouse_filter = 2
 theme_type_variation = &"HudPanel"
@@ -131,9 +147,9 @@ show_percentage = false
 unique_name_in_owner = true
 visible = false
 layout_mode = 0
-offset_left = 214.0
+offset_left = 282.0
 offset_top = 6.0
-offset_right = 452.0
+offset_right = 520.0
 offset_bottom = 76.0
 mouse_filter = 2
 theme_type_variation = &"HudPanel"
@@ -168,9 +184,9 @@ show_percentage = false
 
 [node name="KillsChip" type="PanelContainer" parent="Root/Top"]
 layout_mode = 0
-offset_left = 460.0
+offset_left = 528.0
 offset_top = 16.0
-offset_right = 566.0
+offset_right = 634.0
 offset_bottom = 64.0
 mouse_filter = 2
 theme_type_variation = &"ChipPanel"
@@ -324,6 +340,7 @@ layout_mode = 1
 script = ExtResource("9_announcer")
 
 [connection signal="pressed" from="Root/Top/Pause" to="." method="_on_pause_pressed"]
+[connection signal="pressed" from="Root/Top/Speed" to="." method="_on_speed_pressed"]
 [connection signal="pressed" from="Root/Top/Follow" to="." method="_on_follow_pressed"]
 [connection signal="hero_picked" from="Root/MinimapFrame/MinimapSlot/Minimap" to="." method="select_hero"]
 [connection signal="announced" from="Announcer" to="." method="show_toast"]

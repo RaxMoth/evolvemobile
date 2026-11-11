@@ -299,6 +299,8 @@ func _update_hud_label(active_hero: Node, heroes_team: TeamBlackboard, enemies_t
 		Performance.get_monitor(Performance.OBJECT_NODE_COUNT),
 		Performance.get_monitor(Performance.PHYSICS_2D_ACTIVE_OBJECTS),
 		Performance.get_monitor(Performance.PHYSICS_2D_COLLISION_PAIRS)])
+	# Match speed: Engine.time_scale now, the base speed, the button's setting.
+	lines.append(GameManager.debug_speed_line())
 	if heroes_team:
 		lines.append("Heroes alive: %d" % heroes_team.members.size())
 	if enemies_team:

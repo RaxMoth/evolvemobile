@@ -83,7 +83,7 @@ func test_hud_chapter_has_its_own_steps_and_flag() -> void:
 
 
 ## The camp tour points at the lobby's stages, the HUNT arch and the Codex tab;
-## the hunt tips at the cooldown slots and the pause button.
+## the hunt tips at the cooldown slots and the pause and speed buttons.
 func test_the_steps_point_at_the_lobby_and_the_hud() -> void:
 	var anchors: Array[StringName] = []
 	for step in TutorialOverlay.LOBBY_STEPS + TutorialOverlay.HUD_STEPS:
@@ -110,6 +110,7 @@ func test_the_steps_point_at_the_lobby_and_the_hud() -> void:
 		card.free()
 	var hud := (load(MATCH_HUD) as PackedScene).instantiate()
 	assert_true(hud.get_node("%Pause").is_in_group(TutorialOverlay.TARGET_PAUSE))
+	assert_true(hud.get_node("%Speed").is_in_group(TutorialOverlay.TARGET_PAUSE), "the same tip frames the speed button")
 	hud.free()
 
 

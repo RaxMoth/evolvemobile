@@ -8,8 +8,8 @@ extends CanvasLayer
 ##     tab.
 ##   - HUD, the first match: MatchHud opens it once (setting
 ##     `tutorial_hud_seen`). It points at the cooldown slots and the pause
-##     button. The match runs on under it (it never pauses the tree, so a
-##     headless sim plays the same match with or without it).
+##     and speed buttons. The match runs on under it (it never pauses the
+##     tree, so a headless sim plays the same match with or without it).
 ## A step is data (title, body, anchor). The anchor is a group: the step's
 ## target is every visible Control in it (the groups are set in the target
 ## scenes: LobbyScreen, NavBar, HeroHudCard, MonsterHudPanel, MatchHud). The
@@ -73,8 +73,8 @@ const HUD_STEPS: Array[Dictionary] = [
 		"anchor": TARGET_HUD_SLOTS,
 	},
 	{
-		"title": "Pause any time",
-		"body": "Pause opens the menu: resume, the settings, or back to the lobby. Good hunting!",
+		"title": "Pause and speed",
+		"body": "Pause opens the menu: resume, the settings, or back to the lobby. The arrow button next to it speeds the hunt up. Good hunting!",
 		"anchor": TARGET_PAUSE,
 	},
 ]

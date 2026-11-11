@@ -148,7 +148,7 @@ res://
 | `TickScheduler` | `Scripts/tick_scheduler.gd` | steps every entity's chart at its LOD rate |
 | `PersistedData` | `Scripts/persisted_data.gd` | the versioned save (currencies, XP, ranks, settings, owned monsters, codex) |
 | `MetaSkillManager` | `Scripts/MetaSkills/meta_skill_manager.gd` | skill trees, ranks, gates, capstones, threat and AI builds |
-| `GameManager` | `Scripts/game_manager.gd` | match flow, side, selected monster, quarry, rewards |
+| `GameManager` | `Scripts/game_manager.gd` | match flow and match speed, side, selected monster, quarry, rewards |
 | `AudioManager` | `Scripts/audio_manager.gd` | pooled SFX and music |
 | `AnalyticsSink` | `Scripts/analytics_sink.gd` | the local event log |
 
@@ -524,6 +524,21 @@ overlap, so four heroes on one spot show four rows.
   match at the deciding death and shows the result screen `DEATH_BEAT_SEC` later. Anything that
   keeps a reference to a dead entity across frames must check `is_instance_valid` before passing
   it on (the Trap Cage did not).
+
+### 10. Match speed (fix batch F3)
+
+- **One owner**: `GameManager._sync_time_scale()` is the only code that writes
+  `Engine.time_scale`: `match_speed()` (`MATCH_BASE_SPEED`, times `MATCH_FAST_FACTOR` on the speed
+  button's fast setting) while a match runs unpaused, 1 for the pause menu, the death beat, the
+  result screen, a scene change and the menus. Never set `Engine.time_scale` anywhere else, and
+  never pause without the tree's `paused` flag (that flag is what puts the scale back).
+- **Everything in a match is game time**: use `delta`, tweens and `create_timer` and it speeds up
+  with the match. Only what a player must read may ask for real time: scale the duration by
+  `Engine.time_scale` (the toast hold, `MatchHud.TOAST_MIN_REAL_HOLD`) instead of leaving game
+  time.
+- **Headless runs are not scaled** (`GameManager.speed_scaling` is false without a display): the
+  sims and the trace keep 60 steps per game second. A test that needs the speed sets
+  `speed_scaling` and restores it (`test/test_match_speed.gd`).
 
 ---
 

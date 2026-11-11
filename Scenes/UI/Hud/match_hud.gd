@@ -9,7 +9,11 @@ extends CanvasLayer
 ##     resume, settings, quit to lobby); so do Escape and the Android back
 ##     button (ui_cancel; MatchHud replays the OS back request through
 ##     BackButton, and the result screen or the menu itself take it first);
-##   - the clock, GameManager.get_match_elapsed();
+##   - Speed: switches the match between its normal and its fast speed
+##     (GameManager.set_match_fast, kept for the next matches). One arrow on
+##     the grey round button is normal, two arrows on the amber one fast;
+##   - the clock, GameManager.get_match_elapsed(), in game seconds: it runs
+##     with the match speed;
 ##   - the enemy tracker: heroes side, the monster's head, stage and HP;
 ##     monster side, a head and mini HP bar per hero (from the HeroChip
 ##     template in the scene), greyed when the hero falls;
@@ -23,6 +27,8 @@ extends CanvasLayer
 ## nodes, in tree order); monster side, the MonsterHudPanel.
 ## Event toasts (show_toast): the crimson BannerMonster ribbon at y 250
 ## (Root/ToastBar) pops in, holds and fades; toasts queue, at most one shows.
+## They run on game time like the match, but hold at least
+## TOAST_MIN_REAL_HOLD real seconds at any speed.
 ## The scene's Announcer (MatchAnnouncer) feeds it: monster evolved, hero
 ## fell, ultimate cast (Announcer.announced -> show_toast, wired in this scene).
 ##
@@ -34,8 +40,8 @@ extends CanvasLayer
 ## cannot take the focus; when the followed hero dies, the focus moves on to the
 ## next living hero so the camera does not stay at the death spot.
 ## The first match plays the tutorial's HUD chapter (TutorialOverlay
-## CHAPTER_HUD: the cooldown slots, the pause button) HUD_TUTORIAL_DELAY
-## seconds after the HUD binds; it never pauses the match.
+## CHAPTER_HUD: the cooldown slots, the pause and speed buttons)
+## HUD_TUTORIAL_DELAY seconds after the HUD binds; it never pauses the match.
 
 signal hero_selected(hero: Node)
 ## The Follow button: centre the camera on what it follows again.
@@ -54,12 +60,19 @@ const TOAST_POP := 0.3
 const TOAST_FADE_IN := 0.15
 const TOAST_HOLD := 2.2
 const TOAST_FADE_OUT := 0.3
+## Real seconds a toast holds at least: the hold is game time, so a fast
+## match (Engine.time_scale) gets a longer one, enough to read the line.
+const TOAST_MIN_REAL_HOLD := 1.2
 ## Toasts waiting behind the visible one; when full, the oldest waiting one
 ## gives way to the newest.
 const TOAST_MAX_PENDING := 3
 
 @export var pause_icon: Texture2D
 @export var play_icon: Texture2D
+## The Speed button's icon at the normal speed (one arrow) and at the fast
+## one (two arrows).
+@export var speed_normal_icon: Texture2D
+@export var speed_fast_icon: Texture2D
 
 ## One card per hero, in roster (tree) order; empty on the monster side.
 var cards: Array[HeroHudCard] = []
@@ -94,6 +107,7 @@ var _toast_tween: Tween = null
 ## The tracker's per-hero chip (head + mini HP bar), duplicated per hero.
 @onready var _hero_chip: Control = _hero_row.get_node(^"HeroChip")
 @onready var _pause: Button = %Pause
+@onready var _speed: Button = %Speed
 @onready var _pause_menu: PauseMenu = %PauseMenu
 @onready var _clock: Label = %Clock
 @onready var _kills: Label = %Kills
@@ -109,6 +123,7 @@ func _ready() -> void:
 	_enemy_heroes.visible = not _heroes_side
 	_hero_chip.visible = false
 	_toast.visible = false
+	_show_speed()
 	set_process(false)
 	# Two frames so the entities finish their own _ready (which awaits
 	# physics frames) before the HUD reads their stats.
@@ -264,7 +279,8 @@ static func _head_of(character_id: StringName) -> Texture2D:
 # ============================================
 
 ## Shows `text` on the toast ribbon: it pops in (0.7 -> 1, TRANS_BACK, 0.3 s),
-## holds 2.2 s and fades out in 0.3 s, then the next waiting toast shows. At
+## holds 2.2 s (game time; at least TOAST_MIN_REAL_HOLD real seconds) and
+## fades out in 0.3 s, then the next waiting toast shows. At
 ## most one toast is visible. While one is up, `queued` true waits in line
 ## (TOAST_MAX_PENDING; a full line drops its oldest) and `queued` false is
 ## dropped (moment-to-moment news: an ultimate). A text already showing or
@@ -300,7 +316,7 @@ func _play_toast(text: String) -> void:
 	_toast_tween.tween_property(_toast, ^"modulate:a", 1.0, TOAST_FADE_IN)
 	_toast_tween.parallel().tween_property(_toast, ^"scale", Vector2.ONE, TOAST_POP) \
 			.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	_toast_tween.tween_interval(TOAST_HOLD)
+	_toast_tween.tween_interval(maxf(TOAST_HOLD, TOAST_MIN_REAL_HOLD * Engine.time_scale))
 	_toast_tween.tween_property(_toast, ^"modulate:a", 0.0, TOAST_FADE_OUT)
 	_toast_tween.finished.connect(_on_toast_finished)
 
@@ -394,6 +410,19 @@ func _on_pause_menu_opened() -> void:
 
 func _on_pause_menu_resumed() -> void:
 	_pause.icon = pause_icon
+
+
+func _on_speed_pressed() -> void:
+	GameManager.set_match_fast(not GameManager.match_fast)
+	_show_speed()
+
+
+## The Speed button shows the setting: one arrow on the grey round button at
+## the normal speed, two arrows on the amber one at the fast speed.
+func _show_speed() -> void:
+	var fast := GameManager.match_fast
+	_speed.icon = speed_fast_icon if fast else speed_normal_icon
+	_speed.theme_type_variation = &"ButtonRoundPrimary" if fast else &"ButtonRound"
 
 
 func _on_follow_pressed() -> void:

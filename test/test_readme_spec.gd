@@ -433,6 +433,17 @@ func test_earning_rates_are_the_match_rewards_constants() -> void:
 	_assert_numbers(_captured(section, "\\*\\*Gold\\*\\*: Win (\\d+), Loss (\\d+), \\+(\\d+) per mob killed"), gold, "gold win / loss / per kill")
 
 
+## README "Match Speed": the table's two speeds are GameManager's constants.
+func test_match_speed_table_is_the_game_managers_constants() -> void:
+	var rows := _table(_section("Match Speed"))
+	assert_eq(rows.size(), 2, "the normal and the fast row")
+	if rows.size() < 2:
+		return
+	assert_near(rows[0][1].to_float(), GameManager.MATCH_BASE_SPEED, 0.001, "the base speed")
+	assert_near(rows[1][1].to_float(), GameManager.MATCH_BASE_SPEED * GameManager.MATCH_FAST_FACTOR, 0.001, "the fast speed")
+	assert_true(rows[0][2].contains("MATCH_BASE_SPEED") and rows[1][2].contains("MATCH_FAST_FACTOR"), "each row names its constant")
+
+
 # ---------- skill trees ----------
 
 func test_tree_content_lists_every_node_and_rank_row() -> void:
