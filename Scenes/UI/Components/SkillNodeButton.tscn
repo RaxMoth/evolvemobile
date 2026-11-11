@@ -57,10 +57,13 @@ layout_mode = 0
 offset_left = -8.0
 offset_top = 85.0
 offset_right = 92.0
-offset_bottom = 103.0
+offset_bottom = 117.0
 theme_type_variation = &"NodeName"
+theme_override_constants/line_spacing = -4
 horizontal_alignment = 1
+autowrap_mode = 3
 text_overrun_behavior = 3
+max_lines_visible = 2
 
 [node name="Badge" type="TextureRect" parent="."]
 unique_name_in_owner = true

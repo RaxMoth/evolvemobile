@@ -391,33 +391,39 @@ size_flags_vertical = 3
 [node name="Sheet" type="PanelContainer" parent="Column"]
 unique_name_in_owner = true
 visible = false
+custom_minimum_size = Vector2(0, 286)
 layout_mode = 2
 theme_type_variation = &"SheetPanel"
 
-[node name="Row" type="HBoxContainer" parent="Column/Sheet"]
+[node name="Column" type="VBoxContainer" parent="Column/Sheet"]
 layout_mode = 2
-theme_override_constants/separation = 16
+theme_override_constants/separation = 4
 
-[node name="NodeSlot" type="PanelContainer" parent="Column/Sheet/Row"]
-custom_minimum_size = Vector2(96, 96)
+[node name="Head" type="HBoxContainer" parent="Column/Sheet/Column"]
 layout_mode = 2
-size_flags_vertical = 0
+theme_override_constants/separation = 14
+
+[node name="NodeSlot" type="PanelContainer" parent="Column/Sheet/Column/Head"]
+custom_minimum_size = Vector2(64, 64)
+layout_mode = 2
+size_flags_vertical = 4
 mouse_filter = 2
 theme_type_variation = &"PanelInset"
 
-[node name="NodeIcon" type="TextureRect" parent="Column/Sheet/Row/NodeSlot"]
+[node name="NodeIcon" type="TextureRect" parent="Column/Sheet/Column/Head/NodeSlot"]
 unique_name_in_owner = true
 layout_mode = 2
 mouse_filter = 2
 expand_mode = 1
 stretch_mode = 5
 
-[node name="Info" type="VBoxContainer" parent="Column/Sheet/Row"]
+[node name="Titles" type="VBoxContainer" parent="Column/Sheet/Column/Head"]
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_constants/separation = 2
+theme_override_constants/separation = 0
+alignment = 1
 
-[node name="NodeName" type="Label" parent="Column/Sheet/Row/Info"]
+[node name="NodeName" type="Label" parent="Column/Sheet/Column/Head/Titles"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_type_variation = &"HeaderSmall"
@@ -425,42 +431,63 @@ theme_override_font_sizes/font_size = 26
 text = "Tap a node"
 text_overrun_behavior = 3
 
-[node name="NodeMeta" type="Label" parent="Column/Sheet/Row/Info"]
+[node name="NodeMeta" type="Label" parent="Column/Sheet/Column/Head/Titles"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_type_variation = &"HintLabel"
+text_overrun_behavior = 3
 
-[node name="EffectNow" type="Label" parent="Column/Sheet/Row/Info"]
+[node name="EffectNow" type="Label" parent="Column/Sheet/Column"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_type_variation = &"NowLabel"
-text_overrun_behavior = 3
+autowrap_mode = 3
 
-[node name="EffectNext" type="Label" parent="Column/Sheet/Row/Info"]
+[node name="EffectNext" type="Label" parent="Column/Sheet/Column"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_type_variation = &"NextLabel"
-text_overrun_behavior = 3
+autowrap_mode = 3
 
-[node name="BuyRow" type="HBoxContainer" parent="Column/Sheet/Row/Info"]
+[node name="CapstoneNote" type="Label" parent="Column/Sheet/Column"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_type_variation = &"HintLabel"
+theme_override_font_sizes/font_size = 16
+autowrap_mode = 3
+
+[node name="Reason" type="Label" parent="Column/Sheet/Column"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_type_variation = &"AmberLabel"
+theme_override_font_sizes/font_size = 18
+autowrap_mode = 3
+
+[node name="Spacer" type="Control" parent="Column/Sheet/Column"]
+layout_mode = 2
+size_flags_vertical = 3
+mouse_filter = 2
+
+[node name="BuyRow" type="HBoxContainer" parent="Column/Sheet/Column"]
 layout_mode = 2
 theme_override_constants/separation = 12
 
-[node name="Equip" type="Button" parent="Column/Sheet/Row/Info/BuyRow"]
+[node name="Equip" type="Button" parent="Column/Sheet/Column/BuyRow"]
 unique_name_in_owner = true
 visible = false
-custom_minimum_size = Vector2(170, 62)
+custom_minimum_size = Vector2(170, 58)
 layout_mode = 2
 size_flags_horizontal = 3
-size_flags_stretch_ratio = 0.6
 theme_type_variation = &"ButtonHero"
 disabled = true
 text = "EQUIP"
 text_overrun_behavior = 3
 
-[node name="Upgrade" type="Button" parent="Column/Sheet/Row/Info/BuyRow"]
+[node name="Upgrade" type="Button" parent="Column/Sheet/Column/BuyRow"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 62)
+custom_minimum_size = Vector2(0, 58)
 layout_mode = 2
 size_flags_horizontal = 3
 theme_type_variation = &"ButtonPrimary"
@@ -468,7 +495,7 @@ disabled = true
 text = "UPGRADE"
 text_overrun_behavior = 3
 
-[node name="Cost" type="HBoxContainer" parent="Column/Sheet/Row/Info/BuyRow/Upgrade"]
+[node name="Cost" type="HBoxContainer" parent="Column/Sheet/Column/BuyRow/Upgrade"]
 unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 11
@@ -484,7 +511,7 @@ mouse_filter = 2
 theme_override_constants/separation = 6
 alignment = 2
 
-[node name="CostIcon" type="TextureRect" parent="Column/Sheet/Row/Info/BuyRow/Upgrade/Cost"]
+[node name="CostIcon" type="TextureRect" parent="Column/Sheet/Column/BuyRow/Upgrade/Cost"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(34, 34)
 layout_mode = 2
@@ -493,7 +520,7 @@ mouse_filter = 2
 expand_mode = 1
 stretch_mode = 5
 
-[node name="CostValue" type="Label" parent="Column/Sheet/Row/Info/BuyRow/Upgrade/Cost"]
+[node name="CostValue" type="Label" parent="Column/Sheet/Column/BuyRow/Upgrade/Cost"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_type_variation = &"Counter"
@@ -516,7 +543,7 @@ layout_mode = 1
 [connection signal="tile_pressed" from="Column/Overview/Abilities/Ability2" to="." method="_on_ability_tile_pressed"]
 [connection signal="tile_pressed" from="Column/Overview/Abilities/Ability3" to="." method="_on_ability_tile_pressed"]
 [connection signal="node_selected" from="Column/TreeView" to="." method="_on_tree_view_node_selected"]
-[connection signal="pressed" from="Column/Sheet/Row/Info/BuyRow/Equip" to="." method="_on_equip_pressed"]
-[connection signal="pressed" from="Column/Sheet/Row/Info/BuyRow/Upgrade" to="." method="_on_upgrade_pressed"]
+[connection signal="pressed" from="Column/Sheet/Column/BuyRow/Equip" to="." method="_on_equip_pressed"]
+[connection signal="pressed" from="Column/Sheet/Column/BuyRow/Upgrade" to="." method="_on_upgrade_pressed"]
 [connection signal="left_pressed" from="TopBar" to="." method="_on_top_bar_left_pressed"]
 [connection signal="tab_selected" from="NavBar" to="." method="_on_nav_bar_tab_selected"]

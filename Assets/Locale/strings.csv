@@ -108,7 +108,6 @@ Health at Stage III,Health at Stage III,Leben auf Stufe III
 %d / %d XP,%d / %d XP,%d / %d EP
 UPGRADE,UPGRADE,VERBESSERN
 Tap a node,Tap a node,Tippe auf einen Knoten
-Not learned yet,Not learned yet,Noch nicht gelernt
 Now: %s,Now: %s,Jetzt: %s
 Next: %s,Next: %s,Als Nächstes: %s
 Rank %d/%d · Tier %d,Rank %d/%d · Tier %d,Rang %d/%d · Ebene %d
@@ -170,6 +169,10 @@ Rank %d/%d · %s · Tier %d,Rank %d/%d · %s · Tier %d,Rang %d/%d · %s · Eben
 Capstone,Capstone,Schlussstein
 EQUIP,EQUIP,AUSRÜSTEN
 EQUIPPED,EQUIPPED,AUSGERÜSTET
+LOCKED,LOCKED,GESPERRT
+Only one capstone is active per character. Switching is free.,Only one capstone is active per character. Switching is free.,Pro Charakter ist nur ein Schlussstein aktiv. Wechseln ist kostenlos.
+Equipped: this capstone is the active one. Switching is free.,Equipped: this capstone is the active one. Switching is free.,Ausgerüstet: Dieser Schlussstein ist der aktive. Wechseln ist kostenlos.
+Not equipped: another capstone is active. Switching is free.,Not equipped: another capstone is active. Switching is free.,Nicht ausgerüstet: Ein anderer Schlussstein ist aktiv. Wechseln ist kostenlos.
 Ranks %d/%d,Ranks %d/%d,Ränge %d/%d
 Needs a Lv %d monster,Needs a Lv %d monster,Benötigt ein Monster auf Lv %d
 A monster of yours has reached Lv %d.,A monster of yours has reached Lv %d.,Eines deiner Monster hat Lv %d erreicht.
@@ -266,3 +269,7 @@ COUNTERPLAY,COUNTERPLAY,KONTER
 Not met yet. It joins the hunt after 1 more hunt.,Not met yet. It joins the hunt after 1 more hunt.,Noch nicht getroffen. Sie kommt nach 1 weiteren Jagd dazu.
 Not met yet. It joins the hunt after %d more hunts.,Not met yet. It joins the hunt after %d more hunts.,Noch nicht getroffen. Sie kommt nach %d weiteren Jagden dazu.
 Not met yet. Hunt it to fill this page.,Not met yet. Hunt it to fill this page.,"Noch nicht getroffen. Jage sie, um diese Seite zu füllen."
+"Below 30% health his damage and attack speed rise as his health falls, up to +50% damage and +100% attack speed at the brink of death","Below 30% health his damage and attack speed rise as his health falls, up to +50% damage and +100% attack speed at the brink of death","Unter 30% Leben steigen sein Schaden und sein Angriffstempo, je tiefer sein Leben fällt: bis zu +50% Schaden und +100% Angriffstempo kurz vor dem Tod"
+"After taking damage, gain 50% movement speed and 50% attack speed for 3 seconds","After taking damage, gain 50% movement speed and 50% attack speed for 3 seconds",Nach erlittenem Schaden für 3 Sekunden 50% mehr Lauftempo und 50% mehr Angriffstempo
+Ram Dash hits everything within 70 px of his path and recharges twice as fast at Stage 3,Ram Dash hits everything within 70 px of his path and recharges twice as fast at Stage 3,Rammsturm trifft alles im Umkreis von 70 px um seine Bahn und lädt ab Stufe 3 doppelt so schnell auf
+A Warcry Stomp cast at a hero turns the Hogs within 250 px into his warband for 20 s,A Warcry Stomp cast at a hero turns the Hogs within 250 px into his warband for 20 s,Ein auf einen Helden gewirktes Kriegsstampfen macht die Keiler im Umkreis von 250 px für 20 s zu seiner Kriegsschar

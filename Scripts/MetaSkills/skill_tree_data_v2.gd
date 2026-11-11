@@ -285,7 +285,7 @@ static func grount() -> Array:
 		_n(&"g2_evo", "Ravenous", "-{v}% stage XP requirements", 2, 2, [0.90, 0.87, 0.85], "T2x3", "stat", "monster_evo_threshold", true, "", [&"g1_speed"]),
 		_n(&"g3_dash", "Long Charge", "Ram Dash distance +{v}%", 3, 2, [1.33, 1.45, 1.55], "T3x3", "ability", "dash_distance", true, "Ram Dash", [&"g1_stun", &"g2_evo"]),
 		_n(&"g3_speed", "Apex Charge", "+{v}% move speed", 3, 2, [1.15, 1.18, 1.21], "T3x3", "stat", "monster_speed_mult", true, "", [&"g2_evo"]),
-		_n(&"g4_stampede", "Trample", "Ram Dash hits a 70 px wide lane and recharges twice as fast at Stage 3", 4, 2, [1.0], "CAP", "flag", "trample", false, "Ram Dash", [&"g3_dash", &"g3_speed"], true, "BullRamDash: trample flag -> hit radius 70 (DASH_HIT_RADIUS const -> export) and cooldown x0.5 at stage 3"),
+		_n(&"g4_stampede", "Trample", "Ram Dash hits everything within 70 px of his path and recharges twice as fast at Stage 3", 4, 2, [1.0], "CAP", "flag", "trample", false, "Ram Dash", [&"g3_dash", &"g3_speed"], true, "BullRamDash: trample flag -> hit radius 70 (DASH_HIT_RADIUS const -> export) and cooldown x0.5 at stage 3"),
 	]
 
 
@@ -332,7 +332,7 @@ static func gorrak() -> Array:
 		_n(&"gk_stomp", "Earthshaker", "Warcry Stomp radius +{v}%", 2, 2, [1.15, 1.25, 1.35], "T2x3", "ability", "slam_radius", true, stomp, [&"gk_speed"]),
 		_n(&"gk_stompstun", "Ringing Ears", "Warcry Stomp stuns +{v} s longer", 2, 2, [0.25, 0.5, 0.75], "T2x3", "ability", "stun_duration", false, stomp, [&"gk_speed"]),
 		_n(&"gk_evo", "King's Hunger", "-{v}% stage XP requirements", 3, 2, [0.92, 0.88, 0.85], "T3x3", "stat", "monster_evo_threshold", true, "", [&"gk_stomp", &"gk_stompstun"]),
-		_n(&"gk_warband", "Call of the Herd", "Warcry Stomp turns the Hogs within 250 px into his warband for 20 s", 4, 2, [250.0], "CAP", "flag", "recruit_radius", false, stomp, [&"gk_evo"], true, "MobBase.ally_monster (faction override for 20 s): skips the monster as a target, targets heroes, GameUtils.can_entity_target honours it; BullGroundSlam: recruit_radius export"),
+		_n(&"gk_warband", "Call of the Herd", "A Warcry Stomp cast at a hero turns the Hogs within 250 px into his warband for 20 s", 4, 2, [250.0], "CAP", "flag", "recruit_radius", false, stomp, [&"gk_evo"], true, "MobBase.ally_monster (faction override for 20 s): skips the monster as a target, targets heroes, GameUtils.can_entity_target honours it; BullGroundSlam: recruit_radius export"),
 	]
 
 

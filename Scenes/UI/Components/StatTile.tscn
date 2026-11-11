@@ -31,12 +31,24 @@ mouse_filter = 2
 theme_override_constants/separation = -4
 alignment = 1
 
-[node name="Value" type="Label" parent="Row/Column"]
+[node name="Numbers" type="HBoxContainer" parent="Row/Column"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 6
+
+[node name="Value" type="Label" parent="Row/Column/Numbers"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_type_variation = &"Counter"
 theme_override_font_sizes/font_size = 24
-text_overrun_behavior = 3
+
+[node name="Bonus" type="Label" parent="Row/Column/Numbers"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+size_flags_vertical = 8
+theme_type_variation = &"NextLabel"
+theme_override_font_sizes/font_size = 17
 
 [node name="Caption" type="Label" parent="Row/Column"]
 unique_name_in_owner = true

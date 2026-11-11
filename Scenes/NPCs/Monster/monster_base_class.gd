@@ -31,9 +31,9 @@ signal evolved(stage: int)
 @export var enrage_damage_mult: float = 1.5
 ## Titan Form: from this stage on, bigger (scale on top of the stage scale),
 ## tougher (flat max HP after the % nodes) and longer reach (flat range).
-@export var titan_stage: int = 3
+@export var titan_stage: int = TITAN_STAGE
 @export var titan_scale_mult: float = 1.5
-@export var titan_bonus_health: float = 500.0
+@export var titan_bonus_health: float = TITAN_BONUS_HEALTH
 @export var titan_bonus_range: float = 20.0
 ## Rampage (Grount capstone, monster_rampage): every hero this monster kills
 ## resets all its ability cooldowns and heals this fraction of max HP.
@@ -50,6 +50,10 @@ signal evolved(stage: int)
 
 ## The last evolution stage (Stage III, "Apex Predator").
 const FINAL_STAGE: int = 3
+## Titan Form's stage and flat max HP: the defaults of titan_stage and
+## titan_bonus_health, which build_max_health reads without an instance.
+const TITAN_STAGE: int = 3
+const TITAN_BONUS_HEALTH: float = 500.0
 ## Vampiric Rebirth: the scattered body's alpha, its fade time, and the radius
 ## steps of the scatter point search (x rebirth_return_distance).
 const SCATTER_ALPHA: float = 0.3
@@ -430,6 +434,49 @@ func _all_abilities() -> Array[AbilityBase]:
 		if a != null:
 			out.append(a)
 	return out
+
+
+# ============================================
+# A build's numbers without an instance (the menus' overview)
+# ============================================
+# `mods` is a build as MetaSkillManager merges it (collect_monster_modifiers
+# for a spawn, owned_monster_modifiers for the player's own; {} = no nodes).
+# These read the keys _load_meta_modifiers reads and give what a healthy
+# monster of `stats` has at `stage`: the numbers of _max_health_for_stage,
+# _get_move_speed, _get_next_evolution_threshold and effective_ability_damage.
+# test_character_detail compares them with a spawned monster of every roster
+# def, so the character overview cannot drift from the match.
+
+## Max HP at `stage`: the stats' table x the % HP nodes, plus Titan Form's
+## flat bonus from its stage on.
+static func build_max_health(stats: MonsterStats, stage: int, mods: Dictionary) -> float:
+	var hp: float = stats.get_health_for_stage(stage) * float(mods.get("monster_health_mult", 1.0))
+	if float(mods.get("monster_titan_form", 0.0)) > 0.5 and stage >= TITAN_STAGE:
+		hp += TITAN_BONUS_HEALTH
+	return hp
+
+
+## Move speed at `stage` (not enraged).
+static func build_move_speed(stats: MonsterStats, stage: int, mods: Dictionary) -> float:
+	return stats.get_speed_for_stage(stage) * float(mods.get("monster_speed_mult", 1.0))
+
+
+## XP that evolves the monster into `stage` (2 or 3).
+static func build_evolution_xp(stats: MonsterStats, stage: int, mods: Dictionary) -> int:
+	return int(stats.get_xp_threshold_for_stage(stage) * float(mods.get("monster_evo_threshold", 1.0)))
+
+
+## Damage of one cast of `ability` at `stage` (not enraged). `ability` is a
+## copy that already holds the stage's numbers (apply_stage_stats(stage)) and
+## the build's ability nodes (MetaSkillManager.owned_ability).
+static func build_ability_damage(stats: MonsterStats, ability: AbilityBase, stage: int, mods: Dictionary) -> float:
+	var tree_mult: float = float(mods.get("monster_damage_mult", 1.0))
+	var dmg: float = ability.damage * tree_mult
+	if ability.damage_per_stage.is_empty():
+		dmg = ability.damage * (stats.get_damage_mult_for_stage(stage) * tree_mult)
+	if stage >= FINAL_STAGE:
+		dmg *= float(mods.get("monster_s3_damage_mult", 1.0))
+	return dmg
 
 
 # ============================================

@@ -142,12 +142,15 @@ func value_at_rank(rank: int) -> float:
 ## multiplier shows its distance from 1 (1.08 -> "8", 0.8 -> "20"), an additive
 ## value is a fraction (0.2 -> "20"). Anywhere else it is the plain number
 ## ("{v}x" 1.5 -> "1.5x", "{v} s" 0.5 -> "0.5 s", "{v} px" 200 -> "200 px").
+## The description is translated first (Assets/Locale/strings.csv, keyed by the
+## English text with its "{v}"); a text without a row stays as written.
 func effect_text(rank: int) -> String:
+	var text := String(TranslationServer.translate(description))
 	if not description.contains("{v}"):
-		return description
+		return text
 	var v := value_at_rank(clampi(rank, 1, max_rank))
 	var shown := v
 	if description.contains("{v}%"):
 		shown = absf(v - 1.0) * 100.0 if stat_multiplicative else absf(v) * 100.0
 	# String.num keeps one zero after the point ("10.0"): whole numbers drop it.
-	return description.replace("{v}", String.num(shown, 2).trim_suffix(".0"))
+	return text.replace("{v}", String.num(shown, 2).trim_suffix(".0"))

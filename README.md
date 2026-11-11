@@ -260,7 +260,8 @@ cooldown.
 #### River (Support/Scout)
 
 - **Base Stats**: 100 HP, 85 speed, 300 vision
-- **Passive**: Adaptive Movement (after taking damage, +50% move speed for 3 s)
+- **Passive**: Adaptive Movement (after taking damage, +50% move speed and
+  +50% attack speed for 3 s)
 - **Active**: Weapon Swap (switches between the sniper rifle and the heal
   staff; 1 s cooldown; the AI swaps to the staff when an ally within 350 px
   drops below 60% HP and back above 85%)
@@ -279,7 +280,9 @@ cooldown.
 #### Vlad (DPS/Berserker)
 
 - **Base Stats**: 110 HP, 80 speed, 250 vision
-- **Passive**: Bloodlust (Below 30% HP: +50% dmg, +100% attack speed)
+- **Passive**: Bloodlust (below 30% HP his damage and attack speed rise as HP
+  falls: a linear ramp from nothing at 30% to +50% dmg and +100% attack speed
+  at 0 HP)
 - **Active**: Land Mine (18 dmg explosion when an enemy steps on it; 8 s cooldown)
 - **Basic Attack**: Blood Strike, 10 dmg at 50 range / 1.0s
 - **Ultimate**: Blood Bomb (50 dmg, 150 AoE; 20 s cooldown)
@@ -386,7 +389,10 @@ Bullcalf, Rampager, Alpha Bull.
 
 An 80 px cone (`cone_range`) in front of him; it lands on the cast. The
 stage-1 cleave recasts faster than the stage-2 one (2.5 s vs 3.0 s), as the
-data has shipped since the v13 balance pass.
+data has shipped since the v13 balance pass. The ability texts the player
+reads (character overview, Codex) give every stage's damage with its cooldown
+("Stage 3: 10.8 every 1.8 s"; Front Cleave, Ram Dash, Ground Slam and Nyxa's
+Sonic Screech), so a lighter, faster stage does not read like a nerf.
 
 #### Ram Dash (Ability 2)
 
@@ -2153,7 +2159,9 @@ code connections are to autoloads (`PersistedData.currency_changed`).
   and nav tabs shrink to 0.95 while held and spring back with a 0.09 s
   TRANS_BACK tween.
 - **`StatTile.tscn`**: a stat icon, a value in display type and a caption
-  (`PanelInset`; `show_stat(icon, value, caption)`).
+  (`PanelInset`; `show_stat(icon, value, caption, bonus)`). `bonus` ("+98")
+  stands right after the value in moss green (`NextLabel`, 17 px) and hides
+  when empty: what the player's upgrades add to the number.
 - **`RewardChip.tscn`** (`RewardChip`): one match reward, an icon, "+N"
   (`BigNumberLabel`, thousands separated) and a caption in a `PanelInset`;
   `play(delay)` counts from 0 to `amount` over 0.7 s and pops the number;
@@ -2164,16 +2172,20 @@ code connections are to autoloads (`PersistedData.currency_changed`).
   over 0.9 s on the level curve, "Lv.N" and the LEVEL UP! pill (`PillReady`)
   popping when the fill crosses a level; `fallen` greys the head under a skull.
 - **`AbilityTile.tscn`**: one ability (kind caption, its
-  `get_display_icon()` as the HUD shows it, its name), a toggle button; the
+  `get_display_icon()` as the HUD shows it, its name on up to two lines:
+  "Emergency Supply Drop", "Monster-Provokation"), a toggle button; the
   toggled tile wears `CharacterCardSelected` and reports `tile_pressed(index)`.
 - **`SkillNodeButton.tscn`**: one skill-tree node in the reference's look
   (gamedesign 1.8): an 84 px `NodeTile` around its 60 px icon (a capstone's
   tile is 92 px and stands in a stone arch drawn behind it), rank pips
   (`PipOn` / `PipOff` / `PipMax`) inside the tile's bottom edge, its name
   under the tile (`NodeName`, 100 px, or up to 150 px when it is alone in its
-  cell), the red "+" (`BadgeReady`, pulsing) while its next rank can be
-  bought and afforded, a check on the tree's equipped capstone, the white
-  `SelectRing` and `pop()` (purchase juice, 1.25 → 1 with TRANS_BACK). The
+  cell; a name too long for that wraps onto a second line, which hangs in the
+  row's gap: "Stunning / Charge"), the red "+" (`BadgeReady`, pulsing) while
+  its next rank can be bought and afforded, a check on the tree's equipped
+  capstone, the white `SelectRing` (a selected node's name steps down by the
+  ring's 7 px, `RING_OUT`, so the ring never touches it) and `pop()`
+  (purchase juice, 1.25 → 1 with TRANS_BACK). The
   tile wears its branch colour (`UiPalette.branch_color`): a dark fill of it
   with a rim in the branch colour once owned, darker while open, gold
   (`rank_max`) once maxed; locked tiles keep NodeTile and dim the icon to
@@ -2192,8 +2204,9 @@ code connections are to autoloads (`PersistedData.currency_changed`).
   is, `locked_line` before. Branch colours (`UiPalette.branch_color`): heroes
   `vlad` red / `teal` / `hero` amber, monsters `monster` crimson /
   `monster_purple` / `moss`. Without named branches every row is centred;
-  rows share the height (118-150 px) and the graph is centred vertically,
-  re-laid out on resize. `build(model)` keeps the selection; `select(id)`
+  rows share the height (118-150 px), the capstones' tier sits `arch_room`
+  (12 px) lower so the arches stay clear of the names above them, and the
+  graph is centred vertically, re-laid out on resize. `build(model)` keeps the selection; `select(id)`
   reports `node_selected`; `pop(id)` after a purchase pops the node and fades
   its vines from their old colour to the new one over 0.45 s.
 - **`StrategyRow.tscn`** (`StrategyRow`): one pre-round dial in a
@@ -2603,11 +2616,27 @@ scene change: `abort_match()`) shows nothing. A timeout has no beat.
       `CharacterCardMonster` frame, its live rig as a `StageCharacter` with the
       stage idle; a tap cheers), the role pill, "Lv.N" and the XP bar toward
       the next level, six `StatTile`s and the ability tiles. `stat_rows(def)`
-      reads the stats resource, never preview numbers: heroes Health, Damage,
-      Attack speed (1 / the basic attack's cooldown), Range, Move speed and
-      Vision from `HeroStats`; monsters stage I Health, Damage (multiplier),
-      Move speed, the Stage II and III XP thresholds and the Stage III health
-      from `MonsterStats`. The four `AbilityTile`s follow
+      gives each tile its base number from the stats resource, never preview
+      numbers, and a bonus: heroes Health, Damage, Attack speed (1 / the basic
+      attack's cooldown), Range, Move speed and Vision from `HeroStats`;
+      monsters stage I Health, Damage (one hit of the basic ability at Stage
+      I: Front Cleave 12, Sonic Screech 8, Cleaver Chop 14; it was the stage
+      multiplier "×1.0", which the tabled abilities do not use), Move speed,
+      the Stage II and III XP thresholds and the Stage III health from
+      `MonsterStats`. The bonus is what the player's own build adds in a match
+      ("160 +124", "150 XP -20"; green, hidden when nothing is owned): the
+      owned ranks of the character's tree and of its side's base tree, with
+      only the equipped capstone, whatever side is chosen. It is read from
+      the code a spawn runs, not from a second formula:
+      `MetaSkillManager.owned_hero_stats` (a `HeroStatsComponent` that never
+      enters the tree, stacked by `_apply_tree_to_stats` and levelled by
+      `apply_start_level`, so Veteran Squad's level counts),
+      `owned_monster_modifiers` (merged by `_merge_monster_tree`) through
+      `MonsterBase.build_max_health` / `build_move_speed` /
+      `build_evolution_xp` / `build_ability_damage` (Titan Form's +500 HP at
+      Stage III included), and `owned_ability` for the basic attack's copy.
+      `refresh()` refills the tiles, so a purchase shows at once. The four
+      `AbilityTile`s follow
       `CharacterDef.ability_slots()` (PASSIVE, BASIC, ACTIVE, ULTIMATE; an
       empty slot hides its tile) with each ability's display icon and name; the
       ultimate is described first, a tap describes another.
@@ -2615,19 +2644,30 @@ scene change: `abort_match()`) shows nothing. A timeout has no beat.
       badge with `CharacterProgress.upgrades_ready`): the stage folds into a
       compact header (head portrait, name, "Ranks owned/open", level, XP), the
       character's tree in a `SkillTreeView` and the bottom sheet
-      (`SheetPanel`) of the selected node: name, "Rank r/max · branch · Tier
-      t" (" · Capstone"), "Now: …" (`NowLabel`) or "Not learned yet",
-      "Next: …" (`NextLabel`, moss green), and UPGRADE (`ButtonPrimary`) with
-      the currency icon and the price inside it (the price in `danger` when the
-      wallet is short), disabled and showing why when the node cannot be
-      bought ("Needs Lv 5", "Spend 3 more points", "Needs Plated or
-      Unbreakable", "Maxed", "Need 340 more"; the price hides when a gate, not
-      the wallet, stops it). A capstone also gets EQUIP (`ButtonHero`):
-      usable on an owned capstone that is not the equipped one, "EQUIPPED" on
-      the one that applies; a bought capstone shows only EQUIP. The sheet
-      opens on `UxTreeModel.suggested_node()` (the first node that can be
-      bought, else the first open one), never on an empty selection.
-      Everything fits 720x1280 above the nav bar without scrolling.
+      (`SheetPanel`) of the selected node. Its lines, top to bottom, each
+      hidden when it has nothing to say: the icon beside the name and "Rank
+      r/max · branch · Tier t" (" · Capstone"); "Now: …" (`NowLabel`) once a
+      rank is owned; "Next: …" (`NextLabel`, moss green) until the last rank;
+      on a capstone the one-capstone rule in the words of its state ("Only
+      one capstone is active per character. Switching is free." muted;
+      "Equipped: this capstone is the active one. …" green; "Not equipped:
+      another capstone is active. …" amber); the reason of a closed gate in
+      amber ("Needs Lv 5", "Spend 3 more points", "Needs Wider Slam or
+      Gravity Slam or Scar Tissue"); then the buttons. Now, Next, the rule
+      and the reason wrap across the sheet's full width (644 px), so every
+      text is read in full in English and German. UPGRADE (`ButtonPrimary`)
+      carries the currency icon and the price (the price in `danger` when the
+      wallet is short) and is disabled with a short text when the node cannot
+      be bought: "Need 340 more", "Maxed", or "LOCKED" under a gate's reason
+      (the price hides when a gate, not the wallet, stops it). An owned
+      capstone gets EQUIP (`ButtonHero`) instead: usable on one that is not
+      the equipped one, "EQUIPPED" with a check on the one that applies. The
+      sheet has one height (286 px, its minimum in the scene) with the
+      buttons at its foot, so the tree does not jump when another node is
+      tapped; it grows only for a text that needs more. The sheet opens on
+      `UxTreeModel.suggested_node()` (the first node that can be bought, else
+      the first open one), never on an empty selection. Everything fits
+      720x1280 above the nav bar without scrolling.
     - `show_base_tree(side)`: the Growth tab's account-wide tree (Hero Base or
       Monster Base, Gold) in TREE mode without tabs, under the side's crest
       (`crest_heroes` / `crest_monster` exports, `Assets/UI/Crests`) with the
@@ -2663,8 +2703,11 @@ scene change: `abort_match()`) shows nothing. A timeout has no beat.
   stat or ability property (`STAT_ICONS`), else the ability's display icon. A
   snapshot: rebuilt after every change.
 - Strings (OVERVIEW, SKILL TREE, ABILITIES, the slot kinds, stat captions, the
-  sheet's texts and block reasons) are in `Assets/Locale/strings.csv` with
-  German.
+  sheet's texts, block reasons, LOCKED and the three capstone lines) are in
+  `Assets/Locale/strings.csv` with German. A node's effect text is translated
+  before its value is filled in (`MetaSkillNode.effect_text`, keyed by the
+  English description with its "{v}"); a description without a row shows as
+  written.
 - Tests: `test_ux_tree_model` (states, block reasons, prices, gutter
   captions, rank totals, the suggested node and capstone equipping on a
   hand-built ranked tree; the live Grount tree with its three capstones; the
@@ -2675,9 +2718,16 @@ scene change: `abort_match()`) shows nothing. A timeout has no beat.
   `test_roster_screen` (grid, rumour, filters, count, intro, taps, the locked
   monsters asking and a purchase counting, refresh, wiring), `test_character_detail` (stat rows, overview, level / XP / badge,
   tree mode and sheet with the purchase juice, the sheet opening on a buyable
-  node, capstones equipping from the sheet, the top bar counting down, every
-  character and account tree fits 720x1280 with its gutter, plaques, arches
-  and names, Growth, wiring), and
+  node, capstones equipping from the sheet with the rule in each state's
+  words, the top bar counting down, every character and account tree fits
+  720x1280 with its gutter, plaques, arches and names, Growth, wiring),
+  `test_detail_fit_and_stats` (every node of every tree shows its whole
+  sheet in English and German, nothing owned and everything owned, with the
+  sheet above the nav bar and at one height in English; a gate's reason on
+  its own line; names wrapping, clear of the ring and the arches; ability
+  tile names on two lines; the overview's bonuses, checked against a spawned
+  hero and a spawned monster of every roster def at Stage I and III; the
+  tiles' widths; the texts that say what the code does), and
   `test_grount_behaviour_nodes` checks the Grount tree on this screen (every
   node on it, Rampage and Trample too, no "???" slot left, Titan Form gated
   until Grount Lv 8, bought through `upgrade_requested`).
@@ -3125,7 +3175,10 @@ way round).
   `apply_unlocked_to_hero`, `MonsterBase._load_meta_modifiers` through
   `collect_monster_modifiers` and `apply_ability_nodes_to_monster`). A fresh
   save is threat 0 with an empty AI build, so fresh matches, the determinism
-  trace and the committed baselines are unchanged.
+  trace and the committed baselines are unchanged. The menus are outside the
+  rule: the character overview always shows the save's build
+  (`owned_hero_stats`, `owned_monster_modifiers`, `owned_ability`: the same
+  stacking helpers with `applied_ranks`), never the AI's.
 - **Power ranks** `P` (`power_ranks(side, monster_id)`): ranks owned in the
   played side's base tree plus in the played character's tree, each node
   capped at its max rank (`owned_ranks`, the card pill's count). Heroes: the
@@ -3335,8 +3388,8 @@ since 6.6); `hidden` stays for nodes whose code is still to come:
   - Charge: T1 Stampede +5/7/9/11/13% speed; T1 Stunning Charge (Ram Dash stuns
     0.5 s); T2 Ravenous -10/13/15% stage XP; T3 Long Charge Ram Dash distance
     +33/45/55%; T3 Apex Charge +15/18/21% speed; T4 CAP **Trample** (Ram Dash
-    hits a 70 px lane instead of 40 px, and from Stage 3 recharges twice as
-    fast: 2.5 s).
+    hits everything within 70 px of his path instead of 40 px, a 140 px
+    lane, and from Stage 3 recharges twice as fast: 2.5 s).
 - **monster_nyxa** (Hunger / Shadow / Brood), registered with her def; every
   ability node acts on her own ability copies:
   - Hunger: T1 Dusk Hide +5/8/11/14/17% max HP; T2 Thirst Sonic Screech
@@ -3521,7 +3574,7 @@ changelog with numbers); this section is the summary.
       until real assets land in `Assets/Audio/`)
 - [x] Performance pass: faction collision layers, EntityRegistry, TickScheduler
       AI LOD, HpBar2D, mob pooling, rig sleep and budget
-- [x] Headless tools: `tools/lint.sh`, `tools/run_tests.sh` (618 tests),
+- [x] Headless tools: `tools/lint.sh`, `tools/run_tests.sh` (628 tests),
       `tools/sim.sh`, `tools/sim_trace.sh`, `tools/bench.sh`, and the art, rig,
       skill-tree and navigation builders
 

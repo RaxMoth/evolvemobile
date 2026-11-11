@@ -8,7 +8,7 @@ data) + `Docs/INSTRUCTOR.md` (architecture guide). README "Current Status & Road
 summary of this file.
 
 **Before the hourly loop works on this tree**: the overhaul is 47 local commits after `885e86a`
-(origin/main), followed by its fix batches (F1 to F3 so far); push them first. On the loop's runner re-record the trace baselines before comparing
+(origin/main), followed by its fix batches (F1 to F4 so far); push them first. On the loop's runner re-record the trace baselines before comparing
 anything (see "Verification gate").
 
 ## Done
@@ -106,7 +106,17 @@ anything (see "Verification gate").
       STRATEGY / FORMATION need a scroll (START HUNT is pinned).
 - [ ] **Content localization** — skill node names, effect texts, tree titles, branch names, Codex
       field notes, taglines, tips, ability descriptions and monster stage names are English-only data
-      (only UI strings, ability names and gate strings are in `Assets/Locale/strings.csv`).
+      (only UI strings, ability names and gate strings are in `Assets/Locale/strings.csv`). F4 put
+      the mechanism in for node effect texts (`MetaSkillNode.effect_text` translates the description,
+      keyed by the English text with its "{v}") and four German rows (Bloodlust, Adaptive Movement,
+      Trample, Call of the Herd); ability descriptions already translate through their Labels. With
+      longer German lines the skill sheet may need its third line: `test_detail_fit_and_stats`
+      checks that nothing is cut and that the sheet stays above the nav bar in both languages.
+- [ ] **Four GDScript warnings left** (found with every default warning set to error on a copy:
+      `debug/gdscript/warnings/<name>=2` in `project.godot`, then `tools/lint_all.gd`):
+      `hero_exploration_controller.gd:222` (a variable named `snapped`), `tools/bake_nav.gd:65/70/76`
+      (`root`, `remap`), `test/test_fight_readability.gd:62` (`rig` declared below in the parent
+      block). `debug/gdscript/warnings/treat_warnings_as_errors` no longer exists in Godot 4.7.
 - [ ] **uids on generated resources** — character bodies / motions / defs, Vfx recipes,
       `Data/SkillTrees`, `roster.tres`, Nyxa's and Gorrak's ability and stats files,
       `world_navigation.tres` and the `tools/preview` scenes have no `uid` in their header (the
@@ -222,6 +232,25 @@ Look and feel:
   up 1.47 s instead of 1.17 s); the first-match tips wait for a tap. Telegraphs and damage
   numbers stay game time and get shorter: a damage number shows 0.67 s at the base speed and
   0.33 s on fast, a cone flash 0.18 / 0.09 s. Option: hold them in real time too.
+- **Skill sheet** (F4): the sheet under a tree has one height (286 px at 720x1280) with the
+  buttons at its foot, so the tree stands still while nodes are tapped; a short node leaves about
+  80 px of the sheet empty and the tree's rows are 124 px apart instead of 144. The alternative, a
+  sheet as tall as its text, moves the whole tree by up to 87 px when a capstone is tapped.
+  "Not learned yet" is gone (the rank line says "Rank 0/3"), which is what lets a locked capstone
+  with a two-line text fit that height.
+- **Locked nodes** (F4): a closed gate shows its reason on an amber line of its own and the button
+  says LOCKED; "Maxed" and "Need 340 more" stay on the button. EQUIP appears once a capstone is
+  owned (it used to stand greyed next to UPGRADE before the purchase).
+- **Overview numbers** (F4): a tile shows the base number in white and what the owned build adds
+  in green ("160 +124", "150 XP -20"), not the total. Option: the total with the bonus marked.
+  The numbers are a hero at its start level (Veteran Squad counts) and a monster at Stage I,
+  without in-match effects (Pathfinder's aura, Enrage, Bloodlust). The monsters' Damage tile is
+  one hit of the basic ability at Stage I (Front Cleave 12, Sonic Screech 8, Cleaver Chop 14).
+- **Two passives do more than their old text said** (F4, review heroes-10): Bloodlust is a ramp
+  that starts at 30 % HP and reaches +50 % damage / +100 % attack speed only at 0 HP (at 15 % HP:
+  +25 % / +50 %), and Adaptive Movement also gives +50 % attack speed for its 3 s. The texts now
+  say so; the mechanics are unchanged. Options (gameplay, need sims): a flat bonus below the
+  threshold as the old text promised, and a move-speed-only Adaptive Movement.
 - **Quarry Change picker**: locked cards only shake (they unlock by hunt count, not for sale).
 - **19.5:9 phones**: a band of about 280 px of plain background sits between the MONSTERS row and
   the lair in the lobby.
@@ -251,7 +280,7 @@ Look and feel:
 
 ## Verification gate
 
-Every change passes `tools/lint.sh` (errors=0) and `tools/run_tests.sh` (exit 0; 618 tests, the
+Every change passes `tools/lint.sh` (errors=0) and `tools/run_tests.sh` (exit 0; 628 tests, the
 run exits with nothing leaked). A change that must not alter gameplay also keeps the determinism
 trace byte-identical: `BASELINE=<parent trace> tools/sim_trace.sh > <new trace>` (exit 0): seeds 1-3
 × heroes/monster as full matches (~40 s). Every 60 frames the trace hashes each EntityRegistry
@@ -371,6 +400,74 @@ Match speed (F3, `tools/bench.sh 3 2 900 300 0 <rigs_awake> <speed>`, back to ba
       uses `GameManager.killer_side`; the sim could use the same rule. Low priority.
 
 ## Changelog
+### 2026-11-11 — fix batch F4: skill tree sheet and character overview
+Fourth fix batch after the walkthrough (`walk_menus` problems 1, 2, 3, 4, 12 and 15; review
+findings menus-3, heroes-10 and monsters-11). Presentational: the determinism traces of all three
+monsters are byte-identical to `tools/baselines` (Gorrak 2,774, Grount 2,503 and Nyxa 3,252
+lines; one seed per `sim_trace.sh` call, two sims at a time).
+
+- **Texts that fit** (problem 1, menus-3): the sheet's lines run across its full width (644 px;
+  the icon moved up beside the name) and Now, Next, the capstone rule and the gate's reason wrap.
+  Every node of all nine trees shows its whole sheet in English and German, with nothing owned
+  and with everything owned (133 nodes x 2 states x 2 languages); 11 effect texts were cut in
+  English and 17 to 19 in German. The sheet has one height (286 px) with the buttons at its foot,
+  so the tree does not jump between nodes; "Not learned yet" left for that (see Decisions).
+- **Lock reason** (problem 2): a closed gate's reason is an amber line of its own above the
+  buttons ("Needs Wider Slam or Gravity Slam or Scar Tissue", "Benötigt … oder … oder …", "Spend
+  3 more points"), and the button says LOCKED / GESPERRT.
+- **Real stats** (problem 3): each overview tile shows its base number and, in green, what the
+  player's own build adds in a match: Irelia with Reinforced Plate 5/5, Unbreakable, Bulwark and
+  Hero Base ranks reads "160 +124"; Grount "800 +350", "150 XP -20", "2,200 +1,463" with Titan
+  Form. `refresh()` refills the tiles, so a purchase shows at once. The numbers come from the
+  code a spawn runs: `MetaSkillManager.owned_hero_stats` (a `HeroStatsComponent` outside the tree,
+  stacked by `_apply_tree_to_stats`, levelled by the new `HeroStatsComponent.apply_start_level`
+  that `HeroBase` now calls too), `owned_monster_modifiers` (`_merge_monster_tree`) through the
+  new static `MonsterBase.build_max_health` / `build_move_speed` / `build_evolution_xp` /
+  `build_ability_damage`, and `owned_ability` (`_apply_ability_nodes`). They read the save
+  whatever side is chosen. Tests spawn every roster hero and monster with its stat nodes owned
+  and compare: max HP, damage, range, speed, attack speed, the evolution thresholds, and the
+  Stage III health and hit with Titan Form and Apex Predator.
+- **Capstone rule** (problem 4): every capstone's sheet carries one line for its state: "Only one
+  capstone is active per character. Switching is free." (muted, before buying), "Equipped: this
+  capstone is the active one. …" (green), "Not equipped: another capstone is active. …" (amber,
+  over the green EQUIP button). EQUIPPED has the tree's check before the word. EQUIP shows once
+  the capstone is owned.
+- **Names** (problem 12): a node name too long for its width wraps onto a second line (Marching
+  Order, Stunning Charge, Sharpened Snares, Disorienting Dive), ability tile names take two lines
+  (Emergency Supply Drop, Monster-Provokation), and a selected node's name steps 7 px down, clear
+  of the white ring. The capstones' tier sits 12 px lower (`SkillTreeView.arch_room`), so the
+  arches no longer touch the names above them now that the rows are closer.
+- **Monster numbers** (problem 15): the texts of Front Cleave, Ram Dash, Ground Slam and Nyxa's
+  Sonic Screech give each stage's damage with its cooldown ("Stage 3: 10.8 every 1.8 s"), in the
+  overview and the Codex. The monsters' Damage tile was the stage multiplier "×1.0", which the
+  tabled abilities do not use; it is one hit of the basic ability at Stage I now.
+- **Tooltips** (heroes-10, monsters-11; texts only, the mechanics are unchanged): Bloodlust "…his
+  damage and attack speed rise as his health falls, up to +50% damage and +100% attack speed at
+  the brink of death"; Adaptive Movement "…50% movement speed and 50% attack speed…"; Trample
+  "…hits everything within 70 px of his path…" (70 is a half width; the old "70 px wide lane"
+  would be narrower than the stock 80); Call of the Herd "A Warcry Stomp cast at a hero…". All
+  four have German rows; `MetaSkillNode.effect_text` translates a description before filling in
+  its value. README hero details and tree content follow.
+- Tests: 618 → 628. New `test_detail_fit_and_stats.gd` (10 tests: the sheets, the gate's
+  line, names / ring / arches, ability tile names, the tiles' bonuses, a spawned hero and a
+  spawned monster of every def against the overview, tile widths, cooldowns in the texts, the
+  four tooltips); `test_character_detail`, `test_grount_behaviour_nodes` and `test_match_result`
+  updated for the new sheet and the tile's node path.
+- Gate: lint errors=0; the changed scripts have no GDScript warning with every default warning
+  set to error (Backlog lists the four that remain elsewhere). `tools/bench.sh 5 2 900 300`,
+  this tree / parent, back to back: frame mean 1.559 / 1.529 ms (+2 %), p99 3.49 / 3.15 ms
+  (+11 %; the five runs span 2.88-4.45 against 2.87-3.50 ms), CPU 3.65 / 3.63 s. Two 2-run
+  rounds before it gave mean 1.663 / 1.595 and 1.647 / 1.629 ms and p99 4.16 / 3.92 and
+  4.33 / 3.53 ms (+6 % and +23 %): with two runs the p99 moves by more than 15 % between runs of
+  one tree (machine load 4.7), and no code that runs per frame in a match changed (the start
+  level's loop moved into the stats component and runs once per hero spawn; the `build_*`
+  statics and `effect_text` run only in the menus).
+- Muted renders looked at (`impl_previews/fix_F4_*.png`): a locked capstone's sheet in English
+  and German with the wrapped Next line, the rule and the reason over LOCKED / GESPERRT; the
+  equipped and the owned-but-not-equipped capstone; Irelia's overview before and after buying
+  ranks and Grount's with Titan Form; River's and (German) Irelia's ability tiles; the Ted, Nyxa,
+  Gorrak and Hero Base trees.
+
 ### 2026-11-11 — fix batch F3: match speed (a faster round and a speed button)
 Third fix batch after the walkthrough (`walk_match`: "the fight is a short burst after about 7
 minutes of farming, with no speed control"), widened by the user's request of 2026-11-11 for a

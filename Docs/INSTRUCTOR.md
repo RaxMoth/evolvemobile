@@ -695,7 +695,13 @@ then optimize the hot path the numbers point at.
 [ ] A stat node: a generic key the spawn reads; an ability node: ability_name + property
     on the character's own copy; a behaviour node / capstone: off by default
     (false or 0), so a fresh save and the trace are unchanged
-[ ] Effect text with {v}; rank_values cumulative; costs from the cost rows
+[ ] Effect text with {v}; rank_values cumulative; costs from the cost rows. The text
+    must say what the code does (half width or width, when it triggers); a German
+    row in strings.csv is keyed by the English text with its {v}
+[ ] A key that changes a number of the character overview (max HP, damage, speed,
+    evolution XP): the overview reads the owned build through
+    MetaSkillManager.owned_hero_stats / owned_monster_modifiers and
+    MonsterBase.build_*; test_detail_fit_and_stats compares them with a spawn
 [ ] README "Tree content v2" (test_readme_spec checks names and rank rows)
 [ ] Never remove or rename a shipped node id (saves own ranks by id)
 ```

@@ -787,8 +787,10 @@ func test_skill_screen_renders_and_gates_tier_4() -> void:
 	assert_true(screen.model.find(&"g4_titan").capstone, "the capstone frame")
 	view.select(&"g4_titan")
 	var upgrade := screen.get_node("%Upgrade") as Button
+	var reason := screen.get_node("%Reason") as Label
 	assert_true(upgrade.disabled)
-	assert_true(upgrade.text.contains("Needs Lv 8"), upgrade.text)
+	assert_eq(upgrade.text, "LOCKED")
+	assert_true(reason.visible and reason.text.contains("Needs Lv 8"), reason.text)
 	_grant(["g1_dmg", "g2_hp", "g3_dmg"])
 	PersistedData.add_monster_xp(&"grount", 2800)
 	PersistedData.add_currency(PersistedData.LEAVES, 1500)

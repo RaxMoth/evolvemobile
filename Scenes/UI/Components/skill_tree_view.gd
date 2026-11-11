@@ -15,8 +15,9 @@ extends Control
 ##     the tiles: a 4.5 px core over a 9 px ink casing, moss_light with a leaf
 ##     once both ends are owned, moss once the parent is, locked_line before.
 ## Without named branches each row is centred on its own. The rows share the
-## height (min_row_h..max_row_h) and the graph is centred vertically; it lays
-## itself out again on resize.
+## height (min_row_h..max_row_h), a tier of capstones and everything below it
+## sits arch_room lower so the arches stay clear of the names above them, and
+## the graph is centred vertically; it lays itself out again on resize.
 ##
 ## Tapping a node selects it (white ring, small lift) and reports
 ## node_selected; the character detail shows it in its bottom sheet. build()
@@ -45,6 +46,9 @@ const RECOLOUR_TIME := 0.45
 @export var max_row_h: float = 150.0
 ## Two nodes sharing a cell sit this far left and right of its centre.
 @export var pair_offset: float = 50.0
+## Extra room above the first tier that holds a capstone: its arch rises above
+## the tile, into the names of the row above.
+@export var arch_room: float = 12.0
 
 var model: UxTreeModel = null
 var selected: StringName = &""
@@ -60,6 +64,9 @@ var _centers: Dictionary[StringName, Vector2] = {}
 ## The rows' top edge and height (_layout).
 var _rows_top: float = 0.0
 var _row_h: float = 0.0
+## The first tier holding a capstone (0 = none): from it on the rows sit
+## arch_room lower.
+var _arch_tier: int = 0
 ## Branch plaques (null for an unnamed branch) and gutter plaques (tier 1 first).
 var _plaques: Array[Control] = []
 var _gutter: Array[Control] = []
@@ -290,8 +297,14 @@ func _layout() -> void:
 	for p in _plaques:
 		named = named or p != null
 	var head := header_h if named else 0.0
-	_row_h = clampf((size.y - head) / model.tiers, min_row_h, max_row_h)
-	var top := maxf((size.y - head - _row_h * model.tiers) * 0.5, 0.0)
+	_arch_tier = 0
+	for entry in _placed:
+		var n := entry[1] as UxTreeModel.TreeNodeData
+		if n.capstone and (_arch_tier == 0 or n.tier < _arch_tier):
+			_arch_tier = n.tier
+	var arch := arch_room if _arch_tier > 0 else 0.0
+	_row_h = clampf((size.y - head - arch) / model.tiers, min_row_h, max_row_h)
+	var top := maxf((size.y - head - arch - _row_h * model.tiers) * 0.5, 0.0)
 	_rows_top = top + head
 	for b in _plaques.size():
 		var plaque := _plaques[b]
@@ -337,9 +350,10 @@ func _layout() -> void:
 
 
 ## Y of the tile centres of `tier`: a little above the row's middle, as the
-## names hang below the tiles.
+## names hang below the tiles; arch_room lower from the capstones' tier on.
 func _tile_y(tier: int) -> float:
-	return _rows_top + (tier - 0.5) * _row_h - SkillNodeButton.NAME_H * 0.5 + 2.0
+	var arch := arch_room if _arch_tier > 0 and tier >= _arch_tier else 0.0
+	return _rows_top + (tier - 0.5) * _row_h - SkillNodeButton.NAME_H * 0.5 + 2.0 + arch
 
 
 func _draw() -> void:

@@ -5,12 +5,15 @@ extends TestCase
 ## display icons, names and descriptions), the SKILL TREE mode (compact header
 ## with the rank totals, the tree view of UxTreeModel.from_ranked_manager with
 ## its gutter, plaques and vines, the sheet opening on the suggested node, its
-## rank line, effects, price inside UPGRADE with the block reasons, EQUIP on
-## capstones, upgrade_requested / equip_requested, the purchase juice), the tab
-## badge, the account-wide Growth trees under the side's crest, every tree
-## fitting 720x1280, the top bar's counting chip, and its own wiring in
+## rank line, effects, price inside UPGRADE, LOCKED with the gate's reason on
+## its own line, the capstone rule and EQUIP on owned capstones,
+## upgrade_requested / equip_requested, the purchase juice), the tab badge,
+## the account-wide Growth trees under the side's crest, every tree fitting
+## 720x1280, the top bar's counting chip, and its own wiring in
 ## CharacterDetail.tscn. The screen lays out in a 720x1280 SubViewport. Tests
 ## that write the save run only in the isolated test user dir.
+## test_detail_fit_and_stats.gd checks that every text fits in English and
+## German and that the overview's numbers follow the owned build.
 
 const DETAIL := preload("res://Scenes/UI/Screens/CharacterDetail.tscn")
 const HEROES := MatchRewards.Side.HEROES
@@ -67,20 +70,29 @@ func test_stat_rows_read_the_stats_resources() -> void:
 	]), "Irelia's HeroStats, attack speed from her basic attack")
 	assert_eq(values[0], "160")
 	assert_eq(values[2], "0.67/s")
+	# The wiped test save owns no rank: nothing is added (the bonus column).
+	for row in rows:
+		assert_true(row[3] == "" or not is_isolated(), "a fresh save adds nothing to %s" % row[2])
 	var grount := _def(&"grount")
 	var monster := grount.stats as MonsterStats
+	var cleave := grount.ability_slots()[1]
 	rows = CharacterDetail.stat_rows(grount)
 	values.clear()
+	captions.clear()
 	for row in rows:
 		values.append(row[1])
+		captions.append(row[2])
+	assert_eq(str(captions), str(["Health", "Damage", "Move speed", "Stage II", "Stage III", "Health at Stage III"]))
 	assert_eq(str(values), str([
-		CurrencyChip.format_amount(roundi(monster.stage_1_health)), "×%.1f" % monster.stage_1_damage_multiplier,
+		CurrencyChip.format_amount(roundi(monster.stage_1_health)), CurrencyChip.format_amount(roundi(cleave.damage_per_stage[0])),
 		CurrencyChip.format_amount(roundi(monster.stage_1_speed)), "%d XP" % monster.stage_2_xp, "%d XP" % monster.stage_3_xp,
 		CurrencyChip.format_amount(roundi(monster.stage_3_health)),
-	]), "Grount's MonsterStats")
+	]), "Grount's MonsterStats, damage from his basic ability at Stage I")
+	assert_eq(values[1], "12", "a Front Cleave hit, not a multiplier")
 	assert_eq(values[5], "2,200", "thousands get a comma")
 	for row in rows:
 		assert_true(ResourceLoader.exists(CharacterDetail.STAT_ICON_PATH % row[0]), "icon %s" % row[0])
+		assert_true(row[3] == "" or not is_isolated(), "a fresh save adds nothing to %s" % row[2])
 	assert_true(CharacterDetail.stat_rows(null).is_empty())
 
 
@@ -105,6 +117,8 @@ func test_overview_shows_the_character() -> void:
 	for i in tiles.size():
 		assert_eq(tiles[i].value, rows[i][1], "tile %d" % i)
 		assert_eq(tiles[i].caption, rows[i][2])
+		assert_eq(tiles[i].bonus, rows[i][3])
+		assert_eq((tiles[i].get_node("%Bonus") as CanvasItem).visible, not tiles[i].bonus.is_empty(), "the bonus shows only when there is one")
 		assert_true(tiles[i].icon != null)
 	var slots := irelia.ability_slots()
 	var abilities := screen.ability_tiles()
@@ -180,10 +194,16 @@ func test_tree_mode_and_the_sheet() -> void:
 	var upgrade := screen.get_node("%Upgrade") as Button
 	var equip := screen.get_node("%Equip") as Button
 	var cost := screen.get_node("%CostValue") as Label
+	var now := screen.get_node("%EffectNow") as Label
+	var reason := screen.get_node("%Reason") as Label
+	var note := screen.get_node("%CapstoneNote") as Label
 	assert_eq(view.selected, &"g1_dmg", "nothing to buy: the sheet opens on the first open node")
 	assert_eq(_label(screen, "%NodeName"), "Heavy Horns")
+	assert_false(now.visible, "not learned: Rank 0/5 says so, only Next follows")
+	assert_eq(_label(screen, "%EffectNext"), "Next: +10% damage")
 	assert_true(upgrade.disabled, "no Leaves")
 	assert_eq(upgrade.text, "Need 40 more")
+	assert_false(reason.visible or note.visible, "the wallet stops it: no gate line, and no capstone")
 	assert_true((screen.get_node("%Cost") as CanvasItem).visible, "the price, inside UPGRADE")
 	assert_eq(cost.text, "40")
 	assert_eq(cost.get_theme_color(&"font_color"), palette.danger, "a price the wallet cannot pay")
@@ -192,14 +212,18 @@ func test_tree_mode_and_the_sheet() -> void:
 	view.select(&"g4_titan")
 	assert_eq(_label(screen, "%NodeName"), "Titan Form")
 	assert_eq(_label(screen, "%NodeMeta"), "Rank 0/1 · Hide · Tier 4 · Capstone", "rank, branch, tier")
-	assert_eq(_label(screen, "%EffectNow"), "Not learned yet")
+	assert_false(now.visible)
 	assert_eq(_label(screen, "%EffectNext"), "Next: Stage 3: +50% size, +500 HP, +20 range")
 	assert_true(upgrade.disabled)
-	assert_eq(upgrade.text, "Needs Lv 8", "character trees open tier 4 at Grount Lv 8")
+	assert_eq(upgrade.text, "LOCKED", "a closed gate: the button stays short")
+	assert_true(reason.visible)
+	assert_eq(reason.text, "Needs Lv 8", "character trees open tier 4 at Grount Lv 8: the reason on its own line")
 	assert_false((screen.get_node("%Cost") as CanvasItem).visible, "the gate stops it, not the price")
-	assert_true(equip.visible and equip.disabled, "a capstone shows EQUIP, usable once owned")
-	assert_eq(equip.text, "EQUIP")
+	assert_true(note.visible, "a capstone says the one-capstone rule")
+	assert_eq(note.text, CharacterDetail.CAPSTONE_RULE)
+	assert_false(equip.visible, "EQUIP comes with owning the capstone")
 	view.select(&"g1_dmg")
+	assert_false(reason.visible or note.visible, "the lines leave with the capstone")
 	PersistedData.add_currency(PersistedData.LEAVES, 150)
 	screen.refresh()
 	assert_eq(view.selected, &"g1_dmg", "the selection survives a refresh")
@@ -221,6 +245,7 @@ func test_tree_mode_and_the_sheet() -> void:
 	assert_eq(view.vine_color(&"g1_dmg", &"g2_cleavecd"), palette.moss, "its vines light up")
 	assert_true(view.is_recolouring(), "fading from the old colour")
 	assert_eq(_label(screen, "%NodeMeta"), "Rank 1/5 · Horns · Tier 1")
+	assert_true(now.visible)
 	assert_eq(_label(screen, "%EffectNow"), "Now: +10% damage")
 	assert_eq(_label(screen, "%EffectNext"), "Next: +14% damage")
 	assert_eq(_label(screen, "%HeadRanks"), "Ranks 1/%d" % screen.model.ranks_open())
@@ -234,7 +259,9 @@ func test_tree_mode_and_the_sheet() -> void:
 	screen.refresh()
 	assert_eq(view.button(&"g1_dmg").state, UxTreeModel.NodeState.MAXED)
 	assert_eq(_label(screen, "%EffectNow"), "Now: +22% damage")
+	assert_false((screen.get_node("%EffectNext") as CanvasItem).visible, "nothing follows the last rank")
 	assert_eq(upgrade.text, "Maxed")
+	assert_false(reason.visible, "Maxed is no gate")
 	assert_false((screen.get_node("%Cost") as CanvasItem).visible)
 	(screen.get_node("%OverviewTab") as BaseButton).pressed.emit()
 	assert_eq(screen.mode, CharacterDetail.Mode.OVERVIEW)
@@ -265,6 +292,7 @@ func test_the_sheet_opens_on_a_buyable_node() -> void:
 
 ## Two of Irelia's capstones owned: the equipped one says EQUIPPED, the other
 ## offers EQUIP and reports equip_requested; a bought capstone only equips.
+## Every capstone carries the one-capstone rule in the words of its state.
 func test_capstones_equip_from_the_sheet() -> void:
 	if not require_isolated():
 		return
@@ -280,16 +308,24 @@ func test_capstones_equip_from_the_sheet() -> void:
 	var view := screen.tree_view()
 	var upgrade := screen.get_node("%Upgrade") as Button
 	var equip := screen.get_node("%Equip") as Button
+	var note := screen.get_node("%CapstoneNote") as Label
 	assert_true(view.button(&"ir_guardian").equipped, "the check on the equipped capstone")
 	assert_false(view.button(&"ir_laststand").equipped)
 	assert_true(view.button(&"ir_guardian").capstone)
 	view.select(&"ir_guardian")
 	assert_true(equip.visible and equip.disabled)
 	assert_eq(equip.text, "EQUIPPED")
+	assert_eq(equip.icon, CharacterDetail.EQUIPPED_ICON, "with the check")
+	assert_true(note.visible)
+	assert_eq(note.text, CharacterDetail.CAPSTONE_EQUIPPED, "the active one says so")
+	assert_eq(note.theme_type_variation, &"NextLabel", "in green")
 	assert_false(upgrade.visible, "nothing left to buy")
 	view.select(&"ir_laststand")
 	assert_eq(equip.text, "EQUIP")
+	assert_true(equip.icon == null)
 	assert_false(equip.disabled)
+	assert_eq(note.text, CharacterDetail.CAPSTONE_NOT_EQUIPPED, "owned, but another one is active")
+	assert_eq(note.theme_type_variation, &"AmberLabel")
 	var asked: Array[String] = []
 	screen.equip_requested.connect(func(tree: StringName, node: StringName) -> void: asked.append("%s/%s" % [tree, node]))
 	equip.pressed.emit()
@@ -300,8 +336,16 @@ func test_capstones_equip_from_the_sheet() -> void:
 	assert_eq(view.selected, &"ir_laststand")
 	assert_eq(equip.text, "EQUIPPED")
 	assert_true(view.button(&"ir_laststand").equipped and not view.button(&"ir_guardian").equipped)
+	assert_eq(note.text, CharacterDetail.CAPSTONE_EQUIPPED)
 	view.select(&"ir_banner")
-	assert_true(upgrade.visible and equip.visible and equip.disabled, "not owned: UPGRADE, and EQUIP waiting")
+	assert_true(upgrade.visible and not equip.visible, "not owned: UPGRADE alone")
+	assert_eq(note.text, CharacterDetail.CAPSTONE_RULE, "the rule before buying")
+	assert_eq(note.theme_type_variation, &"HintLabel")
+	var before := TranslationServer.get_locale()
+	TranslationServer.set_locale("de")
+	for line: String in [CharacterDetail.CAPSTONE_RULE, CharacterDetail.CAPSTONE_EQUIPPED, CharacterDetail.CAPSTONE_NOT_EQUIPPED, "LOCKED"]:
+		assert_true(String(TranslationServer.translate(line)) != line, "'%s' has a German line" % line)
+	TranslationServer.set_locale(before)
 
 
 func test_the_top_bar_counts_down_after_a_purchase() -> void:

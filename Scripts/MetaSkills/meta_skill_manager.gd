@@ -497,6 +497,53 @@ func applied_ranks(tree_id: StringName) -> Dictionary[StringName, int]:
 	return out
 
 
+# ============================================
+# The owned build outside a match (the menus' character overview)
+# ============================================
+# The side rule does not apply here: these always read the save, so a screen
+# shows the player's own character whatever side is chosen. Each one stacks
+# the nodes with the helper a spawn uses (_apply_tree_to_stats,
+# _merge_monster_tree, _apply_ability_nodes), so the menus and the match agree.
+
+## A hero with `base` stats as the player fields it: a HeroStatsComponent that
+## never enters the tree, carrying the save's nodes (applied_ranks) of Hero
+## Base and the hero's own tree, then levelled to the start level, as
+## HeroBase._ready does on a spawn. The caller reads it and frees it.
+func owned_hero_stats(base: HeroStats) -> HeroStatsComponent:
+	var stats := HeroStatsComponent.new()
+	stats.base_stats = base
+	stats.initialize()
+	_apply_tree_to_stats(TREE_HERO_BASE, stats, applied_ranks(TREE_HERO_BASE))
+	if base.hero_id != &"":
+		var tree_id := hero_tree_id(base.hero_id)
+		_apply_tree_to_stats(tree_id, stats, applied_ranks(tree_id))
+	stats.apply_start_level()
+	return stats
+
+
+## key -> value of the monster build the player owns: the save's nodes
+## (applied_ranks) of Monster Base and monster_<id>, merged like
+## collect_monster_modifiers. What `monster_id` spawns with when the player
+## plays it (MonsterBase.build_* turn it into stage numbers).
+func owned_monster_modifiers(monster_id: StringName) -> Dictionary:
+	var out: Dictionary = {}
+	_merge_monster_tree(TREE_MONSTER_BASE, out, applied_ranks(TREE_MONSTER_BASE))
+	if monster_id != &"":
+		var tree_id := monster_tree_id(monster_id)
+		_merge_monster_tree(tree_id, out, applied_ranks(tree_id))
+	return out
+
+
+## A copy of the shared ability resource `ability` carrying the ability nodes
+## the player owns in `tree_id`, as a spawn's own copy does; null for null.
+func owned_ability(tree_id: StringName, ability: AbilityBase) -> AbilityBase:
+	if ability == null:
+		return null
+	var copy := ability.duplicate() as AbilityBase
+	_apply_ability_nodes(tree_id, [copy], applied_ranks(tree_id))
+	return copy
+
+
 func _apply_ability_nodes(tree_id: StringName, abilities: Array[AbilityBase], ranks: Dictionary[StringName, int]) -> void:
 	var t: MetaSkillTree = get_tree_def(tree_id)
 	if t == null:

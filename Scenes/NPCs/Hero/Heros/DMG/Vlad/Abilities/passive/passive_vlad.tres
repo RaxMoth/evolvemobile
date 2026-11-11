@@ -8,5 +8,5 @@ script = ExtResource("1_gv6yf")
 ability_name = "Bloodlust"
 ability_type = 0
 icon = ExtResource("1_6foed")
-description = "Below 30% health: +50% damage and +100% attack speed"
+description = "Below 30% health his damage and attack speed rise as his health falls, up to +50% damage and +100% attack speed at the brink of death"
 metadata/_custom_type_script = "uid://crchhtk3gfv24"

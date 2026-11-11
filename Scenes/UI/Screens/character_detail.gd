@@ -5,21 +5,29 @@ extends Control
 ## modes (the OVERVIEW / SKILL TREE tabs):
 ##   - OVERVIEW: the character big on its stage (its live rig with the stage
 ##     idle; a tap cheers), the role pill, "Lv.N" and the XP bar toward the next
-##     level, six StatTiles read from its HeroStats or MonsterStats (stat_rows),
-##     and its abilities as AbilityTiles (the display icon and name; the
-##     toggled one shows its description underneath).
+##     level, six StatTiles (stat_rows: the base number from its HeroStats or
+##     MonsterStats and, in green, what the owned ranks of its own tree and its
+##     side's base tree add: "160 +98"), and its abilities as AbilityTiles (the
+##     display icon and name; the toggled one shows its description
+##     underneath).
 ##   - SKILL TREE: the stage folds into a compact header (head portrait, name,
 ##     ranks owned / open, level, XP), the character's tree as a SkillTreeView
 ##     (UxTreeModel.from_ranked_manager) and the bottom sheet of the selected
 ##     node: "Rank r/max · branch · Tier t", what it gives now (white) and next
-##     (green), and UPGRADE with the currency and the price (in the danger
-##     colour when the wallet is short), disabled and showing the reason
-##     ("Needs Lv 5", "Spend 3 more points", "Needs Plated or Unbreakable",
-##     "Maxed", "Need 340 more") when the node cannot be bought. A capstone
-##     also gets EQUIP (EQUIPPED on the one that applies); a bought capstone
-##     only equips. The sheet opens on the first node that can be bought
-##     (UxTreeModel.suggested_node), never on an empty selection. The tab
-##     carries an up-arrow badge with the number of ranks ready to buy.
+##     (green), both wrapping so every text is read in full, and UPGRADE with
+##     the currency and the price (in the danger colour when the wallet is
+##     short). A node that cannot be bought disables the button: "Need 340
+##     more" and "Maxed" on it, and for a closed gate "LOCKED" with the reason
+##     on its own amber line above ("Needs Lv 5", "Spend 3 more points",
+##     "Needs Plated or Unbreakable"). A capstone carries the one-capstone
+##     rule on a line of its own, worded for its state (not owned, equipped,
+##     owned but not equipped); once owned it gets EQUIP (EQUIPPED with a
+##     check on the one that applies) and nothing left to buy. The sheet keeps
+##     one height (its minimum in the scene) so the tree does not jump between
+##     nodes, and grows only for a text that needs more. It opens on the first
+##     node that can be bought (UxTreeModel.suggested_node), never on an empty
+##     selection. The tab carries an up-arrow badge with the number of ranks
+##     ready to buy.
 ## show_base_tree() opens the screen on an account-wide tree instead (the
 ## Growth tab: hero_base or monster_base by side) in TREE mode, without tabs,
 ## under the side's crest.
@@ -42,6 +50,12 @@ enum Mode { OVERVIEW, TREE }
 ## Captions of the ability slots, in CharacterDef.ability_slots() order.
 const SLOT_KINDS: PackedStringArray = ["PASSIVE", "BASIC", "ACTIVE", "ULTIMATE"]
 const STAT_ICON_PATH := "res://Assets/UI/Icons/Stats/%s.svg"
+## The check on EQUIPPED (the tree shows the same one on the equipped arch).
+const EQUIPPED_ICON := preload("res://Assets/UI/Icons/UI/ui_check.svg")
+## The one-capstone rule on a capstone's sheet, by its state.
+const CAPSTONE_RULE := "Only one capstone is active per character. Switching is free."
+const CAPSTONE_EQUIPPED := "Equipped: this capstone is the active one. Switching is free."
+const CAPSTONE_NOT_EQUIPPED := "Not equipped: another capstone is active. Switching is free."
 ## The ability described when a character opens: the ultimate (or the last
 ## one the character has).
 const DEFAULT_ABILITY := 3
@@ -103,6 +117,8 @@ var _fade: Tween = null
 @onready var _node_meta: Label = %NodeMeta
 @onready var _effect_now: Label = %EffectNow
 @onready var _effect_next: Label = %EffectNext
+@onready var _capstone_note: Label = %CapstoneNote
+@onready var _reason: Label = %Reason
 @onready var _cost: Control = %Cost
 @onready var _cost_icon: TextureRect = %CostIcon
 @onready var _cost_value: Label = %CostValue
@@ -143,7 +159,6 @@ func show_character(def: CharacterDef, p_mode: Mode = Mode.OVERVIEW) -> void:
 	_head_xp.visible = true
 	_head_blurb.visible = false
 	_tabs.visible = true
-	_fill_stats()
 	_fill_abilities()
 	refresh()
 	set_mode(p_mode, false)
@@ -180,11 +195,13 @@ func own_tab() -> StringName:
 	return &"monsters" if character.is_monster() else &"heroes"
 
 
-## Re-reads the save: level and XP, the tab badge, the tree and the sheet.
-## With nothing selected (a tree opened fresh) the sheet shows the model's
-## suggested node. The node an UPGRADE was asked for pops once it gained a rank.
+## Re-reads the save: level and XP, the overview's numbers, the tab badge, the
+## tree and the sheet. With nothing selected (a tree opened fresh) the sheet
+## shows the model's suggested node. The node an UPGRADE was asked for pops
+## once it gained a rank.
 func refresh() -> void:
 	if character != null:
+		_fill_stats()
 		var p := CharacterProgress.progress(character)
 		var lv: int = p["level"]
 		var into: int = p["into"]
@@ -223,35 +240,61 @@ func set_mode(m: Mode, animate: bool = true) -> void:
 	_apply_mode(animate)
 
 
-## The six numbers of the overview for `def`: [icon key, value, caption],
-## read from its HeroStats (the basic attack's cooldown gives the attack
-## speed) or its MonsterStats (stage I numbers and the evolution thresholds).
+## The six numbers of the overview for `def`: [icon key, value, caption,
+## bonus]. `value` is the base number from its HeroStats (the basic attack's
+## cooldown gives the attack speed) or its MonsterStats (stage I health, the
+## basic ability's hit and the move speed, the evolution thresholds and the
+## Stage III health). `bonus` is what the player's own build adds to it in a
+## match ("+98", "-15" on a threshold, "" for nothing): the owned ranks of the
+## character's tree and its side's base tree with the equipped capstone,
+## stacked by MetaSkillManager the way a spawn stacks them (owned_hero_stats
+## on a HeroStatsComponent, owned_monster_modifiers through MonsterBase's
+## build_* numbers, owned_ability for the basic attack).
 static func stat_rows(def: CharacterDef) -> Array[Array]:
 	var rows: Array[Array] = []
 	if def == null:
 		return rows
+	var slots := def.ability_slots()
+	var basic: AbilityBase = slots[1] if slots.size() > 1 else null
 	if def.stats is HeroStats:
 		var s := def.stats as HeroStats
-		var slots := def.ability_slots()
-		var basic: AbilityBase = slots[1] if slots.size() > 1 else null
+		var owned := MetaSkillManager.owned_hero_stats(s)
 		var rate := "-"
+		var rate_bonus := ""
 		if basic != null and basic.cooldown > 0.0:
-			rate = "%.2f/s" % (1.0 / basic.cooldown)
-		rows.append(["stat_hp", _number(s.base_max_health), "Health"])
-		rows.append(["stat_damage", _number(s.base_attack_damage), "Damage"])
-		rows.append(["stat_attack_speed", rate, "Attack speed"])
-		rows.append(["stat_range", _number(s.base_attack_range), "Range"])
-		rows.append(["stat_speed", _number(s.base_move_speed), "Move speed"])
-		rows.append(["stat_vision", _number(s.vision_radius), "Vision"])
+			var owned_basic := MetaSkillManager.owned_ability(def.skill_tree_id(), basic)
+			var base_rate := 1.0 / basic.cooldown
+			rate = "%.2f/s" % base_rate
+			if owned_basic.cooldown > 0.0:
+				rate_bonus = _bonus(base_rate, owned.get_attack_speed_multiplier() / owned_basic.cooldown, 0.01)
+		rows.append(["stat_hp", _number(s.base_max_health), "Health", _bonus(s.base_max_health, owned.get_max_health())])
+		rows.append(["stat_damage", _number(s.base_attack_damage), "Damage", _bonus(s.base_attack_damage, owned.get_attack_damage())])
+		rows.append(["stat_attack_speed", rate, "Attack speed", rate_bonus])
+		rows.append(["stat_range", _number(s.base_attack_range), "Range", _bonus(s.base_attack_range, owned.get_attack_range())])
+		rows.append(["stat_speed", _number(s.base_move_speed), "Move speed", _bonus(s.base_move_speed, owned.get_move_speed())])
+		rows.append(["stat_vision", _number(s.vision_radius), "Vision", ""])
+		owned.free()
 	elif def.stats is MonsterStats:
 		var m := def.stats as MonsterStats
+		var mods := MetaSkillManager.owned_monster_modifiers(m.monster_id)
 		var xp_format := TranslationServer.translate("%d XP")
-		rows.append(["stat_hp", _number(m.stage_1_health), "Health"])
-		rows.append(["stat_damage", "×%.1f" % m.stage_1_damage_multiplier, "Damage"])
-		rows.append(["stat_speed", _number(m.stage_1_speed), "Move speed"])
-		rows.append(["stat_xp", xp_format % m.stage_2_xp, "Stage II"])
-		rows.append(["stat_level", xp_format % m.stage_3_xp, "Stage III"])
-		rows.append(["stat_threat", _number(m.stage_3_health), "Health at Stage III"])
+		var hit := "-"
+		var hit_bonus := ""
+		if basic != null:
+			# Copies: the stage's numbers are written into the ability.
+			var stock := basic.duplicate() as AbilityBase
+			stock.apply_stage_stats(1)
+			var owned_basic := MetaSkillManager.owned_ability(def.skill_tree_id(), basic)
+			owned_basic.apply_stage_stats(1)
+			var stock_hit := MonsterBase.build_ability_damage(m, stock, 1, {})
+			hit = _number(stock_hit)
+			hit_bonus = _bonus(stock_hit, MonsterBase.build_ability_damage(m, owned_basic, 1, mods))
+		rows.append(["stat_hp", _number(m.stage_1_health), "Health", _bonus(m.stage_1_health, MonsterBase.build_max_health(m, 1, mods))])
+		rows.append(["stat_damage", hit, "Damage", hit_bonus])
+		rows.append(["stat_speed", _number(m.stage_1_speed), "Move speed", _bonus(m.stage_1_speed, MonsterBase.build_move_speed(m, 1, mods))])
+		rows.append(["stat_xp", xp_format % m.stage_2_xp, "Stage II", _bonus(m.stage_2_xp, MonsterBase.build_evolution_xp(m, 2, mods))])
+		rows.append(["stat_level", xp_format % m.stage_3_xp, "Stage III", _bonus(m.stage_3_xp, MonsterBase.build_evolution_xp(m, 3, mods))])
+		rows.append(["stat_threat", _number(m.stage_3_health), "Health at Stage III", _bonus(m.stage_3_health, MonsterBase.build_max_health(m, 3, mods))])
 	return rows
 
 
@@ -260,6 +303,19 @@ static func _number(v: float) -> String:
 	if is_equal_approx(v, roundf(v)):
 		return CurrencyChip.format_amount(roundi(v))
 	return "%.1f" % v
+
+
+## What the owned build adds to `base`, as the tile shows it: "+98", "-15",
+## "+0.3"; "" when it adds nothing. Rounded to `step`: whole numbers for a
+## big stat, a tenth for a small one (5 damage), 0.01 for a rate.
+static func _bonus(base: float, real: float, step: float = 0.0) -> String:
+	if step <= 0.0:
+		step = 1.0 if absf(base) >= 20.0 else 0.1
+	var delta := snappedf(real - base, step)
+	if is_zero_approx(delta):
+		return ""
+	var amount := "%.2f" % absf(delta) if step < 0.1 else _number(absf(delta))
+	return ("+" if delta > 0.0 else "-") + amount
 
 
 func stat_tiles() -> Array[StatTile]:
@@ -295,7 +351,7 @@ func _fill_stats() -> void:
 		tile.visible = i < rows.size()
 		if i < rows.size():
 			var row: Array = rows[i]
-			tile.show_stat(load(STAT_ICON_PATH % row[0]) as Texture2D, row[1], row[2])
+			tile.show_stat(load(STAT_ICON_PATH % row[0]) as Texture2D, row[1], row[2], row[3])
 
 
 func _fill_abilities() -> void:
@@ -334,7 +390,8 @@ func _ability_icons() -> Dictionary:
 	return icons
 
 
-## The bottom sheet for node `id` (empty: an empty tree).
+## The bottom sheet for node `id` (empty: an empty tree). A line that has
+## nothing to say hides, so the sheet's rows never leave a gap.
 func _show_node(id: StringName) -> void:
 	var n: UxTreeModel.TreeNodeData = null
 	if model != null and not id.is_empty():
@@ -343,8 +400,10 @@ func _show_node(id: StringName) -> void:
 		_node_icon.texture = null
 		_node_name.text = "Tap a node"
 		_node_meta.text = ""
-		_effect_now.text = ""
-		_effect_next.text = ""
+		_effect_now.visible = false
+		_effect_next.visible = false
+		_capstone_note.visible = false
+		_reason.visible = false
 		_cost.visible = false
 		_upgrade.visible = true
 		_upgrade.text = "UPGRADE"
@@ -359,15 +418,42 @@ func _show_node(id: StringName) -> void:
 	if n.capstone:
 		meta += " · " + tr("Capstone")
 	_node_meta.text = meta
-	_effect_now.text = tr("Now: %s") % n.effect_at(n.rank) if n.rank > 0 else tr("Not learned yet")
+	var owned := n.rank > 0
 	var maxed := n.rank >= n.max_rank()
+	var equipped := model.is_equipped(n)
+	# A node not learned yet says so in its rank line ("Rank 0/3"): only what
+	# the next rank gives follows.
+	_effect_now.visible = owned
+	_effect_now.text = tr("Now: %s") % n.effect_at(n.rank) if owned else ""
+	_effect_next.visible = not maxed
 	_effect_next.text = "" if maxed else tr("Next: %s") % n.effect_at(n.rank + 1)
+	# Only one capstone applies: said on every capstone, in its state's words
+	# and colour (muted rule, green on the equipped one, amber on an owned one
+	# that waits for EQUIP).
+	_capstone_note.visible = n.capstone
+	if equipped:
+		_capstone_note.text = CAPSTONE_EQUIPPED
+		_capstone_note.theme_type_variation = &"NextLabel"
+	elif owned:
+		_capstone_note.text = CAPSTONE_NOT_EQUIPPED
+		_capstone_note.theme_type_variation = &"AmberLabel"
+	else:
+		_capstone_note.text = CAPSTONE_RULE
+		_capstone_note.theme_type_variation = &"HintLabel"
 	# A bought capstone has nothing left to buy: it only equips.
 	_upgrade.visible = not (n.capstone and maxed)
-	_equip.visible = n.capstone
-	_equip.text = "EQUIPPED" if model.is_equipped(n) else "EQUIP"
+	_equip.visible = n.capstone and owned
+	_equip.text = "EQUIPPED" if equipped else "EQUIP"
+	# The check stands right before the word (an icon centres apart from it).
+	_equip.icon = EQUIPPED_ICON if equipped else null
+	_equip.alignment = HORIZONTAL_ALIGNMENT_LEFT if equipped else HORIZONTAL_ALIGNMENT_CENTER
 	_equip.disabled = not model.can_equip(n)
 	var reason := model.block_reason(n)
+	# A closed gate (level, points, prerequisite) is explained on its own
+	# wrapped line; the button only says LOCKED.
+	var gated := not reason.is_empty() and not maxed
+	_reason.visible = gated
+	_reason.text = reason if gated else ""
 	# The price shows while it is what stands between the player and the rank.
 	_cost.visible = reason.is_empty()
 	_cost_icon.texture = CurrencyChip.icon_for(model.currency)
@@ -377,7 +463,10 @@ func _show_node(id: StringName) -> void:
 	else:
 		_cost_value.add_theme_color_override(&"font_color", UiPalette.get_default().danger)
 	_upgrade.alignment = HORIZONTAL_ALIGNMENT_LEFT if _cost.visible else HORIZONTAL_ALIGNMENT_CENTER
-	if not reason.is_empty():
+	if gated:
+		_upgrade.text = "LOCKED"
+		_upgrade.disabled = true
+	elif maxed:
 		_upgrade.text = reason
 		_upgrade.disabled = true
 	elif not model.affordable(n):

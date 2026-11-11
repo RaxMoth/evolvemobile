@@ -38,6 +38,12 @@ func _ready() -> void:
 	
 	_initialize_stats()
 
+## The stats from base_stats, at full health. _ready does it for a hero in a
+## match; MetaSkillManager.owned_hero_stats calls it on a component that never
+## enters the tree (the menus' overview).
+func initialize() -> void:
+	_initialize_stats()
+
 func _initialize_stats() -> void:
 	_recalculate_all_stats()
 	current_stats.current_health = current_stats.max_health
@@ -115,6 +121,20 @@ func get_cooldown_multiplier() -> float:
 ## hero up to once the tree is applied; 1 without the node.
 func get_start_level() -> int:
 	return clampi(roundi(get_modifier("start_level", false)), 1, MAX_LEVEL)
+
+
+## Veteran Squad (hero_base key start_level): levels the hero up to the tree's
+## start level and refills its health. Runs after the tree is applied
+## (HeroBase._ready, MetaSkillManager.owned_hero_stats), so each level adds its
+## growth on top of the % nodes. Nothing happens at level 1, the fresh-save
+## default.
+func apply_start_level() -> void:
+	var start_level: int = get_start_level()
+	if start_level <= level:
+		return
+	while level < start_level:
+		level_up()
+	refill_health()
 
 
 func add_stat_modifier(stat_name: String, value: float, is_multiplicative: bool = false) -> void:

@@ -165,7 +165,7 @@ func test_fallen_heroes_lie_down_while_the_rest_celebrate() -> void:
 	assert_false((screen.cast()[0].get_node(^"%Rig") as RigView).greyed, "the standing ones keep their colour")
 	assert_true((vlad.get_node(^"%Hop") as Control).rotation_degrees != 0.0, "tipped back")
 	assert_false((vlad.get_node(^"%Rig") as RigView).animated, "posed still")
-	assert_eq(_label(screen, "%StatThird/Row/Column/Value"), "3 / 4", "three survivors")
+	assert_eq(_label(screen, "%StatThird/Row/Column/Numbers/Value"), "3 / 4", "three survivors")
 	var row := screen.xp_rows()[1]
 	assert_true(row.fallen and _shown(row, "%Skull"), "the row's skull")
 	assert_eq((row.get_node(^"%Head") as CanvasItem).modulate, UiPalette.FALLEN_MODULATE)
@@ -370,7 +370,7 @@ func test_match_end_pays_the_played_sides_kills() -> void:
 		var fell: Array[StringName] = [&"vlad"]
 		assert_eq(r.fallen_hero_ids, fell, "the hero that fell")
 		assert_eq(r.monster_id, &"grount")
-		assert_eq(_label(screen, "%StatKills/Row/Column/Value"), "7", "the tally shows the same count")
+		assert_eq(_label(screen, "%StatKills/Row/Column/Numbers/Value"), "7", "the tally shows the same count")
 		assert_true(screen.cast()[1].fallen, "Vlad lies down")
 		assert_eq(PersistedData.get_currency(PersistedData.STEEL), r.steel, "saved before populate")
 		screen.queue_free()

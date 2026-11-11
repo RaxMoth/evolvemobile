@@ -61,16 +61,11 @@ func _ready() -> void:
 	super._ready()
 
 ## Veteran Squad (hero_base key start_level): the hero starts the match at the
-## tree's start level. Runs after the tree is applied, so each level adds its
-## growth on top of the % nodes, and before EntityBase._ready writes the level
-## label and HP bar. Nothing happens at level 1, the fresh-save default.
+## tree's start level (HeroStatsComponent.apply_start_level). Runs after the
+## tree is applied and before EntityBase._ready writes the level label and HP
+## bar. Nothing happens at level 1, the fresh-save default.
 func _apply_start_level() -> void:
-	var start_level: int = stats.get_start_level()
-	if start_level <= stats.level:
-		return
-	while stats.level < start_level:
-		stats.level_up()
-	stats.refill_health()
+	stats.apply_start_level()
 
 
 ## One F3 HUD line for the followed hero: the tree keys without a stat of their
