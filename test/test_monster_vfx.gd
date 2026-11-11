@@ -472,6 +472,9 @@ func _record() -> Array:
 
 func _stop(recorded: Array) -> void:
 	EventBus.ability_event.disconnect(recorded[0] as Callable)
+	# The callback captures `recorded`: drop it from there, or the two keep
+	# each other (and this script, its abilities and their art) alive past exit.
+	recorded[0] = null
 
 
 func _count(recorded: Array, event: StringName) -> int:

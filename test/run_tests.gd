@@ -5,6 +5,10 @@ extends SceneTree
 ## Discovers res://test/test_*.gd, each extending TestCase; runs every
 ## `test_*` method (async allowed), prints a summary and exits 1 on failure.
 
+## Wall-clock wait before quitting for the audio mixer thread to drop the
+## stopped playbacks (the run's frames are not real time).
+const EXIT_AUDIO_WAIT_MSEC := 120
+
 var _passed: int = 0
 var _failed: int = 0
 var _skipped: int = 0
@@ -82,7 +86,13 @@ func _run_all() -> void:
 		case.queue_free()
 		await process_frame
 	# Let queued frees (parked mobs released by SpawnManager._exit_tree etc.)
-	# flush before quitting, or Godot reports them as leaks at exit.
+	# flush before quitting, and let the audio mixer drop the playbacks of the
+	# sounds still playing, or Godot reports them as leaks at exit.
+	var audio := root.get_node_or_null("AudioManager")
+	if audio:
+		audio.call("stop_all")
+	await process_frame
+	OS.delay_msec(EXIT_AUDIO_WAIT_MSEC)
 	await process_frame
 	await process_frame
 	print("== %d passed, %d failed, %d skipped ==" % [_passed, _failed, _skipped])

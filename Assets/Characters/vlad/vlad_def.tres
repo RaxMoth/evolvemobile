@@ -16,6 +16,7 @@ role_text = "Melee · Berserker"
 role_filter = &"melee"
 accent_token = &"vlad"
 tagline = "Bleeds for every hit and hits harder for it."
+codex_notes = "Fights best when hurt: Bloodlust turns his wounds into damage. He mines the paths the monster takes and blows up whatever follows him."
 rig_body = ExtResource("3_body")
 rig_profile = ExtResource("4_motion")
 portrait = ExtResource("5_portrait")

@@ -57,11 +57,11 @@ text = "Growth"
 icon = ExtResource("5_growth")
 tab_id = &"growth"
 
-[node name="Arch" parent="Tabs" instance=ExtResource("3_arch")]
+[node name="Arch" parent="Tabs" groups=["tutorial_hunt"] instance=ExtResource("3_arch")]
 unique_name_in_owner = true
 layout_mode = 2
 
-[node name="TabCodex" parent="Tabs" instance=ExtResource("2_tab")]
+[node name="TabCodex" parent="Tabs" groups=["tutorial_codex"] instance=ExtResource("2_tab")]
 layout_mode = 2
 text = "Codex"
 icon = ExtResource("6_codex")

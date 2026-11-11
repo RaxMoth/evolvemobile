@@ -153,14 +153,16 @@ func _celebrate_loop() -> void:
 	_party.tween_interval(CELEBRATE_REST)
 
 
-## Fallen (`on`): no idle and no cheering, the rig posed still, greyed
-## (UiPalette.FALLEN_MODULATE) and tipped back on its feet; off: standing again.
+## Fallen (`on`): no idle and no cheering, the rig posed still, drained of
+## colour (RigView.greyed) and darkened (UiPalette.FALLEN_STAGE_MODULATE),
+## tipped back on its feet; off: standing again.
 func set_fallen(on: bool) -> void:
 	fallen = on
 	stop_celebrating()
 	_hop.rotation_degrees = (-FALLEN_TILT_DEG if flip else FALLEN_TILT_DEG) if on else 0.0
 	_hop.scale = FALLEN_SQUASH if on else Vector2.ONE
-	_hop.modulate = UiPalette.FALLEN_MODULATE if on else Color.WHITE
+	_hop.modulate = UiPalette.FALLEN_STAGE_MODULATE if on else Color.WHITE
+	_rig.greyed = on
 	_rig.animated = not on
 	if on:
 		if _idle:

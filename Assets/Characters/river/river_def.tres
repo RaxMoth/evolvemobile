@@ -16,6 +16,7 @@ role_text = "Ranged · Healer"
 role_filter = &"ranged"
 accent_token = &"river"
 tagline = "Snipes from the canopy, patches up whoever is left."
+codex_notes = "Swaps between a rifle and a healing staff: she snipes from the back and switches to the staff when an ally drops low."
 rig_body = ExtResource("3_body")
 rig_profile = ExtResource("4_motion")
 portrait = ExtResource("5_portrait")

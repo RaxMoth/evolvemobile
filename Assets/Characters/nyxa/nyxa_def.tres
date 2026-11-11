@@ -16,6 +16,7 @@ role_text = "Stalker · The Bat"
 role_filter = &"stalker"
 accent_token = &"monster2"
 tagline = "The Dusk Matriarch. Fast, fragile, drinks blood."
+codex_notes = "A blood-drinking stalker. She skims the edge of the fog, swoops onto a hunter who strays from the pack and heals on every bite."
 rig_body = ExtResource("3_body")
 rig_profile = ExtResource("4_motion")
 portrait = ExtResource("5_portrait")

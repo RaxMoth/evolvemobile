@@ -16,6 +16,7 @@ role_text = "Tank · Leader"
 role_filter = &"tank"
 accent_token = &"irelia"
 tagline = "Shield up, spear out. Holds the line so the others can swing."
+codex_notes = "The squad's wall. She walks in front, taunts the monster onto herself and throws her shield over whoever is losing the fight."
 rig_body = ExtResource("3_body")
 rig_profile = ExtResource("4_motion")
 portrait = ExtResource("5_portrait")

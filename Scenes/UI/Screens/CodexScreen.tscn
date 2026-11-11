@@ -1,0 +1,171 @@
+[gd_scene load_steps=6 format=3 uid="uid://bkc0dexscr8n4"]
+
+[ext_resource type="Script" path="res://Scenes/UI/Screens/codex_screen.gd" id="1_script"]
+[ext_resource type="Theme" uid="uid://eroe1xxhr5fc" path="res://Scenes/UI/Theme/ui_theme.tres" id="2_theme"]
+[ext_resource type="Texture2D" uid="uid://d0us42nwu36it" path="res://Assets/UI/Kit/bg_texture.svg" id="3_bg"]
+[ext_resource type="PackedScene" uid="uid://da4ubvm6y0cvg" path="res://Scenes/UI/Components/TopBar.tscn" id="4_top_bar"]
+[ext_resource type="PackedScene" uid="uid://ca1qscc0pbili" path="res://Scenes/UI/Components/NavBar.tscn" id="5_nav_bar"]
+
+[node name="CodexScreen" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme = ExtResource("2_theme")
+script = ExtResource("1_script")
+
+[node name="Background" type="TextureRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+texture = ExtResource("3_bg")
+stretch_mode = 1
+
+[node name="PageTabs" type="HBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 24.0
+offset_top = 98.0
+offset_right = -24.0
+offset_bottom = 154.0
+grow_horizontal = 2
+theme_override_constants/separation = 10
+
+[node name="GuideTab" type="Button" parent="PageTabs"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 56)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"TabButton"
+toggle_mode = true
+text = "Guide"
+
+[node name="MonstersTab" type="Button" parent="PageTabs"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 56)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"TabButton"
+toggle_mode = true
+text = "Monsters"
+
+[node name="HeroesTab" type="Button" parent="PageTabs"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 56)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"TabButton"
+toggle_mode = true
+text = "Heroes"
+
+[node name="Scroll" type="ScrollContainer" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = 166.0
+offset_bottom = -150.0
+grow_horizontal = 2
+grow_vertical = 2
+horizontal_scroll_mode = 0
+
+[node name="Margin" type="MarginContainer" parent="Scroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 24
+
+[node name="Pages" type="VBoxContainer" parent="Scroll/Margin"]
+layout_mode = 2
+
+[node name="GuidePage" type="VBoxContainer" parent="Scroll/Margin/Pages"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="CampCaption" type="Label" parent="Scroll/Margin/Pages/GuidePage"]
+layout_mode = 2
+theme_type_variation = &"Caption"
+text = "IN THE CAMP"
+
+[node name="CampSteps" type="VBoxContainer" parent="Scroll/Margin/Pages/GuidePage"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="ReplayCamp" type="Button" parent="Scroll/Margin/Pages/GuidePage"]
+custom_minimum_size = Vector2(0, 64)
+layout_mode = 2
+theme_type_variation = &"ButtonPrimary"
+text = "Replay the camp tour"
+
+[node name="HuntCaption" type="Label" parent="Scroll/Margin/Pages/GuidePage"]
+layout_mode = 2
+theme_type_variation = &"Caption"
+text = "ON THE HUNT"
+
+[node name="HuntSteps" type="VBoxContainer" parent="Scroll/Margin/Pages/GuidePage"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="ReplayHunt" type="Button" parent="Scroll/Margin/Pages/GuidePage"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 64)
+layout_mode = 2
+text = "Show the hunt tips again"
+
+[node name="MonstersPage" type="VBoxContainer" parent="Scroll/Margin/Pages"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="MetCount" type="Label" parent="Scroll/Margin/Pages/MonstersPage"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"Caption"
+text = "Beasts met 0 / 0"
+
+[node name="MonsterList" type="VBoxContainer" parent="Scroll/Margin/Pages/MonstersPage"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="HeroesPage" type="VBoxContainer" parent="Scroll/Margin/Pages"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="HeroList" type="VBoxContainer" parent="Scroll/Margin/Pages/HeroesPage"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="TopBar" parent="." instance=ExtResource("4_top_bar")]
+unique_name_in_owner = true
+layout_mode = 1
+
+[node name="NavBar" parent="." instance=ExtResource("5_nav_bar")]
+unique_name_in_owner = true
+layout_mode = 1
+active_tab = &"codex"
+
+[connection signal="pressed" from="PageTabs/GuideTab" to="." method="_on_page_pressed" binds=[&"guide"]]
+[connection signal="pressed" from="PageTabs/MonstersTab" to="." method="_on_page_pressed" binds=[&"monsters"]]
+[connection signal="pressed" from="PageTabs/HeroesTab" to="." method="_on_page_pressed" binds=[&"heroes"]]
+[connection signal="pressed" from="Scroll/Margin/Pages/GuidePage/ReplayCamp" to="." method="_on_replay_camp_pressed"]
+[connection signal="pressed" from="Scroll/Margin/Pages/GuidePage/ReplayHunt" to="." method="_on_replay_hunt_pressed"]
+[connection signal="left_pressed" from="TopBar" to="." method="_on_top_bar_left_pressed"]
+[connection signal="tab_selected" from="NavBar" to="." method="_on_nav_bar_tab_selected"]

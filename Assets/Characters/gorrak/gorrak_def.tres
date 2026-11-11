@@ -16,6 +16,7 @@ role_text = "Brute · The Boar"
 role_filter = &"brute"
 accent_token = &"monster3"
 tagline = "The Boar King. Slow, armoured, stuns the pack."
+codex_notes = "Slow and armoured. He wades into the pack, stuns it with his stomp and throws his axe at whoever runs."
 rig_body = ExtResource("3_body")
 rig_profile = ExtResource("4_motion")
 portrait = ExtResource("5_portrait")

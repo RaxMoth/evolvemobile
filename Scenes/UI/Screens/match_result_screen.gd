@@ -23,7 +23,8 @@ extends CanvasLayer
 ##   - "N upgrades ready" (the ranks the cast can buy now) while there are any:
 ##     upgrades_requested(side), and the menu opens on that side's roster
 ##     (GameManager.request_menu_roster);
-##   - LOBBY returns to MenuRoot (lobby_scene_path), PLAY AGAIN picks the next
+##   - LOBBY (and ui_cancel: Escape, the Android back button) returns to
+##     MenuRoot (lobby_scene_path), PLAY AGAIN picks the next
 ##     hunt's monster (GameManager.begin_hunt: the Heroes side never meets the
 ##     same quarry twice in a row) and reloads World.
 ## Intro: the ribbon pops at 0.1 s, the sections fade in from 0.3 s, the chips
@@ -280,6 +281,13 @@ func _leave_to_menu(roster_side: int = -1) -> void:
 		GameManager.request_menu_roster(roster_side)
 	get_tree().paused = false
 	get_tree().change_scene_to_file.call_deferred(lobby_scene_path)
+
+
+## Back (Escape, the Android back button through MatchHud): LOBBY.
+func _unhandled_input(event: InputEvent) -> void:
+	if result != null and event.is_action_pressed(&"ui_cancel"):
+		get_viewport().set_input_as_handled()
+		_on_lobby_pressed()
 
 
 # --- scene-side connections (MatchResultScreen.tscn) ---

@@ -4,7 +4,8 @@ extends TestCase
 ## (test_match_config) and the quarry (test_quarry_pick): one screen per side
 ## (the side's sections, top bar and start button), the hunters on the stage,
 ## the Monster side's picker (an owned monster becomes the player's own, a
-## locked one or the rumour picks nothing), the evolution strip, the hidden
+## locked one or the rumour picks nothing, a buyable one asks for its unlock
+## sheet), the evolution strip, the hidden
 ## instincts and UNLEASH, the ThreatBox's words on both sides, and the
 ## screen's wiring in its scenes. Tests that write the save run only in the
 ## isolated test user dir.
@@ -105,6 +106,33 @@ func test_wiring_lives_in_the_scenes() -> void:
 
 
 # ---------------------------------------------------------- the monster ----
+
+## A locked monster whose rule is met asks for its unlock sheet (MenuRoot
+## opens it); a purchase shows it as the picked monster (refresh()).
+func test_a_buyable_locked_monster_asks_for_its_unlock_sheet() -> void:
+	if not require_isolated():
+		return
+	var screen := _screen(MONSTER)
+	var asked: Array[CharacterDef] = []
+	screen.character_requested.connect(func(def: CharacterDef) -> void: asked.append(def))
+	var nyxa: CharacterCard = null
+	for c in screen.picker_cards():
+		if not c.rumour and c.character.character_id() == &"nyxa":
+			nyxa = c
+	nyxa.pressed.emit()
+	assert_eq(asked.size(), 0, "no Lv 3 monster yet: the rule is not met, it only shakes")
+	PersistedData.add_monster_xp(&"grount", 300)  # Grount Lv 3: the rule is met
+	nyxa.pressed.emit()
+	assert_eq(asked.size(), 1, "the rule met (short of Leaves): its sheet")
+	assert_eq(asked[0], _def(&"nyxa"))
+	assert_eq(GameManager.played_monster_id(), &"grount", "nothing is picked before the purchase")
+	PersistedData.add_owned_monster(&"nyxa")
+	GameManager.choose_monster(&"nyxa")
+	screen.refresh()
+	assert_true(nyxa.unlocked, "bought")
+	assert_eq(screen.monster, _def(&"nyxa"), "and shown as the picked monster")
+	screen.queue_free()
+
 
 func test_the_picker_switches_owned_monsters() -> void:
 	if not require_isolated():

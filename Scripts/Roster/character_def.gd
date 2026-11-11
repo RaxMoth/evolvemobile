@@ -55,6 +55,9 @@ const MONSTER_ABILITY_SLOTS: Array[StringName] = [&"passive_ability", &"ability_
 @export var head_region: Rect2 = Rect2(32, 32, 64, 64)
 ## Monsters: one name per evolution stage (I, II, III). Empty for heroes.
 @export var stage_names: PackedStringArray = PackedStringArray()
+## The Codex's field notes: how a hero plays or how a monster hunts (its
+## counterplay is `tip`).
+@export_multiline var codex_notes: String = ""
 
 @export_group("Progression")
 @export var unlocked_by_default: bool = true

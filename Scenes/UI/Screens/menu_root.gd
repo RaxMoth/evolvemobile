@@ -33,13 +33,20 @@ extends Control
 ## lobby's buttons, the nav bar's arch) pushes the PreRoundScreen of the
 ## chosen side; its START HUNT starts the match against the quarry it shows
 ## (MatchConfig.quarry_id), its UNLEASH with the monster it picked
-## (GameManager.choose_monster). Until their new screens land, Codex opens the
-## tutorial and the gear the SettingsScreen.
+## (GameManager.choose_monster); a locked monster it shows that can be bought
+## now opens the unlock sheet. The nav bar's Codex opens the CodexScreen (its
+## dot lights while it has unseen monster pages); its guide replays the camp
+## tour (home first, then the coach marks) or switches the hunt tips on again.
+## The lobby's gear opens the SettingsScreen sheet.
+## Back: ui_cancel, and the Android back button (NOTIFICATION_WM_GO_BACK_REQUEST,
+## replayed as ui_cancel by BackButton) closes the open overlay or sheet, else
+## pops a screen; on the bare lobby the back button leaves the game.
 
 const SLIDE_TIME := 0.22
 ## Seconds after entry before the first-run tutorial opens.
 const TUTORIAL_DELAY := 0.9
 const TUTORIAL_SCENE: PackedScene = preload("res://Scenes/UI/Tutorial/TutorialOverlay.tscn")
+const SETTINGS_SCENE: PackedScene = preload("res://Scenes/UI/Settings/SettingsScreen.tscn")
 
 ## The home screen, the bottom of the stack.
 @export var lobby: LobbyScreen
@@ -54,11 +61,14 @@ const TUTORIAL_SCENE: PackedScene = preload("res://Scenes/UI/Tutorial/TutorialOv
 @export var unlock_sheet: UnlockSheet
 ## The step between HUNT and the match (both sides).
 @export var pre_round: PreRoundScreen
+## The nav bar's Codex (guide, monster and hero pages).
+@export var codex: CodexScreen
 
 ## The screens on the way back, the home screen first and the shown one last.
 var _stack: Array[Control] = []
 var _slide: Tween = null
-## The old overlay that is open (one at a time), or null.
+## The overlay that is open (the tutorial or the settings; one at a time),
+## or null.
 var _overlay: Node = null
 ## A refresh of the open screens is queued for the end of the frame (a
 ## purchase changes currencies and skills in one go).
@@ -91,6 +101,18 @@ func _ready() -> void:
 	PersistedData.monster_owned.connect(_on_monster_owned)
 	if not TutorialOverlay.has_been_seen():
 		get_tree().create_timer(TUTORIAL_DELAY).timeout.connect(_auto_open_tutorial)
+
+
+## The Android back button: ui_cancel for whatever is open; on the bare lobby
+## (nobody took it) it leaves the game.
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_GO_BACK_REQUEST and not go_back():
+		get_tree().quit()
+
+
+## One back press (BackButton): false when nothing was open to go back from.
+func go_back() -> bool:
+	return BackButton.press(get_viewport())
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -203,8 +225,8 @@ func _overlay_open() -> bool:
 	return is_instance_valid(_overlay) and not _overlay.is_queued_for_deletion()
 
 
-## Opens one of the old overlay screens on top of the menu; they free
-## themselves when closed.
+## Opens an overlay (the tutorial, the settings) on top of the menu; it frees
+## itself when closed.
 func _open_overlay(overlay: Node) -> void:
 	_overlay = overlay
 	add_child(overlay)
@@ -219,6 +241,15 @@ func _auto_open_tutorial() -> void:
 func _open_tutorial() -> void:
 	if not _overlay_open():
 		_open_overlay(TUTORIAL_SCENE.instantiate())
+
+
+## The Codex (nav bar): its pages re-read what has been met.
+func _open_codex() -> void:
+	if codex == top():
+		return
+	codex.open()
+	switch_to(codex)
+	_update_nav_notify()
 
 
 ## The screens on the stack re-read the save (once per frame at most).
@@ -238,6 +269,8 @@ func _refresh_screens() -> void:
 			(screen as RosterScreen).refresh()
 		elif screen is CharacterDetail:
 			(screen as CharacterDetail).refresh()
+		elif screen is PreRoundScreen:
+			(screen as PreRoundScreen).refresh()
 	if unlock_sheet.is_open():
 		unlock_sheet.refresh()
 	_update_nav_notify()
@@ -247,7 +280,8 @@ func _refresh_screens() -> void:
 ## Monsters while a character of that side has a rank to buy now
 ## (CharacterProgress.upgrades_ready) or can itself be bought
 ## (CharacterProgress.can_unlock), Growth while the chosen side's account
-## tree has one (MetaSkillManager.card_progress).
+## tree has one (MetaSkillManager.card_progress), Codex while it has monster
+## pages the player has not opened yet (CodexScreen.unseen_monsters).
 func _update_nav_notify() -> void:
 	var heroes := false
 	var monsters := false
@@ -260,6 +294,7 @@ func _update_nav_notify() -> void:
 	var monster_side := GameManager.chosen_side == MatchRewards.Side.MONSTER
 	var base := MetaSkillManager.TREE_MONSTER_BASE if monster_side else MetaSkillManager.TREE_HERO_BASE
 	var base_ready: bool = MetaSkillManager.card_progress(base)["upgrade_ready"]
+	var codex_new := CodexScreen.unseen_monsters() > 0
 	for node in get_tree().get_nodes_in_group(NavBar.GROUP):
 		var bar := node as NavBar
 		if bar == null or not is_ancestor_of(bar):
@@ -267,6 +302,7 @@ func _update_nav_notify() -> void:
 		bar.set_notify(&"heroes", heroes)
 		bar.set_notify(&"monsters", monsters)
 		bar.set_notify(&"growth", base_ready)
+		bar.set_notify(&"codex", codex_new)
 
 
 func _on_currency_changed(_currency: StringName, _amount: int) -> void:
@@ -397,9 +433,22 @@ func _on_tab_selected(tab_id: StringName) -> void:
 		&"growth":
 			_open_growth()
 		&"codex":
-			_open_tutorial()
+			_open_codex()
 
 
 func _on_settings_requested() -> void:
 	if not _overlay_open():
-		_open_overlay(SettingsScreen.new())
+		_open_overlay(SETTINGS_SCENE.instantiate())
+
+
+## The Codex guide's replays: the camp tour plays over the lobby (home first,
+## the coach marks once the slide has settled); the hunt tips play again in
+## the next match.
+func _on_guide_requested(chapter: StringName) -> void:
+	if chapter == TutorialOverlay.CHAPTER_HUD:
+		TutorialOverlay.forget(TutorialOverlay.CHAPTER_HUD)
+		return
+	if _overlay_open():
+		return
+	pop_to(lobby)
+	get_tree().create_timer(SLIDE_TIME).timeout.connect(_open_tutorial)

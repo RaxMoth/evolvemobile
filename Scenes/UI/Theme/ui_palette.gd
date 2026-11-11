@@ -33,6 +33,11 @@ const LOCKED_ICON_MODULATE := Color(0.45, 0.43, 0.42, 0.55)
 ## modulate of a fallen character in the match HUD (a dead hero's card, its
 ## head on the monster side's tracker, a dead monster's panel).
 const FALLEN_MODULATE := Color(0.55, 0.5, 0.5, 1.0)
+## modulate of a fallen character on a stage (the match result's cast), on
+## top of its rig's desaturation (RigView.greyed). Lighter than the UX spec's
+## plain tint (0.42, 0.39, 0.39): drained of colour that read as a black
+## silhouette, like a locked character.
+const FALLEN_STAGE_MODULATE := Color(0.62, 0.58, 0.58, 1.0)
 ## Character id -> its signature token (signature()). nyxa and gorrak use the
 ## provisional monster2 / monster3 colours until the monster roster is final.
 const SIGNATURE_TOKENS: Dictionary[String, StringName] = {

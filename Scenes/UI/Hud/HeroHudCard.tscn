@@ -116,7 +116,7 @@ mouse_filter = 2
 theme_type_variation = &"XpBar"
 show_percentage = false
 
-[node name="Passive" parent="Card" instance=ExtResource("2_slot")]
+[node name="Passive" parent="Card" groups=["tutorial_hud_slots"] instance=ExtResource("2_slot")]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(40, 40)
 offset_left = 9.0
@@ -125,7 +125,7 @@ offset_right = 49.0
 offset_bottom = 128.0
 slot_type = 0
 
-[node name="Active" parent="Card" instance=ExtResource("2_slot")]
+[node name="Active" parent="Card" groups=["tutorial_hud_slots"] instance=ExtResource("2_slot")]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(50, 50)
 offset_left = 56.0
@@ -133,7 +133,7 @@ offset_top = 80.0
 offset_right = 106.0
 offset_bottom = 130.0
 
-[node name="Ult" parent="Card" instance=ExtResource("2_slot")]
+[node name="Ult" parent="Card" groups=["tutorial_hud_slots"] instance=ExtResource("2_slot")]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(54, 54)
 offset_left = 112.0

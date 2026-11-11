@@ -31,7 +31,10 @@ extends Control
 ##   - THE LAIR: the picked monster big in its lair, "Name · Lv.N" and its role;
 ##   - the picker: every roster monster as an S card and the "???" slot. An owned
 ##     monster becomes the player's own (GameManager.choose_monster, persisted)
-##     and cheers; a locked one, or the rumour, shakes;
+##     and cheers; a locked one whose rule is met (CharacterProgress: READY or
+##     SHORT) asks for its unlock sheet (character_requested; MenuRoot opens
+##     it, and a purchase makes it the picked monster through refresh()); any
+##     other locked one, or the rumour, shakes;
 ##   - the evolution strip: the monster's body at Stage I, II and III (growing)
 ##     with its stage names (CharacterDef.stage_names);
 ##   - the ThreatBox (the AI heroes' build);
@@ -46,6 +49,9 @@ extends Control
 signal start_requested(config: MatchConfig)
 signal monster_start_requested(monster_id: StringName, instinct: StringName)
 signal cancelled
+## A locked monster on the picker that can be bought now: MenuRoot opens its
+## unlock sheet.
+signal character_requested(character: CharacterDef)
 
 const STAGE_CHARACTER := preload("res://Scenes/UI/Components/StageCharacter.tscn")
 const CARD_SCENE := preload("res://Scenes/UI/Components/CharacterCard.tscn")
@@ -443,7 +449,27 @@ func _show_monster(def: CharacterDef) -> void:
 	_monster_threat.show_for(MatchRewards.Side.MONSTER, def)
 
 
+## The save changed (a purchase on the unlock sheet): the picker re-reads
+## what is owned and shows the player's own monster (the one just bought).
+func refresh() -> void:
+	if not is_monster():
+		return
+	for card in _picker_cards:
+		card.refresh()
+	_show_monster(GameManager.ROSTER.find(GameManager.played_monster_id()))
+
+
+## True when a locked `def` can be bought right now (its rule is met; the
+## sheet shows whether the wallet covers it).
+static func is_buyable(def: CharacterDef) -> bool:
+	var state := CharacterProgress.unlock_state(def)
+	return state == CharacterProgress.UnlockState.READY or state == CharacterProgress.UnlockState.SHORT
+
+
 func _on_picker_card_pressed(def: CharacterDef, card: CharacterCard) -> void:
+	if def != null and not CharacterProgress.is_unlocked(def) and is_buyable(def):
+		character_requested.emit(def)
+		return
 	if def == null or not CharacterProgress.is_unlocked(def):
 		_shake(card)
 		return

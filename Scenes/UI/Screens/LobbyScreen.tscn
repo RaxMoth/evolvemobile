@@ -42,7 +42,7 @@ mouse_filter = 2
 texture = ExtResource("3_bg")
 stretch_mode = 1
 
-[node name="MonsterStage" type="Button" parent="."]
+[node name="MonsterStage" type="Button" parent="." groups=["tutorial_monster_stage"]]
 unique_name_in_owner = true
 clip_contents = true
 layout_mode = 1
@@ -57,11 +57,13 @@ theme_type_variation = &"FlatButton"
 
 [node name="Backdrop" type="TextureRect" parent="MonsterStage"]
 layout_mode = 1
-anchors_preset = 15
+anchors_preset = 12
+anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
+offset_top = -540.0
 grow_horizontal = 2
-grow_vertical = 2
+grow_vertical = 0
 mouse_filter = 2
 texture = ExtResource("5_monsters_bg")
 expand_mode = 1
@@ -69,48 +71,48 @@ stretch_mode = 6
 
 [node name="Nyxa" parent="MonsterStage" instance=ExtResource("7_stage_character")]
 layout_mode = 1
-anchors_preset = 8
+anchors_preset = 7
 anchor_left = 0.5
-anchor_top = 0.5
+anchor_top = 1.0
 anchor_right = 0.5
-anchor_bottom = 0.5
+anchor_bottom = 1.0
 offset_left = -354.0
-offset_top = -70.0
+offset_top = -340.0
 offset_right = -154.0
-offset_bottom = 190.0
+offset_bottom = -80.0
 grow_horizontal = 2
-grow_vertical = 2
+grow_vertical = 0
 character = ExtResource("20_nyxa")
 
 [node name="Gorrak" parent="MonsterStage" instance=ExtResource("7_stage_character")]
 layout_mode = 1
-anchors_preset = 8
+anchors_preset = 7
 anchor_left = 0.5
-anchor_top = 0.5
+anchor_top = 1.0
 anchor_right = 0.5
-anchor_bottom = 0.5
+anchor_bottom = 1.0
 offset_left = 154.0
-offset_top = -84.0
+offset_top = -354.0
 offset_right = 354.0
-offset_bottom = 176.0
+offset_bottom = -94.0
 grow_horizontal = 2
-grow_vertical = 2
+grow_vertical = 0
 character = ExtResource("21_gorrak")
 flip = true
 
 [node name="Grount" parent="MonsterStage" instance=ExtResource("7_stage_character")]
 layout_mode = 1
-anchors_preset = 8
+anchors_preset = 7
 anchor_left = 0.5
-anchor_top = 0.5
+anchor_top = 1.0
 anchor_right = 0.5
-anchor_bottom = 0.5
+anchor_bottom = 1.0
 offset_left = -144.0
-offset_top = -158.0
+offset_top = -428.0
 offset_right = 144.0
-offset_bottom = 216.0
+offset_bottom = -54.0
 grow_horizontal = 2
-grow_vertical = 2
+grow_vertical = 0
 character = ExtResource("18_grount")
 
 [node name="MonsterFrame" type="Panel" parent="MonsterStage"]
@@ -128,7 +130,7 @@ grow_vertical = 2
 mouse_filter = 2
 theme_type_variation = &"FrameMonster"
 
-[node name="HeroStage" type="Button" parent="."]
+[node name="HeroStage" type="Button" parent="." groups=["tutorial_hero_stage"]]
 unique_name_in_owner = true
 clip_contents = true
 layout_mode = 1

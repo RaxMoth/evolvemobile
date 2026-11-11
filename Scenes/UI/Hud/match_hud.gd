@@ -5,8 +5,10 @@ extends CanvasLayer
 ## only: it reads the entities and GameManager, never writes gameplay state.
 ##
 ## Top bar (Root/Top), refreshed at TOP_HZ, each label written only on change:
-##   - Pause: toggles the tree's pause while a match runs (the button keeps
-##     working while paused: process_mode ALWAYS in the scene);
+##   - Pause: opens the PauseMenu while a match runs (it pauses the tree;
+##     resume, settings, quit to lobby); so do Escape and the Android back
+##     button (ui_cancel; MatchHud replays the OS back request through
+##     BackButton, and the result screen or the menu itself take it first);
 ##   - the clock, GameManager.get_match_elapsed();
 ##   - the enemy tracker: heroes side, the monster's head, stage and HP;
 ##     monster side, a head and mini HP bar per hero (from the HeroChip
@@ -31,12 +33,18 @@ extends CanvasLayer
 ## hero_selected (MainCam.switch_to_hero, wired in MainCam.tscn). A dead hero
 ## cannot take the focus; when the followed hero dies, the focus moves on to the
 ## next living hero so the camera does not stay at the death spot.
+## The first match plays the tutorial's HUD chapter (TutorialOverlay
+## CHAPTER_HUD: the cooldown slots, the pause button) HUD_TUTORIAL_DELAY
+## seconds after the HUD binds; it never pauses the match.
 
 signal hero_selected(hero: Node)
 ## The Follow button: centre the camera on what it follows again.
 signal follow_requested
 
 const HERO_CARD: PackedScene = preload("res://Scenes/UI/Hud/HeroHudCard.tscn")
+const TUTORIAL_SCENE: PackedScene = preload("res://Scenes/UI/Tutorial/TutorialOverlay.tscn")
+## Seconds after the HUD binds before the first match's HUD tips open.
+const HUD_TUTORIAL_DELAY := 1.5
 ## Top bar refresh rate (clock, kills, enemy tracker).
 const TOP_HZ := 4.0
 ## Event toast timing (s): pop-in from TOAST_POP_FROM to full size (TRANS_BACK)
@@ -86,6 +94,7 @@ var _toast_tween: Tween = null
 ## The tracker's per-hero chip (head + mini HP bar), duplicated per hero.
 @onready var _hero_chip: Control = _hero_row.get_node(^"HeroChip")
 @onready var _pause: Button = %Pause
+@onready var _pause_menu: PauseMenu = %PauseMenu
 @onready var _clock: Label = %Clock
 @onready var _kills: Label = %Kills
 @onready var _toast: Control = %Toast
@@ -137,6 +146,40 @@ func _bind() -> void:
 	EventBus.entity_died.connect(_on_entity_died)
 	_refresh_top()
 	set_process(true)
+	if not TutorialOverlay.has_been_seen(TutorialOverlay.CHAPTER_HUD):
+		get_tree().create_timer(HUD_TUTORIAL_DELAY).timeout.connect(_open_hud_tutorial)
+
+
+## The first match's HUD tips (TutorialOverlay CHAPTER_HUD) over the HUD.
+func _open_hud_tutorial() -> void:
+	if not is_inside_tree() or not GameManager.is_match_active() or TutorialOverlay.has_been_seen(TutorialOverlay.CHAPTER_HUD):
+		return
+	for child in get_children():
+		if child is TutorialOverlay:
+			return
+	var overlay := TUTORIAL_SCENE.instantiate() as TutorialOverlay
+	overlay.chapter = TutorialOverlay.CHAPTER_HUD
+	add_child(overlay)
+
+
+## The pause menu (PauseMenu.tscn, a Root child).
+func pause_menu() -> PauseMenu:
+	return _pause_menu
+
+
+## The Android back button in a match: ui_cancel for the result screen, the
+## pause menu (or its settings) or, while the match runs, this HUD.
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_GO_BACK_REQUEST:
+		BackButton.press(get_viewport())
+
+
+## Escape / back while the match runs opens the pause menu (paused, the menu
+## takes ui_cancel itself).
+func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed(&"ui_cancel") and GameManager.is_match_active() and not _pause_menu.is_open():
+		get_viewport().set_input_as_handled()
+		_pause_menu.open()
 
 
 func _process(delta: float) -> void:
@@ -339,9 +382,18 @@ func _on_entity_died(entity: Node, _killer: Node) -> void:
 func _on_pause_pressed() -> void:
 	if not GameManager.is_match_active():
 		return
-	var tree := get_tree()
-	tree.paused = not tree.paused
-	_pause.icon = play_icon if tree.paused else pause_icon
+	if _pause_menu.is_open():
+		_pause_menu.resume()
+	else:
+		_pause_menu.open()
+
+
+func _on_pause_menu_opened() -> void:
+	_pause.icon = play_icon
+
+
+func _on_pause_menu_resumed() -> void:
+	_pause.icon = pause_icon
 
 
 func _on_follow_pressed() -> void:

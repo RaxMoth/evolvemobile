@@ -19,6 +19,7 @@ run/main_scene="uid://bgd53mrw6xd5k"
 config/features=PackedStringArray("4.7", "GL Compatibility")
 run/max_fps=60
 config/icon="uid://0vlvy3mej50h"
+config/quit_on_go_back=false
 
 [autoload]
 

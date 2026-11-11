@@ -212,7 +212,10 @@ func release_mob(mob: MobBase) -> void:
 	the next acquire_mob(). Over the cap it is freed instead."""
 	if not is_instance_valid(mob) or mob.is_parked:
 		return
-	if not pool_enabled or mob.pool_key == "":
+	# A manager on its way out (the match ends in the same frame a mob dies:
+	# the deferred release lands after _exit_tree emptied the pool) frees
+	# instead of parking, or the mob would leak out of the tree.
+	if not pool_enabled or mob.pool_key == "" or not is_inside_tree() or is_queued_for_deletion():
 		mob.queue_free()
 		return
 	mob.prepare_for_pool()
@@ -234,8 +237,16 @@ func get_pooled_count() -> int:
 	return n
 
 func _exit_tree() -> void:
-	# Parked and prewarmed mobs have no parent; free them together with the
-	# manager (match end / scene change) or they would leak.
+	_free_pooled()
+
+## Parked and prewarmed mobs have no parent: they go together with the manager
+## (match end / scene change), when it leaves the tree and again when it is
+## deleted (a release that landed in between), or they would leak.
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_PREDELETE:
+		_free_pooled()
+
+func _free_pooled() -> void:
 	for buckets: Dictionary in [_pool, _prewarmed]:
 		for bucket in buckets.values():
 			for m in bucket:

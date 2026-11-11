@@ -10,9 +10,10 @@ extends TestCase
 ## roster the match result's "upgrades ready" asks for on entry, the
 ## purchases and capstone swaps MenuRoot makes for the detail screen and the
 ## refresh after them, the nav bars' red dots for buyable ranks, HUNT pushing
-## the chosen side's PreRoundScreen, and the old overlays that still stand in
-## for the codex and settings screens. Tests that write the save run only in
-## the isolated test user dir.
+## the chosen side's PreRoundScreen and the Codex tab its screen
+## (test_codex.gd has the rest; test_settings_and_back.gd the settings and
+## the back button). Tests that write the save run only in the isolated test
+## user dir.
 
 const MENU_ROOT_PATH := "res://Scenes/UI/Screens/MenuRoot.tscn"
 const MENU_ROOT := preload("res://Scenes/UI/Screens/MenuRoot.tscn")
@@ -410,8 +411,11 @@ func test_requests_open_their_screens() -> void:
 	assert_eq(root.growth.tree_id, MetaSkillManager.TREE_MONSTER_BASE, "Growth follows the side")
 	await _settle()
 	root.growth.tab_selected.emit(&"codex")
-	assert_eq(_overlays(root, &"TutorialOverlay").size(), 1, "Codex opens the guide")
-	assert_eq(root.top(), root.growth, "over the shown screen")
+	assert_eq(root.top(), root.codex, "Codex opens the Codex screen")
+	assert_eq(root._stack.size(), 2, "right above home, like every nav tab")
+	await _settle()
+	_press_back(root)
+	assert_eq(root.top(), lobby, "and back goes home")
 	root.queue_free()
 
 
@@ -557,7 +561,7 @@ func test_nav_dots_follow_buyable_ranks() -> void:
 	for node in root.get_tree().get_nodes_in_group(NavBar.GROUP):
 		if root.is_ancestor_of(node):
 			bars.append(node as NavBar)
-	assert_eq(bars.size(), 5, "the lobby, both rosters and both details")
+	assert_eq(bars.size(), 6, "the lobby, both rosters, both details and the Codex")
 	for bar in bars:
 		assert_eq(bar.notify_tabs.size(), 0, "%s: a fresh save has nothing to buy" % root.get_path_to(bar))
 	PersistedData.add_currency(PersistedData.STEEL, 40)  # a hero's first tier-1 rank

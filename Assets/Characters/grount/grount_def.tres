@@ -16,6 +16,7 @@ role_text = "Brute · The Bull"
 role_filter = &"brute"
 accent_token = &"grount"
 tagline = "The Alpha Bull. Eats the jungle, grows, then hunts."
+codex_notes = "Starts as a calf and eats mob camps to grow; he only hunts once he feels strong. Left alone he reaches Stage III and charges through a whole squad."
 rig_body = ExtResource("3_body")
 rig_profile = ExtResource("4_motion")
 portrait = ExtResource("5_portrait")

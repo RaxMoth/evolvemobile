@@ -10,6 +10,10 @@ extends Control
 ##   - its HUNT button pops in (CTA_POP_FROM -> 1, TRANS_BACK);
 ##   - its characters cheer one after another (CHEER_STAGGER);
 ##   - the nav bar's arch glows in the side's colour.
+## The lair's backdrop and its monsters are anchored to the bottom of their
+## stage at the design size: on a taller screen (19.5:9) the extra height shows
+## the screen background above the lair instead of blowing the backdrop up
+## around monsters that keep their size.
 ## The HEROES / MONSTERS plaques open the rosters, HUNT starts the chosen
 ## side's match, and tapping a character chooses its side and asks for its
 ## detail. With side_tap_opens_roster a stage tap opens that side's roster.

@@ -16,6 +16,7 @@ role_text = "Melee · Beastmaster"
 role_filter = &"melee"
 accent_token = &"ted"
 tagline = "A trapper and his fox. Cages first, questions later."
+codex_notes = "Ted and his fox work as a pair. He lays traps where the monster will walk, and the fox harries it while the cage holds."
 rig_body = ExtResource("3_body")
 rig_profile = ExtResource("4_motion")
 portrait = ExtResource("5_portrait")

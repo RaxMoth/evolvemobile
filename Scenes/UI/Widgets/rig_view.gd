@@ -11,7 +11,10 @@ extends Control
 ##
 ## `silhouette` = a locked character: the whole body is multiplied down to the
 ## palette's locked_fill (one modulate on the holder, so the parts' own ink
-## outlines read as one solid shape). For grids of many cards set
+## outlines read as one solid shape). `greyed` = a fallen character: the
+## holder becomes a CanvasGroup whose material (greyscale_group_material.tres)
+## drains the colour of the whole body at once; only the result screen's
+## fallen cast pays for its backbuffer. For grids of many cards set
 ## `animated = false`: the rig is posed once and never processes. A hidden
 ## view (a menu screen under another one, a filtered-out card) sleeps too and
 ## wakes when it shows again.
@@ -20,6 +23,7 @@ extends Control
 ## comes from a private one), so menus cannot disturb a match's determinism.
 
 const SHADOW_BLOB := preload("res://Assets/Characters/shadow_blob.svg")
+const GREY_MATERIAL := preload("res://Assets/Shaders/greyscale_group_material.tres")
 
 ## The character to show (its rig_body and rig_profile). Null = empty.
 ## Setting the same character again keeps the running rig.
@@ -45,6 +49,14 @@ const SHADOW_BLOB := preload("res://Assets/Characters/shadow_blob.svg")
 	set(v):
 		silhouette = v
 		_apply_silhouette()
+## Drained of colour (a fallen character); the rig is rebuilt in a CanvasGroup.
+@export var greyed: bool = false:
+	set(v):
+		if v == greyed:
+			return
+		greyed = v
+		if is_node_ready():
+			_rebuild()
 ## Mirror the character (a group on a stage facing inward).
 @export var flip: bool = false:
 	set(v):
@@ -66,6 +78,7 @@ const SHADOW_BLOB := preload("res://Assets/Characters/shadow_blob.svg")
 @export var shadow: bool = true
 
 var rig: CharacterRig = null
+## The rig's parent: a Node2D, or a CanvasGroup while greyed.
 var _holder: Node2D = null
 
 
@@ -87,12 +100,18 @@ func _notification(what: int) -> void:
 
 func _rebuild() -> void:
 	if _holder:
+		remove_child(_holder)
 		_holder.queue_free()
 		_holder = null
 		rig = null
 	if character == null or character.rig_body == null or character.rig_profile == null:
 		return
-	_holder = Node2D.new()
+	if greyed:
+		var group := CanvasGroup.new()
+		group.material = GREY_MATERIAL
+		_holder = group
+	else:
+		_holder = Node2D.new()
 	_holder.name = "Holder"
 	add_child(_holder)
 	var profile := character.rig_profile

@@ -1,0 +1,281 @@
+[gd_scene load_steps=4 format=3 uid="uid://c5ettng5sc0rn"]
+
+[ext_resource type="Script" path="res://Scenes/UI/Settings/settings_screen.gd" id="1_script"]
+[ext_resource type="Theme" path="res://Scenes/UI/Theme/ui_theme.tres" id="2_theme"]
+[ext_resource type="Texture2D" path="res://Assets/UI/Icons/UI/ui_close.svg" id="3_close"]
+
+[node name="SettingsScreen" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme = ExtResource("2_theme")
+script = ExtResource("1_script")
+
+[node name="Scrim" type="ColorRect" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Slide" type="Control" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Sheet" type="PanelContainer" parent="Slide"]
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_type_variation = &"SheetPanel"
+
+[node name="VBox" type="VBoxContainer" parent="Slide/Sheet"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Header" type="HBoxContainer" parent="Slide/Sheet/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Title" type="Label" parent="Slide/Sheet/VBox/Header"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"HeaderLarge"
+text = "SETTINGS"
+vertical_alignment = 1
+
+[node name="CloseRound" type="Button" parent="Slide/Sheet/VBox/Header"]
+custom_minimum_size = Vector2(64, 64)
+layout_mode = 2
+tooltip_text = "Close"
+theme_type_variation = &"ButtonRound"
+icon = ExtResource("3_close")
+icon_alignment = 1
+
+[node name="AudioCaption" type="Label" parent="Slide/Sheet/VBox"]
+layout_mode = 2
+theme_type_variation = &"Caption"
+text = "AUDIO"
+
+[node name="AudioPanel" type="PanelContainer" parent="Slide/Sheet/VBox"]
+layout_mode = 2
+theme_type_variation = &"PanelInset"
+
+[node name="Rows" type="VBoxContainer" parent="Slide/Sheet/VBox/AudioPanel"]
+layout_mode = 2
+
+[node name="MasterRow" type="HBoxContainer" parent="Slide/Sheet/VBox/AudioPanel/Rows"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Label" type="Label" parent="Slide/Sheet/VBox/AudioPanel/Rows/MasterRow"]
+custom_minimum_size = Vector2(120, 0)
+layout_mode = 2
+theme_type_variation = &"BodyDim"
+text = "Master"
+vertical_alignment = 1
+
+[node name="Master" type="HSlider" parent="Slide/Sheet/VBox/AudioPanel/Rows/MasterRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 1
+max_value = 1.0
+step = 0.05
+
+[node name="MasterValue" type="Label" parent="Slide/Sheet/VBox/AudioPanel/Rows/MasterRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(60, 0)
+layout_mode = 2
+theme_type_variation = &"BodyDim"
+text = "80%"
+horizontal_alignment = 2
+vertical_alignment = 1
+
+[node name="MusicRow" type="HBoxContainer" parent="Slide/Sheet/VBox/AudioPanel/Rows"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Label" type="Label" parent="Slide/Sheet/VBox/AudioPanel/Rows/MusicRow"]
+custom_minimum_size = Vector2(120, 0)
+layout_mode = 2
+theme_type_variation = &"BodyDim"
+text = "Music"
+vertical_alignment = 1
+
+[node name="Music" type="HSlider" parent="Slide/Sheet/VBox/AudioPanel/Rows/MusicRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 1
+max_value = 1.0
+step = 0.05
+
+[node name="MusicValue" type="Label" parent="Slide/Sheet/VBox/AudioPanel/Rows/MusicRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(60, 0)
+layout_mode = 2
+theme_type_variation = &"BodyDim"
+text = "80%"
+horizontal_alignment = 2
+vertical_alignment = 1
+
+[node name="EffectsRow" type="HBoxContainer" parent="Slide/Sheet/VBox/AudioPanel/Rows"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Label" type="Label" parent="Slide/Sheet/VBox/AudioPanel/Rows/EffectsRow"]
+custom_minimum_size = Vector2(120, 0)
+layout_mode = 2
+theme_type_variation = &"BodyDim"
+text = "Effects"
+vertical_alignment = 1
+
+[node name="Effects" type="HSlider" parent="Slide/Sheet/VBox/AudioPanel/Rows/EffectsRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 1
+max_value = 1.0
+step = 0.05
+
+[node name="EffectsValue" type="Label" parent="Slide/Sheet/VBox/AudioPanel/Rows/EffectsRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(60, 0)
+layout_mode = 2
+theme_type_variation = &"BodyDim"
+text = "80%"
+horizontal_alignment = 2
+vertical_alignment = 1
+
+[node name="LanguageCaption" type="Label" parent="Slide/Sheet/VBox"]
+layout_mode = 2
+theme_type_variation = &"Caption"
+text = "LANGUAGE"
+
+[node name="LanguagePanel" type="PanelContainer" parent="Slide/Sheet/VBox"]
+layout_mode = 2
+theme_type_variation = &"PanelInset"
+
+[node name="Row" type="HBoxContainer" parent="Slide/Sheet/VBox/LanguagePanel"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Label" type="Label" parent="Slide/Sheet/VBox/LanguagePanel/Row"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"BodyDim"
+text = "Language"
+vertical_alignment = 1
+
+[node name="Language" type="OptionButton" parent="Slide/Sheet/VBox/LanguagePanel/Row"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(200, 56)
+layout_mode = 2
+
+[node name="DisplayCaption" type="Label" parent="Slide/Sheet/VBox"]
+layout_mode = 2
+theme_type_variation = &"Caption"
+text = "DISPLAY"
+
+[node name="DisplayPanel" type="PanelContainer" parent="Slide/Sheet/VBox"]
+layout_mode = 2
+theme_type_variation = &"PanelInset"
+
+[node name="Row" type="HBoxContainer" parent="Slide/Sheet/VBox/DisplayPanel"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Label" type="Label" parent="Slide/Sheet/VBox/DisplayPanel/Row"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"BodyDim"
+text = "Screen shake"
+vertical_alignment = 1
+
+[node name="Shake" type="CheckButton" parent="Slide/Sheet/VBox/DisplayPanel/Row"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+
+[node name="PrivacyCaption" type="Label" parent="Slide/Sheet/VBox"]
+layout_mode = 2
+theme_type_variation = &"Caption"
+text = "PRIVACY"
+
+[node name="PrivacyPanel" type="PanelContainer" parent="Slide/Sheet/VBox"]
+layout_mode = 2
+theme_type_variation = &"PanelInset"
+
+[node name="Rows" type="VBoxContainer" parent="Slide/Sheet/VBox/PrivacyPanel"]
+layout_mode = 2
+
+[node name="Row" type="HBoxContainer" parent="Slide/Sheet/VBox/PrivacyPanel/Rows"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Label" type="Label" parent="Slide/Sheet/VBox/PrivacyPanel/Rows/Row"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"BodyDim"
+text = "Usage statistics"
+vertical_alignment = 1
+
+[node name="Analytics" type="CheckButton" parent="Slide/Sheet/VBox/PrivacyPanel/Rows/Row"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+
+[node name="Hint" type="Label" parent="Slide/Sheet/VBox/PrivacyPanel/Rows"]
+layout_mode = 2
+theme_type_variation = &"HintLabel"
+text = "Stored only on this device (user://analytics.jsonl). Nothing is uploaded."
+autowrap_mode = 3
+
+[node name="Buttons" type="HBoxContainer" parent="Slide/Sheet/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Reset" type="Button" parent="Slide/Sheet/VBox/Buttons"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 64)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"ButtonMonster"
+text = "Reset Progress"
+
+[node name="Close" type="Button" parent="Slide/Sheet/VBox/Buttons"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 64)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"ButtonPrimary"
+text = "Close"
+
+[connection signal="gui_input" from="Scrim" to="." method="_on_scrim_gui_input"]
+[connection signal="pressed" from="Slide/Sheet/VBox/Header/CloseRound" to="." method="_on_close_pressed"]
+[connection signal="value_changed" from="Slide/Sheet/VBox/AudioPanel/Rows/MasterRow/Master" to="." method="_on_volume_changed" binds=[&"master_volume"]]
+[connection signal="value_changed" from="Slide/Sheet/VBox/AudioPanel/Rows/MusicRow/Music" to="." method="_on_volume_changed" binds=[&"music_volume"]]
+[connection signal="value_changed" from="Slide/Sheet/VBox/AudioPanel/Rows/EffectsRow/Effects" to="." method="_on_volume_changed" binds=[&"sfx_volume"]]
+[connection signal="item_selected" from="Slide/Sheet/VBox/LanguagePanel/Row/Language" to="." method="_on_language_selected"]
+[connection signal="toggled" from="Slide/Sheet/VBox/DisplayPanel/Row/Shake" to="." method="_on_shake_toggled"]
+[connection signal="toggled" from="Slide/Sheet/VBox/PrivacyPanel/Rows/Row/Analytics" to="." method="_on_analytics_toggled"]
+[connection signal="pressed" from="Slide/Sheet/VBox/Buttons/Reset" to="." method="_on_reset_pressed"]
+[connection signal="pressed" from="Slide/Sheet/VBox/Buttons/Close" to="." method="_on_close_pressed"]

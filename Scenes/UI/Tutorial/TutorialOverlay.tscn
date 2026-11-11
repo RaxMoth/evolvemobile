@@ -1,7 +1,8 @@
-[gd_scene load_steps=3 format=3 uid="uid://b1ucpma24ksdo"]
+[gd_scene load_steps=4 format=3 uid="uid://b1ucpma24ksdo"]
 
 [ext_resource type="Script" path="res://Scenes/UI/Tutorial/tutorial_overlay.gd" id="1_script"]
 [ext_resource type="Theme" path="res://Scenes/UI/Theme/ui_theme.tres" id="2_theme"]
+[ext_resource type="Texture2D" path="res://Assets/UI/Icons/UI/ui_level_up.svg" id="3_arrow"]
 
 [node name="TutorialOverlay" type="CanvasLayer"]
 process_mode = 3
@@ -15,9 +16,10 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+mouse_filter = 2
 theme = ExtResource("2_theme")
 
-[node name="Dim" type="ColorRect" parent="Root"]
+[node name="Dim" type="Control" parent="Root"]
 unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 15
@@ -26,77 +28,109 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="Center" type="CenterContainer" parent="Root"]
+[node name="Ring" type="PanelContainer" parent="Root"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 40.0
+mouse_filter = 2
+theme_type_variation = &"SelectRing"
+
+[node name="Arrow" type="TextureRect" parent="Root"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 0
+offset_right = 56.0
+offset_bottom = 56.0
+mouse_filter = 2
+texture = ExtResource("3_arrow")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Bubble" type="PanelContainer" parent="Root"]
+unique_name_in_owner = true
 layout_mode = 1
-anchors_preset = 15
+anchors_preset = -1
 anchor_right = 1.0
-anchor_bottom = 1.0
+offset_left = 60.0
+offset_top = 640.0
+offset_right = -60.0
+offset_bottom = 640.0
 grow_horizontal = 2
 grow_vertical = 2
+theme_type_variation = &"PanelLeafy"
 
-[node name="Panel" type="PanelContainer" parent="Root/Center"]
-custom_minimum_size = Vector2(520, 0)
+[node name="VBox" type="VBoxContainer" parent="Root/Bubble"]
 layout_mode = 2
-theme_type_variation = &"SheetPanel"
+theme_override_constants/separation = 12
 
-[node name="VBox" type="VBoxContainer" parent="Root/Center/Panel"]
-layout_mode = 2
-theme_override_constants/separation = 16
-
-[node name="Kicker" type="Label" parent="Root/Center/Panel/VBox"]
+[node name="Kicker" type="Label" parent="Root/Bubble/VBox"]
+unique_name_in_owner = true
 layout_mode = 2
 theme_type_variation = &"Caption"
 text = "HOW TO PLAY"
 horizontal_alignment = 1
 
-[node name="Title" type="Label" parent="Root/Center/Panel/VBox"]
+[node name="Title" type="Label" parent="Root/Bubble/VBox"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_type_variation = &"HeaderSmall"
 text = "Pick a side"
 horizontal_alignment = 1
 
-[node name="Body" type="Label" parent="Root/Center/Panel/VBox"]
+[node name="Body" type="Label" parent="Root/Bubble/VBox"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 150)
 layout_mode = 2
 theme_type_variation = &"BodyDim"
 text = "…"
 horizontal_alignment = 1
-vertical_alignment = 1
 autowrap_mode = 3
 
-[node name="Progress" type="Label" parent="Root/Center/Panel/VBox"]
+[node name="Steps" type="HBoxContainer" parent="Root/Bubble/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 12
+alignment = 1
+
+[node name="Pips" type="HBoxContainer" parent="Root/Bubble/VBox/Steps"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 4
+theme_override_constants/separation = 8
+
+[node name="Progress" type="Label" parent="Root/Bubble/VBox/Steps"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_type_variation = &"Caption"
-text = "1 / 4"
-horizontal_alignment = 1
+text = "1 / 5"
 
-[node name="ButtonRow" type="HBoxContainer" parent="Root/Center/Panel/VBox"]
+[node name="ButtonRow" type="HBoxContainer" parent="Root/Bubble/VBox"]
 layout_mode = 2
 theme_override_constants/separation = 12
 
-[node name="SkipButton" type="Button" parent="Root/Center/Panel/VBox/ButtonRow"]
+[node name="SkipButton" type="Button" parent="Root/Bubble/VBox/ButtonRow"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(96, 48)
+custom_minimum_size = Vector2(96, 56)
 layout_mode = 2
 size_flags_horizontal = 3
+theme_type_variation = &"FlatButton"
 text = "Skip"
 
-[node name="BackButton" type="Button" parent="Root/Center/Panel/VBox/ButtonRow"]
+[node name="BackButton" type="Button" parent="Root/Bubble/VBox/ButtonRow"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(96, 48)
+custom_minimum_size = Vector2(110, 56)
 layout_mode = 2
 text = "Back"
 
-[node name="NextButton" type="Button" parent="Root/Center/Panel/VBox/ButtonRow"]
+[node name="NextButton" type="Button" parent="Root/Bubble/VBox/ButtonRow"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(150, 48)
+custom_minimum_size = Vector2(170, 56)
 layout_mode = 2
 theme_type_variation = &"ButtonPrimary"
 text = "Next"
 
-[connection signal="pressed" from="Root/Center/Panel/VBox/ButtonRow/SkipButton" to="." method="_on_skip_pressed"]
-[connection signal="pressed" from="Root/Center/Panel/VBox/ButtonRow/BackButton" to="." method="_on_back_pressed"]
-[connection signal="pressed" from="Root/Center/Panel/VBox/ButtonRow/NextButton" to="." method="_on_next_pressed"]
+[connection signal="draw" from="Root/Dim" to="." method="_on_dim_draw"]
+[connection signal="resized" from="Root/Dim" to="." method="_on_dim_resized"]
+[connection signal="pressed" from="Root/Bubble/VBox/ButtonRow/SkipButton" to="." method="_on_skip_pressed"]
+[connection signal="pressed" from="Root/Bubble/VBox/ButtonRow/BackButton" to="." method="_on_back_pressed"]
+[connection signal="pressed" from="Root/Bubble/VBox/ButtonRow/NextButton" to="." method="_on_next_pressed"]

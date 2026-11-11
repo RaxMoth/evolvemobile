@@ -1,273 +1,180 @@
 class_name SettingsScreen
 extends Control
 
-## SettingsScreen — full-screen overlay for audio volumes, language, screen
-## shake, privacy and progress reset.
-##
-## Built entirely in code (no .tscn) so it can be dropped in from any menu with
-## `add_child(SettingsScreen.new())`. Volume sliders drive the audio buses live
-## through AudioSettings and persist on close; the reset button clears the save
-## via PersistedData.wipe_progress() behind a two-tap confirm.
-##
-## Its look is the Jungle Guild theme's: the sheet panel and label / button
-## variations, and the palette's scrim and danger tokens (no colour literals).
+## The settings sheet: it slides up from the bottom over a bg_void scrim, the
+## UnlockSheet's way, from the lobby's gear (MenuRoot) and from the match's
+## pause menu (PauseMenu). SettingsScreen.tscn holds the whole layout and its
+## wiring; this script only reads and writes the settings:
+##   - AUDIO: a slider per volume key (AudioSettings.VOLUME_KEYS, bound to the
+##     key in the scene); the buses follow live, the save on close;
+##   - LANGUAGE: System / English / Deutsch (LocaleSettings); the scene's
+##     labels re-translate themselves, the picker's items are refilled;
+##   - DISPLAY: the match camera's screen shake (GameCamera reads the setting
+##     on every shake);
+##   - PRIVACY: the local usage statistics (AnalyticsSink opt-out);
+##   - RESET PROGRESS wipes the save (PersistedData.wipe_progress) behind a
+##     second tap within RESET_ARM_TIME;
+##   - CLOSE, the round close button, a tap on the scrim and ui_cancel (the
+##     Android back button) save and close it.
+## The look is theme variations only (SheetPanel, HeaderLarge, Caption,
+## PanelInset, BodyDim, HintLabel, ButtonRound, ButtonMonster, ButtonPrimary);
+## the scrim takes the palette's bg_void.
 
-const _THEME: Theme = preload("res://Scenes/UI/Theme/ui_theme.tres")
+## The sheet was closed (it frees itself right after).
+signal closed
+
 ## Alpha of the bg_void scrim behind the sheet (the UnlockSheet's).
 const SCRIM_ALPHA := 0.72
+const SLIDE_TIME := 0.22
+## Seconds the armed RESET PROGRESS waits for its second tap.
+const RESET_ARM_TIME := 3.0
 
-# Per-key percentage labels, refreshed as their slider moves.
-var _value_labels: Dictionary = {}
-
-var _reset_button: Button = null
 var _reset_armed: bool = false
+var _closing: bool = false
 
-
-## Minimum height of anything a thumb must hit (Apple HIG 44 pt, Material 48 dp).
-const TOUCH_TARGET: float = 48.0
-
-func _init() -> void:
-	theme = _THEME
-	set_anchors_preset(Control.PRESET_FULL_RECT)
-	mouse_filter = Control.MOUSE_FILTER_STOP
+@onready var _scrim: ColorRect = %Scrim
+## The sheet's holder (full rect, the sheet anchored to its bottom): it slides.
+@onready var _slide: Control = %Slide
+@onready var _language: OptionButton = %Language
+@onready var _shake: CheckButton = %Shake
+@onready var _analytics: CheckButton = %Analytics
+@onready var _reset_button: Button = %Reset
+## The volume sliders and their percentages by setting key (each slider's
+## value_changed is bound to its key in the scene).
+@onready var _sliders: Dictionary[StringName, HSlider] = {
+	AudioSettings.KEY_MASTER: %Master,
+	AudioSettings.KEY_MUSIC: %Music,
+	AudioSettings.KEY_SFX: %Effects,
+}
+@onready var _values: Dictionary[StringName, Label] = {
+	AudioSettings.KEY_MASTER: %MasterValue,
+	AudioSettings.KEY_MUSIC: %MusicValue,
+	AudioSettings.KEY_SFX: %EffectsValue,
+}
 
 
 func _ready() -> void:
-	_build_dim_background()
-	_build_panel()
+	_scrim.color = Color(UiPalette.get_default().bg_void, SCRIM_ALPHA)
+	for key: StringName in _sliders:
+		var volume := _sliders[key]
+		volume.set_value_no_signal(AudioSettings.get_volume(key))
+		_values[key].text = percent(volume.value)
+	_fill_languages()
+	_shake.set_pressed_no_signal(GameCamera.shake_setting_on())
+	_analytics.set_pressed_no_signal(AnalyticsSink.is_enabled())
+	_slide_in()
 
 
-# ============================================
-# Layout
-# ============================================
-
-func _build_dim_background() -> void:
-	var dim := ColorRect.new()
-	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
-	dim.color = Color(UiPalette.get_default().bg_void, SCRIM_ALPHA)
-	dim.mouse_filter = Control.MOUSE_FILTER_STOP
-	add_child(dim)
+## "80%" for 0.8.
+static func percent(linear: float) -> String:
+	return "%d%%" % int(round(linear * 100.0))
 
 
-func _build_panel() -> void:
-	var center := CenterContainer.new()
-	center.set_anchors_preset(Control.PRESET_FULL_RECT)
-	add_child(center)
-
-	var panel := PanelContainer.new()
-	panel.custom_minimum_size = Vector2(460, 0)
-	panel.theme_type_variation = &"SheetPanel"
-	center.add_child(panel)
-
-	var vbox := VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 18)
-	panel.add_child(vbox)
-
-	var title := Label.new()
-	title.text = tr("SETTINGS")
-	title.theme_type_variation = &"HeaderSmall"
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	vbox.add_child(title)
-
-	var audio_header := _section_header(tr("AUDIO"))
-	vbox.add_child(audio_header)
-
-	for key in AudioSettings.VOLUME_KEYS:
-		vbox.add_child(_build_volume_row(key))
-
-	vbox.add_child(_hsep())
-	vbox.add_child(_section_header(tr("LANGUAGE")))
-	vbox.add_child(_build_language_row())
-	vbox.add_child(_hsep())
-	vbox.add_child(_section_header(tr("DISPLAY")))
-	vbox.add_child(_build_shake_row())
-	vbox.add_child(_hsep())
-	vbox.add_child(_section_header(tr("PRIVACY")))
-	vbox.add_child(_build_analytics_row())
-	vbox.add_child(_hsep())
-
-	_reset_button = Button.new()
-	_reset_button.text = tr("Reset Progress")
-	_reset_button.custom_minimum_size = Vector2(0, TOUCH_TARGET)
-	_reset_button.add_theme_color_override("font_color", UiPalette.get_default().danger)
-	_reset_button.pressed.connect(_on_reset_pressed)
-	vbox.add_child(_reset_button)
-
-	var close_button := Button.new()
-	close_button.text = tr("Close")
-	close_button.custom_minimum_size = Vector2(0, TOUCH_TARGET)
-	close_button.theme_type_variation = &"ButtonPrimary"
-	close_button.pressed.connect(_on_close_pressed)
-	vbox.add_child(close_button)
+## The volume slider of a setting key (AudioSettings.KEY_*), or null.
+func slider(key: StringName) -> HSlider:
+	return _sliders[key] if _sliders.has(key) else null
 
 
-func _section_header(text: String) -> Label:
-	var label := Label.new()
-	label.text = text
-	label.theme_type_variation = &"Caption"
-	return label
+## Saves the settings and slides the sheet away (it frees itself).
+func close() -> void:
+	if _closing:
+		return
+	_closing = true
+	PersistedData.save_data()
+	closed.emit()
+	var t := create_tween().set_parallel().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
+	t.tween_property(_slide, ^"position:y", size.y, SLIDE_TIME)
+	t.tween_property(_scrim, ^"modulate:a", 0.0, SLIDE_TIME)
+	t.chain().tween_callback(queue_free)
 
 
-func _hsep() -> HSeparator:
-	var sep := HSeparator.new()
-	sep.add_theme_constant_override("separation", 8)
-	return sep
+func is_closing() -> bool:
+	return _closing
 
 
-func _build_volume_row(key: StringName) -> Control:
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 12)
-
-	var name_label := Label.new()
-	name_label.text = AudioSettings.label_for(key)
-	name_label.theme_type_variation = &"BodyDim"
-	name_label.custom_minimum_size = Vector2(90, 0)
-	row.add_child(name_label)
-
-	var slider := HSlider.new()
-	# Thumb-sized grab area; the visual track stays thin.
-	slider.custom_minimum_size = Vector2(0, TOUCH_TARGET)
-	slider.min_value = 0.0
-	slider.max_value = 1.0
-	slider.step = 0.05
-	slider.value = AudioSettings.get_volume(key)
-	slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	slider.size_flags_vertical = Control.SIZE_FILL
-	slider.value_changed.connect(_on_volume_changed.bind(key))
-	row.add_child(slider)
-
-	var value_label := Label.new()
-	value_label.theme_type_variation = &"Caption"
-	value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	value_label.custom_minimum_size = Vector2(44, 0)
-	value_label.text = _percent(slider.value)
-	row.add_child(value_label)
-	_value_labels[key] = value_label
-
-	return row
+func _slide_in() -> void:
+	_scrim.modulate.a = 0.0
+	_slide.position.y = size.y
+	var t := create_tween().set_parallel().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	t.tween_property(_scrim, ^"modulate:a", 1.0, SLIDE_TIME)
+	t.tween_property(_slide, ^"position:y", 0.0, SLIDE_TIME)
 
 
-func _build_language_row() -> Control:
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 12)
-
-	var label := Label.new()
-	label.text = tr("Language")
-	label.theme_type_variation = &"BodyDim"
-	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row.add_child(label)
-
-	var picker := OptionButton.new()
-	picker.custom_minimum_size = Vector2(160, TOUCH_TARGET)
+func _fill_languages() -> void:
+	_language.clear()
 	for choice_label in LocaleSettings.CHOICE_LABELS:
-		picker.add_item(tr(choice_label))
-	picker.select(LocaleSettings.choice_index())
-	picker.item_selected.connect(_on_language_selected)
-	row.add_child(picker)
-	return row
+		_language.add_item(tr(choice_label))
+	_language.select(LocaleSettings.choice_index())
+
+
+## The scene's labels re-translate on their own; the picker's items and the
+## reset button's state text are ours.
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_TRANSLATION_CHANGED and is_node_ready():
+		_fill_languages()
+		_show_reset_text()
+
+
+func _show_reset_text() -> void:
+	if _reset_button.disabled:
+		_reset_button.text = tr("Progress Reset")
+	elif _reset_armed:
+		_reset_button.text = tr("Tap again to confirm")
+	else:
+		_reset_button.text = tr("Reset Progress")
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if not _closing and event.is_action_pressed(&"ui_cancel"):
+		get_viewport().set_input_as_handled()
+		close()
+
+
+# --- scene-side connections (SettingsScreen.tscn) ---
+
+func _on_volume_changed(value: float, key: StringName) -> void:
+	AudioSettings.set_volume(key, value)
+	if _values.has(key):
+		_values[key].text = percent(value)
 
 
 func _on_language_selected(idx: int) -> void:
 	LocaleSettings.set_choice_index(idx)
-	# Scene-side labels re-translate automatically; this panel is built in
-	# code, so rebuild it to pick up the new language immediately.
-	_rebuild()
-
-
-func _rebuild() -> void:
-	for child in get_children():
-		remove_child(child)
-		child.queue_free()
-	_value_labels.clear()
-	_reset_armed = false
-	_build_dim_background()
-	_build_panel()
-
-
-## The match camera's screen shake (GameCamera reads the setting on every
-## shake, so it applies from the next hit on).
-func _build_shake_row() -> Control:
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 12)
-
-	var label := Label.new()
-	label.text = tr("Screen shake")
-	label.theme_type_variation = &"BodyDim"
-	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row.add_child(label)
-
-	var toggle := CheckButton.new()
-	toggle.custom_minimum_size = Vector2(0, TOUCH_TARGET)
-	toggle.button_pressed = GameCamera.shake_setting_on()
-	toggle.toggled.connect(_on_shake_toggled)
-	row.add_child(toggle)
-	return row
 
 
 func _on_shake_toggled(enabled: bool) -> void:
 	GameCamera.set_shake_setting(enabled)
 
 
-func _build_analytics_row() -> Control:
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 12)
-
-	var label := Label.new()
-	label.text = tr("Usage statistics")
-	label.theme_type_variation = &"BodyDim"
-	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	label.tooltip_text = tr("Stored only on this device (user://analytics.jsonl). Nothing is uploaded.")
-	row.add_child(label)
-
-	var toggle := CheckButton.new()
-	toggle.custom_minimum_size = Vector2(0, TOUCH_TARGET)
-	toggle.button_pressed = AnalyticsSink.is_enabled()
-	toggle.toggled.connect(_on_analytics_toggled)
-	row.add_child(toggle)
-	return row
-
-
 func _on_analytics_toggled(enabled: bool) -> void:
 	AnalyticsSink.set_opt_out(not enabled)
-
-
-func _percent(linear: float) -> String:
-	return "%d%%" % int(round(linear * 100.0))
-
-
-# ============================================
-# Signals
-# ============================================
-
-func _on_volume_changed(value: float, key: StringName) -> void:
-	AudioSettings.set_volume(key, value)
-	if _value_labels.has(key):
-		var label: Label = _value_labels[key]
-		label.text = _percent(value)
 
 
 func _on_reset_pressed() -> void:
 	if not _reset_armed:
 		_reset_armed = true
-		_reset_button.text = tr("Tap again to confirm")
+		_show_reset_text()
 		# Disarm after a short window if they don't confirm.
-		var timer := get_tree().create_timer(3.0)
-		timer.timeout.connect(_disarm_reset)
+		get_tree().create_timer(RESET_ARM_TIME, true).timeout.connect(_disarm_reset)
 		return
 	PersistedData.wipe_progress()
 	_reset_armed = false
-	_reset_button.text = tr("Progress Reset")
 	_reset_button.disabled = true
+	_show_reset_text()
 
 
 func _disarm_reset() -> void:
-	if not is_instance_valid(self) or _reset_button == null:
+	if not _reset_armed:
 		return
-	if _reset_armed:
-		_reset_armed = false
-		_reset_button.text = tr("Reset Progress")
+	_reset_armed = false
+	_show_reset_text()
 
 
 func _on_close_pressed() -> void:
-	PersistedData.save_data()
-	queue_free()
+	close()
+
+
+func _on_scrim_gui_input(event: InputEvent) -> void:
+	var tap := event as InputEventMouseButton
+	if tap != null and tap.pressed and tap.button_index == MOUSE_BUTTON_LEFT:
+		close()

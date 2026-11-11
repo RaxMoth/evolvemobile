@@ -705,10 +705,14 @@ dangerous (`monster` #C2334A, `monster_purple` #7B3F95).
       HudCard → HudPanel, TitleLabel → HeaderLarge, MutedLabel → Caption, ...;
       the full table is in `make_theme.py`).
     - The old screens (main menu, pre-round, skill screen, match result) are
-      gone (8.3); the settings and tutorial overlays use the theme's
-      variations (SheetPanel, HeaderSmall, BodyDim, Caption, ButtonPrimary)
-      and the palette's scrim (`bg_void` at 0.72). The MatchHud's cards and
-      panels use HudPanel / HudPanelSelected and HpBarHero / HpBarMonster.
+      gone (8.3). The settings sheet, the tutorial's coach marks, the Codex
+      and the pause menu use theme variations only (SheetPanel, PanelLeafy,
+      PanelInset, SelectRing, PipOn / PipOff, HeaderLarge, HeaderSmall,
+      BodyDim, Caption, HintLabel, TabButton, FlatButton, ButtonRound,
+      ButtonPrimary, ButtonMonster) and the palette's scrim (`bg_void` at
+      0.72); `test_tutorial` and `test_settings_and_back` check their scenes
+      override no colour, font or style. The MatchHud's cards and panels use
+      HudPanel / HudPanelSelected and HpBarHero / HpBarMonster.
     - **No colour literals in the UI** (`tools/lint_all.gd`,
       `_check_no_color_literals`): no script, scene or resource under
       `Scenes/UI/` writes a colour as numbers. In a script that is a
@@ -1068,8 +1072,22 @@ writes gameplay state, so `tools/sim_trace.sh` stays byte-identical.
 
 - **Top bar** (80 px), refreshed at 4 Hz, each label written only when it
   changes:
-    - Pause (`ButtonRound`, `process_mode` ALWAYS): toggles the tree's pause
-      while a match runs; the icon swaps to play.
+    - Pause (`ButtonRound`, `process_mode` ALWAYS): opens the pause menu while
+      a match runs; the icon swaps to play while it is up. Escape and the
+      Android back button (`ui_cancel`) open it too.
+    - The pause menu (`Hud/PauseMenu.tscn`, `pause_menu.gd`, a Root child,
+      `process_mode` ALWAYS): a `PanelLeafy` card over the `bg_void` scrim; it
+      pauses the tree while it is up. RESUME (or back again) unpauses;
+      SETTINGS opens the settings sheet over it (back closes the sheet
+      first); QUIT TO LOBBY arms on the first tap ("Leaving ends the hunt.
+      It pays no rewards.", 3 s) and on the second goes to MenuRoot
+      (`lobby_scene_path`; World's exit stops the clock), tracked as
+      `match_quit`. Its `opened` / `resumed` swap the Pause icon (wired in
+      MatchHud.tscn).
+    - The first match plays the tutorial's HUD chapter 1.5 s after the HUD
+      binds (TutorialOverlay `CHAPTER_HUD`, setting `tutorial_hud_seen`): the
+      cooldown slots, then the pause button. It never pauses the match, so a
+      headless sim plays the same match with or without it.
     - Clock chip: `GameManager.get_match_elapsed()` as "03:42".
     - Enemy tracker: heroes side, the monster's head, "STAGE II" and its HP;
       monster side, a head and mini HP bar per hero (the scene's `HeroChip`
@@ -1769,8 +1787,14 @@ code connections are to autoloads (`PersistedData.currency_changed`).
   chip and, while unmet, the unlock rule under it (`%LockInfo`).
   `character_pressed(character)`. For the match result: `celebrate(delay)`
   (the cheer hop every 0.7 s until `stop_celebrating()`) and `set_fallen(on)`
-  (no idle or cheering, the rig posed still, `UiPalette.FALLEN_MODULATE`,
-  tipped back 12 degrees on its feet and squashed to 0.94).
+  (no idle or cheering, the rig posed still and drained of colour,
+  `RigView.greyed`, darkened to `UiPalette.FALLEN_STAGE_MODULATE` (0.62,
+  0.58, 0.58: lighter than the UX spec's plain tint, which drained of
+  colour read as a locked silhouette), tipped back 12 degrees on its feet
+  and squashed to 0.94).
+  `RigView.greyed` rebuilds the rig inside a `CanvasGroup` whose material
+  (`Assets/Shaders/greyscale_group_material.tres`) desaturates the whole
+  body at once (85 %); only a fallen cast pays for that backbuffer.
 - **`UnlockSheet.tscn`** (`UnlockSheet`, `unlock_sheet.gd`): the confirm sheet
   of a character purchase, one instance over every MenuRoot screen. `open_for(def)`
   slides it up from the bottom edge (0.22 s, cubic) over a `bg_void` scrim:
@@ -1941,8 +1965,25 @@ and the match result's LOBBY returns to it. The old `MainMenu.tscn`,
       instinct is not applied yet (today's Ambusher behaviour); a second
       start while the match loads does nothing. Every start
       goes through `GameManager.begin_hunt()` first; so does the match
-      result's PLAY AGAIN. Until their new screens land, Codex opens the
-      tutorial and the gear the old Settings.
+      result's PLAY AGAIN. A locked monster on the pre-round's picker whose
+      rule is met asks for its unlock sheet (`character_requested`, the same
+      handler as the rosters'); after the purchase the pre-round shows it as
+      the picked monster (`PreRoundScreen.refresh()` with the other screens).
+    - The nav bar's Codex opens the `CodexScreen` (`switch_to`, after
+      `codex.open()`); its Codex dot shows while it has monster pages the
+      player has not opened (`CodexScreen.unseen_monsters()`). Its guide's
+      `guide_requested(chapter)`: the camp tour pops home and plays the coach
+      marks once the slide has settled; the hunt tips are switched on again
+      for the next match (`TutorialOverlay.forget`).
+    - The lobby's gear opens the `SettingsScreen` sheet; it and the
+      first-run tutorial are the overlays (one at a time) over the stack.
+    - Back: `application/config/quit_on_go_back` is off, so the Android back
+      button arrives as `NOTIFICATION_WM_GO_BACK_REQUEST`. MenuRoot (in a
+      match, MatchHud) replays it as one `ui_cancel` press (`BackButton.press`,
+      `Scripts/back_button.gd`, through the viewport: the topmost taker wins):
+      an open overlay, the unlock sheet or the pre-round's quarry sheet
+      closes, else the top screen pops. Only when nothing took it (the bare
+      lobby) does MenuRoot quit the game. `go_back()` is that press.
 - **`LobbyScreen`** (`lobby_screen.gd`, the nav bar's HUNT tab): a split jungle
   stage under the top bar (gear, Gold, Steel, Leaves) and above the nav bar.
     - Hero stage (y 84-624): the campfire clearing (`Assets/UI/Lobby/lobby_heroes.svg`),
@@ -1969,9 +2010,12 @@ and the match result's LOBBY returns to it. The old `MainMenu.tscn`,
       `tab_selected(tab_id)` and `settings_requested`. `show_side()` restores a
       side without the animation. Its own wiring (stages, plaques, HUNT, the
       characters, top bar, nav bar) is all in `LobbyScreen.tscn`.
-    - On a taller or wider phone the stages stretch with the window: the
-      backdrops cover their stage, the characters stay centred, and the lair
-      grows down to the nav bar.
+    - On a taller or wider phone the stages stretch with the window. The
+      campfire's backdrop covers its stage. The lair's backdrop and its
+      monsters keep their design size anchored to the bottom of the monster
+      stage (the backdrop 540 px tall at full width): on a 19.5:9 phone the
+      extra height shows the screen background above the lair instead of
+      blowing the backdrop up around monsters that keep their size.
 - `test/test_menu_root.gd`: every screen signal is connected once, scene-side,
   to MenuRoot (no code connections); push / pop and `ui_cancel`; the click on
   every button; the side choice (frames, HUNT pop, cheer stagger, tints, nav
@@ -1982,7 +2026,70 @@ and the match result's LOBBY returns to it. The old `MainMenu.tscn`,
   screens each request opens (HUNT pushes the pre-round of either side once,
   back and `ui_cancel` pop it, nav tabs switch, cards push, back); a purchase
   and a capstone swap through the detail and the refresh of the screens under
-  it; the nav dots follow buyable ranks; the main scene is MenuRoot.
+  it; the nav dots follow buyable ranks; the main scene is MenuRoot; the
+  Codex tab switches to the Codex. `test/test_codex.gd` and
+  `test/test_settings_and_back.gd` cover the Codex, the settings, the pause
+  menu, the back button and the lair on a tall phone.
+
+### Tutorial, Codex and Settings (first-run flow)
+
+- **First-run flow**: the first launch opens MenuRoot on the lobby; 0.9 s in,
+  the tutorial's camp tour plays over it (setting `tutorial_seen`). The first
+  match plays its HUD tips (setting `tutorial_hud_seen`). Skipping counts as
+  seen. Both can be played again from the Codex's guide.
+- **`TutorialOverlay`** (`Scenes/UI/Tutorial/`, a CanvasLayer at layer 20,
+  `process_mode` ALWAYS): coach marks. A step is data (title, body, anchor);
+  the anchor is a group, and the step's target is every visible Control in
+  it, merged: `tutorial_hero_stage` / `tutorial_monster_stage` (the lobby's
+  two stages), `tutorial_hunt` (the nav bar's arch), `tutorial_codex` (its
+  Codex tab), `tutorial_hud_slots` (the HUD's ability slots, hero cards or
+  the monster panel), `tutorial_pause` (the HUD's pause button). The groups
+  are set in the target scenes. The scrim (`bg_void` at 0.72, drawn by the
+  overlay around a hole) darkens all but the target, the amber `SelectRing`
+  frames it, the amber arrow (`ui_level_up.svg`) bobs toward it and the
+  `PanelLeafy` bubble (kicker, title, body, a pip per step, "2 / 5", Skip /
+  Back / Next) sits on the side with more room. The frame glides to the
+  next target (0.25 s) and follows its target while it moves. A step without
+  a target centres the bubble over the full scrim.
+    - Camp tour (`LOBBY_STEPS`): the rules, the heroes' campfire, the
+      monsters' lair, the HUNT arch, the Codex tab (growth and the Codex).
+    - HUD tips (`HUD_STEPS`): the cooldown slots, the pause button.
+    - `has_been_seen(chapter)`, `mark_seen(chapter)`, `forget(chapter)`;
+      `finished(completed)`; analytics `tutorial_finished` with the chapter.
+- **`CodexScreen`** (`Screens/CodexScreen.tscn`, `codex_screen.gd`, a
+  MenuRoot screen; every signal wired in MenuRoot.tscn: `back_requested`,
+  `tab_selected`, `guide_requested(chapter)`): the top bar ("Codex", Gold),
+  three `TabButton` pages and the nav bar.
+    - GUIDE: the camp tour and the HUD tips as numbered `PanelInset` cards
+      (built from `TutorialOverlay`'s steps, one source), REPLAY THE CAMP
+      TOUR and SHOW THE HUNT TIPS AGAIN.
+    - MONSTERS: "Beasts met N / 3", then a `CodexEntry` per quarry met, in
+      the order first met (`PersistedData.get_codex_entries(CODEX_MONSTERS)`,
+      which `GameManager.begin_hunt` fills on a first sighting), then the
+      other roster monsters as locked pages.
+    - HEROES: a `CodexEntry` per roster hero.
+    - `open()` rebuilds the pages and marks the monster pages seen (setting
+      `codex_seen_monsters`); with new pages it opens on MONSTERS.
+- **`CodexEntry`** (`Components/CodexEntry.tscn`): a `CharacterCard` (heroes)
+  or `CharacterCardMonster` panel: the portrait in its side's inner panel,
+  name, role and tagline, FIELD NOTES (`CharacterDef.codex_notes`: how a hero
+  plays, how a monster hunts), for a monster EVOLUTION (its `stage_names` as
+  "I · Bullcalf" chips) and COUNTERPLAY (`CharacterDef.tip`), and ABILITIES
+  (icon, name and description of every ability in menu order, read from the
+  scene's shared resources). An unmet monster is a `CharacterCardLocked`
+  page: the portrait as a silhouette (`CharacterCard.locked_material()`),
+  "???" and when it turns up ("It joins the hunt after N more hunts" or
+  "Hunt it to fill this page").
+- **`SettingsScreen`** (`Scenes/UI/Settings/SettingsScreen.tscn`): a bottom
+  sheet (`SheetPanel`) that slides up over the scrim, from the lobby's gear
+  and the pause menu. AUDIO: a slider per volume (Master, Music, Effects;
+  each slider's `value_changed` is bound to its setting key in the scene),
+  applied live; LANGUAGE (System / English / Deutsch; the scene's labels
+  re-translate themselves); DISPLAY (screen shake); PRIVACY (usage
+  statistics, stored on the device only); RESET PROGRESS (`ButtonMonster`,
+  a second tap within 3 s wipes the progress, the settings stay); CLOSE, the
+  round close button, a tap on the scrim and back save and close it
+  (`closed`). All wiring is in the scene.
 
 ### Pre-round screen (PreRoundScreen)
 
@@ -2083,9 +2190,10 @@ ALWAYS. It replaced the old `MatchResult` overlay (deleted in 8.3) with the same
   match's monster at the stage it reached (`Result.monster_id`). On a win the
   standing ones `celebrate()` (a cheer hop every 0.7 s, staggered 0.12 s); a
   hero that fell (`Result.fallen_hero_ids`), every hero of a lost match and the
-  monster of a lost match `set_fallen(true)`: posed still, greyed
-  (`UiPalette.FALLEN_MODULATE`), tipped back 12 degrees and squashed to 0.94;
-  at TIME UP the survivors idle. The cast is a picture (no taps).
+  monster of a lost match `set_fallen(true)`: posed still, drained of colour
+  and darkened (`UiPalette.FALLEN_STAGE_MODULATE`), tipped back 12 degrees
+  and squashed to 0.94; at TIME UP the survivors idle. The cast is a picture
+  (no taps).
 - **Stats**: three `StatTile`s: Duration; the played side's kills
   (`Result.mob_kills`: "Mobs slain" for the heroes, "Mobs devoured" for the
   monster); Survivors "3 / 4" (heroes) or "Stage 3" / Evolution (monster).
@@ -2111,6 +2219,7 @@ ALWAYS. It replaced the old `MatchResult` overlay (deleted in 8.3) with the same
   in a row) and reloads World. Both unpause the tree; a second press does
   nothing. `changes_scene = false` (tests, render probes) keeps only the
   signals (`lobby_requested`, `play_again_requested`, `upgrades_requested`).
+  Back (`ui_cancel`: Escape, the Android back button) is LOBBY.
 - **Intro**: the scrim fades in, the ribbon pops (0.4 → 1, TRANS_BACK) at
   0.1 s, the sections fade in from 0.3 s (staggered 0.08 s), the chips count
   from 0.6 s and the XP bars fill from 0.9 s; all settled by about 1.9 s.
@@ -2242,6 +2351,13 @@ Every tool copies the project to a temp directory with its own `user://`
 - `tools/lint.sh`: loads every script, scene and resource and checks the scene
   wiring; prints `errors=0`. `tools/run_tests.sh`: the headless suite
   (`test/test_*.gd`). Both exit non-zero on a failure.
+- Exit leaks: the suite ends with nothing leaked (8.3 left 140 objects, 66
+  resources and the RIDs of a test Bat). The runner stops every player (`AudioManager.stop_all()`) and gives the mixer
+  120 ms before it quits; `SpawnManager` frees parked mobs when it leaves the
+  tree and again when it is deleted, and frees (never parks) a mob released
+  after it left (a mob that died in the frame the match ended). A test that records
+  signals with a lambda must not keep that lambda in what it captures (the
+  VFX tests' `_stop` drops it).
 - `tools/sim.sh [runs=24] [side=heroes|monster] [workers=6] [cap_seconds=660]`:
   balance. Seeded auto-play matches in parallel, then one summary per monster
   (`tools/sim_summary.py`): win rates, match length, first contact, evolution
@@ -2351,8 +2467,9 @@ res://
 │  └─ UI/
 │     ├─ Screens/ (MenuRoot.tscn: the main scene, LobbyScreen.tscn,
 │     │            RosterScreen.tscn, CharacterDetail.tscn, PreRoundScreen.tscn,
-│     │            MatchResultScreen.tscn, ux_tree_model.gd)
-│     ├─ Settings/, Tutorial/ (the settings and how-to-play overlays)
+│     │            MatchResultScreen.tscn, CodexScreen.tscn, ux_tree_model.gd)
+│     ├─ Settings/ (SettingsScreen.tscn: the settings sheet)
+│     ├─ Tutorial/ (TutorialOverlay.tscn: the coach marks)
 │     ├─ Hud/ (MatchHud: the in-match HUD under MainCam, HeroHudCard,
 │     │        MonsterHudPanel, AbilitySlot: ability icon with the cooldown sweep,
 │     │        MatchAnnouncer: match events -> the HUD's event toasts)
@@ -2993,7 +3110,7 @@ Max out hero trees → Unlock new heroes → Compete on leaderboards
 - [x] Performance pass: faction collision layers, EntityRegistry, TickScheduler AI LOD, HpBar2D, mob pooling
 - [x] Per-hero (Steel) and per-monster (Leaves) skill trees — stat nodes and ability-modifying nodes, applied on spawn
 - [x] Skill trees v2 as resources (`Data/SkillTrees`): 3 branches x 4 tiers, ranks, capstones, level / points gates; nodes without code yet are hidden
-- [x] First-run tutorial overlay + "How to play" button
+- [x] First-run flow: coach marks over the lobby and the first match's HUD, replayable from the Codex
 - [x] Versioned save file with automatic backup + migration
 - [x] Audio manager on the Master/Music/SFX buses (generated placeholder tones until real assets land in `Assets/Audio/`)
 - [x] Local analytics log (`user://analytics.jsonl`, opt-out in Settings)
@@ -3059,7 +3176,9 @@ Max out hero trees → Unlock new heroes → Compete on leaderboards
 - [ ] Multiple maps (2-3)
 - [ ] Daily quests & challenges
 - [ ] Leaderboards (local)
-- [ ] Tutorial mode
+- [ ] Tutorial mode (a scripted first match)
+- [x] Codex (guide, a page per monster met with field notes, stages and counterplay, hero pages)
+- [x] Pause menu (resume, settings, quit to lobby) and the Android back button
 - [ ] Full art pass (lineart style)
 
 #### v1.0 (12+ months) - Public Alpha

@@ -157,7 +157,12 @@ func test_fallen_heroes_lie_down_while_the_rest_celebrate() -> void:
 		assert_eq(actor.fallen, id == &"vlad", "%s fallen" % id)
 		assert_eq(actor.is_celebrating(), id != &"vlad", "%s celebrates" % id)
 	var vlad := screen.cast()[1]
-	assert_eq((vlad.get_node(^"%Hop") as Control).modulate, UiPalette.FALLEN_MODULATE, "greyed")
+	assert_eq((vlad.get_node(^"%Hop") as Control).modulate, UiPalette.FALLEN_STAGE_MODULATE, "darkened")
+	var vlad_rig := vlad.get_node(^"%Rig") as RigView
+	assert_true(vlad_rig.greyed, "drained of colour")
+	assert_true(vlad_rig.get_node(^"Holder") is CanvasGroup, "the whole body at once (a CanvasGroup)")
+	assert_true(vlad_rig.rig != null, "the rig rebuilt inside it")
+	assert_false((screen.cast()[0].get_node(^"%Rig") as RigView).greyed, "the standing ones keep their colour")
 	assert_true((vlad.get_node(^"%Hop") as Control).rotation_degrees != 0.0, "tipped back")
 	assert_false((vlad.get_node(^"%Rig") as RigView).animated, "posed still")
 	assert_eq(_label(screen, "%StatThird/Row/Column/Value"), "3 / 4", "three survivors")
@@ -172,6 +177,7 @@ func test_fallen_heroes_lie_down_while_the_rest_celebrate() -> void:
 	# Standing up again.
 	vlad.set_fallen(false)
 	assert_eq((vlad.get_node(^"%Hop") as Control).rotation_degrees, 0.0)
+	assert_false(vlad_rig.greyed)
 	assert_true((vlad.get_node(^"%Rig") as RigView).animated)
 
 

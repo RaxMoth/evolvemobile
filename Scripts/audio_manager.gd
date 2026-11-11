@@ -97,6 +97,16 @@ func stop_music() -> void:
 	_music_player.stop()
 
 
+## Silences every player, the music too (the playbacks end on the mixer's next
+## step). The test runner calls it before it quits: a sound still playing at
+## exit is reported as a leaked AudioStreamWAV and its playback.
+func stop_all() -> void:
+	stop_music()
+	_ui_player.stop()
+	for player in _pool:
+		player.stop()
+
+
 func current_music() -> StringName:
 	return _current_music
 
