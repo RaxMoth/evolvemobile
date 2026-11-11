@@ -17,7 +17,8 @@ extends PanelContainer
 ##   - a tally: heroes slain and mobs this monster devoured, counted from
 ##     EventBus.entity_died since bind.
 ## The slots poll every frame; everything else is read at POLL_HZ and written
-## only when the shown value changes. Read-only: it never writes the monster.
+## only when the shown value changes (and again when the language is switched
+## in the pause menu's settings). Read-only: it never writes the monster.
 
 enum Intent { FARMING, AMBUSH, HUNTING, RETREAT }
 
@@ -129,6 +130,16 @@ func _process(delta: float) -> void:
 		return
 	_poll += 1.0 / POLL_HZ
 	_refresh()
+
+
+## The language changed: the lines formatted here are written again.
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_TRANSLATION_CHANGED and is_node_ready() and is_instance_valid(monster):
+		_shown_stage = 0
+		_shown_evo = Vector2i(-1, -1)
+		_shown_intent = -1
+		_show_tally()
+		_refresh()
 
 
 func _refresh() -> void:

@@ -94,9 +94,10 @@ func _on_settings_pressed() -> void:
 
 
 ## QUIT armed (its first tap) or disarmed (no second tap in time, the menu
-## opened again).
+## opened again). The button translates its text itself, so it follows a
+## language switch in the settings sheet.
 func _on_quit_armed_changed(armed: bool) -> void:
-	_quit.text = tr("Tap again to leave") if armed else tr("Quit to lobby")
+	_quit.text = "Tap again to leave" if armed else "Quit to lobby"
 	_hint.visible = armed
 
 

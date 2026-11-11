@@ -43,7 +43,7 @@ Heroes: four AI companions,Heroes: four AI companions,Helden: vier KI-Gefährten
 "Grount starts weak. Eat mob camps to reach Stage 2 (100 XP) and Stage 3 (300 XP), then strike. Stay in the fog until you are ready — the heroes only see what their scouts reveal.","Grount starts weak. Eat mob camps to reach Stage 2 (100 XP) and Stage 3 (300 XP), then strike. Stay in the fog until you are ready — the heroes only see what their scouts reveal.","Grount beginnt schwach. Friss Mob-Lager, um Stufe 2 (100 EP) und Stufe 3 (300 EP) zu erreichen, dann schlag zu. Bleib im Nebel, bis du bereit bist – die Helden sehen nur, was ihre Späher aufdecken."
 Grow between matches,Grow between matches,Wachse zwischen den Partien
 "Every match pays Steel (heroes), Leaves (monster) and Gold, plus permanent XP for each character. Spend them in the Base skill trees from the main menu — upgrades apply to every future match.","Every match pays Steel (heroes), Leaves (monster) and Gold, plus permanent XP for each character. Spend them in the Base skill trees from the main menu — upgrades apply to every future match.","Jede Partie bringt Stahl (Helden), Blätter (Monster) und Gold sowie permanente EP für jeden Charakter. Gib sie in den Basis-Fähigkeitenbäumen im Hauptmenü aus – Verbesserungen gelten für jede weitere Partie."
-Skill Tree,Skill Tree,Fähigkeitenbaum
+Skill Tree,Skill Tree,Talentbaum
 Close,Close,Schließen
 Steel %d   Leaves %d   Gold %d,Steel %d   Leaves %d   Gold %d,Stahl %d   Blätter %d   Gold %d
 SETTINGS,SETTINGS,EINSTELLUNGEN
@@ -86,7 +86,6 @@ HUNT,HUNT,JAGD
 Codex,Codex,Kodex
 Monsters,Monsters,Monster
 Rumours in the deep jungle,Rumours in the deep jungle,Gerüchte aus dem tiefen Dschungel
-HEROES,HEROES,HELDEN
 MONSTERS,MONSTERS,MONSTER
 OVERVIEW,OVERVIEW,ÜBERSICHT
 SKILL TREE,SKILL TREE,TALENTBAUM
@@ -94,7 +93,7 @@ ABILITIES,ABILITIES,FÄHIGKEITEN
 PASSIVE,PASSIVE,PASSIV
 BASIC,BASIC,BASIS
 ACTIVE,ACTIVE,AKTIV
-ULTIMATE,ULTIMATE,ULTIMATIV
+ULTIMATE,ULTIMATE,ULTIMATE
 Health,Health,Leben
 Damage,Damage,Schaden
 Attack speed,Attack speed,Angriffstempo
@@ -111,10 +110,10 @@ Tap a node,Tap a node,Tippe auf einen Knoten
 Now: %s,Now: %s,Jetzt: %s
 Next: %s,Next: %s,Als Nächstes: %s
 Rank %d/%d · Tier %d,Rank %d/%d · Tier %d,Rang %d/%d · Ebene %d
-Learn a Tier %d skill first,Learn a Tier %d skill first,Lerne zuerst eine Fähigkeit der Ebene %d
+Learn a Tier %d skill first,Learn a Tier %d skill first,Lerne zuerst ein Talent der Ebene %d
 Need %s more,Need %s more,Noch %s nötig
 Maxed,Maxed,Maximal
-Needs %s,Needs %s,Benötigt %s
+Needs %s,Needs %s,Benötigt: %s
 or,or,oder
 Nobody in this role yet,Nobody in this role yet,Noch niemand in dieser Rolle
 STAGE %s,STAGE %s,STUFE %s
@@ -174,7 +173,7 @@ Only one capstone is active per character. Switching is free.,Only one capstone 
 Equipped: this capstone is the active one. Switching is free.,Equipped: this capstone is the active one. Switching is free.,Ausgerüstet: Dieser Schlussstein ist der aktive. Wechseln ist kostenlos.
 Not equipped: another capstone is active. Switching is free.,Not equipped: another capstone is active. Switching is free.,Nicht ausgerüstet: Ein anderer Schlussstein ist aktiv. Wechseln ist kostenlos.
 Ranks %d/%d,Ranks %d/%d,Ränge %d/%d
-Needs a Lv %d monster,Needs a Lv %d monster,Benötigt ein Monster auf Lv %d
+Needs a Lv %d monster,Needs a Lv %d monster,Benötigt Lv-%d-Monster
 A monster of yours has reached Lv %d.,A monster of yours has reached Lv %d.,Eines deiner Monster hat Lv %d erreicht.
 Reach Lv %d with any monster you own (best: Lv %d).,Reach Lv %d with any monster you own (best: Lv %d).,Bring eines deiner Monster auf Lv %d (bestes: Lv %d).
 Unlock %s?,Unlock %s?,%s freischalten?
@@ -187,7 +186,7 @@ CHANGE,CHANGE,WECHSELN
 YOUR HUNTERS,YOUR HUNTERS,DEINE JÄGER
 THE LAIR,THE LAIR,DIE HÖHLE
 INSTINCT,INSTINCT,INSTINKT
-EVOLUTION,EVOLUTION,EVOLUTION
+EVOLUTION,EVOLUTION,ENTWICKLUNG
 STRATEGY,STRATEGY,STRATEGIE
 FORMATION,FORMATION,FORMATION
 Careful,Careful,Vorsichtig
@@ -209,7 +208,7 @@ Hides and farms. Hunts only once fully evolved.,Hides and farms. Hunts only once
 Hunts from Stage II and never backs down.,Hunts from Stage II and never backs down.,Jagt ab Stufe II und weicht nie zurück.
 Threat %d,Threat %d,Bedrohung %d
 +%d%% rewards,+%d%% rewards,+%d%% Belohnungen
-AI build: no upgrades yet,AI build: no upgrades yet,KI-Ausbau: noch keine Upgrades
+AI build: no upgrades yet,AI build: no upgrades yet,KI-Ausbau: noch keine Verbesserungen
 AI build: %d %s ranks + %d base ranks,AI build: %d %s ranks + %d base ranks,KI-Ausbau: %d %s-Ränge + %d Basisränge
 AI heroes: %d ranks each + %d base ranks,AI heroes: %d ranks each + %d base ranks,KI-Helden: je %d Ränge + %d Basisränge
 AI heroes: %s ranks + %d base ranks,AI heroes: %s ranks + %d base ranks,KI-Helden: %s Ränge + %d Basisränge
@@ -234,7 +233,7 @@ REWARDS,REWARDS,BELOHNUNGEN
 XP,XP,EP
 XP each,XP each,EP je Held
 +%d XP,+%d XP,+%d EP
-LEVEL UP!,LEVEL UP!,STUFE AUF!
+LEVEL UP!,LEVEL UP!,LEVEL UP!
 1 upgrade ready,1 upgrade ready,1 Verbesserung bereit
 %d upgrades ready,%d upgrades ready,%d Verbesserungen bereit
 Threat %d: +%d%% Steel and Gold,Threat %d: +%d%% Steel and Gold,Bedrohung %d: +%d%% Stahl und Gold
@@ -243,12 +242,12 @@ LOBBY,LOBBY,LOBBY
 PLAY AGAIN,PLAY AGAIN,NOCHMAL
 The hunters' camp,The hunters' camp,Das Lager der Jäger
 "Tap the campfire to play the Heroes. River, Vlad, Ted and Irelia hunt on their own: you set them up, they fight. Tap a hero to see their skills.","Tap the campfire to play the Heroes. River, Vlad, Ted and Irelia hunt on their own: you set them up, they fight. Tap a hero to see their skills.","Tippe auf das Lagerfeuer, um die Helden zu spielen. River, Vlad, Ted und Irelia jagen selbstständig: Du bereitest sie vor, sie kämpfen. Tippe auf einen Helden, um seine Fähigkeiten zu sehen."
-The beast's lair,The beast's lair,Der Bau der Bestie
-"Tap the lair to play the Monster. Your beast starts weak, eats mob camps to evolve and then hunts the hunters. A locked beast shows its price.","Tap the lair to play the Monster. Your beast starts weak, eats mob camps to evolve and then hunts the hunters. A locked beast shows its price.","Tippe auf den Bau, um das Monster zu spielen. Deine Bestie beginnt schwach, frisst Mob-Lager, um sich zu entwickeln, und jagt dann die Jäger. Eine gesperrte Bestie zeigt ihren Preis."
+The beast's lair,The beast's lair,Die Höhle der Bestie
+"Tap the lair to play the Monster. Your beast starts weak, eats mob camps to evolve and then hunts the hunters. A locked beast shows its price.","Tap the lair to play the Monster. Your beast starts weak, eats mob camps to evolve and then hunts the hunters. A locked beast shows its price.","Tippe auf die Höhle, um das Monster zu spielen. Deine Bestie beginnt schwach, frisst Mob-Lager, um sich zu entwickeln, und jagt dann die Jäger. Eine gesperrte Bestie zeigt ihren Preis."
 "The arch starts a round for the side you picked: set the hunters' strategy or choose your beast, then go.","The arch starts a round for the side you picked: set the hunters' strategy or choose your beast, then go.","Der Bogen startet eine Runde für die gewählte Seite: Lege die Strategie der Jäger fest oder wähle deine Bestie, dann los."
 "Every match pays Steel, Leaves, Gold and XP. Spend them on skill trees: open a character under Heroes or Monsters and tap SKILL TREE. Growth holds the tree a whole side shares.","Every match pays Steel, Leaves, Gold and XP. Spend them on skill trees: open a character under Heroes or Monsters and tap SKILL TREE. Growth holds the tree a whole side shares.","Jede Partie bringt Stahl, Blätter, Gold und EP. Gib sie in Talentbäumen aus: Öffne einen Charakter unter Helden oder Monster und tippe auf TALENTBAUM. Wachstum enthält den Baum, den eine ganze Seite teilt."
 Abilities cast themselves,Abilities cast themselves,Fähigkeiten wirken von selbst
-Your side fights on its own. The ring sweeping over a slot is its cooldown and the number the seconds left; a glowing slot is an ultimate ready to fire.,Your side fights on its own. The ring sweeping over a slot is its cooldown and the number the seconds left; a glowing slot is an ultimate ready to fire.,"Deine Seite kämpft selbstständig. Der Ring, der über ein Feld läuft, ist seine Abklingzeit und die Zahl die verbleibenden Sekunden; ein leuchtendes Feld ist eine Ultimative, die bereit ist."
+Your side fights on its own. The ring sweeping over a slot is its cooldown and the number the seconds left; a glowing slot is an ultimate ready to fire.,Your side fights on its own. The ring sweeping over a slot is its cooldown and the number the seconds left; a glowing slot is an ultimate ready to fire.,"Deine Seite kämpft selbstständig. Der Ring, der über ein Feld läuft, ist seine Abklingzeit und die Zahl die verbleibenden Sekunden; ein leuchtendes Feld ist eine Ultimate, die bereit ist."
 Pause and speed,Pause and speed,Pause und Tempo
 "Pause opens the menu: resume, the settings, or back to the lobby. The arrow button next to it speeds the hunt up. Good hunting!","Pause opens the menu: resume, the settings, or back to the lobby. The arrow button next to it speeds the hunt up. Good hunting!","Pause öffnet das Menü: weiterspielen, die Einstellungen oder zurück zur Lobby. Der Pfeilknopf daneben beschleunigt die Jagd. Waidmannsheil!"
 Match speed,Match speed,Spieltempo
@@ -276,3 +275,317 @@ A Warcry Stomp cast at a hero turns the Hogs within 250 px into his warband for 
 The Codex,The Codex,Der Kodex
 The Codex keeps this guide and a page for every beast you meet or own.,The Codex keeps this guide and a page for every beast you meet or own.,"Der Kodex bewahrt diese Anleitung und eine Seite für jede Bestie, der du begegnest oder die dir gehört."
 AI build %d/%d,AI build %d/%d,KI-Ausbau %d/%d
+All,All,Alle
+Tank,Tank,Tank
+Melee,Melee,Nahkampf
+Ranged,Ranged,Fernkampf
+Support,Support,Unterstützung
+Brute,Brute,Koloss
+Stalker,Stalker,Pirscher
+Swarm,Swarm,Schwarm
+Tank · Leader,Tank · Leader,Tank · Anführerin
+"Shield up, spear out. Holds the line so the others can swing.","Shield up, spear out. Holds the line so the others can swing.","Schild hoch, Speer voran. Hält die Linie, damit die anderen zuschlagen können."
+"The squad's wall. She walks in front, taunts the monster onto herself and throws her shield over whoever is losing the fight.","The squad's wall. She walks in front, taunts the monster onto herself and throws her shield over whoever is losing the fight.","Die Mauer des Trupps. Sie geht voran, provoziert das Monster, damit es sie angreift, und wirft ihren Schild über jeden, der den Kampf zu verlieren droht."
+Melee · Berserker,Melee · Berserker,Nahkampf · Berserker
+Bleeds for every hit and hits harder for it.,Bleeds for every hit and hits harder for it.,Blutet für jeden Treffer und schlägt dafür umso härter zu.
+Fights best when hurt: Bloodlust turns his wounds into damage. He mines the paths the monster takes and blows up whatever follows him.,Fights best when hurt: Bloodlust turns his wounds into damage. He mines the paths the monster takes and blows up whatever follows him.,"Kämpft am besten, wenn er verletzt ist: Blutrausch macht aus seinen Wunden Schaden. Er vermint die Wege des Monsters und sprengt alles, was ihm folgt."
+Melee · Beastmaster,Melee · Beastmaster,Nahkampf · Bestienmeister
+"A trapper and his fox. Cages first, questions later.","A trapper and his fox. Cages first, questions later.","Ein Fallensteller und sein Fuchs. Erst der Käfig, dann die Fragen."
+"Ted and his fox work as a pair. He lays traps where the monster will walk, and the fox harries it while the cage holds.","Ted and his fox work as a pair. He lays traps where the monster will walk, and the fox harries it while the cage holds.","Ted und sein Fuchs sind ein eingespieltes Paar. Er legt Fallen dort, wo das Monster entlangläuft, und der Fuchs setzt ihm zu, solange der Käfig hält."
+Ranged · Healer,Ranged · Healer,Fernkampf · Heilerin
+"Snipes from the canopy, patches up whoever is left.","Snipes from the canopy, patches up whoever is left.","Schießt aus dem Blätterdach und flickt zusammen, wer noch steht."
+Swaps between a rifle and a healing staff: she snipes from the back and switches to the staff when an ally drops low.,Swaps between a rifle and a healing staff: she snipes from the back and switches to the staff when an ally drops low.,"Wechselt zwischen Gewehr und Heilstab: Sie schießt aus der hinteren Reihe und greift zum Stab, wenn ein Verbündeter schwer verletzt ist."
+Brute · The Bull,Brute · The Bull,Koloss · Der Stier
+"The Alpha Bull. Eats the jungle, grows, then hunts.","The Alpha Bull. Eats the jungle, grows, then hunts.","Der Alphastier. Frisst den Dschungel leer, wächst, dann jagt er."
+Starts as a calf and eats mob camps to grow; he only hunts once he feels strong. Left alone he reaches Stage III and charges through a whole squad.,Starts as a calf and eats mob camps to grow; he only hunts once he feels strong. Left alone he reaches Stage III and charges through a whole squad.,"Beginnt als Kalb und frisst Mob-Lager, um zu wachsen; er jagt erst, wenn er sich stark fühlt. Lässt man ihn in Ruhe, erreicht er Stufe III und stürmt durch einen ganzen Trupp."
+Spread out against his Ground Slam and kite the Ram Dash. Strike before he reaches Stage 3.,Spread out against his Ground Slam and kite the Ram Dash. Strike before he reaches Stage 3.,"Verteilt euch gegen seinen Bodenschlag und weicht dem Rammsturm aus. Schlagt zu, bevor er Stufe 3 erreicht."
+Bullcalf,Bullcalf,Stierkalb
+Rampager,Rampager,Wüterich
+Alpha Bull,Alpha Bull,Alphastier
+Stalker · The Bat,Stalker · The Bat,Pirscherin · Die Fledermaus
+"The Dusk Matriarch. Fast, fragile, drinks blood.","The Dusk Matriarch. Fast, fragile, drinks blood.","Die Dämmermatriarchin. Schnell, zerbrechlich, trinkt Blut."
+"A blood-drinking stalker. She skims the edge of the fog, swoops onto a hunter who strays from the pack and heals on every bite.","A blood-drinking stalker. She skims the edge of the fog, swoops onto a hunter who strays from the pack and heals on every bite.","Eine bluttrinkende Pirscherin. Sie streift am Rand des Nebels entlang, stürzt sich auf Jäger, die sich vom Trupp entfernen, und heilt sich mit jedem Biss."
+She swoops onto lone heroes. Keep the pack within 300 px and burst her before Stage 3.,She swoops onto lone heroes. Keep the pack within 300 px and burst her before Stage 3.,Sie stürzt sich auf einzelne Helden. Haltet den Trupp auf 300 px zusammen und streckt sie vor Stufe 3 schnell nieder.
+Duskling,Duskling,Dämmerling
+Night Hunter,Night Hunter,Nachtjägerin
+Dusk Matriarch,Dusk Matriarch,Dämmermatriarchin
+Brute · The Boar,Brute · The Boar,Koloss · Der Eber
+"The Boar King. Slow, armoured, stuns the pack.","The Boar King. Slow, armoured, stuns the pack.","Der Eberkönig. Langsam, gepanzert, betäubt den ganzen Trupp."
+"Slow and armoured. He wades into the pack, stuns it with his stomp and throws his axe at whoever runs.","Slow and armoured. He wades into the pack, stuns it with his stomp and throws his axe at whoever runs.","Langsam und gepanzert. Er stapft mitten in den Trupp, betäubt ihn mit seinem Stampfen und wirft sein Beil jedem hinterher, der flieht."
+"His stomp stuns everyone close. Spread out, kite the axe, strike when his armour cracks at Stage 3.","His stomp stuns everyone close. Spread out, kite the axe, strike when his armour cracks at Stage 3.","Sein Stampfen betäubt alle in der Nähe. Verteilt euch, weicht dem Beil aus und schlagt zu, wenn auf Stufe 3 seine Rüstung bricht."
+Tusker,Tusker,Frischling
+Warlord,Warlord,Kriegsherr
+Boar King,Boar King,Eberkönig
+A heavy blade strike on the enemy in front of Vlad,A heavy blade strike on the enemy in front of Vlad,Ein schwerer Klingenhieb auf den Gegner vor Vlad
+Place a mine that explodes when enemies walk over it,Place a mine that explodes when enemies walk over it,"Legt eine Mine, die explodiert, wenn Gegner darüberlaufen"
+Creates a devastating explosion that damages all enemies in range,Creates a devastating explosion that damages all enemies in range,"Löst eine verheerende Explosion aus, die allen Gegnern in Reichweite schadet"
+Sniper or Heal based on current weapon mode,Sniper or Heal based on current weapon mode,"Schießt oder heilt, je nach gewählter Waffe"
+Swap between Sniper Rifle (long range damage) and Heal Staff (heal allies),Swap between Sniper Rifle (long range damage) and Heal Staff (heal allies),Wechselt zwischen Scharfschützengewehr (Schaden auf große Distanz) und Heilstab (heilt Verbündete)
+Drop a MediKit that heals allies who walk over it,Drop a MediKit that heals allies who walk over it,"Wirft ein Medikit ab, das Verbündete heilt, die darüberlaufen"
+Slowly regenerates health over time (0.5 HP/s),Slowly regenerates health over time (0.5 HP/s),Regeneriert langsam Leben (0.5 LP/s)
+A shield strike that also draws the struck enemy's attention to Irelia,A shield strike that also draws the struck enemy's attention to Irelia,"Ein Schildhieb, der zudem die Aufmerksamkeit des getroffenen Gegners auf Irelia lenkt"
+Shield all heroes for 18 HP for 7 seconds,Shield all heroes for 18 HP for 7 seconds,Schützt alle Helden 7 Sekunden lang mit einem Schild über 18 LP
+Force the monster to attack Irelia for 5 seconds,Force the monster to attack Irelia for 5 seconds,"Zwingt das Monster 5 Sekunden lang, Irelia anzugreifen"
+Ted fights alongside his loyal pet,Ted fights alongside his loyal pet,Ted kämpft Seite an Seite mit seinem treuen Gefährten
+A quick melee attack,A quick melee attack,Ein schneller Nahkampfangriff
+Ted and his pet gain 50% attack speed for 5 seconds,Ted and his pet gain 50% attack speed for 5 seconds,Ted und sein Gefährte erhalten 5 Sekunden lang 50% mehr Angriffstempo
+Drops a cage on the target. Enemies caught inside cannot leave until it breaks,Drops a cage on the target. Enemies caught inside cannot leave until it breaks,"Lässt einen Käfig auf das Ziel fallen. Gefangene Gegner können ihn nicht verlassen, bis er zerbricht"
+"Kills feed Grount XP: he evolves at 150 and 300 XP, growing bigger with more HP, speed and damage, healing to full, and Stage II unlocks Ground Slam","Kills feed Grount XP: he evolves at 150 and 300 XP, growing bigger with more HP, speed and damage, healing to full, and Stage II unlocks Ground Slam","Kills bringen Grount EP: Bei 150 und 300 EP entwickelt er sich, wird größer mit mehr LP, Tempo und Schaden und heilt sich vollständig; Stufe II schaltet Bodenschlag frei"
+"Cleaves enemies in a frontal cone (Stage 1: 12 dmg every 2.5 s, Stage 2: 17 every 3 s, Stage 3: 10.8 every 1.8 s)","Cleaves enemies in a frontal cone (Stage 1: 12 dmg every 2.5 s, Stage 2: 17 every 3 s, Stage 3: 10.8 every 1.8 s)","Spaltet Gegner in einem Kegel vor ihm (Stufe 1: 12 Schaden alle 2.5 s, Stufe 2: 17 alle 3 s, Stufe 3: 10.8 alle 1.8 s)"
+"Charges forward damaging enemies (Stage 1: 18 dmg every 12 s, Stage 2: 25 every 8 s, Stage 3: 32.4 every 5 s)","Charges forward damaging enemies (Stage 1: 18 dmg every 12 s, Stage 2: 25 every 8 s, Stage 3: 32.4 every 5 s)","Stürmt vorwärts und schadet Gegnern (Stufe 1: 18 Schaden alle 12 s, Stufe 2: 25 alle 8 s, Stufe 3: 32.4 alle 5 s)"
+"LOCKED until Stage 2. Leaps and slams ground dealing AoE damage (Stage 2: 32 dmg every 15 s, Stage 3: 22.5 every 9 s)","LOCKED until Stage 2. Leaps and slams ground dealing AoE damage (Stage 2: 32 dmg every 15 s, Stage 3: 22.5 every 9 s)","GESPERRT bis Stufe 2. Springt, schlägt auf den Boden und verursacht Flächenschaden (Stufe 2: 32 Schaden alle 15 s, Stufe 3: 22.5 alle 9 s)"
+"Every ability heals Nyxa for part of its damage (Screech 20%, Swoop 30%, Swarm 25%). Kills feed her XP: she evolves at 150 and 400 XP, growing bigger, faster and tougher, healing to full, and Stage II unlocks Night Swarm","Every ability heals Nyxa for part of its damage (Screech 20%, Swoop 30%, Swarm 25%). Kills feed her XP: she evolves at 150 and 400 XP, growing bigger, faster and tougher, healing to full, and Stage II unlocks Night Swarm","Jede Fähigkeit heilt Nyxa um einen Teil ihres Schadens (Kreischen 20%, Sturzflug 30%, Schwarm 25%). Kills bringen ihr EP: Bei 150 und 400 EP entwickelt sie sich, wird größer, schneller und zäher und heilt sich vollständig; Stufe II schaltet Nachtschwarm frei"
+"A shrieking cone that drinks blood: Nyxa heals for 20% of the damage (Stage 1: 8 dmg every 2 s, Stage 2: 10 every 1.8 s, Stage 3: 8 every 1.5 s, a wider cone each stage)","A shrieking cone that drinks blood: Nyxa heals for 20% of the damage (Stage 1: 8 dmg every 2 s, Stage 2: 10 every 1.8 s, Stage 3: 8 every 1.5 s, a wider cone each stage)","Ein kreischender Kegel, der Blut trinkt: Nyxa heilt sich um 20% des Schadens (Stufe 1: 8 Schaden alle 2 s, Stufe 2: 10 alle 1.8 s, Stufe 3: 8 alle 1.5 s, mit jeder Stufe ein breiterer Kegel)"
+"Swoops through the target and out the other side, healing for 30% of the damage; also her escape (Stage 1: 12 dmg, Stage 2: 16 dmg, Stage 3: 22 dmg)","Swoops through the target and out the other side, healing for 30% of the damage; also her escape (Stage 1: 12 dmg, Stage 2: 16 dmg, Stage 3: 22 dmg)","Stößt durch das Ziel hindurch und auf der anderen Seite wieder hinaus und heilt sich um 30% des Schadens; auch ihr Fluchtweg (Stufe 1: 12 Schaden, Stufe 2: 16 Schaden, Stufe 3: 22 Schaden)"
+"LOCKED until Stage 2. A bat swarm circles Nyxa for 3.5 s and bites everything close every 0.5 s, healing her for 25% (Stage 2: 4 dmg a bite within 110 px, Stage 3: 5 within 140 px)","LOCKED until Stage 2. A bat swarm circles Nyxa for 3.5 s and bites everything close every 0.5 s, healing her for 25% (Stage 2: 4 dmg a bite within 110 px, Stage 3: 5 within 140 px)","GESPERRT bis Stufe 2. Ein Fledermausschwarm umkreist Nyxa 3.5 s lang, beißt alle 0.5 s alles in der Nähe und heilt sie um 25% (Stufe 2: 4 Schaden pro Biss im Umkreis von 110 px, Stufe 3: 5 im Umkreis von 140 px)"
+"His bristles are armour: Gorrak takes 15% less damage at Stage 1 and 10% less at Stage 2; at Stage 3 the armour is gone. Kills feed him XP: he evolves at 150 and 500 XP, growing bigger, faster and tougher and healing to full","His bristles are armour: Gorrak takes 15% less damage at Stage 1 and 10% less at Stage 2; at Stage 3 the armour is gone. Kills feed him XP: he evolves at 150 and 500 XP, growing bigger, faster and tougher and healing to full","Seine Borsten sind eine Rüstung: Gorrak erleidet auf Stufe 1 15% weniger Schaden und auf Stufe 2 10% weniger; auf Stufe 3 ist die Rüstung weg. Kills bringen ihm EP: Bei 150 und 500 EP entwickelt er sich, wird größer, schneller und zäher und heilt sich vollständig"
+"A wide, heavy chop in front of him (Stage 1: 14 dmg in a 70° arc, Stage 2: 18 dmg in 80°, Stage 3: 18 dmg in 90°)","A wide, heavy chop in front of him (Stage 1: 14 dmg in a 70° arc, Stage 2: 18 dmg in 80°, Stage 3: 18 dmg in 90°)","Ein breiter, schwerer Hieb vor ihm (Stufe 1: 14 Schaden in einem 70°-Bogen, Stufe 2: 18 Schaden in 80°, Stufe 3: 18 Schaden in 90°)"
+"Throws a spinning axe up to 260 px at a hero; it flies back to his hand and can hit each target out and back (Stage 1: 10 dmg a hit, Stage 2: 14, Stage 3: 18). Walls stop it","Throws a spinning axe up to 260 px at a hero; it flies back to his hand and can hit each target out and back (Stage 1: 10 dmg a hit, Stage 2: 14, Stage 3: 18). Walls stop it","Wirft ein wirbelndes Beil bis zu 260 px weit auf einen Helden; es fliegt in seine Hand zurück und kann jedes Ziel auf dem Hin- und Rückweg treffen (Stufe 1: 10 Schaden pro Treffer, Stufe 2: 14, Stufe 3: 18). Wände halten es auf"
+"Roars and stomps where he stands, stunning everything close for 0.6 s (Stage 1: 12 dmg within 100 px, Stage 2: 18 within 130, Stage 3: 22 within 160)","Roars and stomps where he stands, stunning everything close for 0.6 s (Stage 1: 12 dmg within 100 px, Stage 2: 18 within 130, Stage 3: 22 within 160)","Brüllt und stampft auf der Stelle und betäubt alles in der Nähe für 0.6 s (Stufe 1: 12 Schaden im Umkreis von 100 px, Stufe 2: 18 in 130, Stufe 3: 22 in 160)"
+Hero Base Upgrades,Hero Base Upgrades,Basisverbesserungen der Helden
+Bonuses applied to every hero on spawn. Bought with Gold.,Bonuses applied to every hero on spawn. Bought with Gold.,"Boni, die jeder Held in jeder Partie erhält. Mit Gold gekauft."
+Monster Base Upgrades,Monster Base Upgrades,Basisverbesserungen des Monsters
+Bonuses applied to the monster on spawn. Bought with Gold.,Bonuses applied to the monster on spawn. Bought with Gold.,"Boni, die das Monster in jeder Partie erhält. Mit Gold gekauft."
+River — Scout's Edge,River — Scout's Edge,River — Späherauge
+River's personal upgrades. Bought with Steel.,River's personal upgrades. Bought with Steel.,Rivers persönliche Verbesserungen. Mit Stahl gekauft.
+Vlad — Blood Rites,Vlad — Blood Rites,Vlad — Blutriten
+Vlad's personal upgrades. Bought with Steel.,Vlad's personal upgrades. Bought with Steel.,Vlads persönliche Verbesserungen. Mit Stahl gekauft.
+Ted — Beast Bond,Ted — Beast Bond,Ted — Bestienbund
+Ted's personal upgrades. Bought with Steel.,Ted's personal upgrades. Bought with Steel.,Teds persönliche Verbesserungen. Mit Stahl gekauft.
+Irelia — Shield Wall,Irelia — Shield Wall,Irelia — Schildwall
+Irelia's personal upgrades. Bought with Steel.,Irelia's personal upgrades. Bought with Steel.,Irelias persönliche Verbesserungen. Mit Stahl gekauft.
+Grount — Alpha Bull,Grount — Alpha Bull,Grount — Alphastier
+Grount's personal upgrades. Bought with Leaves.,Grount's personal upgrades. Bought with Leaves.,Grounts persönliche Verbesserungen. Mit Blättern gekauft.
+Nyxa — Dusk Matriarch,Nyxa — Dusk Matriarch,Nyxa — Dämmermatriarchin
+Nyxa's personal upgrades. Bought with Leaves.,Nyxa's personal upgrades. Bought with Leaves.,Nyxas persönliche Verbesserungen. Mit Blättern gekauft.
+Gorrak — Boar King,Gorrak — Boar King,Gorrak — Eberkönig
+Gorrak's personal upgrades. Bought with Leaves.,Gorrak's personal upgrades. Bought with Leaves.,Gorraks persönliche Verbesserungen. Mit Blättern gekauft.
+Might,Might,Stärke
+Vitality,Vitality,Vitalität
+Tactics,Tactics,Taktik
+Ferocity,Ferocity,Wildheit
+Hide,Hide,Haut
+Instinct,Instinct,Instinkt
+Marksman,Marksman,Schützin
+Field Medic,Field Medic,Sanitäterin
+Scout,Scout,Späherin
+Butcher,Butcher,Schlächter
+Blood,Blood,Blut
+Demolition,Demolition,Sprengmeister
+Brawler,Brawler,Raufbold
+Beastmaster,Beastmaster,Bestienmeister
+Trapper,Trapper,Fallensteller
+Bulwark,Bulwark,Bollwerk
+Oathkeeper,Oathkeeper,Eidwahrerin
+Vanguard,Vanguard,Vorhut
+Horns,Horns,Hörner
+Charge,Charge,Ansturm
+Hunger,Hunger,Hunger
+Shadow,Shadow,Schatten
+Brood,Brood,Brut
+Tusks,Tusks,Hauer
+Bristles,Bristles,Borsten
+Warband,Warband,Kriegsschar
+Sharp Edge,Sharp Edge,Scharfe Klinge
+Forged Steel,Forged Steel,Schmiedestahl
+Battle Rhythm,Battle Rhythm,Kampfrhythmus
+Berserker,Berserker,Berserker
+Iron Skin,Iron Skin,Eisenhaut
+Hardened,Hardened,Abgehärtet
+Tempered Mail,Tempered Mail,Gehärtetes Kettenhemd
+Veteran Plate,Veteran Plate,Veteranenpanzer
+Titan,Titan,Titan
+Light Step,Light Step,Leichter Schritt
+Quick Strike,Quick Strike,Schneller Hieb
+Swift Runner,Swift Runner,Flinker Läufer
+Battle Drills,Battle Drills,Kampfdrill
+Storm Blades,Storm Blades,Sturmklingen
+Veteran Squad,Veteran Squad,Erfahrener Trupp
+Sharpened Claws,Sharpened Claws,Geschärfte Klauen
+Brutal Strikes,Brutal Strikes,Brutale Hiebe
+Long Reach,Long Reach,Langer Arm
+Apex Predator,Apex Predator,Spitzenjäger
+Thicker Hide,Thicker Hide,Dickere Haut
+Scarred Hide,Scarred Hide,Narbenhaut
+Apex Body,Apex Body,Alphakörper
+Primal Regeneration,Primal Regeneration,Wilde Regeneration
+Faster Hunt,Faster Hunt,Schnellere Jagd
+Bloodhound,Bloodhound,Bluthund
+Quick Evolution,Quick Evolution,Schnelle Entwicklung
+Primal Rhythm,Primal Rhythm,Wilder Rhythmus
+Head Start,Head Start,Vorsprung
+Long Scope,Long Scope,Langes Zielfernrohr
+Hollow Points,Hollow Points,Hohlspitzen
+Triple Shot,Triple Shot,Dreifachschuss
+Sniper's Nest,Sniper's Nest,Schützennest
+Deadeye,Deadeye,Adlerauge
+Field Dressing,Field Dressing,Feldverband
+Fast Resupply,Fast Resupply,Schneller Nachschub
+Steady Hands,Steady Hands,Ruhige Hände
+Field Hospital,Field Hospital,Feldlazarett
+Veteran Scout,Veteran Scout,Erfahrene Späherin
+Chain Heal,Chain Heal,Kettenheilung
+Light Boots,Light Boots,Leichte Stiefel
+Quick Hands,Quick Hands,Flinke Hände
+Adrenaline,Adrenaline,Adrenalin
+Pathfinder,Pathfinder,Wegbereiterin
+Keen Blade,Keen Blade,Scharfe Schneide
+Eager Swings,Eager Swings,Eifrige Hiebe
+Bloodthirst,Bloodthirst,Blutdurst
+Executioner,Executioner,Henker
+Executioner's Mark,Executioner's Mark,Henkersmal
+Thick Blood,Thick Blood,Dickes Blut
+Iron Heart,Iron Heart,Eisernes Herz
+Deeper Thirst,Deeper Thirst,Tieferer Durst
+Frenzy,Frenzy,Raserei
+Sanguine Feast,Sanguine Feast,Blutmahl
+Black Powder,Black Powder,Schwarzpulver
+Bigger Bomb,Bigger Bomb,Größere Bombe
+Quick Mines,Quick Mines,Schnelle Minen
+Cluster Mines,Cluster Mines,Streuminen
+Trail Rations,Trail Rations,Wegzehrung
+Sharpened Snares,Sharpened Snares,Geschärfte Schlingen
+Rapid Traps,Rapid Traps,Rasche Fallen
+Pack Leader,Pack Leader,Rudelführer
+War Cry,War Cry,Kriegsschrei
+Loyal Bond,Loyal Bond,Treues Band
+Sharp Fangs,Sharp Fangs,Scharfe Fänge
+Never Alone,Never Alone,Nie allein
+Pack of Two,Pack of Two,Zweierrudel
+Long Leash,Long Leash,Lange Leine
+Tracker's Pace,Tracker's Pace,Fährtenleser
+Fast Traps,Fast Traps,Schnelle Fallen
+Sturdy Cage,Sturdy Cage,Stabiler Käfig
+Far Whistle,Far Whistle,Ferner Pfiff
+Spiked Cage,Spiked Cage,Stachelkäfig
+Reinforced Plate,Reinforced Plate,Verstärkter Panzer
+Unbreakable,Unbreakable,Unzerbrechlich
+Plated,Plated,Gepanzert
+Last Stand,Last Stand,Letztes Gefecht
+Second Breath,Second Breath,Zweite Luft
+Shield Cadence,Shield Cadence,Schildtakt
+Aegis,Aegis,Ägide
+Guardian Angel,Guardian Angel,Schutzengel
+Marching Order,Marching Order,Marschbefehl
+Riposte,Riposte,Riposte
+Relentless,Relentless,Unerbittlich
+Rallying Taunt,Rallying Taunt,Mitreißende Provokation
+Heavy Horns,Heavy Horns,Schwere Hörner
+Wide Sweep,Wide Sweep,Weiter Schwung
+Quick Cleave,Quick Cleave,Rascher Hieb
+Titan's Wrath,Titan's Wrath,Titanenzorn
+Enrage,Enrage,Wutrausch
+Rampage,Rampage,Amoklauf
+Thick Hide,Thick Hide,Dicke Haut
+Scar Tissue,Scar Tissue,Narbengewebe
+Early Slam,Early Slam,Früher Schlag
+Wider Slam,Wider Slam,Breiterer Schlag
+Gravity Slam,Gravity Slam,Sogschlag
+Titan Form,Titan Form,Titanengestalt
+Stampede,Stampede,Stampede
+Stunning Charge,Stunning Charge,Betäubender Ansturm
+Ravenous,Ravenous,Heißhunger
+Long Charge,Long Charge,Langer Ansturm
+Apex Charge,Apex Charge,Wilder Ansturm
+Trample,Trample,Niedertrampeln
+Dusk Hide,Dusk Hide,Dämmerhaut
+Thirst,Thirst,Durst
+Night Recovery,Night Recovery,Nachtruhe
+Vampiric Rebirth,Vampiric Rebirth,Vampirische Wiedergeburt
+Silent Wings,Silent Wings,Lautlose Schwingen
+Swift Hunter,Swift Hunter,Flinke Jägerin
+Disorienting Dive,Disorienting Dive,Verwirrender Sturzflug
+Fast Maturity,Fast Maturity,Frühreife
+Echo Strike,Echo Strike,Echoschlag
+Piercing Shriek,Piercing Shriek,Gellender Schrei
+Wide Shriek,Wide Shriek,Breiter Schrei
+Thicker Swarm,Thicker Swarm,Dichterer Schwarm
+Endless Night,Endless Night,Endlose Nacht
+Brood Mother,Brood Mother,Brutmutter
+Heavy Cleaver,Heavy Cleaver,Schweres Hackbeil
+Wide Arc,Wide Arc,Weiter Bogen
+Honed Tusks,Honed Tusks,Gewetzte Hauer
+Concussive Axe,Concussive Axe,Betäubendes Beil
+Whirlwind,Whirlwind,Wirbelwind
+Thick Bristles,Thick Bristles,Dicke Borsten
+Mud Armour,Mud Armour,Schlammpanzer
+Mud Bath,Mud Bath,Schlammbad
+Unstoppable,Unstoppable,Unaufhaltsam
+Long March,Long March,Langer Marsch
+Earthshaker,Earthshaker,Erdbeben
+Ringing Ears,Ringing Ears,Klingelnde Ohren
+King's Hunger,King's Hunger,Königshunger
+Call of the Herd,Call of the Herd,Ruf der Rotte
++{v}% attack damage,+{v}% attack damage,+{v}% Angriffsschaden
++{v}% attack speed,+{v}% attack speed,+{v}% Angriffstempo
++{v}% max HP,+{v}% max HP,+{v}% max. LP
+-{v}% damage taken,-{v}% damage taken,-{v}% erlittener Schaden
++{v}% move speed,+{v}% move speed,+{v}% Lauftempo
++{v}% attack range,+{v}% attack range,+{v}% Angriffsreichweite
+-{v}% active & ultimate cooldowns,-{v}% active & ultimate cooldowns,-{v}% Abklingzeit (Aktiv und Ultimate)
+Heroes start each match at level {v},Heroes start each match at level {v},Helden beginnen jede Partie auf Level {v}
++{v}% damage,+{v}% damage,+{v}% Schaden
++{v}% ability range,+{v}% ability range,+{v}% Fähigkeitsreichweite
++{v}% damage at Stage 3,+{v}% damage at Stage 3,+{v}% Schaden auf Stufe 3
++{v}% max HP (all stages),+{v}% max HP (all stages),+{v}% max. LP (alle Stufen)
++{v}% max HP all stages,+{v}% max HP all stages,+{v}% max. LP auf allen Stufen
+Resting regenerates {v}x as fast,Resting regenerates {v}x as fast,Rasten heilt {v}x so schnell
++{v}% XP from kills,+{v}% XP from kills,+{v}% EP durch Kills
+-{v}% stage XP requirements,-{v}% stage XP requirements,-{v}% EP-Bedarf pro Stufe
+-{v}% ability cooldowns,-{v}% ability cooldowns,-{v}% Abklingzeit der Fähigkeiten
+Start each match with {v} XP,Start each match with {v} XP,Beginnt jede Partie mit {v} EP
+Sniper shots also hit {v} enemies near the target,Sniper shots also hit {v} enemies near the target,Gewehrschüsse treffen auch {v} Gegner nahe dem Ziel
+Every {v}th sniper shot deals 2.5x damage,Every {v}th sniper shot deals 2.5x damage,Jeder {v}. Gewehrschuss verursacht 2.5x Schaden
+Supply Drop cooldown -{v}%,Supply Drop cooldown -{v}%,Notfall-Nachschub: -{v}% Abklingzeit
++{v}% heal per staff shot,+{v}% heal per staff shot,+{v}% Heilung pro Stabschuss
+Supply Drop heals +{v}%,Supply Drop heals +{v}%,Notfall-Nachschub: +{v}% Heilung
+Staff heals also heal the most hurt ally within 160 px of the target,Staff heals also heal the most hurt ally within 160 px of the target,Stabheilungen heilen auch den am schwersten verletzten Verbündeten im Umkreis von 160 px um das Ziel
+Adaptive Movement boost lasts +{v}%,Adaptive Movement boost lasts +{v}%,Adaptive Bewegung: Schub hält +{v}% länger
+"While River lives, every hero moves +12% faster","While River lives, every hero moves +12% faster","Solange River lebt, läuft jeder Held 12% schneller"
+Blood Strike deals 2x damage to targets below 25% HP,Blood Strike deals 2x damage to targets below 25% HP,Blutschlag verursacht 2x Schaden an Zielen unter 25% LP
+Bloodlust kicks in {v}% HP sooner (base: below 30%),Bloodlust kicks in {v}% HP sooner (base: below 30%),Blutrausch setzt {v}% LP früher ein (Basis: unter 30%)
+Blood Strike heals Vlad for {v}% of its damage,Blood Strike heals Vlad for {v}% of its damage,Blutschlag heilt Vlad um {v}% seines Schadens
+Land Mine damage +{v}%,Land Mine damage +{v}%,Landmine: +{v}% Schaden
+Blood Bomb radius +{v}%,Blood Bomb radius +{v}%,Blutbombe: +{v}% Radius
+Land Mine cooldown -{v}%,Land Mine cooldown -{v}%,Landmine: -{v}% Abklingzeit
+Land Mine places {v} mines in a triangle,Land Mine places {v} mines in a triangle,Landmine legt {v} Minen im Dreieck
+Rally Cry also hastes every hero within 300 px,Rally Cry also hastes every hero within 300 px,Sammelruf beschleunigt auch jeden Helden im Umkreis von 300 px
+Pet max HP +{v}%,Pet max HP +{v}%,Gefährte: +{v}% max. LP
+Pet damage +{v}%,Pet damage +{v}%,Gefährte: +{v}% Schaden
+Pet respawns {v}% faster,Pet respawns {v}% faster,Gefährte kehrt {v}% schneller zurück
+Ted keeps {v} pets,Ted keeps {v} pets,Ted hat {v} Gefährten
+Trap Cage cooldown -{v}%,Trap Cage cooldown -{v}%,Fallenkäfig: -{v}% Abklingzeit
+Trap Cage lasts +{v}%,Trap Cage lasts +{v}%,Fallenkäfig hält +{v}% länger
+Enemies inside the cage take {v} damage per second,Enemies inside the cage take {v} damage per second,Gegner im Käfig erleiden {v} Schaden pro Sekunde
+"Once per match a lethal hit leaves Irelia at 1 HP, invulnerable for 2 s","Once per match a lethal hit leaves Irelia at 1 HP, invulnerable for 2 s",Einmal pro Partie überlebt Irelia einen tödlichen Treffer mit 1 LP und ist 2 s lang unverwundbar
+Regeneration heals {v}x as much,Regeneration heals {v}x as much,Regeneration heilt {v}x so viel
+Divine Shield cooldown -{v}%,Divine Shield cooldown -{v}%,Göttlicher Schild: -{v}% Abklingzeit
+Divine Shield absorbs +{v}%,Divine Shield absorbs +{v}%,Göttlicher Schild: +{v}% Absorption
+Divine Shield also breaks every stun on the shielded heroes,Divine Shield also breaks every stun on the shielded heroes,Göttlicher Schild hebt auch jede Betäubung der geschützten Helden auf
+Monster Taunt cooldown -{v}%,Monster Taunt cooldown -{v}%,Monster-Provokation: -{v}% Abklingzeit
+Monster Taunt gives heroes within 250 px +25% attack speed while it lasts,Monster Taunt gives heroes within 250 px +25% attack speed while it lasts,"Monster-Provokation gibt Helden im Umkreis von 250 px +25% Angriffstempo, solange sie anhält"
+Front Cleave cooldown -{v}%,Front Cleave cooldown -{v}%,Frontalhieb: -{v}% Abklingzeit
+"Below 20% HP: +30% speed, +50% damage","Below 20% HP: +30% speed, +50% damage","Unter 20% LP: +30% Tempo, +50% Schaden"
+Killing a hero resets every cooldown and heals 15% max HP,Killing a hero resets every cooldown and heals 15% max HP,Einen Helden zu töten setzt jede Abklingzeit zurück und heilt 15% der max. LP
+Ground Slam unlocks at Stage 1,Ground Slam unlocks at Stage 1,Bodenschlag ist schon ab Stufe 1 verfügbar
+Ground Slam radius +{v}%,Ground Slam radius +{v}%,Bodenschlag: +{v}% Radius
+Ground Slam pulls enemies within {v} px to the impact,Ground Slam pulls enemies within {v} px to the impact,Bodenschlag zieht Gegner im Umkreis von {v} px zum Einschlag
+"Stage 3: +50% size, +500 HP, +20 range","Stage 3: +50% size, +500 HP, +20 range","Stufe 3: +50% Größe, +500 LP, +20 Reichweite"
+Ram Dash stuns for {v} s,Ram Dash stuns for {v} s,Rammsturm betäubt für {v} s
+Ram Dash distance +{v}%,Ram Dash distance +{v}%,Rammsturm: +{v}% Distanz
+Sonic Screech lifesteal +{v}%,Sonic Screech lifesteal +{v}%,Schallkreischen: +{v}% Lebensraub
+Once per match: at 0 HP she scatters into bats for 3 s and returns with 30% HP,Once per match: at 0 HP she scatters into bats for 3 s and returns with 30% HP,Einmal pro Partie: Bei 0 LP zerfällt sie für 3 s in Fledermäuse und kehrt mit 30% LP zurück
+Shadow Swoop cooldown -{v}%,Shadow Swoop cooldown -{v}%,Schattensturzflug: -{v}% Abklingzeit
+Shadow Swoop stuns for {v} s,Shadow Swoop stuns for {v} s,Schattensturzflug betäubt für {v} s
+Shadow Swoop turns and passes through its target a second time,Shadow Swoop turns and passes through its target a second time,Schattensturzflug wendet und durchfliegt sein Ziel ein zweites Mal
+Sonic Screech cone +{v} degrees,Sonic Screech cone +{v} degrees,Schallkreischen: Kegel +{v} Grad
+Night Swarm radius +{v}%,Night Swarm radius +{v}%,Nachtschwarm: +{v}% Radius
+Night Swarm lasts +{v}%,Night Swarm lasts +{v}%,Nachtschwarm hält +{v}% länger
+At Stage 3 the Night Swarm never ends,At Stage 3 the Night Swarm never ends,Auf Stufe 3 endet der Nachtschwarm nie
+Cleaver Chop cone +{v} degrees,Cleaver Chop cone +{v} degrees,Hackbeilhieb: Kegel +{v} Grad
+Tusk Axe damage +{v}%,Tusk Axe damage +{v}%,Hauerbeil: +{v}% Schaden
+Tusk Axe stuns for {v} s,Tusk Axe stuns for {v} s,Hauerbeil betäubt für {v} s
+From Stage 3 Cleaver Chop hits all around him,From Stage 3 Cleaver Chop hits all around him,Ab Stufe 3 trifft Hackbeilhieb alles um ihn herum
+Immune to Irelia's taunt and Ted's Trap Cage,Immune to Irelia's taunt and Ted's Trap Cage,Immun gegen Irelias Provokation und Teds Fallenkäfig
+Warcry Stomp radius +{v}%,Warcry Stomp radius +{v}%,Kriegsstampfen: +{v}% Radius
+Warcry Stomp stuns +{v} s longer,Warcry Stomp stuns +{v} s longer,Kriegsstampfen betäubt +{v} s länger

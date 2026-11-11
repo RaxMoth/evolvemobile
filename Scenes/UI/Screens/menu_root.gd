@@ -26,7 +26,9 @@ extends Control
 ##     (MetaSkillManager.rank_up) and capstone swaps (equip_capstone), the
 ##     character purchases (CharacterProgress.unlock, confirmed on the
 ##     UnlockSheet; the bought monster becomes the player's own), the refresh
-##     of the open screens when skills, currencies or owned monsters change,
+##     of the open screens when skills, currencies or owned monsters change
+##     or the language is switched (the lines a screen formatted itself, such
+##     as the lobby's unlock rules; scene labels re-translate on their own),
 ##     and the nav bars' red dots: Heroes / Monsters while a character of that
 ##     side has a rank to buy (Monsters also while a locked monster can be
 ##     bought), Growth while either side's account tree has one.
@@ -111,10 +113,13 @@ func _ready() -> void:
 
 
 ## The Android back button: ui_cancel for whatever is open; on the bare lobby
-## (nobody took it) it leaves the game.
+## (nobody took it) it leaves the game. A language switch (the settings sheet)
+## refreshes the open screens: what they formatted is in the old language.
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_GO_BACK_REQUEST and not go_back():
 		get_tree().quit()
+	elif what == NOTIFICATION_TRANSLATION_CHANGED and is_node_ready():
+		_queue_refresh()
 
 
 ## One back press (BackButton): false when nothing was open to go back from.
@@ -271,6 +276,10 @@ func _queue_refresh() -> void:
 
 func _refresh_screens() -> void:
 	_refresh_queued = false
+	# Queued in the frame the menu left the tree (a match starts, a language
+	# switch at the very end): nothing is shown any more.
+	if not is_inside_tree():
+		return
 	for screen in _stack:
 		if screen is LobbyScreen:
 			(screen as LobbyScreen).refresh()

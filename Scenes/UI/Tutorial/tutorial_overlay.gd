@@ -154,7 +154,8 @@ func _ready() -> void:
 	var palette := UiPalette.get_default()
 	_arrow.modulate = palette.amber
 	_ring.self_modulate = palette.amber
-	_kicker.text = tr("FIRST HUNT") if chapter == CHAPTER_HUD else tr("HOW TO PLAY")
+	# Keys: the labels and buttons translate them and follow a language switch.
+	_kicker.text = "FIRST HUNT" if chapter == CHAPTER_HUD else "HOW TO PLAY"
 	_build_pips()
 	_show_step(0)
 
@@ -205,11 +206,11 @@ func _show_step(index: int) -> void:
 	var list := steps()
 	_step = clampi(index, 0, list.size() - 1)
 	var step: Dictionary = list[_step]
-	title_label.text = tr(String(step.get("title", "")))
-	body_label.text = tr(String(step.get("body", "")))
+	title_label.text = String(step.get("title", ""))
+	body_label.text = String(step.get("body", ""))
 	progress_label.text = "%d / %d" % [_step + 1, list.size()]
 	back_button.disabled = _step == 0
-	next_button.text = tr("Got it") if _step == list.size() - 1 else tr("Next")
+	next_button.text = "Got it" if _step == list.size() - 1 else "Next"
 	var i := 0
 	for pip: PanelContainer in _pips.get_children():
 		pip.theme_type_variation = &"PipOn" if i <= _step else &"PipOff"

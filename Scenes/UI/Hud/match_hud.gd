@@ -183,10 +183,14 @@ func pause_menu() -> PauseMenu:
 
 
 ## The Android back button in a match: ui_cancel for the result screen, the
-## pause menu (or its settings) or, while the match runs, this HUD.
+## pause menu (or its settings) or, while the match runs, this HUD. A language
+## switch (the pause menu's settings) writes the tracker's stage line again.
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_GO_BACK_REQUEST:
 		BackButton.press(get_viewport())
+	elif what == NOTIFICATION_TRANSLATION_CHANGED and is_node_ready() and is_processing():
+		_shown_stage = 0
+		_refresh_top()
 
 
 ## Escape / back while the match runs opens the pause menu (paused, the menu

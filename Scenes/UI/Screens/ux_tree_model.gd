@@ -9,7 +9,8 @@ extends RefCounted
 ## MetaSkillManager.
 ##
 ## A snapshot: rebuild it after MetaSkillManager.skills_changed or
-## PersistedData.currency_changed (MenuRoot does, through CharacterDetail).
+## PersistedData.currency_changed (MenuRoot does, through CharacterDetail) and
+## after a language switch (its texts are in the language it was built in).
 ##
 ## from_ranked_manager() maps MetaSkillManager's ranked trees (named branches,
 ## ranks with their prices and values, prerequisites, gates, capstones; hidden
@@ -299,15 +300,18 @@ static func icon_for(stat_key: String, ability_name: String, ability_icons: Dict
 ## points", "Learn a Tier 1 skill first"). The equipped capstone from
 ## MetaSkillManager.equipped_capstone, the wallet from PersistedData.
 ## `ability_icons` (ability_name -> icon) is the fallback icon of ability
-## nodes. Null when the tree does not exist.
+## nodes. Every text is in the current language: the tree's title and blurb,
+## the branch and node names and the effect texts are translated here (their
+## English texts are the keys in Assets/Locale/strings.csv), so a model built
+## before a language switch is stale. Null when the tree does not exist.
 static func from_ranked_manager(p_tree_id: StringName, ability_icons: Dictionary = {}) -> UxTreeModel:
 	var t: MetaSkillTree = MetaSkillManager.get_tree_def(p_tree_id)
 	if t == null:
 		return null
 	var m := UxTreeModel.new()
 	m.tree_id = p_tree_id
-	m.title = t.display_name
-	m.description = t.description
+	m.title = String(TranslationServer.translate(t.display_name))
+	m.description = String(TranslationServer.translate(t.description))
 	m.monster = String(p_tree_id).begins_with(MetaSkillManager.TREE_MONSTER_PREFIX)
 	m.tiers = t.max_tier()
 	m.gate_kind = t.gate_kind
@@ -339,7 +343,7 @@ static func from_ranked_manager(p_tree_id: StringName, ability_icons: Dictionary
 			m.hidden_nodes.append(n)
 			continue
 		cols = maxi(cols, n.branch + 1)
-		n.name = raw.display_name
+		n.name = String(TranslationServer.translate(raw.display_name))
 		n.rank = mini(MetaSkillManager.get_rank(p_tree_id, raw.id), raw.max_rank)
 		for r in range(1, raw.max_rank + 1):
 			n.rank_costs.append(raw.cost_of_rank(r))
@@ -352,7 +356,8 @@ static func from_ranked_manager(p_tree_id: StringName, ability_icons: Dictionary
 		n.icon = raw.icon if raw.icon != null else icon_for(raw.stat_name, raw.ability_name, ability_icons)
 		m.currency = raw.currency
 		m.add_node(n)
-	m.branches = t.branches.duplicate()
+	for branch_name in t.branches:
+		m.branches.append(String(TranslationServer.translate(branch_name)))
 	while m.branches.size() < cols:
 		m.branches.append("")
 	m.wallet = PersistedData.get_currency(m.currency)

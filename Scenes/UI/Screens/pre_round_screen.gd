@@ -460,7 +460,7 @@ func _show_monster(def: CharacterDef) -> void:
 		_evolution[i].stage = i + 1
 		var numeral: String = tr("Stage %s") % STAGE_NUMERALS[i]
 		var stage_name := def.stage_name(i + 1)
-		_evolution_names[i].text = numeral if stage_name.is_empty() else "%s\n%s" % [numeral, stage_name]
+		_evolution_names[i].text = numeral if stage_name.is_empty() else "%s\n%s" % [numeral, tr(stage_name)]
 	_monster_threat.show_for(MatchRewards.Side.MONSTER, def)
 
 

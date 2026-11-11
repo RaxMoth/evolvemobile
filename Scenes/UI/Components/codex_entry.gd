@@ -86,7 +86,7 @@ func _fill_stages(def: CharacterDef) -> void:
 		var label := Label.new()
 		label.name = "Label"
 		label.theme_type_variation = &"BodyDim"
-		label.text = "%s · %s" % [CooldownSource.STAGE_NUMERALS[clampi(i + 1, 1, CooldownSource.STAGE_NUMERALS.size() - 1)], def.stage_names[i]]
+		label.text = "%s · %s" % [CooldownSource.STAGE_NUMERALS[clampi(i + 1, 1, CooldownSource.STAGE_NUMERALS.size() - 1)], tr(def.stage_names[i])]
 		chip.add_child(label)
 		_stages.add_child(chip)
 

@@ -8,7 +8,7 @@ data) + `Docs/INSTRUCTOR.md` (architecture guide). README "Current Status & Road
 summary of this file.
 
 **Before the hourly loop works on this tree**: the overhaul is 47 local commits after `885e86a`
-(origin/main), followed by its fix batches (F1 to F5 so far); push them first. On the loop's runner re-record the trace baselines before comparing
+(origin/main), followed by its fix batches (F1 to F6 so far); push them first. On the loop's runner re-record the trace baselines before comparing
 anything (see "Verification gate").
 
 ## Done
@@ -74,6 +74,12 @@ anything (see "Verification gate").
       (`GameManager.MATCH_BASE_SPEED`) and the HUD's speed button doubles that; the pause menu,
       the death beat, the result screen and the menus stay at normal speed; headless runs keep
       game time (see Changelog)
+- [x] **Fix batch F6** (German for all content) — every content text has a German row in
+      `strings.csv` (590 rows): role lines, taglines, field notes, tips, stage names, ability
+      descriptions, tree titles, branches, node names and effect texts; the tree model, the Codex
+      chips and the evolution strip translate the parts of the lines they build; a language switch
+      reaches the lobby, the match HUD, the pause menu and the tutorial without a restart;
+      `tools/build_locale.sh` (see Changelog)
 
 ## In Progress
 
@@ -104,14 +110,18 @@ anything (see "Verification gate").
       (`show_instincts = false`); balance three `MonsterStrategy` presets per monster (sim), then show.
 - [ ] **Pre-round scroll** — the heroes-side pre-round is about 1,500 px tall; on a 720x1280 phone
       STRATEGY / FORMATION need a scroll (START HUNT is pinned).
-- [ ] **Content localization** — skill node names, effect texts, tree titles, branch names, Codex
-      field notes, taglines, tips, ability descriptions and monster stage names are English-only data
-      (only UI strings, ability names and gate strings are in `Assets/Locale/strings.csv`). F4 put
-      the mechanism in for node effect texts (`MetaSkillNode.effect_text` translates the description,
-      keyed by the English text with its "{v}") and four German rows (Bloodlust, Adaptive Movement,
-      Trample, Call of the Herd); ability descriptions already translate through their Labels. With
-      longer German lines the skill sheet may need its third line: `test_detail_fit_and_stats`
-      checks that nothing is cut and that the sheet stays above the nav bar in both languages.
+- [ ] **German copy review** (user step) — F6 wrote the German of all content (314 new rows in
+      `Assets/Locale/strings.csv`; README "Localization" has the term table). Read it in the game
+      (Settings, Language, Deutsch) and change what does not sound right: edit the `de` column,
+      run `tools/build_locale.sh`, then the tests (they keep numbers, placeholders and widths in
+      step). See "Decisions for the user" for the judgement calls.
+- [ ] **Number format in German** — numbers are written the English way in both languages
+      ("0.5 s", "2,200", "32.4"); German would be "0,5 s" and "2.200". Needs one formatter for the
+      UI's numbers (`CurrencyChip.format_amount`, `MetaSkillNode.effect_text`, the "%.1f" lines)
+      and German rows without digits typed by hand.
+- [ ] **Dead rows in `strings.csv`** — 35 rows of the v0.1 menus (Main Menu, Pre-Round Setup,
+      the old tutorial texts, "Skills", "Coming soon", ...) are no longer used by any scene or
+      script. They are never shown; removing them makes the German review shorter.
 - [ ] **Four GDScript warnings left** (found with every default warning set to error on a copy:
       `debug/gdscript/warnings/<name>=2` in `project.godot`, then `tools/lint_all.gd`):
       `hero_exploration_controller.gd:222` (a variable named `snapped`), `tools/bake_nav.gd:65/70/76`
@@ -286,6 +296,26 @@ Look and feel:
   and her card "Ranged · Healer"; filing her under support would leave ranged empty instead.
 - **The AI quarry card** (F5) says "Threat N" and "AI build n/12" where the player's own cards
   have level and XP.
+- **German terms** (F6; README "Localization" has the table). One word per concept, and
+  existing rows changed for it: "LEVEL UP!" stays "LEVEL UP!" (it was "STUFE AUF!", but Stufe is
+  the monster's Stage and the level is "Lv" everywhere); the ultimate is "Ultimate" (the slot
+  caption was "ULTIMATIV", the tutorial said "eine Ultimative", the pre-round "Ultimates");
+  "EVOLUTION" is "ENTWICKLUNG" like every other evolve text; the lair is "Höhle" (the tutorial
+  said "Bau", the pre-round "Höhle"). Loan words a German player uses stay: Tank, Kills, Mobs, Lv.
+  Options: German for any of them ("Stufenaufstieg!", "Ultimative Fähigkeit").
+- **German names** (F6): the heroes' and monsters' names stay; roles and titles follow the
+  character ("Tank · Anführerin", "Pirscherin · Die Fledermaus", "Koloss · Der Eber"; branches
+  Schützin / Sanitäterin / Späherin for River, Eidwahrerin for Irelia). Gorrak's Stage I
+  "Tusker" is "Frischling" (a young boar, as Bullcalf and Duskling are young), because "Keiler"
+  is already the Hogs of Call of the Herd ("Ruf der Rotte"). The Brute role is "Koloss", the
+  Stalker "Pirscher(in)".
+- **Prerequisite line in German** (F6): "Benötigt: Breiterer Schlag oder Sogschlag" with a colon,
+  so the node names stand as names (after "Benötigt" they would need the accusative). The lobby's
+  rule is "Benötigt Lv-3-Monster": "Benötigt ein Monster auf Lv 3" ran 2 px past both screen
+  edges under Nyxa and Gorrak.
+- **Numbers in German** keep the English format ("0.5 s", "2,200"); see Backlog.
+- **A toast that is on screen when the language is switched** (the pause menu's settings) keeps
+  its language until it fades; everything else on screen follows at once.
 - **Fallen hero on the result screen**: tint 0.62 / 0.58 / 0.58 plus a colour drain instead of the
   UX spec's 0.42 / 0.39 / 0.39.
 - **Heroes-side pre-round** needs a scroll on 720x1280 (Backlog).
@@ -296,14 +326,19 @@ Look and feel:
 ## Placeholder copy for the user's review
 
 - Grount's stage names (Bullcalf, Rampager, Alpha Bull) and his tip; Nyxa's (Duskling, Night
-  Hunter, Dusk Matriarch) and Gorrak's (Tusker, Warlord, Boar King). None is in `strings.csv`.
+  Hunter, Dusk Matriarch) and Gorrak's (Tusker, Warlord, Boar King). German since F6: Stierkalb,
+  Wüterich, Alphastier; Dämmerling, Nachtjägerin, Dämmermatriarchin; Frischling, Kriegsherr,
+  Eberkönig.
 - The redrawn Nyxa and Gorrak ability icons.
 - Accent colours: Nyxa uses palette `monster2` (#8D55C2), not the spec's #7B3F95; Gorrak uses
   `monster3` (bog green), not the spec's crimson.
 - The camp tour's fifth and sixth step (F5, English and German): "Grow between matches" now
   explains where the skill trees are; "The Codex" is a step of its own. "AI build %d/%d" /
   "KI-Ausbau %d/%d" on the quarry card.
-- Codex field notes, taglines, tips and ability descriptions (English only).
+- Codex field notes, taglines, tips and ability descriptions (English, and German since F6).
+- The German of all content (F6): 130 node names, 73 effect texts, 26 branch names, 18 tree titles
+  and blurbs, 26 ability descriptions and the roster's 33 texts. Written to be read by a German
+  player, not word for word ("Erst der Käfig, dann die Fragen.", "Ruf der Rotte", "Nachtruhe").
 - `Assets/Icon.jpg` is the app icon (`config/icon`) and stays; `test_legacy_retired` allows exactly
   two raster images (the ground tileset and this icon).
 
@@ -313,7 +348,7 @@ Look and feel:
 
 ## Verification gate
 
-Every change passes `tools/lint.sh` (errors=0) and `tools/run_tests.sh` (exit 0; 647 tests, the
+Every change passes `tools/lint.sh` (errors=0) and `tools/run_tests.sh` (exit 0; 657 tests, the
 run exits with nothing leaked). A change that must not alter gameplay also keeps the determinism
 trace byte-identical: `BASELINE=<parent trace> tools/sim_trace.sh > <new trace>` (exit 0): seeds 1-3
 × heroes/monster as full matches (~40 s). Every 60 frames the trace hashes each EntityRegistry
@@ -425,7 +460,8 @@ Match speed (F3, `tools/bench.sh 3 2 900 300 0 <rigs_awake> <speed>`, back to ba
       every rig). Open: F3 numbers on a device, also at pinch zoom 0.5.
 - [ ] Generated resources have no `uid` header (Backlog).
 - [ ] `MonsterBase._pick_camp` / `_count_slam_targets` count warband mobs (Backlog, bug).
-- [ ] Content strings are English-only data (Backlog).
+- [x] Content strings are English-only data — closed by F6 (German for all content).
+- [ ] `strings.csv` keeps 35 unused rows of the old menus; numbers are not localized (Backlog).
 - [ ] A headless MenuRoot run reports 3 leaked RefCounted (Godot's threaded-load tokens).
 - [ ] `tools/sim_match.gd` counts a mob kill for the heroes when the killer is any `Node2D` that
       is not a monster (`_is(killer, "Node2D")`). Checked in 8.5: `is_class` matches inherited
@@ -433,6 +469,86 @@ Match speed (F3, `tools/bench.sh 3 2 900 300 0 <rigs_awake> <speed>`, back to ba
       uses `GameManager.killer_side`; the sim could use the same rule. Low priority.
 
 ## Changelog
+### 2026-11-11 — fix batch F6: German for all content texts
+Sixth fix batch after the walkthrough (`walk_menus` problem 6; review findings menus-4, meta-5,
+heroes-11 and menus-9). Presentational: the determinism traces of all three monsters are
+byte-identical to `tools/baselines` (Grount 2,503, Nyxa 3,252 and Gorrak 2,774 lines; one seed
+per `sim_trace.sh` call, two sims at a time).
+
+- **What was English** (problem 6; menus-4, meta-5, heroes-11): of the 338 different content
+  texts the game data holds, 306 had no German row: all 7 role lines, taglines and field notes,
+  the 3 tips, 9 stage names, 26 ability descriptions, 18 tree titles and blurbs, 26 branch
+  names, 130 node names and 73 effect texts. With Deutsch (or a German phone on System) the
+  frame was German and the content English ("Als Nächstes: +16% max HP", "Benötigt Wider Slam
+  oder Gravity Slam").
+- **German for all of it**: 314 new rows in `Assets/Locale/strings.csv` (590 rows now): the 306
+  content texts and the 8 roster filter captions. Written as a German player reads a game, with
+  one word per concept (README "Localization" has the table): "Tank · Anführerin", "Erst der
+  Käfig, dann die Fragen.", "Ruf der Rotte", "Bodenschlag: +20% Radius", "Benötigt: Breiterer
+  Schlag oder Sogschlag oder Narbengewebe". Proper names stay.
+- **Mechanism** (the least machinery): the English text stays the key, as for the UI strings.
+  A whole text handed to a Label or Button needs no code (the control translates it): role
+  lines, taglines, field notes, tips, ability descriptions. The three places that build a line
+  translate its parts: `UxTreeModel.from_ranked_manager` (title, blurb, branch and node names,
+  so the sheet's rank line, the plaques and the block reasons follow), the Codex's stage chips
+  and the pre-round's evolution strip. `MetaSkillNode.effect_text` already translated the
+  description before filling "{v}" in (F4).
+- **The generators stay the source of truth**: the data stays English (the `.tres` files, the
+  seed data); the rows hang on the English text. `tools/build_skill_trees.sh --force` gives the
+  shipped trees (`test_skill_trees_v2`, untouched) and cannot drop a translation.
+- **Numbers stay in step**: the 73 effect texts take their number from the data through "{v}"
+  in both languages. A fixed text with numbers (the monsters' ability descriptions) has the
+  same numbers in its German row: the new test compares the numbers and the placeholders of
+  every row, and an edited English text has no row until its German follows.
+- **One word per concept**: eleven existing rows changed. "LEVEL UP!" (was "STUFE AUF!": Stufe
+  is the Stage), "ULTIMATE" and "eine Ultimate" (were "ULTIMATIV" and "eine Ultimative" next
+  to "Ultimates"), "ENTWICKLUNG" (was "EVOLUTION" next to "Entwicklung"), "Die Höhle der
+  Bestie" / "Tippe auf die Höhle" (were "Bau" next to "DIE HÖHLE"), "noch keine Verbesserungen"
+  (was "Upgrades"), "ein Talent der Ebene %d" and "Talentbaum" (were "Fähigkeit" /
+  "Fähigkeitenbaum": Fähigkeit is the ability), "Benötigt: %s" (names after a colon) and
+  "Benötigt Lv-%d-Monster". The row "HEROES" was in the file twice; one is gone.
+- **A language switch needs no restart** (menus-9): MenuRoot refreshes the open screens on
+  `NOTIFICATION_TRANSLATION_CHANGED` (the lobby's unlock rules stayed English under a German
+  lobby); `MatchHud` and `MonsterHudPanel` write their stage, evolve, intent and tally lines
+  again at once, on the paused tree (the pause menu's settings); the pause menu's QUIT button
+  and the tutorial's bubble hold keys instead of translated lines (armed or opened in one
+  language they stayed in it). `MenuRoot._refresh_screens` does nothing once the menu has left
+  the tree: the new test caught the deferred refresh running there ("Cannot call method
+  'get_nodes_in_group' on a null value").
+- **German fits**: the new test lays every screen out at 720x1280 in both languages. One line
+  did not fit: the lobby's "Benötigt ein Monster auf Lv 3" was 216 px, 2 px past both screen
+  edges under Nyxa and Gorrak; it is "Benötigt Lv-3-Monster". Every node name fits its two
+  lines of 100 px (150 px alone in its cell), every skill sheet its height
+  (`test_detail_fit_and_stats`, now with real German).
+- **`tools/build_locale.sh`**: imports the CSV on a temp copy and copies the two `.translation`
+  files back; `--check` exits 1 when the committed files are not what the CSV gives. The files
+  in this commit were built with it (a second run says "up to date").
+- Tests: 647 → 657. New `test_content_locale.gd` (10 tests: every row of the CSV; every content
+  text of the roster, the abilities, all nine trees and the tutorial has a German row; the
+  tree model, the sheet, the plaques, the Codex chips and the evolution strip in
+  German; in German no screen shows an English content text and nothing is cut or leaves the
+  screen, on the overview with each ability open and the tree of all 7 characters, Growth, the
+  Codex's three pages, the pre-round of both sides with every monster, the quarry sheet, the
+  unlock sheet, the rosters, the lobby and every tutorial step; the switch on the lobby, in a
+  match on both sides, on the pause menu and on an open tutorial step). With the old code and
+  the new rows 8 of the 10 fail, with the new code and the old rows 7. `test_detail_fit_and_stats`
+  and `test_ux_tree_model` updated for the German prerequisite line.
+- Gate: lint errors=0; no GDScript warning in the changed or new scripts with every default
+  warning set to error (the same five lines as before remain elsewhere, see Backlog).
+  Bench (`tools/bench.sh 3 2 900 300`, the parent's files on the same import cache, three
+  rounds strictly alternating, the averages of the rounds' medians): frame_ms_mean 1.546 →
+  1.568 ms (+1.4 %), p99 3.534 → 3.431 ms (-2.9 %), CPU 3.587 → 3.590 s; each tree was ahead in
+  one or two rounds. Nothing that runs per frame changed (the HUD's two `_notification` hooks
+  act on a language switch only). Six earlier rounds ran while the machine was busy (load 5):
+  the parent's own p99 went from 3.2 to 7.9 ms between two of them, so they say nothing.
+- Muted renders in German looked at (`impl_previews/fix_F6_*.png`, 28 screens rendered): Grount's
+  tree with Titanengestalt selected ("Benötigt: Breiterer Schlag oder Sogschlag oder
+  Narbengewebe"), Irelia's, River's, Ted's and Gorrak's trees, Growth ("Basisverbesserungen der
+  Helden"); Irelia's overview ("Tank · Anführerin", "Monster-Provokation · Ultimate") and the
+  long passives of Nyxa and Gorrak; the Codex's monster and hero pages and the guide; the
+  pre-round of both sides ("Stufe III / Dämmermatriarchin", the quarry's tip); the unlock
+  sheet; the lobby with the two rules inside the screen. No English left, nothing cut.
+
 ### 2026-11-11 — fix batch F5: menu flow (taps, Codex, Growth, small layout bugs)
 Fifth fix batch after the walkthrough (`walk_menus` problems 5, 7, 8, 9, 10, 11, 13, 14, 16, 17,
 18, 19 and 20; review findings menus-1, menus-2, menus-5, menus-6, menus-10, menus-12 and

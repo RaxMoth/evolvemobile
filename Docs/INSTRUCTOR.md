@@ -540,6 +540,35 @@ overlap, so four heroes on one spot show four rows.
   sims and the trace keep 60 steps per game second. A test that needs the speed sets
   `speed_scaling` and restores it (`test/test_match_speed.gd`).
 
+### 11. Localization (fix batch F6)
+
+- **The English text is the key.** `Assets/Locale/strings.csv` has one row per text (`keys,en,de`)
+  and the data stays English: a `.tres`, the tree seed data and the scripts never hold German.
+  Every text a player can read has a row, the content too (role lines, taglines, field notes,
+  tips, stage names, ability names and descriptions, tree titles, branches, node names and effect
+  texts). `test_content_locale` walks the data and fails on a text without a German row.
+- **Hand a whole text to the control**: `label.text = def.tagline` is enough, the Label translates
+  the key and follows a language switch by itself. Do not write `label.text = tr(key)` where the
+  key would do: the translated string is not a key any more and stays in the old language (the
+  pause menu's QUIT button and the tutorial's bubble did).
+- **A line built from parts translates its parts** (`tr("Needs %s") % tr(name)`) and belongs to
+  whoever built it: if the node can be on screen when the language changes (the lobby under the
+  settings sheet, the match HUD under the pause menu's settings), write the line again on
+  `NOTIFICATION_TRANSLATION_CHANGED` (`MenuRoot`, `MatchHud`, `MonsterHudPanel`). A screen that
+  re-reads everything on open needs nothing.
+- **`UxTreeModel` is a snapshot in the current language**: `from_ranked_manager` translates the
+  tree's title, blurb, branch and node names; `MetaSkillNode.effect_text` translates the
+  description and then fills "{v}" in from the data. Rebuild the model after a switch.
+- **Numbers stay in step**: a German row repeats the placeholders (`%d`, `%s`, "{v}", in the same
+  order: GDScript fills them by position) and the numbers of its English text; the test compares
+  both. Change a number in an English text and its row is gone until the German follows.
+- **German is longer**: `test_content_locale` and `test_detail_fit_and_stats` lay the screens out
+  at 720x1280 in both languages and fail on a cut line, a word wider than its label or a text
+  past the screen edge. Node names have 100 px (150 px alone in their cell) and two lines.
+- **After editing the CSV**: `tools/build_locale.sh` (the two `.translation` files are committed;
+  `--check` tells whether they are current). README "Localization" has the term table: use the
+  word that is there.
+
 ---
 
 ## 🚫 Anti-Patterns to Avoid
@@ -638,7 +667,10 @@ then optimize the hot path the numbers point at.
 [ ] Assets/Characters/<id>/<id>_def.tres (CharacterDef) added to roster.tres
 [ ] Skill tree: seed in skill_tree_data_v2.gd, tools/build_skill_trees.sh,
     linked from the def's skill_tree
-[ ] Ability icons (tools/art/icons_abilities.py + build.py), strings.csv entries
+[ ] Ability icons (tools/art/icons_abilities.py + build.py)
+[ ] strings.csv rows (EN + DE) for the role line, tagline, field notes, every ability name
+    and description and every tree text, then tools/build_locale.sh (test_content_locale
+    fails until every text has its German row)
 [ ] README: the roster table and a hero section (test_readme_spec reads them)
 [ ] Gate: lint, tests, a new trace baseline if the default match changed, sim balance
 ```
@@ -697,7 +729,8 @@ then optimize the hot path the numbers point at.
     (false or 0), so a fresh save and the trace are unchanged
 [ ] Effect text with {v}; rank_values cumulative; costs from the cost rows. The text
     must say what the code does (half width or width, when it triggers); a German
-    row in strings.csv is keyed by the English text with its {v}
+    row in strings.csv for the name and for the text, keyed by the English text with
+    its {v}, then tools/build_locale.sh. A node name has two lines of 100 px
 [ ] A key that changes a number of the character overview (max HP, damage, speed,
     evolution XP): the overview reads the owned build through
     MetaSkillManager.owned_hero_stats / owned_monster_modifiers and
@@ -714,7 +747,9 @@ then optimize the hot path the numbers point at.
 [ ] Signals connected in the parent scene (MenuRoot.tscn wires every screen)
 [ ] Characters shown as RigView / CharacterCard from their CharacterDef, never by
     instancing the gameplay scene in a menu
-[ ] Strings in Assets/Locale/strings.csv (EN + DE); ≥ 48 px touch targets
+[ ] Strings in Assets/Locale/strings.csv (EN + DE), tools/build_locale.sh; a line the
+    screen builds with tr() is written again on NOTIFICATION_TRANSLATION_CHANGED when
+    the screen can be on show during a language switch; ≥ 48 px touch targets
 [ ] A muted render of the scene on a copy, looked at; a test for the wiring
 [ ] Anything that appears under the finger (a screen, a sheet, a result) holds a
     TapGuard while it appears: one TapGuard node in its scene, hold(<appear time>)
@@ -795,6 +830,7 @@ BASELINE=<file> tools/sim_trace.sh > new.txt    # determinism: byte-identical fo
 MONSTER=all tools/sim.sh 48 heroes 6            # balance per monster (also: monster side, THREAT=, SAVE=)
 tools/bench.sh 5 2 900 300                      # performance in the stress config
 tools/bake_nav.sh · tools/build_rigs.sh · tools/build_skill_trees.sh   # regenerate, copy back
+tools/build_locale.sh [--check]                 # strings.csv → the two .translation files
 python3 tools/art/build.py · python3 tools/art/make_theme.py           # UI kit, palette, theme
 ```
 

@@ -211,7 +211,7 @@ func test_a_closed_gate_explains_itself_on_its_own_line() -> void:
 	TranslationServer.set_locale("de")
 	screen.refresh()
 	await wait_frames(1)
-	assert_eq(reason.text, "Benötigt Wider Slam oder Gravity Slam oder Scar Tissue")
+	assert_eq(reason.text, "Benötigt: Breiterer Schlag oder Sogschlag oder Narbengewebe", "the names in German too")
 	assert_eq(_cut(reason), "", "577 px on a 285 px button before")
 	assert_eq(upgrade.atr(upgrade.text), "GESPERRT")
 	screen.show_base_tree(HEROES)

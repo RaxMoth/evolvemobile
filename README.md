@@ -2493,7 +2493,7 @@ and the match result's LOBBY returns to it. The old `MainMenu.tscn`,
   or `CharacterCardMonster` panel: the portrait in its side's inner panel,
   name, role and tagline, FIELD NOTES (`CharacterDef.codex_notes`: how a hero
   plays, how a monster hunts), for a monster EVOLUTION (its `stage_names` as
-  "I · Bullcalf" chips) and COUNTERPLAY (`CharacterDef.tip`), and ABILITIES
+  "I · Bullcalf" chips, "I · Stierkalb" in German) and COUNTERPLAY (`CharacterDef.tip`), and ABILITIES
   (icon, name and description of every ability in menu order, read from the
   scene's shared resources). An unmet monster is a `CharacterCardLocked`
   page: the portrait as a silhouette (`CharacterCard.locked_material()`),
@@ -2504,7 +2504,8 @@ and the match result's LOBBY returns to it. The old `MainMenu.tscn`,
   and the pause menu. AUDIO: a slider per volume (Master, Music, Effects;
   each slider's `value_changed` is bound to its setting key in the scene),
   applied live; LANGUAGE (System / English / Deutsch; the scene's labels
-  re-translate themselves); DISPLAY (screen shake); PRIVACY (usage
+  re-translate themselves and the screens under the sheet rewrite the lines
+  they built, see Localization); DISPLAY (screen shake); PRIVACY (usage
   statistics: "Stored only on this device. Nothing is uploaded."); RESET
   PROGRESS (a `ConfirmButton`: the first tap arms it for 3 s, a second tap
   at least 0.6 s later wipes the progress, the settings stay; both taps of
@@ -2806,10 +2807,13 @@ scene change: `abort_match()`) shows nothing. A timeout has no beat.
   snapshot: rebuilt after every change.
 - Strings (OVERVIEW, SKILL TREE, ABILITIES, the slot kinds, stat captions, the
   sheet's texts, block reasons, LOCKED and the three capstone lines) are in
-  `Assets/Locale/strings.csv` with German. A node's effect text is translated
-  before its value is filled in (`MetaSkillNode.effect_text`, keyed by the
-  English description with its "{v}"); a description without a row shows as
-  written.
+  `Assets/Locale/strings.csv` with German, and so is the content: role lines,
+  ability names and descriptions, tree titles and blurbs, branch names, node
+  names and effect texts. `UxTreeModel.from_ranked_manager` builds the model
+  in the current language (title, blurb, branch and node names); a node's
+  effect text is translated before its value is filled in
+  (`MetaSkillNode.effect_text`, keyed by the English description with its
+  "{v}"). See Localization.
 - Tests: `test_ux_tree_model` (states, block reasons, prices, gutter
   captions, rank totals, the suggested node and capstone equipping on a
   hand-built ranked tree; the live Grount tree with its three capstones; the
@@ -2833,6 +2837,98 @@ scene change: `abort_match()`) shows nothing. A timeout has no beat.
   `test_grount_behaviour_nodes` checks the Grount tree on this screen (every
   node on it, Rampage and Trample too, no "???" slot left, Titan Form gated
   until Grount Lv 8, bought through `upgrade_requested`).
+
+### Localization (English and German)
+
+- **One file**: `Assets/Locale/strings.csv` (`keys,en,de`, 590 rows). The key
+  of a row is its English text, so a scene's `text` and a Label that is handed
+  an English data text translate themselves, and code calls `tr()` /
+  `TranslationServer.translate()` on the English text. The import writes
+  `strings.en.translation` and `strings.de.translation` (registered in
+  `project.godot`, fallback `en`). `LocaleSettings` applies the saved choice
+  (System / English / Deutsch; System follows the device language).
+- **The content is translated, not only the frame**: every text the game data
+  holds has a German row: the roster's role lines, taglines, field notes,
+  counterplay tips and stage names (`CharacterDef`), every ability's name and
+  description, every skill tree's title, blurb and branch names and every
+  node's name and effect text (`Data/SkillTrees`), the tutorial steps, and the
+  captions built from ids (roster filters, slot kinds, the HUD's stage and
+  intent words). Proper names stay (Grount, Nyxa, Gorrak, Irelia, Vlad, Ted,
+  River, BETTER HUNT). The data itself stays English (the `.tres` files, the
+  seed data in `skill_tree_data_v2.gd`): the rows hang on the English text,
+  not on a resource, so `tools/build_skill_trees.sh --force` or a rig rebuild
+  changes no translation.
+- **Where a text is translated**:
+    - a whole text handed to a Label or Button (role line, tagline, field
+      notes, tip, ability name and description, a tutorial step): the control
+      translates it (Godot's auto-translation) and follows a language switch
+      by itself;
+    - a line built from parts translates the parts first:
+      `UxTreeModel.from_ranked_manager` (tree title and blurb, branch and node
+      names, block reasons such as "Benötigt: Breiterer Schlag oder
+      Sogschlag"), `MetaSkillNode.effect_text` (the description, then "{v}"
+      from the data: "Bodenschlag: +20% Radius"), the Codex's stage chips and
+      the pre-round's evolution strip (`tr(stage name)`), the toasts
+      (`MatchAnnouncer`).
+- **A language switch needs no restart**: scene labels re-translate
+  themselves; what a screen formatted is written again on
+  `NOTIFICATION_TRANSLATION_CHANGED`. MenuRoot refreshes the open screens
+  (the lobby's unlock rules; every other menu screen re-reads on open),
+  `MatchHud` and `MonsterHudPanel` rewrite the stage, evolve, intent and
+  tally lines at once (the tree is paused under the settings sheet), the
+  pause menu's QUIT button and the tutorial's bubble hold keys and translate
+  them themselves, and `SettingsScreen` refills its picker. A toast on screen
+  at the switch keeps its language until it fades.
+- **Numbers**: a text with a number either takes it from the data ("{v}",
+  `%d`) or is a fixed English text whose German row repeats the number.
+  `test_content_locale` compares the numbers and the placeholders of every
+  row, and an edited English text has no row until its German follows, so
+  the two languages cannot drift apart unnoticed. Numbers are written the
+  English way in both languages ("0.5 s", "2,200").
+- **Terms** (one German word per concept, on every screen):
+
+| English | German |
+|---------|--------|
+| Stage (monster evolution) | Stufe |
+| Tier (skill tree row) | Ebene |
+| Rank | Rang |
+| Level, Lv, LEVEL UP! | Level, Lv, LEVEL UP! |
+| XP, HP, Health | EP, LP, Leben |
+| attack damage, attack speed, move speed, range | Angriffsschaden, Angriffstempo, Lauftempo, Reichweite |
+| cooldown | Abklingzeit |
+| ability, skill (tree node), skill tree | Fähigkeit, Talent, Talentbaum |
+| capstone, upgrade | Schlussstein, Verbesserung |
+| passive, basic, active, ultimate | Passiv, Basis, Aktiv, Ultimate |
+| evolve, evolution | entwickeln, Entwicklung |
+| taunt, stun, lifesteal | Provokation, Betäubung, Lebensraub |
+| pet (Ted's fox) | Gefährte |
+| squad, pack, hunters | Trupp, Jäger |
+| beast, quarry, lair | Bestie, Beute, Höhle |
+| match, hunt, mob camp | Partie, Jagd, Mob-Lager |
+| Brute, Stalker (monster roles) | Koloss, Pirscher(in) |
+| kill(s) | Kill(s) |
+
+- **Changing a text**: edit the English where it lives (a scene, a script, a
+  `.tres`, the seed data), add or change its row in `strings.csv` (key and
+  `en` are the English text, `de` the German), then run
+  `tools/build_locale.sh`: it imports the CSV on a temp copy and copies the
+  two `.translation` files back (`--check` exits 1 when the committed files
+  are not what the CSV gives; the editor runs the same import when it sees
+  the changed CSV). Then `tools/run_tests.sh`.
+- Tests: `test_content_locale` (every row: key = English, a German text, the
+  same placeholders in order, the same numbers, no German text that is
+  another row's key, the imported translations match the CSV; every content
+  string of the roster, the abilities, all nine trees, the tutorial and the
+  id captions has a German row; the tree model, the Codex chips and the
+  evolution strip in German; in German no screen shows an English content
+  text and no text is cut or leaves the 720 px screen, on the overview and
+  tree of every character, Growth, the Codex, the pre-round of both sides,
+  the unlock sheet, the rosters, the lobby and every tutorial step; a
+  language switch reaches the lobby's rules, the match HUD, the pause menu
+  and an open tutorial step), `test_localization`
+  (the translations load, the choice persists), `test_detail_fit_and_stats`
+  (the skill sheet of every node in both languages) and `test_theme_contract`
+  (the display font has every glyph of `strings.csv`).
 
 ### Headless Tools (lint, tests, sim, trace, bench)
 
@@ -2919,9 +3015,10 @@ only with a display, so the sims, the trace and the tests are not affected by it
   (balance target 40–60 % hero wins per monster), `MONSTER=all THREAT=all
   tools/sim.sh 24 heroes 8` (the Opponent Threat parity check, 35–65 % at
   every threat), `MONSTER=all tools/bench.sh 5 2 900 300`.
-- `tools/bake_nav.sh`, `tools/build_rigs.sh` and `tools/build_skill_trees.sh`
-  regenerate the navigation bake, the rig sheets and bodies, and the skill tree
-  resources on their copy and copy only the generated files back.
+- `tools/bake_nav.sh`, `tools/build_rigs.sh`, `tools/build_skill_trees.sh` and
+  `tools/build_locale.sh` regenerate the navigation bake, the rig sheets and
+  bodies, the skill tree resources and the imported translations on their
+  copy and copy only the generated files back.
 
 ### File Structure
 
@@ -2933,7 +3030,8 @@ res://
 │  │                    <id>_def.tres CharacterDef for playable characters)
 │  ├─ Characters/_moves/ (humanoid / quadruped / flyer_moves.tres: the rig moves)
 │  ├─ Fonts/ (LilitaOne-Regular.ttf display font + LilitaOne-OFL.txt licence)
-│  ├─ Locale/ (strings.csv: English + German, imported translations)
+│  ├─ Locale/ (strings.csv: English + German, UI and content; the imported
+│  │           strings.en / strings.de.translation, tools/build_locale.sh)
 │  ├─ Shaders/ (ground_grade; hit_flash + hit_flash_material.tres on every rig body)
 │  ├─ Vfx/svg/ (fx_*.svg: in-world effect sprites, mipmapped; the mine pod and
 │  │            lamp, supply crate and chute are scene sprites)
@@ -3015,6 +3113,7 @@ res://
    ├─ art/ (Python art pipeline: palette.py, build.py, make_theme.py, ...)
    ├─ rig_builder.gd · build_rigs.gd · build_rigs.sh (SVG parts → rig sheet + body)
    ├─ build_skill_trees.gd · build_skill_trees.sh (seed data → Data/SkillTrees, kept in step by a test)
+   ├─ build_locale.sh (strings.csv → strings.en / strings.de.translation)
    ├─ bake_nav.gd · bake_nav.sh (Ground tiles → world_navigation.tres)
    ├─ lint.sh · lint_all.gd · run_tests.sh (compile + wiring check, the suite)
    ├─ sim.sh · sim_match.gd · sim_summary.py · sim_trace.sh · bench.sh · bench_match.gd
@@ -3398,8 +3497,9 @@ roster).
   until it was renamed; `i2_rallycd` (was "Rally Cry", Ted's) and `i3_dashcd`
   (was "Dash", no such ability) are retargeted at Irelia's Divine Shield and
   Monster Taunt cooldowns. Irelia's basic attack is named "Shield Bash"
-  (was "Unnamed Ability"). Every ability name has an EN/DE entry in
-  `strings.csv`. The F3 overlay lists the followed hero's ability copies with
+  (was "Unnamed Ability"). Every ability name and description, every tree
+  title, blurb and branch and every node name and effect text has an EN/DE
+  row in `strings.csv` (see Localization). The F3 overlay lists the followed hero's ability copies with
   their cooldown, tree modifiers and the time left ("Trap Cage  cd 4.00 s  tree
   cooldown x0.80  left 2.31 s").
 - **AI build orders** (`ai_build_order`: 12 entries per character tree,
@@ -3672,12 +3772,13 @@ changelog with numbers); this section is the summary.
       Settings (volumes, language, screen shake, privacy, reset)
 - [x] Earning Rates v2, permanent XP and levels per character
 - [x] Versioned save (v3) with backup + migration, local analytics log
-      (opt-out), localization (English + German UI strings)
+      (opt-out), localization (English + German: the UI and all content
+      texts, a live language switch)
 - [x] Audio manager on the Master/Music/SFX buses (generated placeholder tones
       until real assets land in `Assets/Audio/`)
 - [x] Performance pass: faction collision layers, EntityRegistry, TickScheduler
       AI LOD, HpBar2D, mob pooling, rig sleep and budget
-- [x] Headless tools: `tools/lint.sh`, `tools/run_tests.sh` (647 tests),
+- [x] Headless tools: `tools/lint.sh`, `tools/run_tests.sh` (657 tests),
       `tools/sim.sh`, `tools/sim_trace.sh`, `tools/bench.sh`, and the art, rig,
       skill-tree and navigation builders
 
@@ -3701,8 +3802,6 @@ changelog with numbers); this section is the summary.
 
 - [ ] Monster instincts on the pre-round screen (Lurker / Ambusher / Ravager
       are built and hidden until their `MonsterStrategy` presets are balanced)
-- [ ] Localization of the content strings (skill node texts, tree titles,
-      Codex notes, taglines, tips, ability descriptions, stage names)
 - [ ] Heroes: threat assessment (flee from a Stage 3 monster)
 - [ ] Hero composition selection (more than four heroes)
 - [ ] "Second Wind" (needs the evolution-heal decision), trap / barrage

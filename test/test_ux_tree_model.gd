@@ -91,7 +91,7 @@ func test_block_reasons() -> void:
 	var before := TranslationServer.get_locale()
 	TranslationServer.set_locale("de")
 	assert_eq(m.block_reason(m.find(&"maxed")), "Maximal", "reasons are translated")
-	assert_eq(m.block_reason(both), "Benötigt Maxed Twin oder Open Twin")
+	assert_eq(m.block_reason(both), "Benötigt: Maxed Twin oder Open Twin")
 	TranslationServer.set_locale(before)
 
 
