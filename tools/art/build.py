@@ -32,6 +32,7 @@ GROUPS = {
     "icons_ui": ("Icons/UI", "64,40,28", 4),
     "kit": ("Kit", "", 2),
     "crests": ("Crests", "256,96", 2),
+    "lobby": ("Lobby", "360", 2),
 }
 KIT_SHEETS = [("kit_cards", "x2,x1", 5, "card_,padlock,dot_"), ("kit_nav", "x2,x1", 3, "plaque,arch"),
               ("kit_buttons", "x2,x1", 4, "btn_"), ("kit_panels", "x2,x1", 4, "panel,banner"),

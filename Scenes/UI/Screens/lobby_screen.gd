@@ -12,18 +12,23 @@ extends Control
 ##   - the nav bar's arch glows in the side's colour.
 ## The lair's backdrop and its monsters are anchored to the bottom of their
 ## stage at the design size: on a taller screen (19.5:9) the extra height shows
-## the screen background above the lair instead of blowing the backdrop up
-## around monsters that keep their size.
-## The HEROES / MONSTERS plaques open the rosters, HUNT starts the chosen
-## side's match, and tapping a character chooses its side and asks for its
-## detail. With side_tap_opens_roster a stage tap opens that side's roster.
+## more of the cave above the lair (BackdropTop, lobby_monsters_top.svg: the
+## wall and the thorn vines running on upward, joined to the backdrop's top
+## edge) instead of blowing the backdrop up around monsters that keep their
+## size.
+## The HEROES / MONSTERS plaques open the rosters and HUNT starts the chosen
+## side's match. A tap anywhere on the stage that is not chosen, its
+## characters included, only chooses that side; a tap on a character of the
+## chosen side asks for its detail. With side_tap_opens_roster a stage tap
+## opens that side's roster.
 ##
 ## The screen only reports (side_chosen, hunt_requested, ...): MenuRoot
 ## connects every signal scene-side and acts on it, and every connection inside
 ## the screen is in LobbyScreen.tscn. Monsters the player has not bought yet
 ## (Nyxa, Gorrak) stand in the lair as padlocked silhouettes with their price
-## and unlock rule; tapping one asks for it like any character (MenuRoot opens
-## the unlock confirm sheet). refresh() re-reads that after a purchase.
+## and unlock rule; tapping one on the chosen lair asks for it like any
+## character (MenuRoot opens the unlock confirm sheet). refresh() re-reads
+## that after a purchase.
 
 signal side_chosen(side: int)
 signal hunt_requested(side: int)
@@ -158,10 +163,15 @@ func _on_hunt_pressed() -> void:
 	hunt_requested.emit(chosen_side)
 
 
-## A character stands on its side's stage: the tap chooses that side too.
+## A character stands on its side's stage: on the stage that is not chosen
+## the tap is a stage tap (it only chooses the side); on the chosen one it
+## asks for the character.
 func _on_character_pressed(character: CharacterDef) -> void:
-	if character != null:
-		choose(character.side)
+	if character == null:
+		return
+	if _side_of(character.side) != chosen_side:
+		_on_stage_tapped(character.side)
+		return
 	character_requested.emit(character)
 
 

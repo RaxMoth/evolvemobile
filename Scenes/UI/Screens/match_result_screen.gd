@@ -29,6 +29,9 @@ extends CanvasLayer
 ##     same quarry twice in a row) and reloads World.
 ## Intro: the ribbon pops at 0.1 s, the sections fade in from 0.3 s, the chips
 ## count from 0.6 s and the XP bars fill from 0.9 s; all settled by about 1.9 s.
+## Until the buttons have faded in (about 1.1 s) the screen holds its TapGuard
+## and ignores ui_cancel: a tap aimed at the HUD when the match ended (a hero
+## card sits where LOBBY and PLAY AGAIN appear) never leaves the result unseen.
 ## Every connection inside the screen is in MatchResultScreen.tscn; the cast and
 ## the XP rows are built here.
 
@@ -51,6 +54,11 @@ const SUBTITLES_HEROES: Array[String] = ["The beast is slain", "The jungle claim
 const SUBTITLES_MONSTER: Array[String] = ["The jungle is yours", "The hunters prevailed", "The jungle is yours"]
 const RIBBON_FROM := Vector2(0.4, 0.4)
 const CELEBRATE_STAGGER := 0.12
+## The intro's section fades: the first starts at SECTION_DELAY, each next one
+## SECTION_STAGGER later, and each takes SECTION_FADE.
+const SECTION_DELAY := 0.3
+const SECTION_STAGGER := 0.08
+const SECTION_FADE := 0.25
 
 ## Where LOBBY (and "upgrades ready") go: the menu's main scene.
 @export_file("*.tscn") var lobby_scene_path: String = "res://Scenes/UI/Screens/MenuRoot.tscn"
@@ -87,6 +95,7 @@ var _leaving := false
 @onready var _upgrades: Button = %Upgrades
 @onready var _upgrades_text: Label = %UpgradesText
 @onready var _play_again: Button = %PlayAgain
+@onready var _tap_guard: TapGuard = %TapGuard
 
 
 func _ready() -> void:
@@ -260,8 +269,10 @@ func _intro() -> void:
 	var k := 0
 	for section: CanvasItem in [_sub, %Stage, %Stats, %RewardsHead, %Rewards, _xp_grid, _upgrades, %Buttons]:
 		section.modulate.a = 0.0
-		t.tween_property(section, ^"modulate:a", 1.0, 0.25).set_delay(0.3 + 0.08 * k)
+		t.tween_property(section, ^"modulate:a", 1.0, SECTION_FADE).set_delay(SECTION_DELAY + SECTION_STAGGER * k)
 		k += 1
+	# The buttons are the last section: no tap counts before they are shown.
+	_tap_guard.hold(SECTION_DELAY + SECTION_STAGGER * (k - 1) + SECTION_FADE)
 	var c := 0
 	for chip: RewardChip in [_gold, _steel, _leaves, _xp]:
 		if chip.visible:
@@ -283,11 +294,13 @@ func _leave_to_menu(roster_side: int = -1) -> void:
 	get_tree().change_scene_to_file.call_deferred(lobby_scene_path)
 
 
-## Back (Escape, the Android back button through MatchHud): LOBBY.
+## Back (Escape, the Android back button through MatchHud): LOBBY, once the
+## intro has shown the buttons (before that the press is taken and dropped).
 func _unhandled_input(event: InputEvent) -> void:
 	if result != null and event.is_action_pressed(&"ui_cancel"):
 		get_viewport().set_input_as_handled()
-		_on_lobby_pressed()
+		if not _tap_guard.is_holding():
+			_on_lobby_pressed()
 
 
 # --- scene-side connections (MatchResultScreen.tscn) ---

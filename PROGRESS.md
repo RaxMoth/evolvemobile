@@ -8,7 +8,7 @@ data) + `Docs/INSTRUCTOR.md` (architecture guide). README "Current Status & Road
 summary of this file.
 
 **Before the hourly loop works on this tree**: the overhaul is 47 local commits after `885e86a`
-(origin/main), followed by its fix batches (F1 to F4 so far); push them first. On the loop's runner re-record the trace baselines before comparing
+(origin/main), followed by its fix batches (F1 to F5 so far); push them first. On the loop's runner re-record the trace baselines before comparing
 anything (see "Verification gate").
 
 ## Done
@@ -252,8 +252,40 @@ Look and feel:
   say so; the mechanics are unchanged. Options (gameplay, need sims): a flat bonus below the
   threshold as the old text promised, and a move-speed-only Adaptive Movement.
 - **Quarry Change picker**: locked cards only shake (they unlock by hunt count, not for sale).
-- **19.5:9 phones**: a band of about 280 px of plain background sits between the MONSTERS row and
-  the lair in the lobby.
+- **Tall phones** (F5): on a screen taller than 16:9 the lobby's extra height goes to the lair,
+  which shows more cave above it (wall arches, thorn vines, eyes; the strip covers up to 21:9).
+  The campfire stage keeps its 540 px. Option: share the height between both stages (needs taller
+  campfire art too).
+- **No tap on what just appeared** (F5): for 0.37 s after a screen starts to slide in or out
+  (0.22 s slide + 0.15 s grace) the menu takes no new tap; a sheet the same while it slides up;
+  the match result for 1.26 s, until LOBBY and PLAY AGAIN are fully shown. That is what stops a
+  double tap from acting on the next screen. The price: a deliberate tap inside the grace time
+  is dropped too. One number to retune: `TapGuard.GRACE`.
+- **Confirm buttons** (F5): Reset Progress and QUIT TO LOBBY count the second tap only 0.6 s
+  after the first (`ConfirmButton.MIN_GAP`), within 3 s. Options: a confirm dialog, or
+  hold-to-confirm.
+- **Lobby taps** (F5): the first tap on the stage that is not chosen only chooses the side, also
+  when it lands on a character; a second tap opens the character (or a locked monster's unlock
+  sheet). From the Heroes side a locked monster's sheet is two taps away.
+- **Back keeps the hunters' strategy** (F5, walkthrough problem 18): dials and formation are
+  kept as soon as they change, also when the pre-round is left with back. It used to be "back
+  cancels" (the README said "back keeps the saved one"). Option: the old behaviour, or a visible
+  RESET on the screen.
+- **The HUNT arch follows the screen** (F5): on a roster, a character or a Growth tree the arch
+  glows in that side's colour and opens that side's pre-round, and that side becomes the chosen
+  one (as a lobby tap would). On the lobby and the Codex it is the chosen side. Option: the arch
+  always means the chosen side, with the side written on it.
+- **Growth** (F5) opens on the chosen side's tree and has HEROES / MONSTER tabs with a dot each;
+  the nav bars' Growth dot lights when either tree has a rank to buy.
+- **Codex pages of owned monsters** (F5): a monster the player owns has an open page whether or
+  not the heroes have hunted it (NEW QUARRY still means "never hunted"). On a fresh save that is
+  Grount's page, so the Codex dot is lit until the Codex is opened once. Option: count the
+  starting monster as seen.
+- **Role filters** (F5): a role without a member gets no filter button (heroes: support,
+  monsters: swarm). River stays under ranged: the README's role table calls her Support / Scout
+  and her card "Ranged · Healer"; filing her under support would leave ranged empty instead.
+- **The AI quarry card** (F5) says "Threat N" and "AI build n/12" where the player's own cards
+  have level and XP.
 - **Fallen hero on the result screen**: tint 0.62 / 0.58 / 0.58 plus a colour drain instead of the
   UX spec's 0.42 / 0.39 / 0.39.
 - **Heroes-side pre-round** needs a scroll on 720x1280 (Backlog).
@@ -268,8 +300,9 @@ Look and feel:
 - The redrawn Nyxa and Gorrak ability icons.
 - Accent colours: Nyxa uses palette `monster2` (#8D55C2), not the spec's #7B3F95; Gorrak uses
   `monster3` (bog green), not the spec's crimson.
-- The Monsters roster's "swarm" role filter has nobody: Grount and Gorrak are "brute", Nyxa is
-  "stalker".
+- The camp tour's fifth and sixth step (F5, English and German): "Grow between matches" now
+  explains where the skill trees are; "The Codex" is a step of its own. "AI build %d/%d" /
+  "KI-Ausbau %d/%d" on the quarry card.
 - Codex field notes, taglines, tips and ability descriptions (English only).
 - `Assets/Icon.jpg` is the app icon (`config/icon`) and stays; `test_legacy_retired` allows exactly
   two raster images (the ground tileset and this icon).
@@ -280,7 +313,7 @@ Look and feel:
 
 ## Verification gate
 
-Every change passes `tools/lint.sh` (errors=0) and `tools/run_tests.sh` (exit 0; 628 tests, the
+Every change passes `tools/lint.sh` (errors=0) and `tools/run_tests.sh` (exit 0; 647 tests, the
 run exits with nothing leaked). A change that must not alter gameplay also keeps the determinism
 trace byte-identical: `BASELINE=<parent trace> tools/sim_trace.sh > <new trace>` (exit 0): seeds 1-3
 × heroes/monster as full matches (~40 s). Every 60 frames the trace hashes each EntityRegistry
@@ -400,6 +433,79 @@ Match speed (F3, `tools/bench.sh 3 2 900 300 0 <rigs_awake> <speed>`, back to ba
       uses `GameManager.killer_side`; the sim could use the same rule. Low priority.
 
 ## Changelog
+### 2026-11-11 — fix batch F5: menu flow (taps, Codex, Growth, small layout bugs)
+Fifth fix batch after the walkthrough (`walk_menus` problems 5, 7, 8, 9, 10, 11, 13, 14, 16, 17,
+18, 19 and 20; review findings menus-1, menus-2, menus-5, menus-6, menus-10, menus-12 and
+meta-3). Presentational: the determinism traces of all three monsters are byte-identical to
+`tools/baselines` (Gorrak 2,774, Grount 2,503 and Nyxa 3,252 lines; one seed per
+`sim_trace.sh` call, two sims at a time).
+
+- **No tap on what just appeared** (problem 5; menus-1, menus-2). New `TapGuard`
+  (`Scenes/UI/Components/tap_guard.gd`): while it holds, every new pointer press is swallowed
+  before the GUI sees it. MenuRoot holds it on every push and pop (the 0.22 s slide plus 0.15 s),
+  the unlock sheet, the settings sheet and the pre-round's quarry sheet while they slide up, and
+  the match result until LOBBY and PLAY AGAIN have faded in (it drops `ui_cancel` for that time
+  too). A double tap on HUNT at 0.08, 0.15 and 0.25 s no longer makes Grount the player's monster
+  (Monster side) or opens the quarry sheet (Heroes side); a double tap on a back arrow no longer
+  opens the settings; the second tap no longer closes a sheet on its scrim; a tap on a hero card
+  when the match ends no longer presses the invisible LOBBY / PLAY AGAIN.
+- **Confirm buttons** (menus-5, menus-10). New `ConfirmButton` (`Components/ConfirmButton.tscn`),
+  used by Reset Progress and QUIT TO LOBBY: the confirming tap counts only 0.6 s after the arming
+  one, so both taps of one double tap no longer wipe the save or forfeit the match; the 3 s
+  window is one counter that starts again with every arming, so a QUIT armed again after a
+  resume is no longer disarmed early by the first arming's timer.
+- **START HUNT / UNLEASH** act once per visit (menus-12): a double press saved and tracked
+  `pre_round_setup` twice.
+- **Lobby** (problem 8): a tap on a character of the stage that is not chosen only chooses the
+  side; on the chosen stage it opens the character's detail or the unlock sheet.
+- **Tall phones** (problem 7): the cave runs on above the lair
+  (`Assets/UI/Lobby/lobby_monsters_top.svg`, 720x420, from the new `tools/art/lobby.py`; it
+  repeats the lair art's wall arches and continues its vines along their curves, so the join
+  does not show). 720x1560 shows 280 px of it, 21:9 all of it.
+- **Codex** (problems 10, 17; menus-6, meta-3): the player's own monsters have open pages
+  (`CodexScreen.met_monsters()`: the quarries met, then the owned monsters); the seen count moved
+  from `[settings] codex_seen_monsters` to `[codex] monsters_seen`
+  (`PersistedData.get_codex_seen` / `set_codex_seen`), so Reset Progress clears it with the Codex
+  and new pages light the dot again. An old `codex_seen_monsters` setting is no longer read (the
+  dot lights once more for a save that had it).
+- **Roster** (problems 9, 19): a role filter without a member gets no button (heroes: support,
+  monsters: swarm); the grid is centred and adds columns on a wider screen (5 on a 960x1280
+  tablet, where the cards sat in a 720 px block on the left).
+- **Growth and the arch** (problem 11): Growth has HEROES / MONSTER tabs with a red dot each and
+  the nav bars' Growth dot counts either side; a nav bar's arch starts the hunt of the side its
+  screen stands for (roster, character, Growth tree) and glows in that colour.
+- **AI quarry card** (problem 14): "Threat N" and "AI build n/12" (`CharacterCard.apply_ai_build`)
+  on the pre-round's quarry card and the Change sheet's cards; it read "Lv.2" and "3/12". The
+  threat is set at 80 % of the level's size, so "Bedrohung 4" stays inside an S card.
+- **Sheets** (problem 13): the unlock sheet and the quarry sheet end on the screen's bottom edge
+  (the nav tabs peeked out under them).
+- **Settings** (problem 16): "Stored only on this device. Nothing is uploaded." (no
+  `user://analytics.jsonl`), English and German.
+- **Pre-round strategy** (problem 18): every dial and formation change goes into the settings at
+  once (`MatchConfig.store()`), and the file is written when the screen is left or the hunt
+  starts; it used to be lost on back (see Decisions).
+- **Tour** (problem 20): step 5 "Grow between matches" frames the Heroes, Growth and Monsters
+  tabs and says where the trees are (open a character, tap SKILL TREE); the Codex has a sixth
+  step of its own.
+- Tests: 628 → 647. New `test_menu_flow.gd` (19 tests, with real mouse presses through the
+  viewport: the double taps at the three gaps with a control run without the guard, the sheets,
+  the result's intro, `ConfirmButton`, Reset Progress, the pause menu's QUIT, START once, the
+  lobby's first tap, the cave strip, the Codex pages and the reset, Growth's tabs and the arch,
+  the AI card, the sheets' bottom edge, the privacy line, the tour step); `test_menu_root`,
+  `test_roster_screen`, `test_match_config`, `test_codex`, `test_settings_and_back` and
+  `test_ui_kit` updated for the new behaviour.
+- Gate: lint errors=0; no GDScript warning in the changed or new scripts with every default
+  warning set to error (the same five lines as before remain elsewhere, see Backlog). No bench:
+  nothing that runs per frame in a match changed (the pause menu's QUIT is a `ConfirmButton`
+  that processes only while armed; the result screen's guard exists only once the match is
+  over).
+- Muted renders looked at (`impl_previews/fix_F5_*.png`): the lobby at 720x1560 on both sides
+  (the cave fills the band, no hard edge); the Codex with Grount and a bought Nyxa open on a
+  save that never hunted; Growth with the MONSTER tab picked and a dot on each tab; the unlock
+  sheet and the quarry sheet down to the bottom edge; the quarry card ("Threat 0", "AI build
+  0/12"); the settings' privacy line; the Heroes roster at 960x1280 (five cards in a centred
+  row); the tour's step 5 of 6 framing the nav bar.
+
 ### 2026-11-11 — fix batch F4: skill tree sheet and character overview
 Fourth fix batch after the walkthrough (`walk_menus` problems 1, 2, 3, 4, 12 and 15; review
 findings menus-3, heroes-10 and monsters-11). Presentational: the determinism traces of all three

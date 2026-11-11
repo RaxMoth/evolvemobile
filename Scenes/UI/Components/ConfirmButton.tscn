@@ -1,0 +1,10 @@
+[gd_scene format=3 uid="uid://dq3w6c1x0n5fa"]
+
+[ext_resource type="Script" uid="uid://c0yqyhgrpqwxs" path="res://Scenes/UI/Components/confirm_button.gd" id="1_script"]
+
+[node name="ConfirmButton" type="Button"]
+custom_minimum_size = Vector2(0, 64)
+theme_type_variation = &"ButtonMonster"
+script = ExtResource("1_script")
+
+[connection signal="pressed" from="." to="." method="_on_pressed"]

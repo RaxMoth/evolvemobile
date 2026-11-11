@@ -4,8 +4,9 @@ extends CanvasLayer
 ## The "How to play" coach marks, in two chapters:
 ##   - LOBBY, the first run: MenuRoot opens it once over the lobby (setting
 ##     `tutorial_seen`) and again when the Codex's guide asks for it. It points
-##     at the heroes' campfire, the monsters' lair, the HUNT arch and the Codex
-##     tab.
+##     at the heroes' campfire, the monsters' lair, the HUNT arch, the tabs
+##     that lead to the skill trees (Heroes, Growth, Monsters: the frame spans
+##     the nav bar between them) and the Codex tab.
 ##   - HUD, the first match: MatchHud opens it once (setting
 ##     `tutorial_hud_seen`). It points at the cooldown slots and the pause
 ##     and speed buttons. The match runs on under it (it never pauses the
@@ -34,6 +35,7 @@ const SETTING_HUD_SEEN: StringName = &"tutorial_hud_seen"
 const TARGET_HERO_STAGE: StringName = &"tutorial_hero_stage"
 const TARGET_MONSTER_STAGE: StringName = &"tutorial_monster_stage"
 const TARGET_HUNT: StringName = &"tutorial_hunt"
+const TARGET_TREES: StringName = &"tutorial_trees"
 const TARGET_CODEX: StringName = &"tutorial_codex"
 const TARGET_HUD_SLOTS: StringName = &"tutorial_hud_slots"
 const TARGET_PAUSE: StringName = &"tutorial_pause"
@@ -61,7 +63,12 @@ const LOBBY_STEPS: Array[Dictionary] = [
 	},
 	{
 		"title": "Grow between matches",
-		"body": "Every match pays Steel, Leaves, Gold and XP for the Heroes, Monsters and Growth trees. The Codex keeps this guide and a page for every beast you meet.",
+		"body": "Every match pays Steel, Leaves, Gold and XP. Spend them on skill trees: open a character under Heroes or Monsters and tap SKILL TREE. Growth holds the tree a whole side shares.",
+		"anchor": TARGET_TREES,
+	},
+	{
+		"title": "The Codex",
+		"body": "The Codex keeps this guide and a page for every beast you meet or own.",
 		"anchor": TARGET_CODEX,
 	},
 ]

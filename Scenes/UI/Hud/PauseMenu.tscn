@@ -1,7 +1,8 @@
-[gd_scene load_steps=3 format=3 uid="uid://cpa0semenu4x7"]
+[gd_scene load_steps=4 format=3 uid="uid://cpa0semenu4x7"]
 
 [ext_resource type="Script" path="res://Scenes/UI/Hud/pause_menu.gd" id="1_script"]
 [ext_resource type="Theme" uid="uid://eroe1xxhr5fc" path="res://Scenes/UI/Theme/ui_theme.tres" id="2_theme"]
+[ext_resource type="PackedScene" uid="uid://dq3w6c1x0n5fa" path="res://Scenes/UI/Components/ConfirmButton.tscn" id="3_confirm"]
 
 [node name="PauseMenu" type="Control"]
 process_mode = 3
@@ -59,11 +60,9 @@ custom_minimum_size = Vector2(0, 64)
 layout_mode = 2
 text = "Settings"
 
-[node name="Quit" type="Button" parent="Center/Panel/VBox"]
+[node name="Quit" parent="Center/Panel/VBox" instance=ExtResource("3_confirm")]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 64)
 layout_mode = 2
-theme_type_variation = &"ButtonMonster"
 text = "Quit to lobby"
 
 [node name="Hint" type="Label" parent="Center/Panel/VBox"]
@@ -77,4 +76,5 @@ autowrap_mode = 3
 
 [connection signal="pressed" from="Center/Panel/VBox/Resume" to="." method="_on_resume_pressed"]
 [connection signal="pressed" from="Center/Panel/VBox/Settings" to="." method="_on_settings_pressed"]
-[connection signal="pressed" from="Center/Panel/VBox/Quit" to="." method="_on_quit_pressed"]
+[connection signal="armed_changed" from="Center/Panel/VBox/Quit" to="." method="_on_quit_armed_changed"]
+[connection signal="confirmed" from="Center/Panel/VBox/Quit" to="." method="_on_quit_confirmed"]

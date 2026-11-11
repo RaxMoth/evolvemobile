@@ -29,8 +29,12 @@ extends Control
 ##     selection. The tab carries an up-arrow badge with the number of ranks
 ##     ready to buy.
 ## show_base_tree() opens the screen on an account-wide tree instead (the
-## Growth tab: hero_base or monster_base by side) in TREE mode, without tabs,
-## under the side's crest.
+## Growth tab: hero_base or monster_base by side) in TREE mode under the
+## side's crest. In place of the mode tabs it has the HEROES / MONSTER tabs,
+## which switch between the two trees; each carries the red dot while its
+## tree has a rank to buy now (base_tree_ready).
+## The nav bar's arch glows in the colour of the shown character's or tree's
+## side (shown_side): it starts that side's hunt (MenuRoot).
 ##
 ## UPGRADE only reports upgrade_requested(tree_id, node_id): MenuRoot buys the
 ## node's next rank (MetaSkillManager.rank_up) and calls refresh() once
@@ -78,6 +82,7 @@ var model: UxTreeModel = null
 ## must not share their groups.
 var _tab_group := ButtonGroup.new()
 var _ability_group := ButtonGroup.new()
+var _side_group := ButtonGroup.new()
 ## The node an UPGRADE was asked for and its rank then (pop once bought).
 var _buying: StringName = &""
 var _buying_rank: int = 0
@@ -105,6 +110,11 @@ var _fade: Tween = null
 @onready var _tree_tab: Button = %TreeTab
 @onready var _tree_badge: Control = %TreeBadge
 @onready var _tree_badge_count: Label = %TreeBadgeCount
+@onready var _side_tabs: Control = %SideTabs
+@onready var _heroes_side: Button = %HeroesSide
+@onready var _monster_side: Button = %MonsterSide
+@onready var _heroes_side_dot: CanvasItem = %HeroesSideDot
+@onready var _monster_side_dot: CanvasItem = %MonsterSideDot
 @onready var _overview: Control = %Overview
 @onready var _stats: GridContainer = %Stats
 @onready var _abilities: HBoxContainer = %Abilities
@@ -129,6 +139,8 @@ var _fade: Tween = null
 func _ready() -> void:
 	_overview_tab.button_group = _tab_group
 	_tree_tab.button_group = _tab_group
+	_heroes_side.button_group = _side_group
+	_monster_side.button_group = _side_group
 	for tile in ability_tiles():
 		tile.button_group = _ability_group
 	_show_node(&"")
@@ -147,7 +159,7 @@ func show_character(def: CharacterDef, p_mode: Mode = Mode.OVERVIEW) -> void:
 	_top_bar.title = def.get_display_name() if def != null else ""
 	_set_currencies(monster)
 	_nav.active_tab = own_tab()
-	_nav.monster_side = GameManager.chosen_side == MatchRewards.Side.MONSTER
+	_nav.monster_side = monster
 	_stage.theme_type_variation = &"CharacterCardMonster" if monster else &"CharacterCard"
 	_stage_inner.theme_type_variation = &"CardInnerMonster" if monster else &"CardInnerHero"
 	_showcase.character = def
@@ -159,6 +171,7 @@ func show_character(def: CharacterDef, p_mode: Mode = Mode.OVERVIEW) -> void:
 	_head_xp.visible = true
 	_head_blurb.visible = false
 	_tabs.visible = true
+	_side_tabs.visible = false
 	_fill_abilities()
 	refresh()
 	set_mode(p_mode, false)
@@ -177,15 +190,35 @@ func show_base_tree(side: int) -> void:
 	_top_bar.title = "Growth"
 	_set_currencies(monster)
 	_nav.active_tab = own_tab()
-	_nav.monster_side = GameManager.chosen_side == MatchRewards.Side.MONSTER
+	_nav.monster_side = monster
 	_showcase.character = null
 	_head_icon.texture = crest_monster if monster else crest_heroes
 	_head_level.visible = false
 	_head_xp.visible = false
 	_head_blurb.visible = true
 	_tabs.visible = false
+	_side_tabs.visible = true
+	# set_pressed_no_signal does not release the group's other button.
+	_heroes_side.set_pressed_no_signal(not monster)
+	_monster_side.set_pressed_no_signal(monster)
 	refresh()
 	set_mode(Mode.TREE, false)
+
+
+## The side of what is shown (MatchRewards.Side): the character's, or the
+## account-wide tree's.
+func shown_side() -> int:
+	if character != null:
+		return MatchRewards.Side.MONSTER if character.is_monster() else MatchRewards.Side.HEROES
+	return MatchRewards.Side.MONSTER if base_side == MatchRewards.Side.MONSTER else MatchRewards.Side.HEROES
+
+
+## True while `side`'s account-wide tree has a rank the player can buy now
+## (the dots on Growth's side tabs and on the nav bars' Growth tab).
+static func base_tree_ready(side: int) -> bool:
+	var tree: StringName = MetaSkillManager.TREE_MONSTER_BASE if side == MatchRewards.Side.MONSTER else MetaSkillManager.TREE_HERO_BASE
+	var ready_now: bool = MetaSkillManager.card_progress(tree)["upgrade_ready"]
+	return ready_now
 
 
 ## The nav bar tab this screen belongs to.
@@ -216,6 +249,9 @@ func refresh() -> void:
 		_tree_badge.visible = ready_ranks > 0
 		_tree_badge_count.text = str(ready_ranks)
 	model = UxTreeModel.from_ranked_manager(tree_id, _ability_icons()) if not tree_id.is_empty() else null
+	if character == null:
+		_heroes_side_dot.visible = base_tree_ready(MatchRewards.Side.HEROES)
+		_monster_side_dot.visible = base_tree_ready(MatchRewards.Side.MONSTER)
 	if character == null and model != null:
 		_head_name.text = model.title
 		_head_blurb.text = model.description
@@ -507,6 +543,12 @@ func _on_overview_tab_pressed() -> void:
 
 func _on_tree_tab_pressed() -> void:
 	set_mode(Mode.TREE)
+
+
+## Growth's HEROES / MONSTER tabs: the other side's account-wide tree.
+func _on_side_tab_pressed(side: int) -> void:
+	if character == null and side != base_side:
+		show_base_tree(side)
 
 
 func _on_ability_tile_pressed(index: int) -> void:

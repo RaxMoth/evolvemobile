@@ -22,7 +22,10 @@ extends Button
 ##
 ## Read-only: refresh() reads PersistedData / MetaSkillManager through
 ## CharacterProgress; screens call it when currencies or skills change.
-## apply_progress() shows given numbers (previews, tests).
+## apply_progress() shows given numbers (previews, tests). apply_ai_build()
+## shows the card as an AI opponent (the pre-round's quarry): "Threat N" in
+## place of the level (a little smaller, AI_LEVEL_SCALE) and "AI build n/12"
+## in the pill, so it never reads as one of the player's own cards.
 
 signal card_pressed(character: CharacterDef)
 
@@ -32,6 +35,9 @@ enum CardSize { S, M, L }
 ## pre-round squad, M for the 4-column collection grid, L for the quarry card.
 const SIZES: Array[Vector2] = [Vector2(150, 238), Vector2(160, 262), Vector2(280, 446)]
 const LOCKED_SHADER := preload("res://Assets/UI/Shaders/card_locked.gdshader")
+## An AI card's "Threat N" is set this much smaller than a level, so the
+## longer word stays inside an S card in German too ("Bedrohung 4").
+const AI_LEVEL_SCALE := 0.8
 ## play_intro(): the card fades in while its frame grows from INTRO_FROM.
 const INTRO_TIME := 0.22
 const INTRO_FROM := Vector2(0.86, 0.86)
@@ -86,6 +92,9 @@ var xp_into: int = 0
 var xp_needed: int = 0
 var upgrades: int = 0
 var unlocked: bool = true
+## The Opponent Threat an AI opponent's card shows (apply_ai_build); -1 on a
+## card of the player's own.
+var ai_threat: int = -1
 ## A locked character's way to owning it (refresh() / _show read the save).
 var unlock_state: CharacterProgress.UnlockState = CharacterProgress.UnlockState.OWNED
 
@@ -137,6 +146,7 @@ func refresh() -> void:
 		_show_rumour()
 		return
 	var p := CharacterProgress.progress(character)
+	ai_threat = -1
 	apply_progress(p["level"], p["into"], p["needed"], CharacterProgress.upgrades_ready(character),
 			CharacterProgress.is_unlocked(character))
 
@@ -154,6 +164,14 @@ func apply_progress(lv: int, into: int, needed: int, ready_upgrades: int, is_unl
 		_show()
 	else:
 		_given = true
+
+
+## Shows `character` as an AI opponent at Opponent Threat `threat`: "Threat N"
+## where a card of the player's own has its level, and its AI build's ranks
+## out of the full build in the pill ("AI build 3/12").
+func apply_ai_build(threat: int, ranks: int, full: int) -> void:
+	ai_threat = maxi(threat, 0)
+	apply_progress(ai_threat + 1, ranks, full, 0, true)
 
 
 func _show() -> void:
@@ -175,14 +193,19 @@ func _show() -> void:
 		_show_locked()
 		return
 	unlock_state = CharacterProgress.UnlockState.OWNED
-	_level.text = tr("Lv.%d") % level
+	var ai := ai_threat >= 0
+	_apply_level_type()
+	_level.text = tr("Threat %d") % ai_threat if ai else tr("Lv.%d") % level
 	var can_upgrade := upgrades > 0
 	_pill.theme_type_variation = &"PillProgressReady" if can_upgrade else &"PillProgress"
 	# The red pill reads as one solid "ready" chip; otherwise it fills with XP.
 	_pill.max_value = maxi(xp_needed, 1)
 	_pill.value = _pill.max_value if can_upgrade else float(clampi(xp_into, 0, maxi(xp_needed, 1)))
 	_up_icon.visible = can_upgrade
-	_pill_label.text = str(upgrades) if can_upgrade else "%d/%d" % [xp_into, xp_needed]
+	if ai:
+		_pill_label.text = tr("AI build %d/%d") % [xp_into, xp_needed]
+	else:
+		_pill_label.text = str(upgrades) if can_upgrade else "%d/%d" % [xp_into, xp_needed]
 
 
 ## The "???" slot: locked frame, a big question mark and the rumour line.
@@ -261,8 +284,16 @@ func _apply_size() -> void:
 		c.add_theme_constant_override(&"outline_size", roundi(_base_outline[c] * k))
 	for c: Control in _base_min:
 		c.custom_minimum_size = (_base_min[c] * k).round()
+	_apply_level_type()
 	_dot.size = _dot.custom_minimum_size
 	_dot.position = Vector2(card_size.x - _dot.size.x * 0.7, -_dot.size.y * 0.3)
+
+
+## The level label's type at the card's size: smaller on an AI card.
+func _apply_level_type() -> void:
+	var k := SIZES[size_preset].y / SIZES[CardSize.M].y * (AI_LEVEL_SCALE if ai_threat >= 0 else 1.0)
+	_level.add_theme_font_size_override(&"font_size", roundi(_base_font[_level] * k))
+	_level.add_theme_constant_override(&"outline_size", roundi(_base_outline[_level] * k))
 
 
 ## A collection screen's staggered intro: after `delay` seconds the card

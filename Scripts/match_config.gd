@@ -43,11 +43,17 @@ static func for_current_match() -> MatchConfig:
 	return MatchConfig.new()
 
 
-func save_to_settings() -> void:
+## Puts the strategy into the settings without writing the save file (the
+## pre-round calls it on every dial change; from_settings() reads it back).
+func store() -> void:
 	PersistedData.set_setting(KEY_AGGRESSION, aggression)
 	PersistedData.set_setting(KEY_FARMING, farming)
 	PersistedData.set_setting(KEY_EXPLORATION, exploration)
 	PersistedData.set_setting(KEY_FORMATION, int(formation))
+
+
+func save_to_settings() -> void:
+	store()
 	PersistedData.save_data()
 
 

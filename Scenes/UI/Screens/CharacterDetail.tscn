@@ -12,6 +12,7 @@
 [ext_resource type="Texture2D" uid="uid://dn5jgb3btskwb" path="res://Assets/UI/Crests/crest_heroes.svg" id="10_crest_heroes"]
 [ext_resource type="Texture2D" uid="uid://bdseg8f8gscu8" path="res://Assets/UI/Crests/crest_monster.svg" id="11_crest_monster"]
 [ext_resource type="Texture2D" uid="uid://684mufur33bv" path="res://Assets/UI/Icons/UI/ui_level_up.svg" id="12_up"]
+[ext_resource type="Texture2D" uid="uid://dsq10cywejcyi" path="res://Assets/UI/Kit/dot_notify.svg" id="13_dot"]
 
 [node name="CharacterDetail" type="Control"]
 layout_mode = 3
@@ -293,6 +294,63 @@ theme_type_variation = &"PillText"
 text = "0"
 vertical_alignment = 1
 
+[node name="SideTabs" type="HBoxContainer" parent="Column"]
+unique_name_in_owner = true
+visible = false
+custom_minimum_size = Vector2(0, 58)
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="HeroesSide" type="Button" parent="Column/SideTabs"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"TabButton"
+toggle_mode = true
+text = "HEROES"
+
+[node name="HeroesSideDot" type="TextureRect" parent="Column/SideTabs/HeroesSide"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -26.0
+offset_top = -6.0
+offset_right = -2.0
+offset_bottom = 18.0
+grow_horizontal = 0
+mouse_filter = 2
+texture = ExtResource("13_dot")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="MonsterSide" type="Button" parent="Column/SideTabs"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"TabButton"
+toggle_mode = true
+text = "MONSTER"
+
+[node name="MonsterSideDot" type="TextureRect" parent="Column/SideTabs/MonsterSide"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -26.0
+offset_top = -6.0
+offset_right = -2.0
+offset_bottom = 18.0
+grow_horizontal = 0
+mouse_filter = 2
+texture = ExtResource("13_dot")
+expand_mode = 1
+stretch_mode = 5
+
 [node name="Overview" type="VBoxContainer" parent="Column"]
 unique_name_in_owner = true
 layout_mode = 2
@@ -538,6 +596,8 @@ layout_mode = 1
 [connection signal="character_pressed" from="Column/Stage/StageInner/Area/Showcase" to="." method="_on_showcase_pressed"]
 [connection signal="pressed" from="Column/Tabs/OverviewTab" to="." method="_on_overview_tab_pressed"]
 [connection signal="pressed" from="Column/Tabs/TreeTab" to="." method="_on_tree_tab_pressed"]
+[connection signal="pressed" from="Column/SideTabs/HeroesSide" to="." method="_on_side_tab_pressed" binds=[0]]
+[connection signal="pressed" from="Column/SideTabs/MonsterSide" to="." method="_on_side_tab_pressed" binds=[1]]
 [connection signal="tile_pressed" from="Column/Overview/Abilities/Ability0" to="." method="_on_ability_tile_pressed"]
 [connection signal="tile_pressed" from="Column/Overview/Abilities/Ability1" to="." method="_on_ability_tile_pressed"]
 [connection signal="tile_pressed" from="Column/Overview/Abilities/Ability2" to="." method="_on_ability_tile_pressed"]

@@ -8,6 +8,7 @@
 [ext_resource type="PackedScene" uid="uid://c0uaufrfa60fu" path="res://Scenes/UI/Components/UnlockSheet.tscn" id="6_unlock_sheet"]
 [ext_resource type="PackedScene" uid="uid://itw021y2sgdc" path="res://Scenes/UI/Screens/PreRoundScreen.tscn" id="7_pre_round"]
 [ext_resource type="PackedScene" uid="uid://bkc0dexscr8n4" path="res://Scenes/UI/Screens/CodexScreen.tscn" id="8_codex"]
+[ext_resource type="Script" uid="uid://ch852csopgwyn" path="res://Scenes/UI/Components/tap_guard.gd" id="9_tap_guard"]
 
 [node name="MenuRoot" type="Control" node_paths=PackedStringArray("lobby", "hero_roster", "monster_roster", "detail", "growth", "unlock_sheet", "pre_round", "codex")]
 layout_mode = 3
@@ -70,6 +71,10 @@ layout_mode = 1
 [node name="UnlockSheet" parent="." instance=ExtResource("6_unlock_sheet")]
 visible = false
 layout_mode = 1
+
+[node name="TapGuard" type="Node" parent="."]
+unique_name_in_owner = true
+script = ExtResource("9_tap_guard")
 
 [connection signal="side_chosen" from="Screens/LobbyScreen" to="." method="_on_side_chosen"]
 [connection signal="hunt_requested" from="Screens/LobbyScreen" to="." method="_on_hunt_requested"]

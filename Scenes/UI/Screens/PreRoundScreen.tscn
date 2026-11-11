@@ -22,6 +22,7 @@
 [ext_resource type="Texture2D" uid="uid://38j8pwjum2d8" path="res://Assets/UI/Icons/Stats/stat_xp.svg" id="21_xp"]
 [ext_resource type="Texture2D" uid="uid://dys3gnhljaaxn" path="res://Assets/UI/Icons/UI/ui_skull.svg" id="22_skull"]
 [ext_resource type="Texture2D" uid="uid://bgk5hk8b80cvs" path="res://Assets/UI/Icons/Nav/nav_monsters.svg" id="23_horns"]
+[ext_resource type="Script" uid="uid://ch852csopgwyn" path="res://Scenes/UI/Components/tap_guard.gd" id="24_tap_guard"]
 
 [node name="PreRoundScreen" type="Control"]
 layout_mode = 3
@@ -660,9 +661,8 @@ anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
 offset_left = 16.0
-offset_top = -520.0
+offset_top = -496.0
 offset_right = -16.0
-offset_bottom = -24.0
 grow_horizontal = 2
 grow_vertical = 0
 theme_type_variation = &"SheetPanel"
@@ -714,6 +714,11 @@ text = "RANDOM"
 icon = ExtResource("14_swap")
 icon_alignment = 2
 
+[node name="TapGuard" type="Node" parent="."]
+unique_name_in_owner = true
+script = ExtResource("24_tap_guard")
+
+[connection signal="hidden" from="." to="." method="_on_hidden"]
 [connection signal="card_pressed" from="Scroll/Body/Column/Quarry/QuarryCard" to="." method="_on_quarry_card_pressed"]
 [connection signal="pressed" from="Scroll/Body/Column/Quarry/QuarryInfo/Change" to="." method="_on_change_pressed"]
 [connection signal="chosen" from="Scroll/Body/Column/Instincts/Lurker" to="." method="_on_instinct_chosen"]

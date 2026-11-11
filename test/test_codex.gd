@@ -2,7 +2,8 @@ extends TestCase
 
 ## The CodexScreen (README "Codex"): the guide (the tutorial's chapters as
 ## cards, the replays), the monster pages in the order the quarries were met
-## (PersistedData [codex] monsters) with their field notes, stages,
+## (PersistedData [codex] monsters), then the player's own monsters, with
+## their field notes, stages,
 ## counterplay and abilities, the unmet monsters as locked pages, the hero
 ## pages, the unseen-pages count behind the nav bar's Codex dot, and MenuRoot
 ## opening it from the nav bar and replaying the guide. Tests that write the
@@ -111,9 +112,11 @@ func test_hero_pages_and_the_guide() -> void:
 func test_new_pages_light_the_dot_until_the_codex_opens() -> void:
 	if not require_isolated():
 		return
-	assert_eq(CodexScreen.unseen_monsters(), 0)
+	assert_eq(CodexScreen.unseen_monsters(), 1, "the player's own monster has a page from the start")
 	PersistedData.add_codex_entry(PersistedData.CODEX_MONSTERS, &"grount")
-	assert_eq(CodexScreen.unseen_monsters(), 1, "a first sighting is news")
+	assert_eq(CodexScreen.unseen_monsters(), 1, "hunting it adds no second page")
+	PersistedData.add_codex_entry(PersistedData.CODEX_MONSTERS, &"nyxa")
+	assert_eq(CodexScreen.unseen_monsters(), 2, "a first sighting is news")
 	var codex := _codex()
 	assert_eq(codex.page, CodexScreen.PAGE_MONSTERS, "the Codex opens on the new page")
 	assert_eq(CodexScreen.unseen_monsters(), 0, "and it is seen")

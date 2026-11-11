@@ -56,7 +56,7 @@ Progress Reset,Progress Reset,Fortschritt zurückgesetzt
 DISPLAY,DISPLAY,ANZEIGE
 Screen shake,Screen shake,Bildschirmwackeln
 Usage statistics,Usage statistics,Nutzungsstatistik
-Stored only on this device (user://analytics.jsonl). Nothing is uploaded.,Stored only on this device (user://analytics.jsonl). Nothing is uploaded.,Wird nur auf diesem Gerät gespeichert (user://analytics.jsonl). Nichts wird hochgeladen.
+Stored only on this device. Nothing is uploaded.,Stored only on this device. Nothing is uploaded.,Wird nur auf diesem Gerät gespeichert. Nichts wird hochgeladen.
 Master,Master,Gesamt
 Music,Music,Musik
 Effects,Effects,Effekte
@@ -246,7 +246,7 @@ The hunters' camp,The hunters' camp,Das Lager der Jäger
 The beast's lair,The beast's lair,Der Bau der Bestie
 "Tap the lair to play the Monster. Your beast starts weak, eats mob camps to evolve and then hunts the hunters. A locked beast shows its price.","Tap the lair to play the Monster. Your beast starts weak, eats mob camps to evolve and then hunts the hunters. A locked beast shows its price.","Tippe auf den Bau, um das Monster zu spielen. Deine Bestie beginnt schwach, frisst Mob-Lager, um sich zu entwickeln, und jagt dann die Jäger. Eine gesperrte Bestie zeigt ihren Preis."
 "The arch starts a round for the side you picked: set the hunters' strategy or choose your beast, then go.","The arch starts a round for the side you picked: set the hunters' strategy or choose your beast, then go.","Der Bogen startet eine Runde für die gewählte Seite: Lege die Strategie der Jäger fest oder wähle deine Bestie, dann los."
-"Every match pays Steel, Leaves, Gold and XP for the Heroes, Monsters and Growth trees. The Codex keeps this guide and a page for every beast you meet.","Every match pays Steel, Leaves, Gold and XP for the Heroes, Monsters and Growth trees. The Codex keeps this guide and a page for every beast you meet.","Jede Partie bringt Stahl, Blätter, Gold und EP für die Bäume der Helden, Monster und des Wachstums. Der Kodex bewahrt diese Anleitung und eine Seite für jede Bestie, der du begegnest."
+"Every match pays Steel, Leaves, Gold and XP. Spend them on skill trees: open a character under Heroes or Monsters and tap SKILL TREE. Growth holds the tree a whole side shares.","Every match pays Steel, Leaves, Gold and XP. Spend them on skill trees: open a character under Heroes or Monsters and tap SKILL TREE. Growth holds the tree a whole side shares.","Jede Partie bringt Stahl, Blätter, Gold und EP. Gib sie in Talentbäumen aus: Öffne einen Charakter unter Helden oder Monster und tippe auf TALENTBAUM. Wachstum enthält den Baum, den eine ganze Seite teilt."
 Abilities cast themselves,Abilities cast themselves,Fähigkeiten wirken von selbst
 Your side fights on its own. The ring sweeping over a slot is its cooldown and the number the seconds left; a glowing slot is an ultimate ready to fire.,Your side fights on its own. The ring sweeping over a slot is its cooldown and the number the seconds left; a glowing slot is an ultimate ready to fire.,"Deine Seite kämpft selbstständig. Der Ring, der über ein Feld läuft, ist seine Abklingzeit und die Zahl die verbleibenden Sekunden; ein leuchtendes Feld ist eine Ultimative, die bereit ist."
 Pause and speed,Pause and speed,Pause und Tempo
@@ -273,3 +273,6 @@ Not met yet. Hunt it to fill this page.,Not met yet. Hunt it to fill this page.,
 "After taking damage, gain 50% movement speed and 50% attack speed for 3 seconds","After taking damage, gain 50% movement speed and 50% attack speed for 3 seconds",Nach erlittenem Schaden für 3 Sekunden 50% mehr Lauftempo und 50% mehr Angriffstempo
 Ram Dash hits everything within 70 px of his path and recharges twice as fast at Stage 3,Ram Dash hits everything within 70 px of his path and recharges twice as fast at Stage 3,Rammsturm trifft alles im Umkreis von 70 px um seine Bahn und lädt ab Stufe 3 doppelt so schnell auf
 A Warcry Stomp cast at a hero turns the Hogs within 250 px into his warband for 20 s,A Warcry Stomp cast at a hero turns the Hogs within 250 px into his warband for 20 s,Ein auf einen Helden gewirktes Kriegsstampfen macht die Keiler im Umkreis von 250 px für 20 s zu seiner Kriegsschar
+The Codex,The Codex,Der Kodex
+The Codex keeps this guide and a page for every beast you meet or own.,The Codex keeps this guide and a page for every beast you meet or own.,"Der Kodex bewahrt diese Anleitung und eine Seite für jede Bestie, der du begegnest oder die dir gehört."
+AI build %d/%d,AI build %d/%d,KI-Ausbau %d/%d

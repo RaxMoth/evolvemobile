@@ -15,7 +15,10 @@ extends Control
 ## UNLOCK only reports unlock_confirmed(character): MenuRoot buys it
 ## (CharacterProgress.unlock) and closes the sheet, or calls refresh() when
 ## the purchase did not go through. CANCEL, a tap on the scrim and ui_cancel
-## close it. Every connection inside the sheet is in UnlockSheet.tscn.
+## close it. While it slides up it holds its TapGuard: the second tap of the
+## double tap that opened it never closes it on the scrim. The panel reaches
+## the bottom edge (SheetPanel has no bottom border). Every connection inside
+## the sheet is in UnlockSheet.tscn.
 
 signal unlock_confirmed(character: CharacterDef)
 
@@ -46,6 +49,7 @@ var _tween: Tween = null
 @onready var _unlock: Button = %Unlock
 @onready var _cost_icon: TextureRect = %CostIcon
 @onready var _cost_value: Label = %CostValue
+@onready var _tap_guard: TapGuard = %TapGuard
 
 
 func _ready() -> void:
@@ -67,6 +71,7 @@ func open_for(def: CharacterDef) -> void:
 	refresh()
 	_open = true
 	visible = true
+	_tap_guard.hold(SLIDE_TIME)
 	_kill_tween()
 	_scrim.modulate.a = 0.0
 	_slide.position.y = size.y

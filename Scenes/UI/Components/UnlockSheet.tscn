@@ -4,6 +4,7 @@
 [ext_resource type="Texture2D" uid="uid://b250ke07i0yes" path="res://Assets/UI/Kit/padlock.svg" id="2_lock"]
 [ext_resource type="Texture2D" uid="uid://b5uxakr60rax8" path="res://Assets/UI/Icons/Currency/currency_leaves.svg" id="3_leaves"]
 [ext_resource type="Theme" uid="uid://eroe1xxhr5fc" path="res://Scenes/UI/Theme/ui_theme.tres" id="4_theme"]
+[ext_resource type="Script" uid="uid://ch852csopgwyn" path="res://Scenes/UI/Components/tap_guard.gd" id="5_tap_guard"]
 
 [node name="UnlockSheet" type="Control"]
 layout_mode = 3
@@ -41,9 +42,8 @@ anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
 offset_left = 16.0
-offset_top = -430.0
+offset_top = -406.0
 offset_right = -16.0
-offset_bottom = -24.0
 grow_horizontal = 2
 grow_vertical = 0
 theme_type_variation = &"SheetPanel"
@@ -181,6 +181,10 @@ theme_type_variation = &"Counter"
 theme_override_font_sizes/font_size = 24
 text = "0"
 vertical_alignment = 1
+
+[node name="TapGuard" type="Node" parent="."]
+unique_name_in_owner = true
+script = ExtResource("5_tap_guard")
 
 [connection signal="gui_input" from="Scrim" to="." method="_on_scrim_gui_input"]
 [connection signal="pressed" from="Slide/Sheet/Column/Buttons/Cancel" to="." method="_on_cancel_pressed"]

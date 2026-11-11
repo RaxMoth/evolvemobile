@@ -17,8 +17,9 @@ const MOCKUP_SCENE := "res://tools/preview/ThemeMockup.tscn"
 const MOCKUP_SCRIPT := "res://tools/preview/theme_mockup.gd"
 const PALETTE_SCENE := "res://tools/preview/PaletteSheet.tscn"
 const PALETTE_JSON := "res://tools/art/palette.json"
-## Group folder -> SVG count (tools/art/build.py GROUPS, plus Lobby: the
-## lobby's hand-drawn backdrops and VS badge from the UX design, no generator).
+## Group folder -> SVG count (tools/art/build.py GROUPS; in Lobby the two
+## backdrops and the VS badge are hand-drawn from the UX design, the cave
+## above the lair, lobby_monsters_top, comes from tools/art/lobby.py).
 const GROUP_COUNTS: Dictionary[String, int] = {
 	"Kit": 64,
 	"Crests": 2,
@@ -28,7 +29,7 @@ const GROUP_COUNTS: Dictionary[String, int] = {
 	"Icons/Roles": 9,
 	"Icons/Nav": 6,
 	"Icons/UI": 17,
-	"Lobby": 3,
+	"Lobby": 4,
 }
 ## Every character's ability icons, <owner>_<slot>_<ability>.
 const ABILITY_ICONS: Array[String] = [

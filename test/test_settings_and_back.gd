@@ -14,6 +14,8 @@ const PAUSE_MENU := preload("res://Scenes/UI/Hud/PauseMenu.tscn")
 const MENU_ROOT := preload("res://Scenes/UI/Screens/MenuRoot.tscn")
 const LOBBY := preload("res://Scenes/UI/Screens/LobbyScreen.tscn")
 const RESULT := preload("res://Scenes/UI/Screens/MatchResultScreen.tscn")
+## The result's buttons have faded in and its TapGuard has let go (about 1.3 s).
+const INTRO_SHOWN := 1.5
 
 var _world_before: PackedScene = null
 var _side_before: int = MatchRewards.Side.HEROES
@@ -93,6 +95,7 @@ func test_reset_needs_a_second_tap() -> void:
 	reset.pressed.emit()
 	assert_eq(PersistedData.get_currency(PersistedData.GOLD), 500, "the first tap only arms it")
 	assert_eq(reset.text, "Tap again to confirm")
+	await wait_seconds(ConfirmButton.MIN_GAP + 0.05)
 	reset.pressed.emit()
 	assert_eq(PersistedData.get_currency(PersistedData.GOLD), 0, "the second tap wipes the progress")
 	assert_true(reset.disabled)
@@ -140,6 +143,7 @@ func test_pause_menu_pauses_resumes_and_quits_on_a_second_tap() -> void:
 	quit.pressed.emit()
 	assert_eq(quits[0], 0, "the first tap only arms QUIT")
 	assert_true((menu.get_node("%Hint") as Control).visible, "and says it pays nothing")
+	await wait_seconds(ConfirmButton.MIN_GAP + 0.05)
 	quit.pressed.emit()
 	assert_eq(quits[0], 1, "the second tap leaves")
 	menu.queue_free()
@@ -188,6 +192,9 @@ func test_result_screen_back_is_lobby() -> void:
 	screen.populate(r)
 	var asked := [0]
 	screen.lobby_requested.connect(func() -> void: asked[0] += 1)
+	assert_true(_back(screen), "back during the intro is taken")
+	assert_eq(asked[0], 0, "and dropped: the result is still appearing")
+	await wait_seconds(INTRO_SHOWN)
 	assert_true(_back(screen))
 	assert_eq(asked[0], 1, "back is LOBBY")
 	screen.queue_free()

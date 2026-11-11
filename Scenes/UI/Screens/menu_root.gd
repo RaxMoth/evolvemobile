@@ -13,6 +13,9 @@ extends Control
 ##     in like a push but then sits right above the home screen (back returns
 ##     to the lobby), or, when it is already on the stack, the screens above it
 ##     slide away instead.
+##   - every push and pop holds the menu's TapGuard for the slide and a short
+##     grace time: the second tap of a double tap (on HUNT, on a back arrow)
+##     never lands on the screen that slides in under the finger.
 ##   - autoloads: the tree unpaused on entry (a match result pauses it), the
 ##     roster the match result's "upgrades ready" asked for
 ##     (GameManager.take_menu_roster) opened on entry, the menu music, the UI
@@ -26,12 +29,15 @@ extends Control
 ##     of the open screens when skills, currencies or owned monsters change,
 ##     and the nav bars' red dots: Heroes / Monsters while a character of that
 ##     side has a rank to buy (Monsters also while a locked monster can be
-##     bought), Growth while the chosen side's account tree has one.
+##     bought), Growth while either side's account tree has one.
 ## The rosters (Heroes / Monsters and the lobby's plaques) open a character's
 ## detail, or the unlock sheet for a locked character with a price; Growth
-## opens the chosen side's account-wide tree in the detail screen. HUNT (the
-## lobby's buttons, the nav bar's arch) pushes the PreRoundScreen of the
-## chosen side; its START HUNT starts the match against the quarry it shows
+## opens the chosen side's account-wide tree in the detail screen (its
+## HEROES / MONSTER tabs switch to the other one). HUNT pushes the
+## PreRoundScreen: the lobby's buttons for the chosen side, a nav bar's arch
+## for the side of the screen it is on (a roster's, a character's, Growth's
+## shown tree; the chosen side on the lobby and the Codex), which becomes the
+## chosen side. Its START HUNT starts the match against the quarry it shows
 ## (MatchConfig.quarry_id), its UNLEASH with the monster it picked
 ## (GameManager.choose_monster); a locked monster it shows that can be bought
 ## now opens the unlock sheet. The nav bar's Codex opens the CodexScreen (its
@@ -78,6 +84,7 @@ var _refresh_queued := false
 var _starting := false
 
 @onready var _screens: Control = %Screens
+@onready var _tap_guard: TapGuard = %TapGuard
 
 
 func _ready() -> void:
@@ -141,6 +148,7 @@ func push(screen: Control, replace: bool = false) -> void:
 	screen.visible = true
 	screen.modulate = Color.WHITE
 	screen.position.x = size.x
+	_tap_guard.hold(SLIDE_TIME)
 	_slide = create_tween().set_parallel().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	_slide.tween_property(screen, ^"position:x", 0.0, SLIDE_TIME)
 	_slide.tween_property(below, ^"modulate", UiPalette.COVERED_SCREEN_MODULATE, SLIDE_TIME)
@@ -164,6 +172,7 @@ func pop_to(screen: Control) -> void:
 	var leaving := top()
 	_stack.resize(at + 1)
 	screen.visible = true
+	_tap_guard.hold(SLIDE_TIME)
 	_slide = create_tween().set_parallel().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	_slide.tween_property(leaving, ^"position:x", size.x, SLIDE_TIME)
 	_slide.tween_property(screen, ^"modulate", Color.WHITE, SLIDE_TIME)
@@ -279,9 +288,10 @@ func _refresh_screens() -> void:
 ## The red dots of every nav bar under the menu (NavBar.GROUP): Heroes and
 ## Monsters while a character of that side has a rank to buy now
 ## (CharacterProgress.upgrades_ready) or can itself be bought
-## (CharacterProgress.can_unlock), Growth while the chosen side's account
-## tree has one (MetaSkillManager.card_progress), Codex while it has monster
-## pages the player has not opened yet (CodexScreen.unseen_monsters).
+## (CharacterProgress.can_unlock), Growth while the heroes' or the monsters'
+## account tree has one (CharacterDetail.base_tree_ready; its HEROES / MONSTER
+## tabs carry a dot each), Codex while it has monster pages the player has not
+## opened yet (CodexScreen.unseen_monsters).
 func _update_nav_notify() -> void:
 	var heroes := false
 	var monsters := false
@@ -291,9 +301,8 @@ func _update_nav_notify() -> void:
 				monsters = true
 			else:
 				heroes = true
-	var monster_side := GameManager.chosen_side == MatchRewards.Side.MONSTER
-	var base := MetaSkillManager.TREE_MONSTER_BASE if monster_side else MetaSkillManager.TREE_HERO_BASE
-	var base_ready: bool = MetaSkillManager.card_progress(base)["upgrade_ready"]
+	var base_ready := CharacterDetail.base_tree_ready(MatchRewards.Side.HEROES) \
+			or CharacterDetail.base_tree_ready(MatchRewards.Side.MONSTER)
 	var codex_new := CodexScreen.unseen_monsters() > 0
 	for node in get_tree().get_nodes_in_group(NavBar.GROUP):
 		var bar := node as NavBar
@@ -331,21 +340,31 @@ func _start_match(quarry_id: StringName = &"") -> void:
 
 func _on_side_chosen(side: int) -> void:
 	GameManager.choose_side(side)
-	# Growth's dot follows the chosen side's account tree.
-	_update_nav_notify()
 
 
-## HUNT: the chosen side's pre-round first (README round structure step 1),
-## over the screen that asked. The pre-round persists its choices and only
-## asks us to start.
+## HUNT: `side`'s pre-round first (README round structure step 1), over the
+## screen that asked. A side other than the chosen one (the arch on the other
+## side's roster or character) becomes the chosen side, on the lobby too. The
+## pre-round persists its choices and only asks us to start.
 func _on_hunt_requested(side: int) -> void:
 	if _overlay_open() or unlock_sheet.is_open() or _stack.has(pre_round):
 		return
 	if side != GameManager.chosen_side:
 		GameManager.choose_side(side)
-		_update_nav_notify()
+		lobby.show_side(GameManager.chosen_side)
 	pre_round.open(GameManager.chosen_side)
 	push(pre_round)
+
+
+## The side a screen stands for (its nav arch glows in that colour and starts
+## that side's hunt): a roster's, a character's or Growth's shown tree; the
+## chosen side for the lobby and the Codex.
+func _screen_side(screen: Control) -> int:
+	if screen is RosterScreen:
+		return (screen as RosterScreen).side
+	if screen is CharacterDetail:
+		return (screen as CharacterDetail).shown_side()
+	return GameManager.chosen_side
 
 
 ## START HUNT: the heroes hunt the quarry the pre-round showed.
@@ -398,9 +417,10 @@ func _on_unlock_confirmed(character: CharacterDef) -> void:
 		unlock_sheet.refresh()
 
 
-## The chosen side's account-wide tree (nav bar Growth).
+## The account-wide trees (nav bar Growth): it opens on the chosen side's
+## tree; its HEROES / MONSTER tabs switch.
 func _open_growth() -> void:
-	if growth == top() and growth.base_side == GameManager.chosen_side:
+	if growth == top():
 		return
 	growth.show_base_tree(GameManager.chosen_side)
 	switch_to(growth)
@@ -425,7 +445,7 @@ func _on_equip_requested(tree_id: StringName, node_id: StringName) -> void:
 func _on_tab_selected(tab_id: StringName) -> void:
 	match tab_id:
 		&"hunt":
-			_on_hunt_requested(GameManager.chosen_side)
+			_on_hunt_requested(_screen_side(top()))
 		&"heroes":
 			_on_roster_requested(MatchRewards.Side.HEROES)
 		&"monsters":

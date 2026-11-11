@@ -13,9 +13,13 @@ extends Control
 ##     on every shake);
 ##   - PRIVACY: the local usage statistics (AnalyticsSink opt-out);
 ##   - RESET PROGRESS wipes the save (PersistedData.wipe_progress) behind a
-##     second tap within RESET_ARM_TIME;
+##     second tap (a ConfirmButton: armed for 3 s, and the confirming tap
+##     counts only ConfirmButton.MIN_GAP after the first, so one double tap
+##     never wipes);
 ##   - CLOSE, the round close button, a tap on the scrim and ui_cancel (the
 ##     Android back button) save and close it.
+## While it slides up it holds its TapGuard: the second tap of the double tap
+## that opened it never closes it on the scrim.
 ## The look is theme variations only (SheetPanel, HeaderLarge, Caption,
 ## PanelInset, BodyDim, HintLabel, ButtonRound, ButtonMonster, ButtonPrimary);
 ## the scrim takes the palette's bg_void.
@@ -26,10 +30,7 @@ signal closed
 ## Alpha of the bg_void scrim behind the sheet (the UnlockSheet's).
 const SCRIM_ALPHA := 0.72
 const SLIDE_TIME := 0.22
-## Seconds the armed RESET PROGRESS waits for its second tap.
-const RESET_ARM_TIME := 3.0
 
-var _reset_armed: bool = false
 var _closing: bool = false
 
 @onready var _scrim: ColorRect = %Scrim
@@ -38,7 +39,8 @@ var _closing: bool = false
 @onready var _language: OptionButton = %Language
 @onready var _shake: CheckButton = %Shake
 @onready var _analytics: CheckButton = %Analytics
-@onready var _reset_button: Button = %Reset
+@onready var _reset_button: ConfirmButton = %Reset
+@onready var _tap_guard: TapGuard = %TapGuard
 ## The volume sliders and their percentages by setting key (each slider's
 ## value_changed is bound to its key in the scene).
 @onready var _sliders: Dictionary[StringName, HSlider] = {
@@ -93,6 +95,7 @@ func is_closing() -> bool:
 
 
 func _slide_in() -> void:
+	_tap_guard.hold(SLIDE_TIME)
 	_scrim.modulate.a = 0.0
 	_slide.position.y = size.y
 	var t := create_tween().set_parallel().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
@@ -118,7 +121,7 @@ func _notification(what: int) -> void:
 func _show_reset_text() -> void:
 	if _reset_button.disabled:
 		_reset_button.text = tr("Progress Reset")
-	elif _reset_armed:
+	elif _reset_button.is_armed():
 		_reset_button.text = tr("Tap again to confirm")
 	else:
 		_reset_button.text = tr("Reset Progress")
@@ -150,23 +153,15 @@ func _on_analytics_toggled(enabled: bool) -> void:
 	AnalyticsSink.set_opt_out(not enabled)
 
 
-func _on_reset_pressed() -> void:
-	if not _reset_armed:
-		_reset_armed = true
-		_show_reset_text()
-		# Disarm after a short window if they don't confirm.
-		get_tree().create_timer(RESET_ARM_TIME, true).timeout.connect(_disarm_reset)
-		return
-	PersistedData.wipe_progress()
-	_reset_armed = false
-	_reset_button.disabled = true
+## RESET PROGRESS armed (its first tap) or disarmed (no second tap in time).
+func _on_reset_armed_changed(_armed: bool) -> void:
 	_show_reset_text()
 
 
-func _disarm_reset() -> void:
-	if not _reset_armed:
-		return
-	_reset_armed = false
+## The second tap: the save is wiped and the button is done.
+func _on_reset_confirmed() -> void:
+	PersistedData.wipe_progress()
+	_reset_button.disabled = true
 	_show_reset_text()
 
 

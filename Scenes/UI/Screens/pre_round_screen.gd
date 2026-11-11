@@ -10,7 +10,8 @@ extends Control
 ## Heroes ("The Hunt"):
 ##   - TONIGHT'S QUARRY: the monster this hunt faces (GameManager.next_quarry(),
 ##     the same until a hunt starts) as an L CharacterCard that shows the AI
-##     opponent's strength (Lv.(T+1); the pill: its AI build's ranks of the
+##     opponent's strength ("Threat T" where a card of the player's own has
+##     its level; the pill: "AI build n/12", its AI build's ranks of the
 ##     threat-4 build), its name, tagline and the icons of its three moves, the
 ##     NEW QUARRY banner until the heroes have hunted it once
 ##     (GameManager.is_new_quarry) and the ThreatBox. CHANGE (or a tap on the
@@ -19,11 +20,16 @@ extends Control
 ##     hunts" (hunts_until_quarry), plus RANDOM. A pick locks that quarry for
 ##     every hunt (GameManager.lock_quarry(id), persisted); RANDOM unlocks it
 ##     (lock_quarry(&"")): the random pick again, never the same twice in a row.
+##     The sheet holds the screen's TapGuard while it slides up: the second
+##     tap of a double tap on CHANGE never closes it on the scrim.
 ##   - YOUR HUNTERS: the roster's heroes on the campfire stage as live rigs
 ##     (StageCharacter, the right pair facing inward) with their Lv.N.
 ##   - STRATEGY (three StrategyRows) and FORMATION (three FormationTiles) edit a
 ##     MatchConfig read from the settings; the forecast says in plain words what
-##     the hero AI does with it (MatchConfig's derived values).
+##     the hero AI does with it (MatchConfig's derived values). Every change
+##     goes into the settings at once (MatchConfig.store) and the file is
+##     written when the screen is left (hidden: back, a nav tab) or the hunt
+##     starts, so a strategy set and left with back is still there next time.
 ##   - START HUNT persists the config (save_to_settings), tracks
 ##     pre_round_setup in AnalyticsSink and emits start_requested(config) with
 ##     the quarry in config.quarry_id.
@@ -43,6 +49,8 @@ extends Control
 ##     presets; the monster plays DEFAULT_INSTINCT, today's behaviour;
 ##   - UNLEASH tracks pre_round_monster and emits
 ##     monster_start_requested(monster_id, instinct).
+## START HUNT and UNLEASH act once per visit (open() arms them again): a
+## double tap tracks and asks for one start.
 ## The top bar's back emits cancelled (MenuRoot pops the screen, as it does on
 ## ui_cancel); ui_cancel closes an open quarry sheet first.
 
@@ -101,6 +109,10 @@ var _picker_cards: Array[CharacterCard] = []
 var _sheet_cards: Array[CharacterCard] = []
 var _sheet_open := false
 var _sheet_tween: Tween = null
+## The strategy in the settings is newer than the save file.
+var _config_unsaved := false
+## START HUNT / UNLEASH was pressed on this visit.
+var _started := false
 
 @onready var _top_bar: TopBar = %TopBar
 @onready var _scroll: ScrollContainer = %Scroll
@@ -134,6 +146,7 @@ var _sheet_tween: Tween = null
 @onready var _sheet_cards_row: HBoxContainer = %SheetCards
 @onready var _lock_state: Label = %LockState
 @onready var _random: Button = %Random
+@onready var _tap_guard: TapGuard = %TapGuard
 
 
 func _ready() -> void:
@@ -150,6 +163,7 @@ func _ready() -> void:
 ## the strategy, or the owned monsters and the player's own one.
 func open(for_side: int) -> void:
 	side = MatchRewards.Side.MONSTER if for_side == MatchRewards.Side.MONSTER else MatchRewards.Side.HEROES
+	_started = false
 	_close_sheet_now()
 	_scroll.scroll_vertical = 0
 	_apply_side()
@@ -290,14 +304,14 @@ func _show_quarry(def: CharacterDef) -> void:
 				.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 
-## An AI opponent's card: Lv.(threat + 1) and its AI build's ranks out of the
-## full (threat-4) build, whatever the Monster side owns.
+## An AI opponent's card: "Threat N" and its AI build's ranks out of the full
+## (threat-4) build ("AI build 3/12"), whatever the Monster side owns.
 static func _show_ai_card(card: CharacterCard, def: CharacterDef, threat: int) -> void:
 	var tree_id := MetaSkillManager.monster_tree_id(def.character_id())
 	card.character = def
 	card.locked_note = ""
-	card.apply_progress(threat + 1, MetaSkillManager.ai_build_size(tree_id, threat),
-			MetaSkillManager.ai_build_size(tree_id, MetaSkillManager.MAX_THREAT), 0, true)
+	card.apply_ai_build(threat, MetaSkillManager.ai_build_size(tree_id, threat),
+			MetaSkillManager.ai_build_size(tree_id, MetaSkillManager.MAX_THREAT))
 
 
 func _refresh_forecast() -> void:
@@ -319,6 +333,7 @@ func open_sheet() -> void:
 	_build_sheet()
 	_sheet_open = true
 	_sheet.visible = true
+	_tap_guard.hold(SHEET_TIME)
 	_kill_sheet_tween()
 	_scrim.modulate.a = 0.0
 	_slide.position.y = size.y
@@ -503,25 +518,41 @@ func _on_top_bar_left_pressed() -> void:
 
 func _on_aggression_changed(v: float) -> void:
 	collect_config().aggression = v
-	_refresh_forecast()
+	_config_changed()
 
 
 func _on_farming_changed(v: float) -> void:
 	collect_config().farming = v
-	_refresh_forecast()
+	_config_changed()
 
 
 func _on_exploration_changed(v: float) -> void:
 	collect_config().exploration = v
-	_refresh_forecast()
+	_config_changed()
 
 
 func _on_formation_chosen(choice_id: StringName) -> void:
 	var formation := FORMATION_IDS.find(choice_id)
-	if formation < 0:
+	if formation < 0 or formation == int(collect_config().formation):
 		return
 	collect_config().formation = formation as MatchConfig.Formation
+	_config_changed()
+
+
+## A dial or the formation changed: the settings hold it at once; the file is
+## written when the screen is left (_on_hidden) or the hunt starts.
+func _config_changed() -> void:
+	collect_config().store()
+	_config_unsaved = true
 	_refresh_forecast()
+
+
+## The screen was left (back, a nav tab; MenuRoot hides it once it has slid
+## out): the strategy changed on this visit goes to the save file.
+func _on_hidden() -> void:
+	if _config_unsaved:
+		_config_unsaved = false
+		PersistedData.save_data()
 
 
 func _on_instinct_chosen(choice_id: StringName) -> void:
@@ -553,8 +584,12 @@ func _on_scrim_gui_input(event: InputEvent) -> void:
 
 
 func _on_hero_start_pressed() -> void:
+	if _started:
+		return
+	_started = true
 	var cfg := collect_config()
 	cfg.save_to_settings()
+	_config_unsaved = false
 	AnalyticsSink.track(&"pre_round_setup", {
 		"aggression": cfg.aggression, "farming": cfg.farming,
 		"exploration": cfg.exploration, "formation": int(cfg.formation),
@@ -564,8 +599,9 @@ func _on_hero_start_pressed() -> void:
 
 
 func _on_monster_start_pressed() -> void:
-	if monster == null:
+	if monster == null or _started:
 		return
+	_started = true
 	AnalyticsSink.track(&"pre_round_monster", {
 		"monster": String(monster.character_id()), "instinct": String(instinct),
 	})

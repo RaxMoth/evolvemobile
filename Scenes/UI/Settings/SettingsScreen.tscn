@@ -3,6 +3,8 @@
 [ext_resource type="Script" path="res://Scenes/UI/Settings/settings_screen.gd" id="1_script"]
 [ext_resource type="Theme" path="res://Scenes/UI/Theme/ui_theme.tres" id="2_theme"]
 [ext_resource type="Texture2D" path="res://Assets/UI/Icons/UI/ui_close.svg" id="3_close"]
+[ext_resource type="Script" uid="uid://ch852csopgwyn" path="res://Scenes/UI/Components/tap_guard.gd" id="4_tap_guard"]
+[ext_resource type="PackedScene" uid="uid://dq3w6c1x0n5fa" path="res://Scenes/UI/Components/ConfirmButton.tscn" id="5_confirm"]
 
 [node name="SettingsScreen" type="Control"]
 layout_mode = 3
@@ -246,19 +248,17 @@ layout_mode = 2
 [node name="Hint" type="Label" parent="Slide/Sheet/VBox/PrivacyPanel/Rows"]
 layout_mode = 2
 theme_type_variation = &"HintLabel"
-text = "Stored only on this device (user://analytics.jsonl). Nothing is uploaded."
+text = "Stored only on this device. Nothing is uploaded."
 autowrap_mode = 3
 
 [node name="Buttons" type="HBoxContainer" parent="Slide/Sheet/VBox"]
 layout_mode = 2
 theme_override_constants/separation = 12
 
-[node name="Reset" type="Button" parent="Slide/Sheet/VBox/Buttons"]
+[node name="Reset" parent="Slide/Sheet/VBox/Buttons" instance=ExtResource("5_confirm")]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 64)
 layout_mode = 2
 size_flags_horizontal = 3
-theme_type_variation = &"ButtonMonster"
 text = "Reset Progress"
 
 [node name="Close" type="Button" parent="Slide/Sheet/VBox/Buttons"]
@@ -269,6 +269,10 @@ size_flags_horizontal = 3
 theme_type_variation = &"ButtonPrimary"
 text = "Close"
 
+[node name="TapGuard" type="Node" parent="."]
+unique_name_in_owner = true
+script = ExtResource("4_tap_guard")
+
 [connection signal="gui_input" from="Scrim" to="." method="_on_scrim_gui_input"]
 [connection signal="pressed" from="Slide/Sheet/VBox/Header/CloseRound" to="." method="_on_close_pressed"]
 [connection signal="value_changed" from="Slide/Sheet/VBox/AudioPanel/Rows/MasterRow/Master" to="." method="_on_volume_changed" binds=[&"master_volume"]]
@@ -277,5 +281,6 @@ text = "Close"
 [connection signal="item_selected" from="Slide/Sheet/VBox/LanguagePanel/Row/Language" to="." method="_on_language_selected"]
 [connection signal="toggled" from="Slide/Sheet/VBox/DisplayPanel/Row/Shake" to="." method="_on_shake_toggled"]
 [connection signal="toggled" from="Slide/Sheet/VBox/PrivacyPanel/Rows/Row/Analytics" to="." method="_on_analytics_toggled"]
-[connection signal="pressed" from="Slide/Sheet/VBox/Buttons/Reset" to="." method="_on_reset_pressed"]
+[connection signal="armed_changed" from="Slide/Sheet/VBox/Buttons/Reset" to="." method="_on_reset_armed_changed"]
+[connection signal="confirmed" from="Slide/Sheet/VBox/Buttons/Reset" to="." method="_on_reset_confirmed"]
 [connection signal="pressed" from="Slide/Sheet/VBox/Buttons/Close" to="." method="_on_close_pressed"]

@@ -14,7 +14,10 @@ extends Node
 ##               monster the heroes hunted last), locked_quarry (the one the
 ##               pre-round Change picker fixed; "" = random)
 ##   [codex]     monsters = ["grount", ...]  the quarries the heroes have met
-##               (their Codex entries; GameManager.begin_hunt adds them)
+##               (their Codex entries; GameManager.begin_hunt adds them),
+##               monsters_seen = N  the monster pages the player has seen
+##               (the Codex's "new page" dot counts from here; with the Codex,
+##               so Reset Progress clears it)
 ##   [settings]  music_volume, sfx_volume, etc.
 ## ([skills] <tree_id> = ["skill_id", ...] was the v1/v2 layout: every listed id
 ##  migrates to rank 1, so no purchase is lost or re-priced.) [monsters] and
@@ -542,6 +545,21 @@ func add_codex_entry(kind: StringName, id: StringName) -> bool:
 		return false
 	_append_id(SECTION_CODEX, String(kind), id)
 	return true
+
+
+## How many pages of a Codex kind the player has seen (the Codex writes it
+## when it opens). It lives with the Codex, so Reset Progress clears it.
+func get_codex_seen(kind: StringName) -> int:
+	return _as_non_negative_int(_config.get_value(SECTION_CODEX, _codex_seen_key(kind), 0))
+
+
+func set_codex_seen(kind: StringName, count: int) -> void:
+	_config.set_value(SECTION_CODEX, _codex_seen_key(kind), maxi(count, 0))
+	_dirty = true
+
+
+static func _codex_seen_key(kind: StringName) -> String:
+	return "%s_seen" % kind
 
 
 ## A saved list of ids (Strings in the file), typed; anything else in it is

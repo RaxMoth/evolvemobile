@@ -45,13 +45,13 @@ mouse_filter = 2
 theme_override_constants/separation = 4
 alignment = 1
 
-[node name="TabHeroes" parent="Tabs" instance=ExtResource("2_tab")]
+[node name="TabHeroes" parent="Tabs" groups=["tutorial_trees"] instance=ExtResource("2_tab")]
 layout_mode = 2
 text = "Heroes"
 icon = ExtResource("4_heroes")
 tab_id = &"heroes"
 
-[node name="TabGrowth" parent="Tabs" instance=ExtResource("2_tab")]
+[node name="TabGrowth" parent="Tabs" groups=["tutorial_trees"] instance=ExtResource("2_tab")]
 layout_mode = 2
 text = "Growth"
 icon = ExtResource("5_growth")
@@ -67,7 +67,7 @@ text = "Codex"
 icon = ExtResource("6_codex")
 tab_id = &"codex"
 
-[node name="TabMonsters" parent="Tabs" instance=ExtResource("2_tab")]
+[node name="TabMonsters" parent="Tabs" groups=["tutorial_trees"] instance=ExtResource("2_tab")]
 layout_mode = 2
 text = "Monsters"
 icon = ExtResource("7_monsters")

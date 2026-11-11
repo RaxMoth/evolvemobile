@@ -2,12 +2,14 @@ class_name RosterScreen
 extends Control
 
 ## One side's collection, the nav bar's Heroes or Monsters tab: the side's
-## characters from GameManager.ROSTER as a 4-column grid of M CharacterCards
-## (live rigs, level, XP or "upgrades ready" pill) followed by the side's one
-## "???" rumour card, under a row of role filters (FilterTab buttons with the
-## role icons; heroes: all, tank, melee, ranged, support, monsters: all, brute,
-## stalker, swarm) and the owned / total count. When the screen opens the cards
-## drop in one after another (CARD_STAGGER).
+## characters from GameManager.ROSTER as a centred grid of M CharacterCards
+## (live rigs, level, XP or "upgrades ready" pill; 4 columns on a phone, more
+## when the screen is wider: grid_columns) followed by the side's one "???"
+## rumour card, under a row of role filters (FilterTab buttons with the role
+## icons; heroes: all, tank, melee, ranged, support, monsters: all, brute,
+## stalker, swarm; a role no character of the side has gets no button) and the
+## owned / total count. When the screen opens the cards drop in one after
+## another (CARD_STAGGER).
 ##
 ## Tapping an owned character asks for its detail (character_requested); so
 ## does a locked one that can be bought (Nyxa, Gorrak: MenuRoot opens the
@@ -27,11 +29,14 @@ const ALL: StringName = &"all"
 const CARD_STAGGER := 0.04
 const SHAKE_PX := 8.0
 const SHAKE_STEP := 0.04
+## The grid never has fewer columns than the phone layout.
+const MIN_COLUMNS := 4
 
 ## MatchRewards.Side values (CharacterDef.HEROES / MONSTER).
 @export_enum("Heroes", "Monster") var side: int = CharacterDef.HEROES
 ## Role filters in row order, "all" first; the icons are
 ## Assets/UI/Icons/Roles/role_<key>.svg and a key matches CharacterDef.role_filter.
+## A key no character of the side carries is skipped (shown_filters).
 @export var filters: Array[StringName] = [&"all", &"tank", &"melee", &"ranged", &"support"]
 ## Live rigs on the cards (false: static portraits, for big grids).
 @export var animated_cards: bool = true
@@ -50,6 +55,7 @@ var _filter_buttons: Dictionary[StringName, Button] = {}
 @onready var _filters: HBoxContainer = %Filters
 @onready var _count: Label = %Count
 @onready var _grid: GridContainer = %Grid
+@onready var _grid_margin: MarginContainer = %Margin
 @onready var _empty: Label = %Empty
 @onready var _nav: NavBar = %NavBar
 
@@ -61,6 +67,7 @@ func _ready() -> void:
 	_top_bar.show_leaves = monster
 	_nav.active_tab = own_tab()
 	_build_filters()
+	_fit_columns()
 
 
 func is_monster() -> bool:
@@ -77,6 +84,30 @@ func characters() -> Array[CharacterDef]:
 	return GameManager.ROSTER.monsters if is_monster() else GameManager.ROSTER.heroes
 
 
+## The filters that get a button: "all" and every role a character of the
+## side has, in `filters` order.
+func shown_filters() -> Array[StringName]:
+	var out: Array[StringName] = []
+	for key in filters:
+		if key == ALL or _has_role(key):
+			out.append(key)
+	return out
+
+
+func _has_role(key: StringName) -> bool:
+	for def in characters():
+		if def != null and def.role_filter == key:
+			return true
+	return false
+
+
+## How many M cards fit side by side in `width` px between the grid's margins
+## (never fewer than MIN_COLUMNS).
+static func grid_columns(width: float, margins: float, separation: float) -> int:
+	var card := CharacterCard.SIZES[CharacterCard.CardSize.M].x
+	return maxi(MIN_COLUMNS, floori((width - margins + separation) / (card + separation)))
+
+
 ## The character cards in grid order (the rumour card is not one of them).
 func cards() -> Array[CharacterCard]:
 	return _cards
@@ -91,7 +122,8 @@ func rumour_card() -> CharacterCard:
 func open() -> void:
 	if _cards.is_empty() and _rumour == null:
 		_build_cards()
-	_nav.monster_side = GameManager.chosen_side == MatchRewards.Side.MONSTER
+	# The arch starts this side's hunt (MenuRoot) and glows in its colour.
+	_nav.monster_side = is_monster()
 	_nav.active_tab = own_tab()
 	refresh()
 	set_filter(active_filter)
@@ -133,7 +165,7 @@ func play_intro() -> void:
 
 
 func _build_filters() -> void:
-	for key in filters:
+	for key in shown_filters():
 		var b := Button.new()
 		b.name = "Filter_%s" % key
 		b.theme_type_variation = &"FilterTab"
@@ -190,7 +222,18 @@ func _on_card_pressed(character: CharacterDef, card: CharacterCard) -> void:
 	character_requested.emit(character)
 
 
+## The grid's columns for the screen's width (a tablet shows more).
+func _fit_columns() -> void:
+	var margins := float(_grid_margin.get_theme_constant(&"margin_left") + _grid_margin.get_theme_constant(&"margin_right"))
+	_grid.columns = grid_columns(size.x, margins, float(_grid.get_theme_constant(&"h_separation")))
+
+
 # --- scene-side connections (RosterScreen.tscn) ---
+
+func _on_resized() -> void:
+	if is_node_ready():
+		_fit_columns()
+
 
 func _on_top_bar_left_pressed() -> void:
 	back_requested.emit()

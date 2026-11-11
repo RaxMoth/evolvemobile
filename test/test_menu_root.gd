@@ -262,9 +262,12 @@ func test_lobby_requests() -> void:
 	assert_eq(nav.active_tab, LobbyScreen.HOME_TAB, "the lobby's bar keeps HUNT lit")
 	assert_true(nav.tab(LobbyScreen.HOME_TAB).button_pressed)
 	(lobby.get_node("MonsterStage/Grount") as BaseButton).pressed.emit()
-	assert_eq(lobby.chosen_side, MONSTER, "tapping a character chooses its side")
+	assert_eq(lobby.chosen_side, MONSTER, "tapping a character of the other stage chooses its side")
+	assert_eq(events.size(), 5, "and only that: no character is asked for")
+	(lobby.get_node("MonsterStage/Grount") as BaseButton).pressed.emit()
 	(lobby.get_node("%MonsterHunt") as BaseButton).pressed.emit()
-	assert_eq(", ".join(events), "hunt 0, roster 0, roster 1, settings, tab codex, character Grount, hunt 1")
+	assert_eq(", ".join(events), "hunt 0, roster 0, roster 1, settings, tab codex, character Grount, hunt 1",
+			"a character of the chosen side is asked for")
 	lobby.queue_free()
 
 
@@ -464,6 +467,9 @@ func test_the_detail_opens_buys_and_goes_back() -> void:
 	root.detail.back_requested.emit()
 	await _settle()
 	(root.lobby.get_node("MonsterStage/Nyxa") as BaseButton).pressed.emit()
+	assert_eq(root.lobby.chosen_side, MONSTER, "the first tap on the other stage only chooses the side")
+	assert_false(root.unlock_sheet.is_open())
+	(root.lobby.get_node("MonsterStage/Nyxa") as BaseButton).pressed.emit()
 	assert_eq(root.top(), root.lobby, "a locked monster has no detail")
 	assert_true(root.unlock_sheet.is_open(), "it opens the unlock sheet instead")
 	root.queue_free()
@@ -563,7 +569,8 @@ func test_nav_dots_follow_buyable_ranks() -> void:
 			bars.append(node as NavBar)
 	assert_eq(bars.size(), 6, "the lobby, both rosters, both details and the Codex")
 	for bar in bars:
-		assert_eq(bar.notify_tabs.size(), 0, "%s: a fresh save has nothing to buy" % root.get_path_to(bar))
+		# The Codex has the player's own monster's page, not opened yet.
+		assert_eq(str(bar.notify_tabs), str([&"codex"]), "%s: a fresh save has nothing to buy" % root.get_path_to(bar))
 	PersistedData.add_currency(PersistedData.STEEL, 40)  # a hero's first tier-1 rank
 	await wait_frames(1)
 	for bar in bars:

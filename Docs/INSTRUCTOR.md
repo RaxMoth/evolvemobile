@@ -716,7 +716,26 @@ then optimize the hot path the numbers point at.
     instancing the gameplay scene in a menu
 [ ] Strings in Assets/Locale/strings.csv (EN + DE); ≥ 48 px touch targets
 [ ] A muted render of the scene on a copy, looked at; a test for the wiring
+[ ] Anything that appears under the finger (a screen, a sheet, a result) holds a
+    TapGuard while it appears: one TapGuard node in its scene, hold(<appear time>)
+    where it opens. MenuRoot does it for every screen it pushes or pops
+[ ] An action that cannot be undone sits behind a ConfirmButton (arm, then a
+    second tap at least 0.6 s later), never behind two plain presses
 ```
+
+**Taps on what just appeared** (fix batch F5). A screen that slides in is live
+from its first frame, so the second tap of a double tap lands on whatever now
+sits under the finger: it picked the pre-round's first monster card, opened
+the quarry sheet, closed a sheet on its scrim, pressed a button that was
+still invisible. `TapGuard` (`Scenes/UI/Components/tap_guard.gd`) is the one
+answer: while it holds, every NEW pointer press in the viewport is swallowed
+in `_input`, before the GUI sees it (releases, drags and keys pass). It counts
+in game time like the tweens, so a test steps it with `wait_seconds` and real
+mouse presses (`Viewport.push_input`, see `test/test_menu_flow.gd`).
+`ConfirmButton` (`Components/ConfirmButton.tscn`) is the same idea for
+arm-then-confirm buttons: the confirming tap counts only `MIN_GAP` after the
+arming one, and the time since arming is a single counter, so there is no
+stale timer to disarm a button that was armed again.
 
 ---
 
@@ -879,6 +898,8 @@ Debug keys work in debug builds only (F3 overlay, F1 / K / M, Shift+R).
 | `Scripts/Vfx/vfx_manager.gd` | Numbers, hit flash, shake, telegraphs | Hit feedback |
 | `Scenes/UI/Hud/match_hud.gd` | The in-match HUD | HUD features |
 | `Scenes/UI/Screens/menu_root.gd` | Moves between the menu screens | A new screen |
+| `Scenes/UI/Components/tap_guard.gd` | No tap on what has just appeared | A new sheet or overlay |
+| `Scenes/UI/Components/confirm_button.gd` | Arm, then confirm with a second tap | A destructive action |
 | `Scenes/UI/Tutorial/tutorial_overlay.gd` | Coach marks (steps are data) | Onboarding |
 | `Scenes/UI/Settings/settings_screen.gd` | Volumes, language, shake, privacy, reset | Adding settings |
 | `Scenes/World/Camera/debug_overlay.gd` | F3 overlay: perf counters, states, LOD, threat | Adding debug readouts |

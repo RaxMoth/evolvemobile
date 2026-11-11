@@ -16,6 +16,7 @@
 [ext_resource type="Texture2D" uid="uid://684mufur33bv" path="res://Assets/UI/Icons/UI/ui_level_up.svg" id="14_level_up"]
 [ext_resource type="Texture2D" uid="uid://copfu63v7j3qw" path="res://Assets/UI/Icons/UI/ui_back.svg" id="15_back"]
 [ext_resource type="Texture2D" uid="uid://ylcevyvuqtlq" path="res://Assets/UI/Icons/UI/ui_play.svg" id="16_play"]
+[ext_resource type="Script" uid="uid://ch852csopgwyn" path="res://Scenes/UI/Components/tap_guard.gd" id="17_tap_guard"]
 
 [node name="MatchResultScreen" type="CanvasLayer"]
 process_mode = 3
@@ -308,6 +309,10 @@ theme_override_font_sizes/font_size = 30
 text = "PLAY AGAIN"
 icon = ExtResource("16_play")
 icon_alignment = 2
+
+[node name="TapGuard" type="Node" parent="."]
+unique_name_in_owner = true
+script = ExtResource("17_tap_guard")
 
 [connection signal="pressed" from="Root/Margin/Column/Upgrades" to="." method="_on_upgrades_pressed"]
 [connection signal="pressed" from="Root/Margin/Column/Buttons/Lobby" to="." method="_on_lobby_pressed"]

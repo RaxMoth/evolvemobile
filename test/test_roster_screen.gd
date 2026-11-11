@@ -1,7 +1,9 @@
 extends TestCase
 
-## RosterScreen, a side's collection: the roster's characters as a 4-column
-## grid of M cards plus the one rumour card, the role filters of each side, the
+## RosterScreen, a side's collection: the roster's characters as a centred
+## grid of M cards (4 columns on a phone, more on a wider screen) plus the one
+## rumour card, the role filters of each side (only roles that have a member),
+## the
 ## owned / total count, the staggered card intro, the taps (an owned character
 ## asks for its detail, so does a locked monster with a price, for the unlock
 ## sheet; the rumour shakes), refresh() re-reading the save (a purchase too),
@@ -52,7 +54,11 @@ func test_hero_grid_is_the_roster_and_a_rumour() -> void:
 		assert_eq(cards[i].size_preset, CharacterCard.CardSize.M)
 		assert_true(cards[i].animated, "live rigs")
 	var grid := screen.get_node("%Grid") as GridContainer
-	assert_eq(grid.columns, 4)
+	assert_eq(RosterScreen.grid_columns(720.0, 32.0, 16.0), 4, "four columns on a phone")
+	assert_eq(RosterScreen.grid_columns(600.0, 32.0, 16.0), 4, "never fewer")
+	assert_eq(RosterScreen.grid_columns(960.0, 32.0, 16.0), 5, "a 3:4 tablet fits a fifth")
+	assert_eq(grid.columns, RosterScreen.grid_columns(screen.size.x, 32.0, 16.0), "the grid fits the screen's width")
+	assert_eq(grid.size_flags_horizontal, Control.SIZE_SHRINK_CENTER, "and sits in the middle")
 	var rumour := screen.rumour_card()
 	assert_true(rumour != null and rumour.rumour and not rumour.monster_side, "the heroes' rumour card")
 	assert_eq(grid.get_child(grid.get_child_count() - 1), rumour, "the rumour comes last")
@@ -64,7 +70,9 @@ func test_hero_grid_is_the_roster_and_a_rumour() -> void:
 	assert_eq((screen.get_node("%NavBar") as NavBar).active_tab, &"heroes")
 	assert_eq((screen.get_node("%Count") as Label).text, "%d/%d" % [heroes.size(), heroes.size()])
 	var buttons := _filter_buttons(screen)
-	assert_eq(buttons.size(), 5, "all, tank, melee, ranged, support")
+	assert_eq(str(screen.shown_filters()), str([&"all", &"tank", &"melee", &"ranged"]),
+			"no hero is filed under support: that filter gets no button")
+	assert_eq(buttons.size(), screen.shown_filters().size())
 	for b in buttons:
 		assert_true(b.icon != null, "%s has its role icon" % b.name)
 		assert_eq(b.theme_type_variation, &"FilterTab")
@@ -88,7 +96,11 @@ func test_monster_grid() -> void:
 	var keys: Array[StringName] = []
 	for b in _filter_buttons(screen):
 		keys.append(StringName(String(b.name).trim_prefix("Filter_")))
-	assert_eq(str(keys), str(MONSTER_FILTERS))
+	assert_eq(str(keys), str([&"all", &"brute", &"stalker"]), "no swarm monster yet: no swarm filter")
+	for key in keys:
+		if key != RosterScreen.ALL:
+			screen.set_filter(key)
+			assert_false((screen.get_node("%Empty") as CanvasItem).visible, "%s has a member" % key)
 	screen.queue_free()
 
 
@@ -115,8 +127,8 @@ func test_filters_show_one_role() -> void:
 	for card in lair.cards():
 		assert_eq(card.visible, card.character.character_id() == &"nyxa", "%s under stalker" % card.character.get_display_name())
 	lair.set_filter(&"swarm")
-	assert_true((lair.get_node("%Empty") as CanvasItem).visible, "nobody in this role yet")
-	assert_true((lair.get_node("%Filters/Filter_swarm") as BaseButton).button_pressed)
+	assert_eq(lair.active_filter, RosterScreen.ALL, "a role without a member is no filter")
+	assert_false((lair.get_node("%Empty") as CanvasItem).visible)
 	lair.queue_free()
 
 

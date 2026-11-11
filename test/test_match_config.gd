@@ -104,7 +104,7 @@ func test_screen_emits_and_persists_the_choice() -> void:
 	assert_eq((screen.get_node("%ForecastUlt") as Label).text, "Ultimates fire at 2+ enemies, or when an ally drops below 35% HP.",
 			"the forecast follows the dials")
 	assert_true((screen.get_node("%ForecastScout") as Label).text.ends_with("160 px apart."), "and the formation")
-	assert_near(MatchConfig.from_settings().aggression, 0.5, 0.001, "nothing is saved before START")
+	assert_near(MatchConfig.from_settings().aggression, 0.8, 0.001, "every change is in the settings at once")
 	(screen.get_node("%HeroStart") as BaseButton).pressed.emit()
 	assert_eq(got.size(), 1)
 	assert_near(got[0].aggression, 0.8)
@@ -118,18 +118,28 @@ func test_screen_emits_and_persists_the_choice() -> void:
 	screen.queue_free()
 
 
-func test_back_cancels_without_saving() -> void:
+## Back leaves the pre-round; the strategy set on it stays (it is written to
+## the save file once the screen is hidden).
+func test_back_keeps_the_strategy() -> void:
 	if not require_isolated():
 		return
 	var screen := _hero_screen()
 	var cancels: Array[int] = [0]
 	screen.cancelled.connect(func() -> void: cancels[0] += 1)
 	_row(screen, "Aggression").slider().value = 1.0
+	_tile(screen, "Line").button_pressed = true
 	(screen.get_node("%TopBar") as TopBar).left_pressed.emit()
 	assert_eq(cancels[0], 1)
-	assert_near(MatchConfig.from_settings().aggression, 0.5, 0.001, "back keeps the saved strategy")
+	assert_near(MatchConfig.from_settings().aggression, 1.0, 0.001, "the settings hold the change")
+	# MenuRoot hides the screen once it has slid out: the file gets it then.
+	screen.visible = false
+	PersistedData.load_data()
+	assert_near(MatchConfig.from_settings().aggression, 1.0, 0.001, "leaving the screen wrote it to the save file")
+	assert_eq(MatchConfig.from_settings().formation, MatchConfig.Formation.LINE)
+	screen.visible = true
 	screen.open(MatchRewards.Side.HEROES)
-	assert_near(_row(screen, "Aggression").value, 0.5, 0.001, "and the next visit shows it")
+	assert_near(_row(screen, "Aggression").value, 1.0, 0.001, "and the next visit shows it")
+	assert_true(_tile(screen, "Line").button_pressed)
 	screen.queue_free()
 
 

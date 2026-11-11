@@ -20,6 +20,7 @@
 [ext_resource type="Resource" path="res://Assets/Characters/grount/grount_def.tres" id="18_grount"]
 [ext_resource type="Resource" path="res://Assets/Characters/nyxa/nyxa_def.tres" id="20_nyxa"]
 [ext_resource type="Resource" path="res://Assets/Characters/gorrak/gorrak_def.tres" id="21_gorrak"]
+[ext_resource type="Texture2D" uid="uid://dshheb462sqqk" path="res://Assets/UI/Lobby/lobby_monsters_top.svg" id="22_monsters_top"]
 
 [node name="LobbyScreen" type="Control"]
 layout_mode = 3
@@ -54,6 +55,21 @@ offset_bottom = -124.0
 grow_horizontal = 2
 grow_vertical = 2
 theme_type_variation = &"FlatButton"
+
+[node name="BackdropTop" type="TextureRect" parent="MonsterStage"]
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = -960.0
+offset_bottom = -540.0
+grow_horizontal = 2
+grow_vertical = 0
+mouse_filter = 2
+texture = ExtResource("22_monsters_top")
+expand_mode = 1
+stretch_mode = 6
 
 [node name="Backdrop" type="TextureRect" parent="MonsterStage"]
 layout_mode = 1

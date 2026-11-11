@@ -189,12 +189,13 @@ waiting, and the player can double that with the HUD's speed button.
 - **Save** (`PersistedData`, no migration: a save without the sections owns no
   bought monster and has met no quarry): `[monsters] owned` (the bought ids;
   default-owned ones are not listed), `last_quarry`, `locked_quarry`, and
-  `[codex] monsters` (the quarries met). Reset Progress clears them; damaged
-  entries are skipped on read.
+  `[codex] monsters` (the quarries met) with `monsters_seen` (how many
+  monster pages the player has seen; the Codex dot counts from it). Reset
+  Progress clears them; damaged entries are skipped on read.
 - `test/test_quarry_pick.gd`: the defs' rules, pool membership by matches
   played, no repeat over 300 draws, the global RNG untouched by 25 picks and
   hunts, the pick kept until a hunt, the lock, the Codex entry and NEW flag,
-  the pre-round's quarry card (NEW banner, Lv.(T+1), its moves, the config's
+  the pre-round's quarry card (NEW banner, Threat T, its moves, the config's
   quarry) and Change sheet (pool cards, "Appears after 3 hunts" silhouettes,
   the lock, Random, `ui_cancel`), the Lv 3 gate before the price, any owned
   monster opening the gate, the exact prices, the save, the Monster side's
@@ -795,6 +796,10 @@ dangerous (`monster` #C2334A, `monster_purple` #7B3F95).
       kit and the cooldown / locked-card shaders.
     - `write_import_stubs.sh <dir>` makes every SVG import as a DPITexture
       (re-rasterised at the canvas scale, sharp on 2x / 3x phones).
+    - `lobby.py` (group `lobby`) owns `Assets/UI/Lobby/lobby_monsters_top.svg`,
+      the cave above the lair; the lobby's two backdrops and the VS badge in
+      that folder are hand-drawn and have no generator (`build.py` lists
+      them).
     - Style rules live in `svgkit.py`: flat fills with one shade crescent, a
       3.5 px ink outline at 64 px, no gradients, filters, masks or text.
 - **UI kit** (`Assets/UI/`, all generated: edit the generators, never the
@@ -1310,10 +1315,11 @@ writes gameplay state, so `tools/sim_trace.sh` stays byte-identical.
       `process_mode` ALWAYS): a `PanelLeafy` card over the `bg_void` scrim; it
       pauses the tree while it is up. RESUME (or back again) unpauses;
       SETTINGS opens the settings sheet over it (back closes the sheet
-      first); QUIT TO LOBBY arms on the first tap ("Leaving ends the hunt.
-      It pays no rewards.", 3 s) and on the second goes to MenuRoot
-      (`lobby_scene_path`; World's exit stops the clock), tracked as
-      `match_quit`. Its `opened` / `resumed` swap the Pause icon (wired in
+      first); QUIT TO LOBBY (a `ConfirmButton`) arms on the first tap
+      ("Leaving ends the hunt. It pays no rewards.", 3 s) and on a second
+      tap at least 0.6 s later goes to MenuRoot (`lobby_scene_path`; World's
+      exit stops the clock), tracked as `match_quit`. Opening the menu
+      disarms it, and every arming starts a fresh 3 s. Its `opened` / `resumed` swap the Pause icon (wired in
       MatchHud.tscn).
     - Speed (`%Speed`, 62x64 like Pause, right of it; `pressed` wired in
       MatchHud.tscn): switches the match between its normal and its fast
@@ -2099,7 +2105,10 @@ code connections are to autoloads (`PersistedData.currency_changed`).
     - `locked_note`: a locked card's own line under the padlock instead of
       its rule, price and dot (the quarry sheet's "Appears after 3 hunts").
   `refresh()` re-reads the save (screens call it on currency or skill
-  changes); `apply_progress()` shows given numbers (previews, tests).
+  changes); `apply_progress()` shows given numbers (previews, tests);
+  `apply_ai_build(threat, ranks, full)` shows the card as an AI opponent
+  ("Threat N" for the level, at 80 % of its size so the German "Bedrohung 4"
+  fits an S card, and "AI build n/12" in the pill; `ai_threat`).
   `card_pressed(character)` (null for the rumour card). `play_intro(delay)`:
   the collection's staggered drop-in (the card fades in while its frame grows
   from 0.86; the frame scales, not the card, because a container resets its
@@ -2139,7 +2148,27 @@ code connections are to autoloads (`PersistedData.currency_changed`).
   and the price inside it (in `danger` while the wallet is short). UNLOCK is
   disabled unless `unlock_state` is READY and reads "Need 340 more" while the
   wallet is short. It only reports `unlock_confirmed(character)`; CANCEL, a
-  tap on the scrim and `ui_cancel` close it. Its wiring is in its scene.
+  tap on the scrim and `ui_cancel` close it. The panel ends on the screen's
+  bottom edge (`SheetPanel` has no bottom border; the nav tabs used to peek
+  out under it), and while it slides up it holds its `TapGuard`. Its wiring
+  is in its scene.
+- **`TapGuard`** (`tap_guard.gd`, a Node an owner places in its scene): what
+  has just appeared takes no tap. The owner calls `hold(t)` with the time
+  its appearing takes; until `t + GRACE` (0.15 s) has passed every new
+  pointer press in the viewport (mouse button, touch) is swallowed in
+  `_input`, before the GUI sees it. Releases, drags, keys and actions pass
+  (`is_holding()` is there for an owner that ignores `ui_cancel` as well).
+  It counts in game time, as the tweens do, and follows its owner's process
+  mode. Owners: MenuRoot (every push and pop), `UnlockSheet`,
+  `SettingsScreen`, `PreRoundScreen` (the quarry sheet) and
+  `MatchResultScreen` (its intro).
+- **`ConfirmButton.tscn`** (`ConfirmButton`, the crimson `ButtonMonster`): a
+  button whose action needs a second tap. The first tap arms it
+  (`armed_changed(true)`); a tap at least `MIN_GAP` (0.6 s) later disarms it
+  and reports `confirmed`; left alone it disarms after `arm_time` (3 s). The
+  time since the arming tap is one counter, so arming again starts a fresh
+  window. Owners set the texts in `armed_changed` and call `disarm()` when
+  they open again: Reset Progress (settings) and QUIT TO LOBBY (pause menu).
 - **`TopBar.tscn`**: a round left button (`left_icon`, `left_pressed`), the
   title, and the `CurrencyChip`s the screen's side shows (`show_gold`,
   `show_steel`, `show_leaves`; `chip(currency)`).
@@ -2261,7 +2290,12 @@ and the match result's LOBBY returns to it. The old `MainMenu.tscn`,
       (cubic ease-out) while the one below darkens to
       `UiPalette.COVERED_SCREEN_MODULATE` (0.6); `pop()` plays it backwards, and
       once a slide settles only the top screen is visible. `ui_cancel` is back on
-      every screen; the home screen (the lobby) never pops.
+      every screen; the home screen (the lobby) never pops. Every push and pop
+      holds the menu's `TapGuard` (below) for the slide plus its grace time
+      (0.37 s): the second tap of a double tap on HUNT or on a back arrow
+      never lands on the screen that slides in under the finger (it used to
+      pick the pre-round's first monster card, open the quarry sheet or the
+      settings).
     - On entry: the tree is unpaused (a match result pauses it), the roster
       the match result's "upgrades ready" asked for
       (`GameManager.request_menu_roster` / `take_menu_roster`, once) slides in
@@ -2272,9 +2306,10 @@ and the match result's LOBBY returns to it. The old `MainMenu.tscn`,
     - The lobby's choice goes to `GameManager.choose_side()`, which persists it
       (setting `chosen_side`); the next launch opens on the same side.
     - Navigation: the plaques and the nav bar's Heroes / Monsters open that
-      side's `RosterScreen`, Growth the chosen side's account-wide tree in a
-      second `CharacterDetail`, a roster card or a lobby character the
-      `CharacterDetail` of that character. Nav-bar destinations go through
+      side's `RosterScreen`, Growth the account-wide trees in a second
+      `CharacterDetail` (it opens on the chosen side's tree; its HEROES /
+      MONSTER tabs switch), a roster card or a character of the lobby's
+      chosen side the `CharacterDetail` of that character. Nav-bar destinations go through
       `switch_to(screen)`: the screen slides in and then sits right above the
       lobby (back returns home; tabs do not stack up), or, when it is already
       on the stack, the screens above it slide away (`pop_to`). A character's
@@ -2295,12 +2330,17 @@ and the match result's LOBBY returns to it. The old `MainMenu.tscn`,
       changes, every nav bar under the menu (`NavBar.GROUP`) shows Heroes /
       Monsters while a character of that side has a rank to buy now
       (`CharacterProgress.upgrades_ready`) or can itself be bought
-      (`CharacterProgress.can_unlock`), and Growth while the chosen side's
-      account tree has one (`MetaSkillManager.card_progress`).
-    - HUNT (the lobby's buttons, the nav bar's arch) pushes the chosen side's
-      `PreRoundScreen` (`pre_round.open(side)`, once: a second HUNT while it
-      is on the stack does nothing) over the screen that asked; its back pops
-      it. `start_requested(config)` starts the hunt on
+      (`CharacterProgress.can_unlock`), and Growth while the heroes' or the
+      monsters' account tree has one (`CharacterDetail.base_tree_ready(side)`,
+      either side, not only the chosen one).
+    - HUNT pushes the `PreRoundScreen` (`pre_round.open(side)`, once: a second
+      HUNT while it is on the stack does nothing) over the screen that asked;
+      its back pops it. The lobby's HUNT buttons start the chosen side's. A
+      nav bar's arch starts the hunt of the side its screen stands for
+      (`_screen_side`: a roster's side, a character's, Growth's shown tree;
+      the chosen side on the lobby and the Codex) and glows in that side's
+      colour; a side other than the chosen one becomes the chosen side
+      (persisted, the lobby shows it). `start_requested(config)` starts the hunt on
       `config.quarry_id`, `monster_start_requested(monster_id, instinct)`
       makes the monster the player's own (`choose_monster`) and starts; the
       instinct is not applied yet (today's Ambusher behaviour); a second
@@ -2334,9 +2374,9 @@ and the match result's LOBBY returns to it. The old `MainMenu.tscn`,
       (`lobby_monsters.svg`) with Grount large in the middle. Nyxa and Gorrak
       stand beside him as padlocked silhouettes with their price and, while
       unmet, the unlock rule: their roster defs (`nyxa_def.tres`,
-      `gorrak_def.tres`, wired scene-side, locked until bought). A tap asks
-      for them like any character (MenuRoot opens the unlock sheet);
-      `refresh()` re-reads the save after a purchase.
+      `gorrak_def.tres`, wired scene-side, locked until bought). On the
+      chosen lair a tap asks for them like any character (MenuRoot opens the
+      unlock sheet); `refresh()` re-reads the save after a purchase.
     - Between them the HEROES and MONSTERS plaques, each side's HUNT button
       (`ButtonPrimary` / `ButtonMonster`) and the VS badge (`vs_badge.svg`).
     - Tapping a stage chooses that side in place: the other stage tweens to
@@ -2345,7 +2385,10 @@ and the match result's LOBBY returns to it. The old `MainMenu.tscn`,
       HUNT button pops in (0.6 → 1, TRANS_BACK 0.35 s), its characters cheer
       with a 0.05 s stagger, and the nav arch glows in the side's colour. With
       the export `side_tap_opens_roster` a stage tap also asks for that side's
-      roster. Tapping a character chooses its side and asks for its detail.
+      roster. A tap anywhere on the stage that is not chosen, its characters
+      included, only chooses that side ("Tap the lair to play the Monster"
+      never opens Grount's detail or an unlock sheet); a tap on a character
+      of the chosen side asks for its detail.
     - It only reports: `side_chosen`, `hunt_requested(side)`,
       `roster_requested(side)`, `character_requested(def)`,
       `tab_selected(tab_id)` and `settings_requested`. `show_side()` restores a
@@ -2354,9 +2397,16 @@ and the match result's LOBBY returns to it. The old `MainMenu.tscn`,
     - On a taller or wider phone the stages stretch with the window. The
       campfire's backdrop covers its stage. The lair's backdrop and its
       monsters keep their design size anchored to the bottom of the monster
-      stage (the backdrop 540 px tall at full width): on a 19.5:9 phone the
-      extra height shows the screen background above the lair instead of
-      blowing the backdrop up around monsters that keep their size.
+      stage (the backdrop 540 px tall at full width). On a taller phone the
+      extra height shows more of the cave above the lair: `BackdropTop`
+      (`Assets/UI/Lobby/lobby_monsters_top.svg`, 720x420, from
+      `tools/art/lobby.py`) sits on the backdrop's top edge, behind it. The
+      strip repeats the lair art's own wall arches and continues its two
+      thorn vines along their curves, so the join does not show; above it the
+      wall recedes in darker rows and more vines hang from the roof, so it
+      can be cut at any height (19.5:9 shows its lower 280 px, 21:9 all of
+      it). A 16:9 screen clips it away (`clip_contents`). The backdrop is
+      not blown up around monsters that keep their size.
 - `test/test_menu_root.gd`: every screen signal is connected once, scene-side,
   to MenuRoot (no code connections); push / pop and `ui_cancel`; the click on
   every button; the side choice (frames, HUNT pop, cheer stagger, tints, nav
@@ -2371,6 +2421,20 @@ and the match result's LOBBY returns to it. The old `MainMenu.tscn`,
   Codex tab switches to the Codex. `test/test_codex.gd` and
   `test/test_settings_and_back.gd` cover the Codex, the settings, the pause
   menu, the back button and the lair on a tall phone.
+- `test/test_menu_flow.gd` (real mouse presses through the viewport): a
+  double tap on either side's HUNT at 0.08, 0.15 and 0.25 s neither switches
+  the player's monster nor opens the quarry sheet (and the same tap without
+  the guard does, so the test proves something); a double tap on a back
+  arrow does not open the settings; the unlock, settings and quarry sheets
+  take no tap while they slide up; the match result takes no tap and no back
+  press before its buttons show; `ConfirmButton` (the gap, the expiry, the
+  fresh window), Reset Progress under a double tap, the pause menu's QUIT
+  armed again after a resume; START HUNT / UNLEASH once per visit; the first
+  tap on the other stage only choosing the side; the cave above the lair;
+  the Codex pages of owned monsters and the seen count after a reset;
+  Growth's side tabs and dots and the arch following the screen's side; the
+  AI quarry card's labels; the sheets' bottom edge; the settings' privacy
+  line; the tour's skill tree step.
 
 ### Tutorial, Codex and Settings (first-run flow)
 
@@ -2382,19 +2446,23 @@ and the match result's LOBBY returns to it. The old `MainMenu.tscn`,
   `process_mode` ALWAYS): coach marks. A step is data (title, body, anchor);
   the anchor is a group, and the step's target is every visible Control in
   it, merged: `tutorial_hero_stage` / `tutorial_monster_stage` (the lobby's
-  two stages), `tutorial_hunt` (the nav bar's arch), `tutorial_codex` (its
-  Codex tab), `tutorial_hud_slots` (the HUD's ability slots, hero cards or
+  two stages), `tutorial_hunt` (the nav bar's arch), `tutorial_trees` (its
+  Heroes, Growth and Monsters tabs: merged, the frame spans the bar from the
+  first to the last), `tutorial_codex` (its Codex tab), `tutorial_hud_slots` (the HUD's ability slots, hero cards or
   the monster panel), `tutorial_pause` (the HUD's pause and speed buttons).
   The groups
   are set in the target scenes. The scrim (`bg_void` at 0.72, drawn by the
   overlay around a hole) darkens all but the target, the amber `SelectRing`
   frames it, the amber arrow (`ui_level_up.svg`) bobs toward it and the
-  `PanelLeafy` bubble (kicker, title, body, a pip per step, "2 / 5", Skip /
+  `PanelLeafy` bubble (kicker, title, body, a pip per step, "2 / 6", Skip /
   Back / Next) sits on the side with more room. The frame glides to the
   next target (0.25 s) and follows its target while it moves. A step without
   a target centres the bubble over the full scrim.
-    - Camp tour (`LOBBY_STEPS`): the rules, the heroes' campfire, the
-      monsters' lair, the HUNT arch, the Codex tab (growth and the Codex).
+    - Camp tour (`LOBBY_STEPS`, six steps): the rules, the heroes' campfire,
+      the monsters' lair, the HUNT arch, "Grow between matches" on the tabs
+      that lead to the skill trees (open a character under Heroes or
+      Monsters and tap SKILL TREE; Growth holds the tree a whole side
+      shares) and the Codex tab.
     - HUD tips (`HUD_STEPS`): the cooldown slots, the pause and speed
       buttons.
     - `has_been_seen(chapter)`, `mark_seen(chapter)`, `forget(chapter)`;
@@ -2406,13 +2474,21 @@ and the match result's LOBBY returns to it. The old `MainMenu.tscn`,
     - GUIDE: the camp tour and the HUD tips as numbered `PanelInset` cards
       (built from `TutorialOverlay`'s steps, one source), REPLAY THE CAMP
       TOUR and SHOW THE HUNT TIPS AGAIN.
-    - MONSTERS: "Beasts met N / 3", then a `CodexEntry` per quarry met, in
-      the order first met (`PersistedData.get_codex_entries(CODEX_MONSTERS)`,
-      which `GameManager.begin_hunt` fills on a first sighting), then the
-      other roster monsters as locked pages.
+    - MONSTERS: "Beasts met N / 3", then a `CodexEntry` per monster the
+      player knows (`met_monsters()`): the quarries met, in the order first
+      met (`PersistedData.get_codex_entries(CODEX_MONSTERS)`, which
+      `GameManager.begin_hunt` fills on a first sighting), then the monsters
+      the player owns and plays (`CharacterProgress.is_unlocked`: Grount from
+      the start, a bought Nyxa or Gorrak, in roster order), then the other
+      roster monsters as locked pages. Owning a monster is not hunting it:
+      the pre-round's NEW QUARRY flag still reads `[codex] monsters` only.
     - HEROES: a `CodexEntry` per roster hero.
-    - `open()` rebuilds the pages and marks the monster pages seen (setting
-      `codex_seen_monsters`); with new pages it opens on MONSTERS.
+    - `open()` rebuilds the pages and marks the monster pages seen
+      (`PersistedData.set_codex_seen`, `[codex] monsters_seen`: stored with
+      the Codex, so Reset Progress clears it and new pages light the dot
+      again); with new pages it opens on MONSTERS. A fresh save has one
+      unseen page (the player's own Grount), so the Codex dot is lit until
+      the Codex is opened once.
 - **`CodexEntry`** (`Components/CodexEntry.tscn`): a `CharacterCard` (heroes)
   or `CharacterCardMonster` panel: the portrait in its side's inner panel,
   name, role and tagline, FIELD NOTES (`CharacterDef.codex_notes`: how a hero
@@ -2429,10 +2505,13 @@ and the match result's LOBBY returns to it. The old `MainMenu.tscn`,
   each slider's `value_changed` is bound to its setting key in the scene),
   applied live; LANGUAGE (System / English / Deutsch; the scene's labels
   re-translate themselves); DISPLAY (screen shake); PRIVACY (usage
-  statistics, stored on the device only); RESET PROGRESS (`ButtonMonster`,
-  a second tap within 3 s wipes the progress, the settings stay); CLOSE, the
-  round close button, a tap on the scrim and back save and close it
-  (`closed`). All wiring is in the scene.
+  statistics: "Stored only on this device. Nothing is uploaded."); RESET
+  PROGRESS (a `ConfirmButton`: the first tap arms it for 3 s, a second tap
+  at least 0.6 s later wipes the progress, the settings stay; both taps of
+  one double tap only arm it); CLOSE, the round close button, a tap on the
+  scrim and back save and close it (`closed`). While it slides up it holds
+  its `TapGuard`, so the second tap of the double tap that opened it does
+  not close it on the scrim. All wiring is in the scene.
 
 ### Pre-round screen (PreRoundScreen)
 
@@ -2445,13 +2524,18 @@ top bar (back, Gold and the side's Steel or Leaves) the content scrolls
 only. It replaced the old `PreRoundSetup` overlay (deleted in 8.3) with the same contract:
 `start_requested(config: MatchConfig)`, `cancelled`, the config persisted
 (`save_to_settings`) and tracked (`AnalyticsSink` `pre_round_setup`) on start;
-it adds `monster_start_requested(monster_id, instinct)`.
+it adds `monster_start_requested(monster_id, instinct)`. START HUNT and
+UNLEASH act once per visit (`open()` arms them again): a double tap saves,
+tracks and asks for one start.
 
 - **Heroes ("The Hunt")**:
     - TONIGHT'S QUARRY (`BannerMonster`): `GameManager.next_quarry()` (the
       same monster until a hunt starts) as an L `CharacterCard` showing the AI
-      opponent it will be: Lv.(T+1) and a pill of its AI build's ranks out of
-      its threat-4 build (12), whatever the Monster side owns. Beside it the
+      opponent it will be (`CharacterCard.apply_ai_build`): "Threat T" where
+      a card of the player's own has its level, and the pill "AI build n/12",
+      its AI build's ranks out of its threat-4 build, whatever the Monster
+      side owns (it read "Lv.2" and "3/12", like the player's own Lv 8
+      Grount). Beside it the
       NEW QUARRY pill (`PillReady`, pops in) while `is_new_quarry`, the name,
       the tagline, the icons of its three moves (`NodeTile`), the `ThreatBox`
       (threat, reward bonus, AI build, the monster's counterplay tip) and
@@ -2464,7 +2548,9 @@ it adds `monster_start_requested(monster_id, instinct)`.
       hunt, until you pick Random."), and RANDOM (disabled while random). A
       pool card locks it (`lock_quarry(id)`), RANDOM unlocks
       (`lock_quarry(&"")`), a silhouette shakes; the sheet closes on a pick,
-      its close button, the scrim and `ui_cancel`.
+      its close button, the scrim and `ui_cancel`. Its panel ends on the
+      screen's bottom edge, and while it slides up the screen's `TapGuard`
+      holds (a double tap on CHANGE does not close it again).
     - YOUR HUNTERS (`BannerHero`): the roster's heroes as live
       `StageCharacter` rigs (150x200, the right pair facing the fire) on the
       campfire backdrop in the amber `FrameHero`, "Lv.N" under each; they
@@ -2472,8 +2558,11 @@ it adds `monster_start_requested(monster_id, instinct)`.
     - STRATEGY: three `StrategyRow`s (Aggression Careful ↔ Reckless, Farming
       Hunt the beast ↔ Clear camps, Exploration Methodical ↔ Roam wide) and
       FORMATION: three `FormationTile`s (Tight, Spread, Line) with their
-      `FormationGlyph`s, editing a `MatchConfig.from_settings()`; back keeps
-      the saved one. The forecast (`PanelInset`, three icon rows) puts
+      `FormationGlyph`s, editing a `MatchConfig.from_settings()`. Every
+      change goes into the settings at once (`MatchConfig.store()`) and the
+      save file is written when the screen is left (its `hidden`: back, a nav
+      tab) or the hunt starts, so a strategy set and left with back is still
+      there on the next visit. The forecast (`PanelInset`, three icon rows) puts
       MatchConfig's derived values in words: "Ultimates fire at 3+ enemies, or
       when an ally drops below 28% HP.", "Mob camps weigh 70 against 100 for
       the monster.", "New targets every 3.2 s, scanning 450 px ahead, 100 px
@@ -2503,7 +2592,7 @@ it adds `monster_start_requested(monster_id, instinct)`.
   forecast, threat, sheet) are in `strings.csv` with German.
 - Tests: `test_match_config` (the saved strategy shown, the dials and tiles
   editing it, the forecast, START persisting and emitting with the quarry,
-  back keeping the save), `test_quarry_pick` (quarry card and Change sheet),
+  back keeping the changed strategy and writing it to the file), `test_quarry_pick` (quarry card and Change sheet),
   `test_pre_round_screen` (each side's sections, top bar and frames, the
   squad, the picker switching owned monsters and ignoring locked ones, the
   evolution strip, hidden instincts and UNLEASH, shown instincts picking one,
@@ -2576,6 +2665,10 @@ scene change: `abort_match()`) shows nothing. A timeout has no beat.
 - **Intro**: the scrim fades in, the ribbon pops (0.4 → 1, TRANS_BACK) at
   0.1 s, the sections fade in from 0.3 s (staggered 0.08 s), the chips count
   from 0.6 s and the XP bars fill from 0.9 s; all settled by about 1.9 s.
+  Until the buttons, the last section, have faded in (1.11 s) and the grace
+  time after it, the screen holds its `TapGuard` and drops `ui_cancel`: a tap
+  aimed at the HUD when the match ended (the hero cards sit where LOBBY and
+  PLAY AGAIN appear) no longer leaves the result unseen.
 - **GameManager's side** (data only, the trace is unchanged): `mob_kills`
   still counts every mob death (the determinism trace hashes it), and
   `hero_mob_kills` / `monster_mob_kills` count each side's kills by
@@ -2599,12 +2692,16 @@ scene change: `abort_match()`) shows nothing. A timeout has no beat.
 
 - **`RosterScreen`** (`Scenes/UI/Screens/RosterScreen.tscn`, `roster_screen.gd`;
   two instances in MenuRoot, `side` heroes and monster): the side's
-  characters from `GameManager.ROSTER` as a 4-column grid of M `CharacterCard`s
-  (live rigs, 16 px gaps), then the side's one "???" rumour card. Above it a
-  row of `FilterTab` role filters (`filters` export, icons
-  `Assets/UI/Icons/Roles/role_<key>.svg`; heroes all / tank / melee / ranged /
-  support, monsters all / brute / stalker / swarm, set in MenuRoot.tscn) and
-  the owned / total count; a role without characters says so. The top bar
+  characters from `GameManager.ROSTER` as a centred grid of M `CharacterCard`s
+  (live rigs, 16 px gaps; 4 columns on a phone, and as many as fit when the
+  screen is wider, `grid_columns()`: 5 on a 3:4 tablet), then the side's one
+  "???" rumour card. Above it a row of `FilterTab` role filters (`filters`
+  export, icons `Assets/UI/Icons/Roles/role_<key>.svg`; heroes all / tank /
+  melee / ranged / support, monsters all / brute / stalker / swarm, set in
+  MenuRoot.tscn) and the owned / total count. A role no character of the side
+  has gets no button (`shown_filters()`: today no hero is filed under
+  support and no monster under swarm; the button appears with the first
+  member). The top bar
   shows Gold plus the side's Steel or Leaves. `open()` builds the grid on the
   first visit, re-reads the save and plays the intro (the shown cards drop in
   0.04 s apart). An owned character's card asks for its detail
@@ -2669,9 +2766,14 @@ scene change: `abort_match()`) shows nothing. A timeout has no beat.
       the first open one), never on an empty selection. Everything fits
       720x1280 above the nav bar without scrolling.
     - `show_base_tree(side)`: the Growth tab's account-wide tree (Hero Base or
-      Monster Base, Gold) in TREE mode without tabs, under the side's crest
+      Monster Base, Gold) in TREE mode, under the side's crest
       (`crest_heroes` / `crest_monster` exports, `Assets/UI/Crests`) with the
-      tree's name and blurb.
+      tree's name and blurb. In place of the mode tabs it shows HEROES /
+      MONSTER (`%SideTabs`, `TabButton`s), which switch between the two
+      trees without changing the chosen side; each carries the red dot while
+      its tree has a rank to buy now (`base_tree_ready(side)`).
+      `shown_side()` is the side of the character or tree shown: the nav
+      bar's arch glows in its colour and starts its hunt.
     - UPGRADE only reports `upgrade_requested(tree_id, node_id)` and EQUIP
       `equip_requested(tree_id, node_id)`; MenuRoot buys or equips and calls
       `refresh()`. Purchase juice: the bought node pops (1.25 → 1), its vines
@@ -2839,7 +2941,8 @@ res://
 │  │                fx_generic_bite / fx_generic_claw: the mobs' and the fox's swings)
 │  ├─ UI/ (generated Jungle Guild kit, DPITexture SVGs)
 │  │  ├─ Kit/ · Crests/ · Icons/{Abilities,Currency,Stats,Roles,Nav,UI}/
-│  │  ├─ Lobby/ (the lobby's campfire and lair backdrops, VS badge)
+│  │  ├─ Lobby/ (the lobby's campfire and lair backdrops, the cave above the
+│  │  │          lair for tall screens, VS badge)
 │  │  └─ Shaders/ (ability_cooldown, card_locked, ready_glow)
 │  └─ Icon.jpg (the app icon, project.godot config/icon)
 ├─ Data/
@@ -2887,7 +2990,7 @@ res://
 │     ├─ Components/ (menu kit: CharacterCard, StageCharacter, TopBar,
 │     │               CurrencyChip, NavBar, NavTab, NavArch, PressFeedback,
 │     │               StatTile, AbilityTile, SkillNodeButton, SkillTreeView,
-│     │               UnlockSheet, RewardChip, XpRow)
+│     │               UnlockSheet, RewardChip, XpRow, TapGuard, ConfirmButton)
 │     ├─ Widgets/ (rig_view.gd: RigView, a puppet rig inside a Control)
 │     └─ Theme/
 │        ├─ ui_theme.tres (generated project Theme, gui/theme/custom)
@@ -3251,8 +3354,8 @@ way round).
   `SAVE=` runs the rule on a real save instead.
 - The pre-round screen shows it before every match: its `ThreatBox`
   (`threat_for(side, monster)` and the AI side's `side_ai_build`) and, on the
-  Heroes side, the quarry card's Lv.(T+1) and pill (`ai_build_size` of the
-  monster's tree at T out of its threat-4 build).
+  Heroes side, the quarry card's "Threat T" and "AI build n/12" pill
+  (`ai_build_size` of the monster's tree at T out of its threat-4 build).
 - Checks: `test/test_opponent_threat.gd` (the maths, the side rule on seeded
   saves both ways, the AI build prefixes, the parity check, the F3 lines),
   `test/test_rewards.gd` (the bonus). Tests that seed a monster tree play the
@@ -3574,7 +3677,7 @@ changelog with numbers); this section is the summary.
       until real assets land in `Assets/Audio/`)
 - [x] Performance pass: faction collision layers, EntityRegistry, TickScheduler
       AI LOD, HpBar2D, mob pooling, rig sleep and budget
-- [x] Headless tools: `tools/lint.sh`, `tools/run_tests.sh` (628 tests),
+- [x] Headless tools: `tools/lint.sh`, `tools/run_tests.sh` (647 tests),
       `tools/sim.sh`, `tools/sim_trace.sh`, `tools/bench.sh`, and the art, rig,
       skill-tree and navigation builders
 

@@ -8,13 +8,17 @@ extends Control
 ##     lobby: MenuRoot goes home and plays the coach marks) and SHOW THE HUNT
 ##     TIPS AGAIN (guide_requested hud: the next match plays them; disabled
 ##     while they are still to come);
-##   - MONSTERS: a CodexEntry per quarry the heroes have met, in the order
-##     they were first met (PersistedData [codex] monsters, which
-##     GameManager.begin_hunt fills on a first sighting): tagline, field notes,
-##     evolution stages, counterplay and abilities; the roster's other monsters
-##     follow as locked pages ("???" and when they turn up);
+##   - MONSTERS: a CodexEntry per monster the player knows (met_monsters):
+##     the quarries the heroes have met, in the order they were first met
+##     (PersistedData [codex] monsters, which GameManager.begin_hunt fills on
+##     a first sighting), then the monsters the player owns and plays
+##     (CharacterProgress.is_unlocked: Grount from the start, a bought Nyxa or
+##     Gorrak): tagline, field notes, evolution stages, counterplay and
+##     abilities; the roster's other monsters follow as locked pages ("???"
+##     and when they turn up);
 ##   - HEROES: a CodexEntry per roster hero.
-## Opening the Codex marks every monster page as seen (SETTING_SEEN_MONSTERS);
+## Opening the Codex marks every monster page as seen (PersistedData
+## [codex] monsters_seen, cleared with the Codex by Reset Progress);
 ## until then MenuRoot lights the nav bars' Codex dot and the Codex opens on
 ## MONSTERS. The screen only reports: MenuRoot calls open() before it slides
 ## the screen in and connects every signal in MenuRoot.tscn; every connection
@@ -30,9 +34,6 @@ const ENTRY_SCENE := preload("res://Scenes/UI/Components/CodexEntry.tscn")
 const PAGE_GUIDE: StringName = &"guide"
 const PAGE_MONSTERS: StringName = &"monsters"
 const PAGE_HEROES: StringName = &"heroes"
-## How many monster pages the player has seen (the count of [codex] monsters
-## when the Codex was last opened).
-const SETTING_SEEN_MONSTERS: StringName = &"codex_seen_monsters"
 ## The nav bar tab this screen is.
 const OWN_TAB: StringName = &"codex"
 
@@ -77,10 +78,24 @@ func _ready() -> void:
 	show_page(page)
 
 
-## Monster pages met since the Codex was last opened (the nav bar's dot).
+## The monsters with an open page, in page order: the quarries the heroes
+## have met, in the order they were first met, then the player's own monsters
+## (owned, so they can be played) in roster order.
+static func met_monsters() -> Array[StringName]:
+	var out: Array[StringName] = []
+	for id in PersistedData.get_codex_entries(PersistedData.CODEX_MONSTERS):
+		var def := GameManager.ROSTER.find(id)
+		if def != null and def.is_monster():
+			out.append(id)
+	for def in GameManager.ROSTER.monsters:
+		if def != null and CharacterProgress.is_unlocked(def) and not out.has(def.character_id()):
+			out.append(def.character_id())
+	return out
+
+
+## Monster pages opened up since the Codex was last opened (the nav bar's dot).
 static func unseen_monsters() -> int:
-	var met := PersistedData.get_codex_entries(PersistedData.CODEX_MONSTERS).size()
-	return maxi(0, met - int(PersistedData.get_setting(SETTING_SEEN_MONSTERS, 0)))
+	return maxi(0, met_monsters().size() - PersistedData.get_codex_seen(PersistedData.CODEX_MONSTERS))
 
 
 ## Before the screen slides in: builds the pages on the first visit, re-reads
@@ -94,29 +109,25 @@ func open() -> void:
 	_replay_hunt.disabled = not TutorialOverlay.has_been_seen(TutorialOverlay.CHAPTER_HUD)
 	_nav.monster_side = GameManager.chosen_side == MatchRewards.Side.MONSTER
 	_nav.active_tab = OWN_TAB
-	PersistedData.set_setting(SETTING_SEEN_MONSTERS, PersistedData.get_codex_entries(PersistedData.CODEX_MONSTERS).size())
+	PersistedData.set_codex_seen(PersistedData.CODEX_MONSTERS, met_monsters().size())
 	PersistedData.save_data()
 	show_page(PAGE_MONSTERS if fresh else page)
 
 
-## Rebuilds the monster and hero pages from the save (met monsters first, in
-## the order they were met).
+## Rebuilds the monster and hero pages from the save (the open monster pages
+## first, in met_monsters() order).
 func refresh() -> void:
 	_clear(_monster_list)
 	_clear(_hero_list)
 	_monster_entries.clear()
 	_hero_entries.clear()
-	var met_ids := PersistedData.get_codex_entries(PersistedData.CODEX_MONSTERS)
-	var met := 0
+	var met_ids := met_monsters()
 	for id in met_ids:
-		var def := GameManager.ROSTER.find(id)
-		if def != null and def.is_monster():
-			_monster_entries.append(_add_entry(_monster_list, def, true))
-			met += 1
+		_monster_entries.append(_add_entry(_monster_list, GameManager.ROSTER.find(id), true))
 	for def in GameManager.ROSTER.monsters:
 		if def != null and not met_ids.has(def.character_id()):
 			_monster_entries.append(_add_entry(_monster_list, def, false, _unmet_note(def)))
-	_met_count.text = tr("Beasts met %d / %d") % [met, GameManager.ROSTER.monsters.size()]
+	_met_count.text = tr("Beasts met %d / %d") % [met_ids.size(), GameManager.ROSTER.monsters.size()]
 	for def in GameManager.ROSTER.heroes:
 		if def != null:
 			_hero_entries.append(_add_entry(_hero_list, def, true))
