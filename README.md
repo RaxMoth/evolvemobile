@@ -3,10 +3,17 @@
 > 📖 **[Architecture Guide](Docs/INSTRUCTOR.md)** • 📚 **[All Docs](Docs/)**
 
 **Genre**: Asymmetric PvE Auto-Battler with Strategic Setup  
-**Engine**: Godot 4.5  
-**Inspiration**: Evolve (4v1 asymmetric), Underdark:Defense & Lucky Defense (art style)  
-**Development Status**: Prototype (Pre-Alpha with production goals)  
-**Platform**: PC & Mobile
+**Engine**: Godot 4.7 (GDScript, Mobile renderer, portrait 720x1280)  
+**Inspiration**: Evolve (4v1 asymmetric); UnderGuild's collection screen (the "Jungle Guild" look), Underdark: Defense and Lucky Defense (readability)  
+**Development Status**: Prototype v0.2, the "Jungle Guild" overhaul (pre-alpha with production goals)  
+**Platform**: Mobile first (Android / iOS, portrait), PC for development
+
+This README is the design spec. Its tables are the shipped data:
+`test/test_readme_spec.gd` checks the hero, monster, ability, mob, reward and
+skill-tree tables against the `.tres` files and scenes, and that every file
+named here exists. Work in progress, open decisions and the changelog live in
+[`PROGRESS.md`](PROGRESS.md); how the code is built is in
+[`Docs/INSTRUCTOR.md`](Docs/INSTRUCTOR.md).
 
 ---
 
@@ -15,6 +22,20 @@
 **Better Hunt** is a strategic auto-battler where you command either a team of 4 heroes or a single powerful monster. Before each round, you configure your team's strategy, then watch the battle unfold in real-time. Success depends on your pre-round decisions: hero composition, skill tree investments, and tactical priorities.
 
 **The Core Loop**: Setup → Watch → Learn → Upgrade → Repeat
+
+**The look ("Jungle Guild")**: a cosy-grim jungle guild hall. Flat warm
+charcoal screens, chunky hand-drawn chibis with thick ink outlines on
+copper-outlined cards, bold white lettering (Lilita One) outlined in ink,
+carved-wood nav plaques around a mossy-stone HUNT arch. The hero side reads
+warm (copper, amber, moss), the monster side dangerous (crimson, purple). The
+same SVG rigs stand in the lobby, on the cards and fight in the match, on the
+pixel jungle tiles under a muted grade. See "Visual Systems".
+
+**The screens**: Lobby (the campfire and the lair: tap a side to choose it)
+→ Rosters and character pages with ranked skill trees (Heroes / Growth /
+HUNT / Codex / Monsters on the nav bar) → Pre-round (quarry or monster,
+strategy, Opponent Threat) → the match with its HUD → the match result
+(rewards count up, XP bars, upgrades ready) → back to the lobby.
 
 ---
 
@@ -39,10 +60,10 @@
 **Round Phase** (Auto-Battle):
 
 1. **Heroes spawn** at full strength (Level 1) in safe zone
-2. **Monster spawns** weak (Stage 1) in Zone 3-4
+2. **Monster spawns** weak (Stage 1) at a random reachable point of Zone 3
 3. **AI Executes**: Both sides follow pre-configured behavior
 4. **Confrontation**: Teams clash based on strategy
-5. **Victory**: One side is eliminated
+5. **Victory**: One side is eliminated, or the 10-minute clock runs out
 
 **Post-Round Phase** (Rewards & Upgrade):
 
@@ -60,8 +81,10 @@
 ### Win Conditions
 
 - **Heroes Win**: Kill the monster at any stage
-- **Monster Wins**: Kill all 4 heroes
-- **No draws**: One side must be eliminated
+- **Monster Wins**: Kill all 4 heroes, or survive until the 10-minute match
+  clock runs out (a timeout is a monster win; the clock counts unpaused game
+  time, `GameManager`)
+- **No draws**
 
 ### Opponent Choice and Monster Unlocks
 
@@ -84,8 +107,8 @@
     - `is_new_quarry(id)`: true until the heroes have hunted it once: the
       NEW QUARRY banner on the pre-round's quarry card.
     - `begin_hunt(quarry_id = &"")` runs right before a menu loads World (the
-      pre-round's START HUNT / UNLEASH, the old main menu, Play Again): on the
-      Heroes side it spawns
+      pre-round's START HUNT / UNLEASH and the result screen's PLAY AGAIN): on
+      the Heroes side it spawns
       `quarry_id` when it is in the pool, else `next_quarry()`
       (`MatchConfig.quarry_id` carries the pre-round's pick), records it as the
       last quarry and adds its Codex entry (`[codex] monsters`, a first
@@ -164,25 +187,33 @@ Power Level
 
 | Hero       | Class          | HP  | DPS  | Range | Role                            |
 | ---------- | -------------- | --- | ---- | ----- | ------------------------------- |
-| **River**  | Support/Scout  | 90  | 10.9 | 300   | Long-range DPS, Healing, Vision |
-| **Vlad**   | DPS/Berserker  | 100 | 10.0 | 50    | High melee DPS, execution       |
-| **Ted**    | DPS/Pet Master | 95  | 15.0 | 55    | Sustained DPS with pet          |
-| **Irelia** | Tank/Support   | 150 | 3.3  | 120   | Tank, shields, monster taunt    |
+| **River**  | Support/Scout  | 100 | 10.9 | 300   | Long-range DPS, Healing, Vision |
+| **Vlad**   | DPS/Berserker  | 110 | 10.0 | 50    | High melee DPS, execution       |
+| **Ted**    | DPS/Pet Master | 105 | 15.0 | 55    | Sustained DPS with pet          |
+| **Irelia** | Tank/Support   | 160 | 3.3  | 120   | Tank, shields, monster taunt    |
 
-**Combined Level 1 Team DPS**: ~35 DPS
+**Combined Level 1 Team DPS**: ~39 DPS (basic attacks only; Ted's 15.0
+includes his fox). HP is `HeroStats.base_max_health`, range the hero's
+`base_attack_range` (the Fight gate), DPS the basic attack's damage over its
+cooldown.
 
 ### Hero Details
 
 #### River (Support/Scout)
 
-- **Base Stats**: 100 HP, 85 speed, 300 vision range
-- **Passive**: Mode Switch (Sniper ↔ Healer)
-- **Active**: Snare Trap (15 dmg, roots enemies)
-- **Basic Attack**:
+- **Base Stats**: 100 HP, 85 speed, 300 vision
+- **Passive**: Adaptive Movement (after taking damage, +50% move speed for 3 s)
+- **Active**: Weapon Swap (switches between the sniper rifle and the heal
+  staff; 1 s cooldown; the AI swaps to the staff when an ally within 350 px
+  drops below 60% HP and back above 85%)
+- **Basic Attack**: Adaptive Weapon
     - Sniper Mode: 12 dmg at 300 range / 1.1s
     - Healer Mode: 9 heal at 150 range / 1.4s
-- **Ultimate**: Arrow Barrage (40 dmg, 200 AoE)
+- **Ultimate**: Emergency Supply Drop (a MediKit that heals every hero who
+  walks over it 30 HP once, then vanishes; 25 s cooldown)
 - **Scaling**: +5 HP, +1.8 dmg per level
+- The design's first kit (Snare Trap, Arrow Barrage) never shipped; trap and
+  barrage slows stay an open idea (PROGRESS backlog).
 - **Capstones** (one equipped): Deadeye (every 4th sniper shot x2.5), Chain
   Heal (staff heals also heal the most hurt ally within 160 px), Pathfinder
   (every hero +12% move speed while River lives)
@@ -191,9 +222,9 @@ Power Level
 
 - **Base Stats**: 110 HP, 80 speed, 250 vision
 - **Passive**: Bloodlust (Below 30% HP: +50% dmg, +100% attack speed)
-- **Active**: Land Mine (18 dmg explosion)
-- **Basic Attack**: 10 dmg at 50 range / 1.0s
-- **Ultimate**: Blood Bomb (50 dmg, 150 AoE)
+- **Active**: Land Mine (18 dmg explosion when an enemy steps on it; 8 s cooldown)
+- **Basic Attack**: Blood Strike, 10 dmg at 50 range / 1.0s
+- **Ultimate**: Blood Bomb (50 dmg, 150 AoE; 20 s cooldown)
 - **Scaling**: +6 HP, +1.7 dmg per level
 - **Capstones** (one equipped): Executioner's Mark (Blood Strike x2 below 25%
   HP), Sanguine Feast (Blood Strike heals 20% of its damage), Cluster Mines
@@ -203,10 +234,10 @@ Power Level
 
 - **Base Stats**: 105 HP, 85 speed, 220 vision
 - **Pet Stats**: 50 HP, 9 dmg, 60 range, 1.2s cooldown
-- **Passive**: Loyal Companion (pet respawns after 10s)
-- **Active**: Rally Cry (+50% attack speed for 5s)
-- **Basic Attack**: 9 dmg at 55 range / 1.2s
-- **Ultimate**: Trap Cage (150 radius, traps enemies for 6s)
+- **Passive**: Loyal Companion (the fox fights beside him and respawns after 10s)
+- **Active**: Rally Cry (Ted and his pet +50% attack speed for 5s; 10 s cooldown)
+- **Basic Attack**: Claw Swipe, 9 dmg at 55 range / 1.2s
+- **Ultimate**: Trap Cage (150 radius, traps enemies for 6s; 5 s cooldown)
 - **Scaling**: +5 HP, +1.6 dmg per level
 - **Combined DPS** (Ted + Pet): ~15.0 DPS
 - **Capstones** (one equipped): War Cry (Rally Cry also hastes heroes within
@@ -217,9 +248,10 @@ Power Level
 
 - **Base Stats**: 160 HP, 75 speed, 200 vision
 - **Passive**: Regeneration (0.5 HP/s)
-- **Active**: Divine Shield (18 HP shield to all heroes, 7s duration)
-- **Basic Attack**: 5 dmg at 120 range / 1.5s
-- **Ultimate**: Monster Taunt (Forces monster to attack Irelia for 5s)
+- **Active**: Divine Shield (18 HP shield to all heroes, 7s duration; 13 s cooldown)
+- **Basic Attack**: Shield Bash, 5 dmg at 120 range / 1.5s (+40 threat on the
+  struck enemy, so packs turn to her)
+- **Ultimate**: Monster Taunt (Forces monster to attack Irelia for 5s; 15 s cooldown)
 - **Scaling**: +8 HP, +1.2 dmg per level
 - **Capstones** (one equipped): Last Stand (survive a lethal hit once at 1 HP,
   2 s invulnerable), Guardian Angel (Divine Shield breaks stuns), Rallying
@@ -227,14 +259,52 @@ Power Level
 
 ### Hero Leveling (In-Round)
 
-- **XP Sources**: Bat (6 XP), Hog (15 XP)
-- **XP Required**: ~80 XP per level
-- **XP Radius**: 800 units (50-100% based on distance)
+- **XP Sources**: Bat (6 XP), Hog (15 XP) (`hero_xp_value` on the mob scene)
+- **XP Required**: 80 XP per level (`HeroStatsComponent.XP_PER_LEVEL`), up to
+  level 10; the max-HP gain of a level is healed, and the per-level damage
+  reaches every ability (`get_damage_scale`)
+- **XP Radius**: every living hero within 800 px of the dying mob gets it
+  (100% close by, falling to 50% at the edge)
 - **Scaling**: Slow growth favors early aggression
 
 ---
 
+## 🐾 Monster Roster (overview and balance sheet)
+
+Three monsters ship, each a scene that inherits `monster_base_class.tscn`
+plus its stats, strategy and ability `.tres` (see "Shared Monster Framework"
+and "Character Roster"). Hero wins at threat 0 are `MONSTER=<id> tools/sim.sh
+48 heroes 6` / `... 48 monster 6` (fresh save, reproducible since 6.2); the
+target is 40-60 % per monster on both sides.
+
+| Monster | Role | Owned / unlock | Heroes meet it after | HP (S1 / S2 / S3) | Evolves at (total XP) | Hero wins, heroes side / monster side | Timeouts (H / M) |
+| ------- | ---- | -------------- | -------------------- | ----------------- | --------------------- | ------------------------------------ | ---------------- |
+| **Grount**, the Bull | brute: cone cleave, ram dash, leaping slam | from the start | 0 hunts | 800 / 1400 / 2200 | 150 / 300 | 46 % / 48 % | 4 / 3 |
+| **Nyxa**, the Dusk Matriarch | stalker: lifesteal skirmisher, bat aura | 2,500 Leaves once a monster is Lv 3 | 3 hunts | 600 / 950 / 1250 | 150 / 400 | 54 % / 52 % | 18 / 17 |
+| **Gorrak**, the Boar King | brute: armoured, returning axe, stunning stomp | 3,000 Leaves once a monster is Lv 3 | 6 hunts | 1100 / 1450 / 1500 | 150 / 500 | 42 % / 52 % | 5 / 5 |
+
+- Every monster heals to full on evolving (`heal_to_full_on_evolution`).
+  Each has a per-stage table for every ability, so `stage_N_damage_multiplier`
+  only matters for an untabled ability.
+- At Opponent Threat 1-4 (the AI monster's build grows with the player's
+  ranks) 21 of the 30 parity cells are inside 35-65 % (table under "Opponent
+  Threat"); Gorrak at threat 3-4 (62-75 %) is the weak spot.
+- Capstone sanity (a fully ranked monster, one capstone, against fresh heroes,
+  24 seeds): Grount Titan Form 0 %, Rampage 29 %, Trample 33 % hero wins;
+  Nyxa and Gorrak 0 % with every capstone ("Monster capstones and behaviour
+  nodes").
+- Nyxa's wins are mostly timeouts (she evades): accepted as her trait.
+- Codex, roster and pre-round show each monster's stage names, tip and moves
+  from its `CharacterDef` (`Assets/Characters/<id>/<id>_def.tres`).
+
+---
+
 ## 🐂 Monster (Grount - The Bull)
+
+Grount (`Scenes/NPCs/Monster/Grount/Grount.tscn`, rig `grount_body`,
+HUMANOID) is the roster default: owned from the start, the monster every
+tool plays when no `MONSTER` is given. Stage names (placeholder copy):
+Bullcalf, Rampager, Alpha Bull.
 
 ### Stage Evolution System
 
@@ -252,17 +322,26 @@ Power Level
 
 | Stage | Damage | Cooldown | Cone Angle | Description          |
 | ----- | ------ | -------- | ---------- | -------------------- |
-| 1     | 12     | 4.5s     | 50°        | Basic frontal cleave |
-| 2     | 17     | 3.0s     | 60°        | Faster, wider        |
+| 1     | 12     | 2.5s     | 50°        | Basic frontal cleave |
+| 2     | 17     | 3.0s     | 60°        | Harder, wider        |
 | 3     | 10.8   | 1.8s     | 75°        | Rapid, massive cone (lighter hits, highest DPS) |
+
+An 80 px cone (`cone_range`) in front of him; it lands on the cast. The
+stage-1 cleave recasts faster than the stage-2 one (2.5 s vs 3.0 s), as the
+data has shipped since the v13 balance pass.
 
 #### Ram Dash (Ability 2)
 
 | Stage | Damage | Cooldown | Range | Description               |
 | ----- | ------ | -------- | ----- | ------------------------- |
-| 1     | 18     | 12.0s    | 300   | Charge forward, knockback |
+| 1     | 18     | 12.0s    | 300   | Charge at the target      |
 | 2     | 25     | 8.0s     | 300   | Faster cooldown           |
 | 3     | 32.4   | 5.0s     | 300   | Spam dash                 |
+
+A 500 px/s charge (`dash_distance` 300) that stops 40 px short of the target
+(`dash_stop_short`) and hits everything within 40 px of its lane
+(`dash_hit_radius`). Also his escape from a closing hero. `knockback_force`
+is an unused export: no entity implements knockback (an open decision).
 
 #### Ground Slam (Ability 3 - Ultimate)
 
@@ -272,10 +351,14 @@ Power Level
 | 2     | 32     | 15.0s     | 120    | Unlocked: Jump and slam |
 | 3     | 22.5   | 9.0s      | 180    | Massive AoE, faster recast |
 
+A 1 s leap (up to 150 px toward the target, 100 px high) and the slam on
+landing; the combo casts it only when it hits 2+ targets.
+
 ### Evolution Mechanics
 
-- **Healing on Evolution**: Gains (new max HP - old max HP). The tuned build refills HP on evolution
-  instead (`MonsterBase.heal_to_full_on_evolution = true`; false = this README rule) — open decision
+- **Healing on Evolution**: refills HP (`MonsterBase.heal_to_full_on_evolution = true`, every
+  monster). The original rule, gain (new max HP - old max HP), is the `false` setting; which rule
+  ships for good is an open decision (it also gates Grount's "Second Wind" node)
 - **Visual Changes**: Grount's rig grows with the stage scale (1.0 / 1.25 / 1.5) and shows each
   stage's parts: bigger horns and orange eyes plus back spikes (Stage 2); huge horns, red eyes,
   glowing cracks and a chain (Stage 3); a flash and a ring pulse mark the evolution
@@ -289,15 +372,18 @@ Power Level
 
 - **Bat**: 8 XP per kill
 - **Hog**: 25 XP per kill
-- **Elite Hog**: 50 XP per kill
-- **Collection Radius**: 600 units (instant collection)
+- **Hero**: 100 XP per kill (`xp_value` on each hero scene)
+- **Elite Hog**: designed (50 XP), not built: no Elite camp exists
+- **Collection**: the monster gets a kill's XP when it lands the killing blow
+  (or the dying entity was chasing it); no collection radius. The thresholds
+  are total XP (`stage_2_xp`, `stage_3_xp`), not XP per stage.
 
-**Farming Path to Stage 3**:
+**Farming Path to Stage 3** (Grount: 150 XP, then 150 more):
 
-- Option 1: 19 Bats (152 XP) → Stage 2, then 10 Hogs (250 XP) → Stage 3
-- Option 2: 6 Hogs (150 XP) → Stage 2, then 10 Hogs (250 XP) → Stage 3
-- Option 3: 3 Elite camps (150 XP) → Stage 2, then 5 Elite camps (250 XP) → Stage 3
-- **Time Required**: ~5-7 minutes to reach Stage 3 (if undisturbed)
+- Option 1: 19 Bats (152 XP) → Stage 2, then 6 Hogs (150 XP) → Stage 3
+- Option 2: 6 Hogs (150 XP) → Stage 2, then 6 Hogs (150 XP) → Stage 3
+- **Time Required**: median 322 s (about 5.4 min) to Stage 3 in the sim
+  (Measured Balance); Stage 1 farms Bats only, Hogs from Stage 2
 
 ---
 
@@ -413,7 +499,7 @@ per-stage table, so the stage damage multiplier never applies to him.
 ║  └─ Safe area, team formation                                 ║
 ╠═══════════════════════════════════════════════════════════════╣
 ║  ZONE 2: Bat Territory (2000-3500)                            ║
-║  └─ 4-5 Bat camps (6 XP each, 5-6 per camp)                  ║
+║  └─ Bat camps (6 hero XP / 8 monster XP per Bat)              ║
 ║  └─ Light farming zone for heroes                             ║
 ╠═══════════════════════════════════════════════════════════════╣
 ║  ZONE 3: Mixed Territory (3500-5500) ⚠️ CONTESTED             ║
@@ -422,31 +508,39 @@ per-stage table, so the stage damage multiplier never applies to him.
 ║  └─ First contact probability: HIGH                           ║
 ╠═══════════════════════════════════════════════════════════════╣
 ║  ZONE 4: Hog Territory (5500-7000) 🐗 MONSTER PARADISE        ║
-║  └─ 4-5 Hog camps (15/25 XP each, 3-4 per camp)              ║
-║  └─ 1 Elite camp (50 XP each, 2 per camp)                    ║
+║  └─ Hog camps (15 hero XP / 25 monster XP per Hog)            ║
+║  └─ (planned: 1 Elite camp)                                   ║
 ║  └─ Monster farming priority                                  ║
 ╠═══════════════════════════════════════════════════════════════╣
 ║  ZONE 5: Deep Jungle (7000-9200) 🌲 ENDGAME                   ║
-║  └─ 2 Elite camps (high risk/reward)                          ║
+║  └─ (planned: 2 Elite camps, high risk/reward)                ║
 ║  └─ Dense fog of war                                          ║
 ║  └─ Stage 3 monster hunting grounds                           ║
 ╚═══════════════════════════════════════════════════════════════╝
 ```
 
+The zone diagram is the design intent. `World.tscn` ships 39 camps (29 Bat,
+10 Hog); the Elite camps are designed, not built.
+
 ### Mob Camps
 
 | Type           | HP  | Damage | Cooldown | Camp Size | Hero XP | Monster XP | Total XP (Monster) |
 | -------------- | --- | ------ | -------- | --------- | ------- | ---------- | ------------------ |
-| **Bat Camp**   | 25  | 5      | 0.6s     | 5-6       | 6       | 8          | 40-48 XP           |
-| **Hog Camp**   | 100 | 10     | 1.0s     | 3-4       | 15      | 25         | 75-100 XP          |
-| **Elite Camp** | 180 | 15     | 0.9s     | 2         | 50      | 50         | 100 XP             |
+| **Bat Camp**   | 50  | 5      | 1.5s     | 3         | 6       | 8          | 24 XP              |
+| **Hog Camp**   | 100 | 10     | 1.0s     | 3         | 15      | 25         | 75 XP              |
+| **Elite Camp** | 180 | 15     | 0.9s     | 2         | 50      | 50         | 100 XP (planned, not built) |
 
-**Total Map XP** (for monster):
+Mob numbers live on the scenes (`mobs_base_class.tscn` for the Bat's
+defaults, `Hog.tscn`): `max_health`, `base_attack_damage`, `attack_cooldown`,
+`hero_xp_value`, `xp_value`. Bats fly at 150 px/s, Hogs walk at 70. One Bat
+camp holds 2 Bats, every other camp 3.
 
-- Bats: ~300-350 XP (7-8 camps)
-- Hogs: ~400-500 XP (5-6 camps)
-- Elites: ~200 XP (2 camps)
-- **Total Available**: ~900-1050 XP (more than enough for Stage 3)
+**Total Map XP** (for the monster, all 39 camps once; 26-30 of them are
+eligible per match and every camp respawns after 40 s):
+
+- Bats: 688 XP (86 Bats in 29 camps)
+- Hogs: 750 XP (30 Hogs in 10 camps)
+- **Total configured**: 1,438 XP, about 5x the 300 Grount needs for Stage 3
 
 ### Spawn System
 
@@ -458,6 +552,10 @@ per-stage table, so the stage damage multiplier never applies to him.
 ---
 
 ## 📊 Balance Sheet - Target Win Rates
+
+The first three blocks are the design targets (what a match should feel
+like); "Measured Balance" below is what the headless sim plays today, per
+monster and side.
 
 ### Encounter Scenarios
 
@@ -491,7 +589,7 @@ Early Ambush        ⚠️ 40% Win            ✅ 60% Win
 
 **If Heroes Win >55%**:
 
-- Increase monster XP gains (10 → 12 per Bat, 30 → 35 per Hog)
+- Increase monster XP gains (8 → 10 per Bat, 25 → 30 per Hog)
 - Reduce Stage 2 threshold (150 → 120 XP)
 - Buff Stage 2 stats (+100 HP, +10 speed)
 
@@ -571,20 +669,29 @@ fresh saves, threat 0; the balance at each Opponent Threat level is under
 
 ## 🎨 Visual Systems
 
-### Art Style: Lineart Mobile Game
+### Art Direction: Jungle Guild
 
-**Reference Games**:
+**Reference**: UnderGuild's collection screen, moved into the jungle;
+Underdark: Defense and Lucky Defense for the in-match readability.
 
-- Underdark: Defense
-- Lucky Defense
+**Rules** (the art area's spec, enforced by the generators and tests):
 
-**Aesthetic Goals**:
-
-- Clean lineart with minimal shading
-- Vibrant, readable silhouettes
-- Hand-crafted sprite work (artist: You)
-- Tower Defense-style readability
-- Mobile-friendly UI elements
+- Flat fills with one shade crescent, a heavy dark-brown ink outline
+  (`ink` #1A1311) on everything, no gradients, filters, masks or text in the
+  SVGs (`tools/art/svgkit.py`).
+- One palette (`tools/art/palette.py` → `UiPalette`, 100 tokens): warm
+  charcoal surfaces, copper and amber, moss / teal / carved wood / mossy
+  stone; heroes warm, monsters crimson and purple. No colour literal in a UI
+  script or scene (`tools/lint.sh` checks it).
+- Chunky chibi characters (the characters area's art, ten of them) as SVG
+  cut-out rigs: the same rig in the lobby, on the cards, in the HUD and in
+  the match.
+- The match keeps the 16 px pixel jungle tiles under a muted, darker grade
+  so the ink-outlined rigs are the brightest thing on screen.
+- Every ability gets a pooled, cheap SVG effect and a body move; numbers and
+  shake are capped so a big fight stays readable.
+- Lilita One for display text ("Lv.N", headers, buttons, numbers), the
+  engine's Open Sans SemiBold for small body text.
 
 ### Palette and Art Pipeline ("Jungle Guild")
 
@@ -744,10 +851,11 @@ dangerous (`monster` #C2334A, `monster_purple` #7B3F95).
 
 ### Character Rigs (SVG cut-out runtime)
 
-Characters are moving from the pixel `AnimatedSprite2D` frames to chunky chibi
-SVG cut-out rigs. The runtime, the builder and the art of all ten characters
-are in place. Every character in the match draws its rig: the four heroes,
-Ted's fox, Grount (all three stages), Nyxa, Gorrak and the Bat and Hog mobs.
+Every character is a chunky chibi SVG cut-out rig (the pixel
+`AnimatedSprite2D` frames are gone since 8.3). The runtime, the builder and
+the art of all ten characters are in place, and every character in the match
+draws its rig: the four heroes, Ted's fox, Grount (all three stages), Nyxa,
+Gorrak and the Bat and Hog mobs.
 
 - **Source** (`Assets/Characters/<id>/src/`, ignored by Godot through
   `.gdignore`): `rig_src.json` (canvas 128x160, baseline 150, optional
@@ -1056,10 +1164,17 @@ grade (they are not redrawn).
 
 ### Fog of War System
 
-- **Grid**: 2000x2000 overlay on 32px tilemap
-- **Reveal Radius**: 200-300 units (hero-dependent)
+- **Grid**: 32 px cells (2 x 2 of the 16 px ground tiles), 288 x 163 of them
+  over the 9200 x 5185 map (`FogOfWarSystem.tile_size`, an R8 exploration
+  image, one texture update per frame when something changed)
+- **Reveal Radius**: the played side's vision: heroes 200-300 px
+  (`HeroStats.vision_radius`: River 300, Vlad 250, Ted 220, Irelia 200), the
+  monster 350 px when the player is the monster
 - **Persistence**: Once revealed, stays visible
-- **Rendering**: World-space Node2D (not screen-space)
+- **Rendering**: World-space Node2D (not screen-space): a static
+  world-covering quad in the palette's `bg_void` at 85 % (`fog_alpha`);
+  outside the map is always fogged. The minimap shows the same exploration
+  texture
 - **Purpose**: Strategic scouting value, monster can hide
 
 ### Match HUD (MatchHud)
@@ -1494,9 +1609,15 @@ Planned: evolution transformation effects, death animations.
 
 **Current**:
 
-- Basic attack when in range
-- Ability usage: On cooldown if valid target
-- Movement: Chase or flee based on health
+- Basic attack when in range (the Fight gate: `min_distance <= distance <=
+  attack range`); between swings an entity strafes at its preferred distance
+- Heroes use their active at 4 Hz once fighting (River swaps weapons by her
+  allies' HP, Irelia shields a hurt ally) and their ultimate by the pre-round
+  dials (`MatchConfig`: enemies in reach, panic HP); a hero in a fight calls
+  teammates within 500 px
+- Monsters: the strategy layer's combos (see Monster AI)
+- Targeting: priority, distance, threat (`TeamBlackboard`), low-HP focus;
+  Irelia's Shield Bash adds 40 threat, her taunt overrides
 
 **Planned**:
 
@@ -1521,11 +1642,20 @@ EntityBase (abstract base class)
 │  └─ Irelia (Tank/Support)
 ├─ MobBase
 │  ├─ Bat (flying, swarm)
-│  ├─ Hog (ground, tanky)
-│  └─ EliteHog (rare, high XP)
-└─ MonsterBase
-   └─ Grount (3-stage evolution bull)
+│  └─ Hog (ground, tanky; can join Gorrak's warband)
+└─ MonsterBase (every monster is a scene + data, no subclass)
+   ├─ Grount (3-stage evolution bull)
+   ├─ Nyxa (bat matriarch, flyer)
+   └─ Gorrak (boar king, armoured)
+
+TedsPet (CharacterBody2D, not an EntityBase: Ted's fox, on the hero layer)
 ```
+
+`River`, `Ted` and `Irelia` are HeroBase subclasses that override a few
+virtuals (Vlad's scene uses HeroBase as it is); the mobs and the monsters are
+scenes that inherit
+`mobs_base_class.tscn` / `monster_base_class.tscn` with their own stats and
+abilities, and no script of their own.
 
 ### Component Systems
 
@@ -1535,17 +1665,19 @@ EntityBase (abstract base class)
 
 ```gdscript
 - base_stats: HeroStats (resource)
-- current_stats: Stats (runtime values)
-- level: int
-- current_xp: int
-- xp_for_next_level: int
+- current_stats: Dictionary (max_health, current_health, move_speed, ...)
+- stat_modifiers: Dictionary (the skill trees' additive / multiplicative rows)
+- level: int (1..MAX_LEVEL 10), current_xp: float, XP_PER_LEVEL 80
 
 Methods:
-- add_experience(amount: int)
-- level_up()
-- _recalculate_all_stats()
+- add_xp(amount) / level_up()            # HeroBase.gain_xp feeds add_xp
+- add_stat_modifier(stat, value, is_multiplicative) / refill_health()
+- get_max_health() / get_move_speed() / get_attack_range() / get_attack_damage()
+- get_damage_scale() / get_attack_speed_multiplier()
 - get_modifier(stat, multiplicative) / get_damage_taken_multiplier() /
   get_cooldown_multiplier() / get_start_level()   # generic stat keys
+
+Signals: stat_changed, health_changed, leveled_up
 ```
 
 #### AbilitySystem (4-Slot System)
@@ -1560,10 +1692,18 @@ Slots:
 - ultimate_ability: AbilityBase (high impact)
 
 Methods:
-- use_ability(slot: String)
-- update_cooldowns(delta: float)
+- use_basic_attack(target) / use_active(target) / use_ultimate(target) -> bool
+- is_on_cooldown(type) / get_cooldown_progress(type)   # what the HUD reads
+- make_abilities_unique()   # per-entity copies: a shared .tres is never mutated
+- get_damage_multiplier() / get_attack_speed_multiplier()
 # Active and ultimate cooldowns start x HeroStats cooldown_mult (Battle Drills).
+
+Signal: ability_used(ability)
 ```
+
+Monsters do not use this node: `MonsterBase` holds `passive_ability` and
+`ability_1..3` itself (per-stage tables, `tick_active`, the combo logic; see
+"Shared Monster Framework"). The HUD reads both through `CooldownSource`.
 
 #### State Machine (godotstatecharts)
 
@@ -1705,9 +1845,9 @@ entity registers it and draws from the global RNG).
   `select_monster(id, persist = true)` sets it directly (the sim tools, with
   persist off); the `selected_monster` setting is the player's own monster
   (`choose_monster(id)`, owned only; `played_monster_id()` reads it back and
-  falls back to the default). The old main menu's monster tree button and
-  level row follow the player's own monster. The `match_ended` analytics
-  event carries `monster`.
+  falls back to the default). The lobby's lair, the Monsters roster and the
+  pre-round's monster picker follow the player's own monster. The
+  `match_ended` analytics event carries `monster`.
 - **Tools**: `MONSTER=<id>` or `MONSTER=all` for `tools/sim.sh`, `tools/sim_trace.sh`
   and `tools/bench.sh` (`sim_match.gd` / `bench_match.gd ... monster=<id>`), with a
   per-monster trace baseline in `tools/baselines/`; see Headless Tools below.
@@ -2410,8 +2550,13 @@ Every tool copies the project to a temp directory with its own `user://`
     (default arguments only; nothing is written if a run failed), in the
     commit that changes gameplay on purpose and in the one that adds a monster.
     `test_sim_tools` fails while a roster monster has no baseline.
-  - The hashes depend on the engine build and the CPU: after an engine
-    upgrade or on another machine, re-record before comparing.
+  - The hashes depend on the engine build and the CPU. The committed
+    baselines were recorded with Godot 4.7.2 on the development Mac: after
+    an engine upgrade or on another machine (the hourly cloud loop's runner
+    included), re-record them there first and compare only traces made on
+    the same machine and build. `BASELINE=<file>` against a trace recorded
+    on the parent commit in the same place is the gate for a change that must
+    not alter gameplay.
 - Typical runs: `MONSTER=all tools/sim.sh 48 heroes 6` and `... 48 monster 6`
   (balance target 40–60 % hero wins per monster), `MONSTER=all THREAT=all
   tools/sim.sh 24 heroes 8` (the Opponent Threat parity check, 35–65 % at
@@ -2430,38 +2575,47 @@ res://
 │  │                    <id>_def.tres CharacterDef for playable characters)
 │  ├─ Characters/_moves/ (humanoid / quadruped / flyer_moves.tres: the rig moves)
 │  ├─ Fonts/ (LilitaOne-Regular.ttf display font + LilitaOne-OFL.txt licence)
+│  ├─ Locale/ (strings.csv: English + German, imported translations)
 │  ├─ Shaders/ (ground_grade; hit_flash + hit_flash_material.tres on every rig body)
 │  ├─ Vfx/svg/ (fx_*.svg: in-world effect sprites, mipmapped; the mine pod and
 │  │            lamp, supply crate and chute are scene sprites)
 │  ├─ Vfx/recipes/ (fx_<character>_<ability>.tres: AbilityFxRecipe per ability;
 │  │                fx_generic_bite / fx_generic_claw: the mobs' and the fox's swings)
-│  └─ UI/ (generated Jungle Guild kit, DPITexture SVGs)
-│     ├─ Kit/ · Crests/ · Icons/{Abilities,Currency,Stats,Roles,Nav,UI}/
-│     ├─ Lobby/ (the lobby's campfire and lair backdrops, VS badge)
-│     └─ Shaders/ (ability_cooldown, card_locked, ready_glow)
+│  ├─ UI/ (generated Jungle Guild kit, DPITexture SVGs)
+│  │  ├─ Kit/ · Crests/ · Icons/{Abilities,Currency,Stats,Roles,Nav,UI}/
+│  │  ├─ Lobby/ (the lobby's campfire and lair backdrops, VS badge)
+│  │  └─ Shaders/ (ability_cooldown, card_locked, ready_glow)
+│  └─ Icon.jpg (the app icon, project.godot config/icon)
 ├─ Data/
 │  └─ SkillTrees/ (the nine skill trees, <tree_id>.tres: MetaSkillTree + node sub-resources)
 ├─ Scenes/
 │  ├─ NPCs/
+│  │  ├─ npc_base_class.gd + NPCBaseClass.tscn (EntityBase: state chart, Rig, HP bar)
 │  │  ├─ roster.tres (Roster: every playable character, GameManager.ROSTER)
 │  │  ├─ Hero/
-│  │  │  ├─ Heros/
-│  │  │  │  ├─ DMG/Vlad/
-│  │  │  │  ├─ Support/River/
-│  │  │  │  ├─ Support/Ted/
-│  │  │  │  └─ Support/Irelia/
-│  │  │  ├─ hero_stats.gd (resource)
-│  │  │  └─ stat_component.gd (node)
+│  │  │  ├─ hero_base_class.gd + HeroBaseClass.tscn (HeroBase)
+│  │  │  ├─ hero_stats.gd (HeroStats resource) · stat_component.gd (HeroStatsComponent)
+│  │  │  ├─ hero_exploration_controller.gd (formation, exploration)
+│  │  │  ├─ Abilities/ (ability_base.gd: AbilityBase · ability_system.gd: AbilitySystem)
+│  │  │  └─ Heros/
+│  │  │     ├─ DMG/Vlad/
+│  │  │     ├─ Healer/River/
+│  │  │     ├─ Support/Ted/ (Abilities/Passive/TedsPet.tscn: the fox)
+│  │  │     └─ Support/Irelia/
 │  │  ├─ Mob/
-│  │  │  ├─ bat/Bat.tscn
-│  │  │  ├─ hog/Hog.tscn
-│  │  │  └─ mobs_base_class.gd
+│  │  │  ├─ mobs_base_class.gd + mobs_base_class.tscn (MobBase, the Bat's defaults)
+│  │  │  └─ Mobs/Bat/Bat.tscn · Mobs/Hog/Hog.tscn
 │  │  └─ Monster/
-│  │     └─ Grount/
-│  │        ├─ grount.gd (evolution system)
-│  │        └─ abilities/
+│  │     ├─ monster_base_class.gd + .tscn (MonsterBase) · monster_stats.gd (MonsterStats)
+│  │     ├─ Grount/ (Grount.tscn, grount_stats.tres, grount_strategy.tres,
+│  │     │           abilities/: cleave, ram dash and slam scripts + .tres)
+│  │     ├─ Nyxa/ (Nyxa.tscn, stats, strategy, abilities/ incl. night_swarm.gd)
+│  │     └─ Gorrak/ (Gorrak.tscn, stats, strategy, abilities/ incl. thrown_axe.gd)
 │  ├─ World/
+│  │  ├─ World.tscn · world.gd · world_navigation.tres (the baked navigation)
 │  │  ├─ monster_slot.gd (MonsterSlot: spawns the selected monster)
+│  │  ├─ spawns.gd (SpawnManager: camp eligibility, lazy activation, mob pool)
+│  │  ├─ Camera/ (MainCam: GameCamera with shake; DebugOverlay: the F3 overlay)
 │  │  ├─ FogOfWar/
 │  │  └─ MobSpawnArea/
 │  └─ UI/
@@ -2472,7 +2626,7 @@ res://
 │     ├─ Tutorial/ (TutorialOverlay.tscn: the coach marks)
 │     ├─ Hud/ (MatchHud: the in-match HUD under MainCam, HeroHudCard,
 │     │        MonsterHudPanel, AbilitySlot: ability icon with the cooldown sweep,
-│     │        MatchAnnouncer: match events -> the HUD's event toasts)
+│     │        MatchAnnouncer: match events -> the HUD's event toasts, PauseMenu)
 │     ├─ Minimap/ (Minimap: fog map + side-fair dots, inside the MatchHud frame)
 │     ├─ Components/ (menu kit: CharacterCard, StageCharacter, TopBar,
 │     │               CurrencyChip, NavBar, NavTab, NavArch, PressFeedback,
@@ -2483,28 +2637,33 @@ res://
 │        ├─ ui_theme.tres (generated project Theme, gui/theme/custom)
 │        ├─ ui_palette.gd (UiPalette)
 │        └─ palette.tres (generated palette values)
-├─ Scripts/
+├─ Scripts/ (autoloads and shared systems: globals, types, game_utils,
+│  │         combat_events, event_bus, damage_packet, team_registry +
+│  │         team_blackboard, entity_registry, tick_scheduler, hp_bar_2d,
+│  │         ring_pulse, audio_manager, analytics_sink, persisted_data,
+│  │         locale_settings, audio_settings, game_manager, match_config,
+│  │         match_rewards, monster_strategy, back_button, spawn_zone)
 │  ├─ MetaSkills/ (MetaSkillManager, MetaSkillTree, MetaSkillNode; skill_tree_data_v2.gd: the trees' seed data)
 │  ├─ Progression/ (CharacterProgress: card level, XP pill, ready upgrades)
 │  ├─ Rig/ (CharacterRig, RigBody, RigProfile: SVG cut-out rigs)
 │  ├─ Roster/ (Roster, CharacterDef: the character registry)
 │  ├─ UI/ (CooldownSource: read-only HUD view of an entity's ability slots)
-│  ├─ Vfx/ (VfxManager: pooled hit feedback; AbilityVfx, FxGroundLayer,
-│  │        AbilityFxRecipe: ability effects; FxSpriteBuffer, FxTex, FxEase, FxEvents)
-│  └─ Systems/
-│     ├─ ability_system.gd
-│     └─ hero_exploration_controller.gd
+│  └─ Vfx/ (VfxManager: pooled hit feedback; AbilityVfx, FxGroundLayer,
+│           AbilityFxRecipe: ability effects; FxSpriteBuffer, FxTex, FxEase, FxEvents)
+├─ addons/godot_state_charts/ (the entity state charts)
 ├─ test/ (headless suite, test_*.gd; fixtures/rig_fixture/ for the rig tests)
 └─ tools/
    ├─ art/ (Python art pipeline: palette.py, build.py, make_theme.py, ...)
    ├─ rig_builder.gd · build_rigs.gd · build_rigs.sh (SVG parts → rig sheet + body)
    ├─ build_skill_trees.gd · build_skill_trees.sh (seed data → Data/SkillTrees, kept in step by a test)
+   ├─ bake_nav.gd · bake_nav.sh (Ground tiles → world_navigation.tres)
+   ├─ lint.sh · lint_all.gd · run_tests.sh (compile + wiring check, the suite)
    ├─ sim.sh · sim_match.gd · sim_summary.py · sim_trace.sh · bench.sh · bench_match.gd
    │  (headless balance, determinism and performance; see Headless Tools)
    ├─ list_monsters.gd · monster_env.zsh (MONSTER=<id>|all for those three)
    ├─ baselines/ (trace_<id>.txt: each roster monster's determinism trace)
    └─ preview/ (ThemeMockup, ThemeScreens, PaletteSheet, RigGallery, MoveSheet,
-                CardGrid, SlotStrip proof scenes, not shipped)
+                CardGrid, SlotStrip, AbilityFxStage proof scenes, not shipped)
 ```
 
 ---
@@ -2562,9 +2721,10 @@ unlock prices) and both base trees in about 85 matches.
 "Mob killed" means a kill by the played side (the model above):
 `GameManager.played_side_kills()` (the heroes' kills, Ted's pet and their traps
 included, or the monster's own), which the result screen and the HUD's kills
-chip show too. Until Phase 8 GameManager passed `mob_kills` (every mob death on
-both sides), so a match paid about 1,340 Steel / 1,445 Leaves instead of the
-target.
+chip show too. Measured on 72 sim matches per side at threat 0: a median of
+about **715 Steel** per hero match and **915 Leaves** per monster match, near
+the target. Until 8.2 GameManager passed `mob_kills` (every mob death on both
+sides), and a match paid about 1,440 Steel / 1,470 Leaves.
 
 ### Skill Tree Structure
 
@@ -2967,25 +3127,38 @@ since 6.6); `hidden` stays for nodes whose code is still to come:
     +33/45/55%; T3 Apex Charge +15/18/21% speed; T4 CAP **Trample** (Ram Dash
     hits a 70 px lane instead of 40 px, and from Stage 3 recharges twice as
     fast: 2.5 s).
-- **monster_nyxa** (Hunger / Shadow / Brood): registered with her def. Every
-  node acts on her own ability copies (Thirst: Sonic Screech lifesteal; Swift
-  Hunter, Disorienting Dive: Shadow Swoop; Wide Shriek: the cone; Thicker
-  Swarm, Endless Night: Night Swarm's radius and duration) or a generic key
-  (Dusk Hide, Night Recovery, Silent Wings, Fast Maturity, Piercing Shriek).
-  Capstones (6.6, "Monster capstones and behaviour nodes"): T4 CAP **Vampiric
-  Rebirth** (once per match at 0 HP she scatters into bats for 3 s and
-  returns with 30% HP), **Echo Strike** (Shadow Swoop passes its target a
-  second time), **Brood Mother** (from Stage 3 the Night Swarm never ends).
-- **monster_gorrak** (Tusks / Bristles / Warband): registered with his def.
-  Every node acts on his own ability copies (Wide Arc: Cleaver Chop's cone;
-  Honed Tusks, Concussive Axe: the Tusk Axe's damage and stun; Earthshaker,
-  Ringing Ears: Warcry Stomp's radius and stun) or a generic key (Heavy
-  Cleaver, Thick Bristles, Mud Armour, Mud Bath, Long March, King's Hunger).
-  Capstones (6.6, "Monster capstones and behaviour nodes"): T4 CAP
-  **Whirlwind** (from Stage 3 Cleaver Chop hits all around him),
-  **Unstoppable** (immune to Irelia's taunt and Ted's Trap Cage), **Call of
-  the Herd** (Warcry Stomp turns the Hogs within 250 px into his warband for
-  20 s).
+- **monster_nyxa** (Hunger / Shadow / Brood), registered with her def; every
+  ability node acts on her own ability copies:
+  - Hunger: T1 Dusk Hide +5/8/11/14/17% max HP; T2 Thirst Sonic Screech
+    lifesteal +10/15/20 points (20% -> 30/35/40%); T3 Night Recovery resting
+    regen x1.5/2/2.5; T4 CAP **Vampiric Rebirth** (once per match at 0 HP she
+    scatters into bats for 3 s and returns with 30% HP).
+  - Shadow: T1 Silent Wings +4/7/10/12/14% speed; T2 Swift Hunter Shadow Swoop
+    cooldown -15/23/30%; T2 Disorienting Dive (Shadow Swoop stuns 0.4 s); T3
+    Fast Maturity -8/12/15% stage XP; T4 CAP **Echo Strike** (Shadow Swoop
+    passes its target a second time).
+  - Brood: T1 Piercing Shriek +4/7/10/13/15% damage; T2 Wide Shriek Sonic
+    Screech cone +8/14/20 degrees; T3 Thicker Swarm Night Swarm radius
+    +15/25/35%; T3 Endless Night Night Swarm lasts +30/50/70%; T4 CAP **Brood
+    Mother** (from Stage 3 the Night Swarm never ends).
+- **monster_gorrak** (Tusks / Bristles / Warband), registered with his def;
+  every ability node acts on his own ability copies:
+  - Tusks: T1 Heavy Cleaver +5/8/11/14/17% damage; T2 Wide Arc Cleaver Chop
+    cone +10/18/25 degrees; T3 Honed Tusks Tusk Axe damage +20/35/50%; T3
+    Concussive Axe (Tusk Axe stuns 0.5 s); T4 CAP **Whirlwind** (from Stage 3
+    Cleaver Chop hits all around him).
+  - Bristles: T1 Thick Bristles +5/8/11/14/17% max HP; T2 Mud Armour -5/8/11%
+    damage taken; T3 Mud Bath resting regen x1.5/2/2.5; T4 CAP **Unstoppable**
+    (immune to crowd control: Irelia's taunt and Ted's Trap Cage skip him;
+    damage still lands, the Spiked Cage's spikes included).
+  - Warband: T1 Long March +4/7/10/12/14% speed; T2 Earthshaker Warcry Stomp
+    radius +15/25/35%; T2 Ringing Ears Warcry Stomp stuns 0.25/0.5/0.75 s
+    longer; T3 King's Hunger -8/12/15% stage XP; T4 CAP **Call of the Herd**
+    (a Warcry Stomp aimed at a hero or Ted's pet turns the Hogs within 250 px
+    into his warband for 20 s).
+- The capstones' mechanics are under "Monster capstones and behaviour nodes"
+  and "Hero capstones and behaviour nodes". `test/test_readme_spec.gd` checks
+  every node name and rank row above against `Data/SkillTrees/*.tres`.
 
 **Permanent XP** (per hero and per monster) opens a character tree's tiers:
 Lv 3, 5 and 8 take about 2, 7 and 19 matches with that character.
@@ -3004,35 +3177,43 @@ Lv 3, 5 and 8 take about 2, 7 and 19 matches with that character.
 
 ### First-Time Player Journey
 
-**Round 1** - Tutorial (Auto-Play):
+**First launch** - the camp tour:
 
-1. Game auto-selects Heroes side
-2. "Your heroes will now hunt the monster. Watch and learn!"
-3. Heroes rush aggressively, find Stage 1 monster at 2 minutes
-4. Easy victory (70% win rate scenario)
-5. **Rewards**: 150 Steel + 100 Gold for the win, plus the kill, time and survivor bonuses
-6. "You can now spend Steel on hero upgrades!"
+1. The game opens on the lobby: the four heroes at their campfire, the
+   monsters in their lair (Grount awake, Nyxa and Gorrak as padlocked
+   silhouettes with their price)
+2. 0.9 s in, the coach marks play over it: the rules, the campfire, the
+   lair, the HUNT arch, the Codex tab. Skip counts as seen; the Codex's guide
+   replays it
+3. Tap a side to choose it (kept for the next launch), then HUNT
 
-**Round 2** - First Strategy Decision:
+**First match**:
 
-1. Player chooses: Heroes or Monster?
-2. If Heroes: Can now select 4 heroes from roster (Currently only 4, so no choice yet)
-3. If Monster: Play as Grount
-4. "Configure your strategy..." (simple sliders for aggression/farming balance)
-5. Watch AI execute strategy
-6. Learn from outcome
+1. Pre-round: tonight's quarry (Grount on the first hunt) or the player's
+   own monster, the strategy dials and the formation with a plain-words
+   forecast, the Opponent Threat (0 on a fresh save), START HUNT
+2. The match plays itself; the HUD tips point at the cooldown slots and the
+   pause button once
+3. The result screen: VICTORY / DEFEAT / TIME UP, the rewards counting up
+   (a hero win pays 150 Steel + 100 Gold plus the kill, time and survivor
+   bonuses), each character's XP bar
+4. "N upgrades ready" opens the side's roster; a card's red pill leads to
+   the character page and its skill tree
 
-**Round 3-5** - Learning Phase:
+**Hunts 2-6** - learning:
 
-- Experiment with both sides
-- Earn currencies, start upgrading skill trees
-- Discover synergies (e.g., Vlad's Bloodlust is strong in late fights)
+- Experiment with both sides; the first ranks cost 40-200
+- The Heroes side meets Nyxa after 3 hunts and Gorrak after 6 (NEW QUARRY on
+  the pre-round card, a new Codex page); the free Change picker fixes a quarry
+- The Monster side unlocks Nyxa (2,500 Leaves) and Gorrak (3,000) once a
+  monster is Lv 3
 
-**Round 10+** - Mastery:
+**Hunt 10+** - mastery:
 
-- Deep tree investments create unique playstyles
-- Permanent XP unlocks powerful nodes
-- Meta strategies emerge (rush comps vs late-game comps)
+- Tiers open with the character's permanent level (Lv 3 / 5 / 8); one
+  capstone per tree is equipped and can be swapped for free
+- Every 6 ranks on the played side raise the Opponent Threat by one (up to
+  4): a stronger AI build and +10% Steel / Leaves / Gold per level
 
 ### Engagement Loops
 
@@ -3045,131 +3226,143 @@ Setup (1 min) → Watch Battle (4-8 min) → Rewards (30s) → Upgrade (1 min)
 **Medium Loop** (Per Session - 30-60 min):
 
 ```
-Play 5-10 rounds → Complete daily quests → Major skill tree progress
+Play 5-10 rounds → Major skill tree progress (daily quests: planned)
 ```
 
 **Long Loop** (Per Week/Month):
 
 ```
-Max out hero trees → Unlock new heroes → Compete on leaderboards
+Max out trees and capstones → Unlock the monsters (new heroes, leaderboards: planned)
 ```
 
 ---
 
 ## 🚧 Current Status & Roadmap
 
-### ✅ Implemented (Prototype v0.1)
+`PROGRESS.md` is the living tracker (done, backlog, open decisions,
+changelog with numbers); this section is the summary.
+
+### ✅ Implemented (Prototype v0.2, the "Jungle Guild" overhaul)
 
 **Core Gameplay**:
 
-- [x] 4 unique heroes with abilities
-- [x] Grount monster with 3-stage evolution
-- [x] Nyxa, the Dusk Matriarch: a second monster (lifesteal skirmisher, Night Swarm aura), in the roster and the sim tools; locked (unlock flow and opponent choice come in 6.7)
-- [x] Gorrak, the Boar King: a third monster (armoured brawler, returning Tusk Axe, stunning Warcry Stomp), in the roster and the sim tools; locked (unlock flow and opponent choice come in 6.7)
-- [x] XP and leveling systems (in-round)
-- [x] Asymmetric power curve
+- [x] 4 unique heroes with a 4-slot kit each (passive, basic, active, ultimate)
+- [x] 3 monsters with 3-stage evolution: Grount (bruiser), Nyxa (lifesteal
+      skirmisher, bat aura), Gorrak (armoured, returning axe, stunning stomp),
+      each a scene + data on the shared monster framework
+- [x] XP and leveling systems (in-round), 10-minute match clock
+- [x] Asymmetric power curve; 40-60 % hero wins per monster on both sides at
+      threat 0 (48 seeds)
 
 **Combat**:
 
-- [x] 4-slot ability system
-- [x] Cooldown management
-- [x] Damage calculation and stat scaling
-- [x] Pet system (Ted's companion)
+- [x] Damage pipeline (`EventBus` request → apply, shields, threat, lifesteal)
+- [x] Cooldown management, per-stage ability tables, stuns, taunt, traps
+- [x] Pet system (Ted's fox; two with Pack of Two)
 
 **AI**:
 
-- [x] Hero exploration (boids flocking)
-- [x] Monster hunting behavior
-- [x] Target acquisition and combat
-- [x] Spawn area leashing for mobs
+- [x] Hero exploration in a role-ranked formation, call-for-help, focus fire,
+      auto-used actives and ultimates driven by the pre-round dials
+- [x] Monster strategy layer per monster (farm / rest / retreat / ambush /
+      hunt, ability combos)
+- [x] Target acquisition and combat, spawn area leashing for mobs
 
 **Visuals**:
 
-- [x] Fog of war (world-space)
-- [x] Match HUD: hero cards / monster panel with real-time stats, top bar, framed minimap
-- [x] Match event toasts (evolution, hero fallen, ultimates) and the level-up badge pop
-- [x] Health bars
-- [x] Ability cooldown indicators
+- [x] One palette (`UiPalette`, 100 tokens), one generated theme, the SVG UI
+      kit and icons, Lilita One
+- [x] SVG cut-out rigs for all ten characters (idle, walk, flinch, attack,
+      cast and ultimate moves per body plan), evolution parts, contact shadows
+- [x] Ability effects as data (`AbilityFxRecipe`, 27 recipes), pooled
+      `VfxManager` (damage numbers, hit flash, shake, telegraphs), mob swings
+      under the rig budget
+- [x] Pixel jungle tiles under the muted ground grade; fog of war (world-space)
+- [x] Match HUD: hero cards / monster panel, ability slots with the cooldown
+      sweep, ready glow and stage locks, framed minimap, event toasts, pause menu
 
 **Map**:
 
-- [x] 9200x5185 map with 5 zones
-- [x] Bat/Hog/Elite mob camps
-- [x] XP award system
+- [x] 9200x5185 map with 5 zones, one baked navigation region
+- [x] 39 Bat and Hog camps (lazy activation, pooling, 40 s respawn); Elite
+      camps are designed, not built
 
-**Meta & Flow** (since v0.1):
+**Meta & Flow**:
 
-- [x] Lobby (the main scene, MenuRoot): the heroes' campfire and the monster lair as live rigs, tap a side to choose it (persisted)
-- [x] Roster screens (4-column collections with role filters) and the character detail (overview with stats and abilities, skill tree with upgrades); Growth shows the side's base tree
-- [x] Main Menu with side selection, Settings (volumes) and the Meta Skill screen (old; replaced by the Lobby and unreachable)
-- [x] Match result screen (MatchResultScreen: outcome ribbon, the cast celebrating or fallen, stats, count-up rewards with the threat bonus, XP bars with LEVEL UP!, "upgrades ready" to the roster, Lobby / Play Again)
-- [x] Hero Base + Monster Base skill trees (MetaSkillManager, applied on spawn), ConfigFile save
-- [x] Permanent XP per hero/monster with level readout on the menu cards
-- [x] 10-minute match cap (loss-condition timer)
-- [x] Side-aware fog/vision (playing the monster reveals for the monster)
-- [x] Performance pass: faction collision layers, EntityRegistry, TickScheduler AI LOD, HpBar2D, mob pooling
-- [x] Per-hero (Steel) and per-monster (Leaves) skill trees — stat nodes and ability-modifying nodes, applied on spawn
-- [x] Skill trees v2 as resources (`Data/SkillTrees`): 3 branches x 4 tiers, ranks, capstones, level / points gates; nodes without code yet are hidden
-- [x] First-run flow: coach marks over the lobby and the first match's HUD, replayable from the Codex
-- [x] Versioned save file with automatic backup + migration
-- [x] Audio manager on the Master/Music/SFX buses (generated placeholder tones until real assets land in `Assets/Audio/`)
-- [x] Local analytics log (`user://analytics.jsonl`, opt-out in Settings)
-- [x] Pre-round setup screen (aggression / farming / exploration / formation) driving the hero AI
-- [x] Minimap with fog overlay and side-fair entity dots
-- [x] Localization scaffold (English + German, language setting)
-- [x] Headless test suite — `tools/run_tests.sh` (47 tests) + `tools/lint.sh`
+- [x] Lobby (MenuRoot, the main scene): campfire and lair as live rigs, tap a
+      side to choose it
+- [x] Roster screens (4-column collections, role filters, locked cards) and
+      the character page (overview, abilities, skill tree)
+- [x] Skill trees v2: nine trees as resources (3 branches x 4 tiers, ranks,
+      level / points gates, one equipped capstone), every node live
+- [x] Opponent choice (tonight's quarry, Change picker), monster unlocks,
+      the side rule and Opponent Threat with AI builds and the reward bonus
+- [x] Pre-round screen (quarry or monster, strategy dials, formation,
+      forecast, threat) and match result screen (ribbon, cast, count-up
+      rewards, XP bars, upgrades ready)
+- [x] First-run flow (camp tour, HUD tips), Codex (guide, monsters, heroes),
+      Settings (volumes, language, screen shake, privacy, reset)
+- [x] Earning Rates v2, permanent XP and levels per character
+- [x] Versioned save (v3) with backup + migration, local analytics log
+      (opt-out), localization (English + German UI strings)
+- [x] Audio manager on the Master/Music/SFX buses (generated placeholder tones
+      until real assets land in `Assets/Audio/`)
+- [x] Performance pass: faction collision layers, EntityRegistry, TickScheduler
+      AI LOD, HpBar2D, mob pooling, rig sleep and budget
+- [x] Headless tools: `tools/lint.sh`, `tools/run_tests.sh` (589 tests),
+      `tools/sim.sh`, `tools/sim_trace.sh`, `tools/bench.sh`, and the art, rig,
+      skill-tree and navigation builders
 
 ---
 
-### 🚧 In Development (v0.2 - Next 2 Months)
+### 🚧 Next (open items, details in `PROGRESS.md`)
 
 **High Priority**:
 
-- [ ] **Behaviour-changing skill nodes** — shipped: Grount "Stunning Charge" (Ram Dash stuns 0.5 s),
-      "Early Slam" (Ground Slam at Stage 1), "Gravity Slam" (200 px pull), "Enrage" (<20% HP: +30%
-      speed, +50% dmg), "Titan Form" (T4); River "Triple Shot" (sniper shots hit 2 more enemies).
-      Open: "Second Wind" (needs the evolution-heal decision), trap/barrage slows (River's README kit
-      — Snare Trap, Arrow Barrage — differs from the shipped Weapon Swap / Supply Drop), second
-      ultimate
-- [ ] **Device build** — export presets, measure the perf pass on a mid-range phone, retune the
-      shrunken aggro / AoE ranges from the collision-layer split
-- [ ] **Real audio assets** — drop `.ogg`/`.wav` files into `Assets/Audio/` (keys in its README)
+- [ ] **Device build**: export presets, the stress config on a mid-range
+      phone with F3, Compatibility vs Mobile renderer
+- [ ] **User review of the open design decisions and placeholder copy**
+      (PROGRESS: "Decisions for the user", "Placeholder copy")
+- [ ] **Balance at Opponent Threat 3-4**: Gorrak's tree (heroes win 62-75 %),
+      the AI build size against a player at the threshold, the 48-seed
+      confirmation of the parity table
+- [ ] **Real audio assets**: drop `.ogg` / `.wav` files into `Assets/Audio/`
+      (keys in its README)
 
 **Medium Priority**:
 
-- [ ] **Improved AI Behaviors** (2 weeks)
-    - [x] Monster: Hide & Farm / Rest / Ambush / Hunt strategy layer + combo logic
-    - [x] Heroes: role-ranked formation (tank leads), call-for-help, focus fire, auto-used actives
-    - [ ] Heroes: threat assessment (flee from a Stage 3 monster)
-- [ ] **Pre-Round Setup — visual strategy preview** (the dials, the formation tiles with their glyphs and the plain-words forecast ship; an animated preview of the resulting behaviour does not yet)
+- [ ] Monster instincts on the pre-round screen (Lurker / Ambusher / Ravager
+      are built and hidden until their `MonsterStrategy` presets are balanced)
+- [ ] Localization of the content strings (skill node texts, tree titles,
+      Codex notes, taglines, tips, ability descriptions, stage names)
+- [ ] Heroes: threat assessment (flee from a Stage 3 monster)
+- [ ] Hero composition selection (more than four heroes)
+- [ ] "Second Wind" (needs the evolution-heal decision), trap / barrage
+      slows, a second ultimate
 
-**Low Priority** (v0.2):
+**Low Priority**:
 
-- [ ] Audio content (buses + volume settings exist; no music/SFX assets yet)
-- [ ] Pinch-zoom / tap-to-focus on the match camera, `print()` gating, debug keys behind `OS.is_debug_build()`
+- [ ] Elite camps, more mob types
+- [ ] Cloud save, a remote analytics provider
 
 ---
 
 ### 📅 Future Versions
 
-#### v0.3 (3-4 months) - Content Expansion
+#### v0.3 - Content Expansion
 
 - [ ] 2 new heroes (Archer, Mage archetypes)
-- [ ] 1 new monster (Swarm-based: Spider Queen)
-- [ ] Hero skill trees (Tier 3-4 nodes)
-- [ ] More mob types (Ranged bats, Charging rhinos)
-- [ ] Basic particle effects
+- [ ] 1 new monster (Swarm-based: Spider Queen; the roster's "swarm" role
+      filter has nobody yet)
+- [ ] More mob types (Ranged bats, Charging rhinos), Elite camps
 
-#### v0.4 (5-6 months) - Polish & Balance
+#### v0.4 - Polish & Balance
 
-- [ ] Full skill trees for all characters
 - [ ] 10+ heroes total
-- [ ] 3+ monsters total
 - [ ] Advanced AI (split strategies, baiting)
-- [ ] Animated sprites (basic)
 - [ ] Sound design pass
 
-#### v0.5 (7-9 months) - Pre-Alpha Release
+#### v0.5 - Pre-Alpha Release
 
 - [ ] 15+ heroes
 - [ ] 5+ monsters
@@ -3177,73 +3370,58 @@ Max out hero trees → Unlock new heroes → Compete on leaderboards
 - [ ] Daily quests & challenges
 - [ ] Leaderboards (local)
 - [ ] Tutorial mode (a scripted first match)
-- [x] Codex (guide, a page per monster met with field notes, stages and counterplay, hero pages)
-- [x] Pause menu (resume, settings, quit to lobby) and the Android back button
-- [ ] Full art pass (lineart style)
 
-#### v1.0 (12+ months) - Public Alpha
+#### v1.0 - Public Alpha
 
 - [ ] 30+ heroes (goal)
 - [ ] 8+ monsters
 - [ ] Online leaderboards
 - [ ] Seasonal content
-- [ ] Mobile port
+- [ ] Store builds (Android / iOS)
 - [ ] Monetization (2x XP boost)
 
 ---
 
 ### 🔧 Known Issues & Tech Debt
 
+`PROGRESS.md` ("Tech Debt / Improvements", "Decisions for the user") is the
+full list. The ones a reader of this spec should know:
+
 **Bugs**:
 
-- [x] Pet sometimes didn't respawn if Ted died during the respawn timer — closed: every pet slot
-      has its own respawn timer on Ted's own copy of the passive (`TedPassivePet.pets` /
-      `respawn_timers`), so nothing is shared between Teds or matches; heroes do not respawn, so a
-      dead Ted's pets end with him
-- [x] Trap Cage trapped (almost) nothing — fixed in 6.3 with the Grount retune: the cage gets its
-      position, radius (`area_of_effect` 150 in `ted_ultimate.tres`, was 2) and duration before
-      `add_child`, so its `_ready` traps the enemies around the target; the push at the bars no
-      longer mirrors a trapped enemy across the cage
-- [x] Fog of war flickered at the screen edge — fixed: the fog quad is static and world-covering
-      (it chased the camera a frame late), the world size snaps to whole tiles, and outside the map
-      is always fogged
-- [x] Monster / heroes stuck in corners — fixed: dashes, leaps, strafes and pushes stop at walls;
-      exploration only targets reachable waypoints; the nav bake drops the sealed one-tile islands
-      (`tools/bake_nav.gd`)
-- [x] Heroes parked at the map edge for minutes (off-map fog counted as unexplored) and agents
-      stranded far behind their group (paths cut off at the engine's 4096-polygon search budget on
-      the per-tile navigation map) — fixed
-- [x] Ted's pet could not be targeted by mobs or the monster and chased targets across the map —
-      it now has a hitbox on the hero layer and a 350 px leash to Ted
-- [x] Hero UI cooldown overlays drifted from the real cooldown (attack-speed boosts, pause, recasts)
-      — fixed: the panel reads `AbilitySystem.get_cooldown_progress()` every frame
+- [ ] Gorrak's camp choice and slam count still count his own warband mobs
+      (`MonsterBase._pick_camp`, `_count_slam_targets`): with Call of the Herd
+      he can walk to a camp he cannot farm for up to 20 s
+- [ ] River's supply crate fades in mid-air when every hero in its pickup
+      radius was healed during the fall; a Land Mine placed on an enemy
+      detonates at once (no arming delay). Intended or not: open
 
 **Performance**:
 
-- [ ] 60 fps @ 150 mobs on a mid-range phone — code side landed 2026-10-14 (see `PROGRESS.md`); device
-      measurement and the balance retune of the now-smaller aggro / AoE ranges are pending
-- [x] Fog of war recalculated every frame — fixed (dirty flag, one texture update per frame)
-- [x] One navigation region per Ground tile (~38,000) made every path query cost ~3–5 ms — fixed:
-      the walkable area is baked into one `NavigationRegion2D` ("Navigation",
-      `Scenes/World/world_navigation.tres`, ~2,100 polygons). After editing the Ground tiles, re-bake
-      with `tools/bake_nav.sh` or the editor's Bake NavigationPolygon button (a test fails on a
-      stale bake). Stress config (232 mobs, headless): frame time 30.6 → 2.1 ms, p99 185 → 5.4 ms
+- [ ] 60 fps @ 150 mobs on a mid-range phone: the code side is done and the
+      headless stress bench holds (frame mean about 1.5 ms with the rigs
+      asleep, about 2.0 ms with all 232 awake); the device measurement is open
+- [ ] Headless runs put no mob on screen, so sims tick mobs at 20 / 10 / 3 Hz
+      where a device ticks the visible ones at 60 Hz
 
 **Balance**:
 
-- [ ] Monster Stage 3 may be too strong (needs more playtesting)
-- [ ] Vlad's Bloodlust is overpowered in 1v1 scenarios
-- [ ] Irelia's regen too weak early game
+- [ ] Opponent Threat: 21 of 30 parity cells inside 35-65 % at 24 seeds;
+      Gorrak at threat 3-4 is too weak, a player at the threshold beats the AI
+- [ ] Nyxa wins mostly by timeout (17-18 of 48): accepted as her trait
+- [ ] Fully ranked heroes beat a threat-4 Grount 79-100 %
 
 **Design Debt**:
 
-- [x] Loss-condition timer — 10-minute match cap in `GameManager`
 - [ ] Hero composition is fixed (can't choose which 4 heroes yet)
 - [ ] Monster spawn location is random within Zone 3 (should it become a strategic choice?)
-- [ ] Evolution refills the monster's HP, while this README says "new max HP - old max HP": decide
-      which rule ships (`MonsterBase.heal_to_full_on_evolution`), then add Grount's "Second Wind"
-      (`monster_stage_2_evo_heal` +200, wired and tested in `test_grount_behaviour_nodes`) to
-      `Data/SkillTrees/monster_grount.tres`
+- [ ] Evolution refills the monster's HP; the original rule was "new max HP -
+      old max HP": decide which rule ships
+      (`MonsterBase.heal_to_full_on_evolution`), then add Grount's "Second
+      Wind" (`monster_stage_2_evo_heal` +200, wired and tested in
+      `test_grount_behaviour_nodes`) to `Data/SkillTrees/monster_grount.tres`
+- [ ] Knockback is not implemented (`knockback_force` on Ram Dash does nothing)
+- [ ] Content strings are English only (see Next)
 
 ---
 
@@ -3273,14 +3451,14 @@ Max out hero trees → Unlock new heroes → Compete on leaderboards
 
 5. **Readable Visuals**
     - Mobile-first design language
-    - Clean lineart, minimal VFX spam
+    - Thick ink outlines, capped VFX (numbers, shake and effects are budgeted)
     - Information clarity > flashy effects
 
 ### Design Constraints
 
 **Mobile-Friendly**:
 
-- Touch controls must work (tap to command)
+- Touch controls must work (tap to focus a hero, pinch to zoom; no commands mid-match)
 - UI elements large enough for fingers
 - Performance target: 60fps on mid-range phones (2022+)
 
@@ -3349,7 +3527,7 @@ Max out hero trees → Unlock new heroes → Compete on leaderboards
 
 **Developer**: [Your Name/Studio]  
 **Solo Project**: Art, Code, Design  
-**Tools**: Godot 4.5, Aseprite (art), GitHub (version control)
+**Tools**: Godot 4.7, hand-written SVG art through the Python generators in `tools/art/` and the rig builder (the ground tileset is the one pixel asset left), GitHub (version control)
 
 ---
 
@@ -3357,22 +3535,21 @@ Max out hero trees → Unlock new heroes → Compete on leaderboards
 
 ### A. Monster Evolution Math
 
-**Stage 1 → Stage 2** (150 XP):
+Thresholds are total XP (`MonsterStats.stage_2_xp`, `stage_3_xp`); a Bat pays
+the monster 8 XP, a Hog 25, a hero 100.
 
-- 19 Bats (152 XP) - Takes ~2-3 min
-- 6 Hogs (150 XP) - Takes ~2-3 min
-- 3 Elite Hogs (150 XP) - Takes ~2 min (risky)
+| Monster | Stage 2 at | Stage 3 at | Stage 1 → 2 | Stage 2 → 3 | Median Stage 3 (sim) |
+| ------- | ---------- | ---------- | ----------- | ----------- | -------------------- |
+| Grount  | 150 XP     | 300 XP     | 19 Bats (152 XP) | 6 Hogs (150 XP) | 322 s |
+| Nyxa    | 150 XP     | 400 XP     | 19 Bats (152 XP) | 32 Bats (256 XP): she farms Bats only until Stage 3 | 371 s |
+| Gorrak  | 150 XP     | 500 XP     | 19 Bats (152 XP) | 14 Hogs (350 XP) | 346 s |
 
-**Stage 2 → Stage 3** (250 XP):
-
-- 32 Bats (256 XP) - Takes ~3-4 min
-- 10 Hogs (250 XP) - Takes ~3-4 min
-- 5 Elite Hogs (250 XP) - Takes ~2-3 min
-
-**Full Evolution** (400 XP total):
-
-- Optimal path: 3 Elite camps → Stage 2 → 5 more Elite camps → Stage 3 (~4-5 min)
-- Safe path: 6 Hogs → Stage 2 → 10 Hogs → Stage 3 (~6-7 min)
+- Stage 1 farms Bats only (`farm_max_mob_health` 60); Grount and Gorrak add
+  Hogs from Stage 2 (150), Nyxa from Stage 3.
+- The tree nodes Ravenous / Fast Maturity / King's Hunger and Quick
+  Evolution lower both thresholds; Bloodhound raises the XP per kill; Head
+  Start begins a match with 60 XP.
+- Elite camps (50 XP per mob) are designed, not built.
 
 ### B. Hero Team Compositions (Future)
 
@@ -3394,12 +3571,22 @@ Max out hero trees → Unlock new heroes → Compete on leaderboards
 ### C. Glossary
 
 - **XP**: Experience Points (in-round leveling)
-- **Permanent XP**: Out-of-round progression currency
+- **Permanent XP**: Out-of-round progression per character; its level
+  ("Lv.N" on the cards) opens the character tree's tiers
 - **Steel**: Hero-specific upgrade currency
-- **Leaves**: Monster-specific upgrade currency
-- **Gold**: Universal upgrade currency
+- **Leaves**: Monster-specific upgrade currency (also buys monsters)
+- **Gold**: Universal upgrade currency (the two base trees)
 - **Stage**: Monster evolution level (1-3)
 - **Level**: Hero in-round power (1-10)
+- **Rank**: One purchase of a skill node (nodes have 1, 2, 3 or 5 ranks)
+- **Capstone**: A tree's tier-4 behaviour node; one per tree is equipped
+- **Power ranks (P)**: Ranks owned on the played side (base tree + character tree)
+- **Opponent Threat (T)**: `min(4, floor(P / 6))`; sets the AI opponent's build
+  and the reward bonus
+- **Quarry**: The monster the Heroes side hunts tonight
+- **Rig**: A character's SVG cut-out puppet (`CharacterRig`), the same in the
+  menus and the match
+- **Recipe**: An ability's look as data (`AbilityFxRecipe`)
 - **Boids**: Flocking algorithm for group movement
 - **Leashing**: Mobs returning to spawn area
 - **Fog of War**: Vision/exploration system
@@ -3409,7 +3596,7 @@ Max out hero trees → Unlock new heroes → Compete on leaderboards
 ## ❓ FAQ
 
 **Q: Can I control heroes/monster during the round?**  
-A: Not in v0.1. Future versions will add mid-round commands.
+A: No. You set the strategy before the round; during it you watch, follow a hero (tap, 1-4, Tab) and zoom. Mid-round commands are a future idea.
 
 **Q: How many heroes will there be at launch?**  
 A: Goal is 30+ heroes, each with unique abilities and trees.
@@ -3444,7 +3631,18 @@ A: PC/Mobile first. Console depends on success.
 
 ## 📖 Version History
 
-**v0.1** (Current) - Prototype:
+**v0.2** (Current) - the "Jungle Guild" overhaul:
+
+- 4 heroes, 3 monsters (Grount, Nyxa, Gorrak), each balanced to 40-60 % hero
+  wins at threat 0
+- Ranked skill trees v2 (nine trees, capstones, level gates), Opponent
+  Threat, monster unlocks, Earning Rates v2
+- Lobby, rosters, character pages, pre-round, match HUD, match result,
+  Codex, tutorial, settings in one palette and theme
+- SVG rigs with authored moves, ability effects, the muted ground grade
+- Headless lint, tests, balance sim, determinism trace and bench
+
+**v0.1** - Prototype:
 
 - 4 heroes, 1 monster, core loop functional
 - Basic AI, fog of war, UI systems

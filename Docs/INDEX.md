@@ -1,23 +1,27 @@
-# 📚 EvolveMobile Documentation
+# 📚 Better Hunt Documentation
 
-Architecture and project documentation for EvolveMobile.
+Architecture and project documentation for Better Hunt (EvolveMobile).
 
 ---
 
 ## 📖 Documents
 
-- **[README.md](README.md)**
-    - Project overview
-    - Features summary
-    - Setup instructions
-    - Quick reference
+- **[../README.md](../README.md)** — the design spec
+    - The game, the heroes and monsters, the map, the balance sheet
+    - Visual systems (palette, rigs, HUD, effects), menus, tools
+    - Progression: currencies, earning rates, skill trees, Opponent Threat
 
-- **[INSTRUCTOR.md](INSTRUCTOR.md)**
-    - Complete architecture guide
-    - Entity hierarchy
-    - Combat system design
-    - Pattern explanations
-    - Best practices
+- **[INSTRUCTOR.md](INSTRUCTOR.md)** — the architecture guide
+    - House rules and development priorities
+    - Entity hierarchy, autoloads, key patterns
+    - Checklists for new heroes, abilities, monsters, mobs, skill nodes, screens
+    - Testing and tools, key files
+
+- **[../PROGRESS.md](../PROGRESS.md)** — the tracker
+    - Done, backlog, decisions for the user, placeholder copy
+    - Measured balance and performance, the changelog
+
+- **[README.md](README.md)** — getting started (run, check a change, regenerate)
 
 ---
 
@@ -25,9 +29,9 @@ Architecture and project documentation for EvolveMobile.
 
 - **Getting Started** → [README.md](README.md)
 - **Architecture Deep Dive** → [INSTRUCTOR.md](INSTRUCTOR.md)
-- **Entity Systems** → See INSTRUCTOR.md → Entity Class Hierarchy
-- **Combat & Abilities** → See INSTRUCTOR.md → Key System Patterns
-- **Best Practices** → See INSTRUCTOR.md → Anti-Patterns to Avoid
+- **Entity Systems** → INSTRUCTOR.md → Architecture Overview
+- **Combat & Abilities** → INSTRUCTOR.md → Key System Patterns, Gameplay Systems
+- **Best Practices** → INSTRUCTOR.md → House Rules, Anti-Patterns to Avoid
 
 ---
 

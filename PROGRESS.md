@@ -1,10 +1,15 @@
 # Progress Tracker
 
-Last loop run: 2026-11-09 (code cleanup done: 54 batches; wall/corner fixes; feature overhaul designed, next)
+Last loop run: 2026-11-11 (Jungle Guild overhaul done: 40 batches, `6985f6e`..8.5, on top of the code cleanup; local only, not pushed)
 Stack: godot
 
-Spec source: `README.md` + `Docs/INSTRUCTOR.md` (roadmap, "Current Status & Roadmap",
-"Known Issues & Tech Debt", v0.2–v1.0 phase lists).
+Spec source: `README.md` (the design spec; `test/test_readme_spec.gd` checks its tables against the
+data) + `Docs/INSTRUCTOR.md` (architecture guide). README "Current Status & Roadmap" is the short
+summary of this file.
+
+**Before the hourly loop works on this tree**: the overhaul is 47 local commits after `885e86a`
+(origin/main); push them first. On the loop's runner re-record the trace baselines before comparing
+anything (see "Verification gate").
 
 ## Done
 
@@ -18,80 +23,149 @@ Spec source: `README.md` + `Docs/INSTRUCTOR.md` (roadmap, "Current Status & Road
 - [x] Interactive camera — click/1-4/Tab hero select, smooth target switch, F3 DebugOverlay
 - [x] PersistedData autoload — ConfigFile save (currency, hero/monster XP, skill unlocks, settings)
 - [x] MatchRewards + GameManager — 10-min cap, kill/stage tracking, 3 end paths, reward grant
-- [x] MatchResult screen — stats + rewards + Play Again / Main Menu (scene-side connections)
 - [x] Side selection — GameManager.chosen_side plumbed to camera + hero UI + vision + rewards
 - [x] In-world HP bars pinned to fixed pixel size (+ monster counter-scale through evolution)
-- [x] MetaSkill system — MetaSkillManager autoload, Hero Base (12 nodes) + Monster Base (7 nodes) trees,
-      MetaSkillScreen UI, applied to heroes on spawn
-- [x] Code→scene cleanup — groups/signals/exports/process_mode moved scene-side; dead fog_world file
-      removed; Mine.tscn root-type + bare-`range` bugs fixed
-- [x] Beautified Main Menu — ui_theme.tres, portrait layout, gradient bg, title, currency chips,
-      themed side cards with intro/hover animations
-- [x] **Monster Base skill tree now consumed by MonsterBase** — health/damage/speed/xp/evo-threshold/range
-      multipliers applied on spawn — `fdb36c6`
-- [x] **Crash fix: null-target deref in Approach/Fight processing** — re-eval can clear target mid-frame;
-      added validity-bail guards (iteration 2 — see Changelog)
-- [x] **Permanent XP awarded & persisted on match end** — data slice of the Permanent XP System —
-      `eeb2234`
-- [x] **Permanent XP System — level readout on Main Menu cards** — quadratic level curve in
-      PersistedData + per-hero + monster "Progression" strips that react live to the `*_xp_changed`
-      signals (iteration 4 — see Changelog)
+- [x] Code→scene cleanup — groups/signals/exports/process_mode moved scene-side
+- [x] Crash fix: null-target deref in Approach/Fight processing (validity-bail guards)
+- [x] v0.1 menus (Main Menu, MetaSkillScreen, MatchResult, HeroContainer panel) — replaced by the
+      overhaul's screens (Phases 3, 4, 5, 8) and deleted in 8.3
+- [x] Monster Base skill tree consumed by MonsterBase — `fdb36c6`
+- [x] Permanent XP awarded, persisted and shown per character — `eeb2234`
+- [x] Performance pass P0→P5 (faction layers, EntityRegistry, TickScheduler LOD, HpBar2D, mob pool) —
+      Changelog 2026-10-14; the device measurement moved to Backlog (user step)
+- [x] Headless test harness, save migration, touch-input audit, `print()` gating, tutorial, minimap,
+      localization scaffold, analytics sink, audio manager (placeholder tones) — Changelog 2026-10-18/19
+- [x] Code cleanup (54 batches), wall/corner fixes, Godot 4.7 — `2f8207d`..`141924e`, `6730670`
+- [x] **Jungle Guild overhaul, Phase 1: visual and UI foundation** — one palette (`UiPalette`, 100
+      tokens), the Python art pipeline, the SVG kit (64) and icons (81), the generated theme with
+      Lilita One, real ability icons, VfxManager core — `6985f6e` `b7ea686` `df3494e` `a41cb6e` `0435084`
+- [x] **Phase 2: SVG character rigs and the ground style** — rig runtime and builder, ten characters,
+      heroes / fox / Grount (3 stages) / Bat / Hog migrated, muted ground grade, contact shadows —
+      `0dca17a` `2393cd7` `fdb24f5` `cea2768` `7599f34`
+- [x] **Phase 3: lobby, rosters, nav** — Roster / CharacterDef / MonsterSlot, the menu component kit,
+      MenuRoot + LobbyScreen (main scene), RosterScreen + CharacterDetail — `8d8e2aa` `85f082b`
+      `e102059` `9a666c7`
+- [x] **Phase 4: match HUD** — CooldownSource + AbilitySlot, MatchHud (hero cards, monster panel,
+      framed minimap), event toasts and HUD juice — `cf09154` `accce01` `a388bdd`
+- [x] **Phase 5: ranked skill trees** — ranked node model, capstones, gates, save v3; tree content v2
+      as resources (nine trees); generic stat keys; the twelve hero capstones; the tree screen and
+      upgrade flow; Earning Rates v2 — `7a866a0` `ec862d9` `8bdf570` `f41f622` `09a55d1` `e4e6913`
+      `7f62756` `6a91e33` `07ae717` `0661a6b`
+- [x] **Phase 6: multiple monsters** — shared monster framework, per-monster sim / trace / bench
+      tooling, Grount retune, Nyxa, Gorrak, the eight monster capstones, opponent choice and monster
+      unlocks, the side rule and Opponent Threat — `951175c` `16aed14` `f6b6454` `84b0760` `15fc5dc`
+      `6c0541e` `bc5da84` `c633c2c` `51884c3` `3cff7cf`
+- [x] **Phase 7: ability animations** — authored rig moves per body plan, hero and monster ability
+      effects as recipes, telegraphs, mob swings under the rig budget — `e1738da` `9e70025` `22160b7`
+      `e656c1d`
+- [x] **Phase 8: polish** — PreRoundScreen, MatchResultScreen, the old UI and the pixel sprite path
+      retired, Settings / Tutorial / Codex restyle and the first-run flow, this README / PROGRESS /
+      INSTRUCTOR pass — `fdd3597` `53b039b` `4204a8c` `d5798bd`, `eca1e3e` (three header rewrites
+      the 4.7 editor made, committed as they were) and the 8.5 docs commit
 
 ## In Progress
 
-- [ ] **Performance pass (plan: 60 FPS @ ~150 live mobs on a mid-range phone)** — code phases
-      P0→P5 all landed (see Changelog 2026-10-14). Remaining: capture before/after F3 numbers in the
-      editor (stress config: SpawnManager min/max_active_spawns = 39, enable_lazy_activation = false,
-      stress_mob_multiplier = 2), playtest the P1 balance change, then the production roadmap below.
+- (none)
 
-## Backlog (from spec + production roadmap, in order)
-- [ ] Perf pass follow-up: capture F3 before/after numbers (stress config), playtest the P1 balance
-      change, retune `detection_radius` / AoE radii / Mine-MediKit-TrapCage trigger radii
-- [ ] Audio — DONE: `AudioManager` autoload (pooled positional SFX, music, 50 ms per-key rate limit,
-      hooks on damage / death / ability cast / evolve / match end, menu + match music, UI clicks),
-      generated placeholder tones until real files exist in `Assets/Audio/<key>.ogg|wav`. OPEN: real
-      audio assets.
-- [x] Headless test harness (`tools/run_tests.sh`, `test/`) — rewards, level curve, tier gating,
-      targeted damage hook, death from Idle/Approach, spawn accounting + pooled respawn + epoch cancel.
-      (Own 60-line runner instead of vendoring GUT; extend with `test/test_*.gd` extending `TestCase`.)
-- [x] Save-file migration — `_migrate()` ladder (v1→v2 normalizes types, seeds `created_unix`),
-      `save.cfg.v<N>.bak` before migrating, `save.cfg.corrupt.bak` on unreadable files; 4 tests.
-- [ ] Device build (needs the editor + SDKs/keystore, so it is the user's step): Project → Export →
-      add Android + iOS presets (portrait is already set in project.godot), run the stress config on a
-      Pixel 5a-class phone with F3, benchmark Compatibility vs Mobile renderer (the `config/features`
-      tag still says "GL Compatibility" while `rendering_method="mobile"`), try physics 30 Hz.
-      `application/run/max_fps=60` is set. `treat_warnings_as_errors` is NOT enabled: Godot 4.7.2 only
-      promotes warnings inside the editor (verified headlessly: an unused-parameter probe still loads),
-      so enable it only after an editor pass shows 0 warnings in the Script panel.
-- [x] Touch-input audit — ≥ 48 px controls; pinch-zoom (two-finger + magnify gesture) and
-      tap-to-focus on the match camera; Shift+R / K / M / F1 / F3 only in debug builds.
-- [x] `print()` gating — `Globals.debug_log()` (off unless `Globals.verbose_logs` in a debug build) in
-      world.gd, monster_base_class.gd, spawns.gd. Ability/pet prints still raw (cold paths).
-- [x] Pre-Round Setup screen — `MatchConfig` resource (aggression / farming / exploration / formation,
-      persisted in settings), `PreRoundSetup` scene on the heroes' PLAY path, consumed by the hero AI
-      (auto-ult thresholds, mob priority, exploration cadence/radius, formation spread); tests.
-- [ ] Per-hero skill trees (Steel) + per-monster trees (Leaves) — DONE (stat-only slice): `hero_<id>`
-      trees for River/Vlad/Ted/Irelia and `monster_grount`, `HeroStats.hero_id` / `MonsterStats.monster_id`,
-      applied on spawn (MonsterBase passes `monster_stats.monster_id`, GameManager reads
-      `HeroStats.hero_id`, hero vision radius now lives on HeroStats too). Ability-modifying nodes
-      DONE: `MetaSkillNode.ability_name` + property (cooldown / damage / range / AoE / duration /
-      heal / any ability export), applied to per-entity ability copies, re-applied through monster
-      stage changes; 2–3 per tree. Behaviour nodes: Grount Stunning Charge, Early Slam, Gravity
-      Slam, Enrage, Titan Form (T4, 2000 Leaves) and River Triple Shot ship. Second Wind is wired but
-      held back (evolution heals to full — README says new max − old max: user decision). OPEN:
-      trap/barrage slows (River's README kit differs from the shipped one), second ultimate.
-- [ ] Hero composition selection — `HeroRoster.tres`, World spawns from `GameManager.selected_hero_ids`
-- [x] Tutorial / first-time-user flow — `TutorialOverlay` (4 data-driven steps, scene-side wiring,
-      shown once via `tutorial_seen`, "How to play" footer button re-opens it); 2 tests.
-- [x] Minimap — `Scenes/UI/Minimap` on the camera HUD: fog exploration texture through a tiny
-      shader, hero/pet/monster dots with side-fair visibility (monster only inside a hero's vision
-      and vice versa), camera frame, tap-to-focus; 4 Hz refresh; tests for mapping + fairness.
-- [ ] Cloud save (`SaveBackend`). Localization DONE: `Assets/Locale/strings.csv` (en + de, keys = English
-      text so scene labels auto-translate), `tr()` on code-built UI strings, `LocaleSettings` + language
-      picker (System / English / Deutsch) in Settings; skill-tree node names stay English for now.
-      Analytics sink DONE: `AnalyticsSink`
-      autoload (local `user://analytics.jsonl`, session_start / match_ended / skill_unlocked /
-      tutorial_finished, opt-out toggle in Settings, `set_provider()` for a future remote backend).
+## Backlog (in order; "user step" = needs the user, the editor or a device, not for the loop)
+
+- [ ] **Push and review** (user step): `git log origin/main..main` is the whole overhaul; a
+      whole-overhaul review (`885e86a..HEAD`) before the push was planned.
+- [ ] **Decisions for the user** and **Placeholder copy** below (user step): each entry names the
+      default that ships.
+- [ ] **Bug: Gorrak counts his own warband** — `MonsterBase._pick_camp` (a camp's `spawned_mobs`)
+      and `_count_slam_targets` (`EntityRegistry.mobs`) count mobs with `ally_monster == self`; with
+      Call of the Herd he can walk to a camp he cannot farm for up to 20 s. Gameplay fix: re-record
+      `tools/baselines` only if a default (no capstone) trace changes; it should not.
+- [ ] **Parity table at 48 seeds** — `MONSTER=all THREAT=all tools/sim.sh 48 heroes 8` and
+      `... 48 monster 8`; at 24 seeds 9 of 30 cells are outside 35-65 % (Gorrak T3/T4 62-75 % both
+      sides, Nyxa T2/T3 heroes side 67 / 71 %, Grount T2/T3 monster side 33 / 33 %).
+- [ ] **Gorrak at threat 3-4** — his tree has no big tier-3 stat node; needs tree content or a
+      retuned `ai_build_order` (only the axe damage moved the result in 6.8).
+- [ ] **AI build size** (decision first): 3T character + 2T base entries keep the AI behind a player
+      at the threshold (a P = 6T save wins 71-100 % as heroes at T4). Candidate: 3T + 3T.
+- [ ] **Monster instincts** — PreRoundScreen's Lurker / Ambusher / Ravager tiles are built and hidden
+      (`show_instincts = false`); balance three `MonsterStrategy` presets per monster (sim), then show.
+- [ ] **Pre-round scroll** — the heroes-side pre-round is about 1,500 px tall; on a 720x1280 phone
+      STRATEGY / FORMATION need a scroll (START HUNT is pinned).
+- [ ] **Content localization** — skill node names, effect texts, tree titles, branch names, Codex
+      field notes, taglines, tips, ability descriptions and monster stage names are English-only data
+      (only UI strings, ability names and gate strings are in `Assets/Locale/strings.csv`).
+- [ ] **uids on generated resources** — character bodies / motions / defs, Vfx recipes,
+      `Data/SkillTrees`, `roster.tres`, Nyxa's and Gorrak's ability and stats files,
+      `world_navigation.tres` and the `tools/preview` scenes have no `uid` in their header (the
+      user's editor may add them on first save: commit what it writes). Hand-written scenes have
+      uids and a test enforces it for `Scenes/**/*.tscn`.
+- [ ] **Rigs-awake p99 on an idle machine** — `tools/bench.sh 3 2 1800 600 0 1` (7.4 measured 4.4 ms
+      against the parent's 3.4-4.7 ms range under load 4-9).
+- [ ] Device build (user step): Project → Export → Android + iOS presets (exclude `tools/*`), the
+      stress config on a Pixel 5a-class phone with F3 (`SpawnManager` min/max_active_spawns = 39,
+      enable_lazy_activation = false, stress_mob_multiplier = 2), Compatibility vs Mobile renderer
+      (`config/features` still says "GL Compatibility" while `rendering_method="mobile"`), physics
+      30 Hz, F3 at pinch zoom 0.5. `treat_warnings_as_errors` stays off until an editor pass shows 0
+      warnings.
+- [ ] Real audio assets (user step): `Assets/Audio/<key>.ogg|wav`; the manager plays generated tones
+      until then.
+- [ ] Balance retune after the P1 layer split (aggro 344→~203 px, AoE reach) — needs a playtest.
+- [ ] "Second Wind" (needs the evolution-heal decision), trap / barrage slows, a second ultimate.
+- [ ] Hero composition selection — a roster of more than four heroes, World spawns the chosen four.
+- [ ] Heroes: threat assessment (flee from a Stage 3 monster).
+- [ ] Elite camps (designed: 180 HP, 50 XP; not built), more mob types.
+- [ ] Cloud save (`SaveBackend`); a remote analytics provider (`AnalyticsSink.set_provider`).
+
+## Decisions for the user (the default that ships; change or confirm)
+
+Gameplay:
+- **AI opponent build**: 3T character + 2T base entries, so a player at the threshold owns more
+  ranks than the AI. Options: 3T base entries, a higher `MAX_THREAT`, or keep it.
+- **`THREAT=N` in `tools/sim.sh`** gives both sides their threat-N AI build (the "parity check");
+  `SAVE=` runs the real rule on a save.
+- **Call of the Herd** recruits only on a Warcry Stomp aimed at a hero or Ted's pet (otherwise
+  Gorrak recruited the Hogs he must eat and stalled at Stage 2: 17 of 24 sanity matches timed out).
+- **Unstoppable** is immunity to crowd control (taunt, Trap Cage), not to damage: Spiked Cage's
+  spikes still hurt him.
+- **Vampiric Rebirth** re-forms by a jump to the scatter point when heroes are still within 400 px.
+- **Evolution heals to full** (`heal_to_full_on_evolution`); the first design said "new max − old
+  max". It also gates Grount's "Second Wind".
+- **Knockback** does not exist (`knockback_force` on Ram Dash is unused).
+- **Nyxa's timeouts** (17-18 of 48 matches) are accepted as her trait.
+- **Monster instincts** are hidden; every monster plays its Ambusher (default) strategy.
+- **River's supply crate** fades in mid-air when every hero within its 60 px pickup radius was
+  already healed during its 0.5 s fall; a **Land Mine** placed on an enemy inside its 100 px radius
+  detonates at once (no arming delay). Intended or not?
+- **Match rewards pay the played side's kills** (8.2), and the HUD's kills chip shows them.
+
+Look and feel:
+- **Hit effects land on the damage frame**; the attack move reaches contact about 0.1-0.16 s
+  later. A contact marker could delay the hit sprite to match the lunge. The prototype's
+  per-ability wind-up poses and hit-feedback delay were not ported.
+- **No in-world look** for Vlad's Bloodlust, River's Adaptive Movement and Ted's Loyal Companion;
+  Executioner's Mark and Deadeye crits show only the big gold number.
+- **Enemy HP bars are red** (palette `danger`), heroes and the fox stay green; the **minimap** uses
+  side colours (amber hero dots, a crimson monster dot, moss explored ground over warm near-black
+  fog); the in-world white level number became the **HUD level pill**.
+- **Quarry Change picker**: locked cards only shake (they unlock by hunt count, not for sale).
+- **19.5:9 phones**: a band of about 280 px of plain background sits between the MONSTERS row and
+  the lair in the lobby.
+- **Fallen hero on the result screen**: tint 0.62 / 0.58 / 0.58 plus a colour drain instead of the
+  UX spec's 0.42 / 0.39 / 0.39.
+- **Heroes-side pre-round** needs a scroll on 720x1280 (Backlog).
+- **Font**: Lilita One (approved, SIL OFL 1.1) is the display font. It has one weight and Latin
+  glyphs only (German umlauts and ß included); anything else falls back to the body font (Godot's
+  Open Sans SemiBold). A language beyond Latin needs a display font with wider coverage first.
+
+## Placeholder copy for the user's review
+
+- Grount's stage names (Bullcalf, Rampager, Alpha Bull) and his tip; Nyxa's (Duskling, Night
+  Hunter, Dusk Matriarch) and Gorrak's (Tusker, Warlord, Boar King). None is in `strings.csv`.
+- The redrawn Nyxa and Gorrak ability icons.
+- Accent colours: Nyxa uses palette `monster2` (#8D55C2), not the spec's #7B3F95; Gorrak uses
+  `monster3` (bog green), not the spec's crimson.
+- The Monsters roster's "swarm" role filter has nobody: Grount and Gorrak are "brute", Nyxa is
+  "stalker".
+- Codex field notes, taglines, tips and ability descriptions (English only).
+- `Assets/Icon.jpg` is the app icon (`config/icon`) and stays; `test_legacy_retired` allows exactly
+  two raster images (the ground tileset and this icon).
 
 ## Proposed (NOT approved — do not implement)
 
@@ -99,50 +173,183 @@ Spec source: `README.md` + `Docs/INSTRUCTOR.md` (roadmap, "Current Status & Road
 
 ## Verification gate
 
-Every change that must not alter gameplay (the code cleanup's refactors) passes all three:
-`tools/lint.sh` (errors=0), `tools/run_tests.sh` (exit 0), and
-`BASELINE=<parent trace> tools/sim_trace.sh > <new trace>` (exit 0): seeds 1-3 × heroes/monster as full
-matches in parallel (~40 s), byte-identical to the trace recorded on the parent commit. Baseline traces
-live in the session scratchpad, not in the repo. Every 60 frames the trace hashes each EntityRegistry
-entity's class, position (1 px), health and active state, the monster's stage and XP and the mob kill
-count — never node names (pooled mobs get counter-based auto-names). The temp copies turn off the
-navigation server's asynchronous map/region iterations (override.cfg only): with them on, two runs of
-one seed diverged from frame 180; with them off, runs match from the first line, also under heavy load.
-A bugfix may change the trace only where the fix explains it; then also run `tools/sim.sh 24 heroes 6`.
+Every change passes `tools/lint.sh` (errors=0) and `tools/run_tests.sh` (exit 0; 589 tests, the
+run exits with nothing leaked). A change that must not alter gameplay also keeps the determinism
+trace byte-identical: `BASELINE=<parent trace> tools/sim_trace.sh > <new trace>` (exit 0): seeds 1-3
+× heroes/monster as full matches (~40 s). Every 60 frames the trace hashes each EntityRegistry
+entity's class, position (1 px), health and active state, the monster's stage and XP and the mob
+kill count — never node names. The temp copies turn off the navigation server's asynchronous
+map/region iterations (override.cfg only), which makes runs repeat from the first line under any
+load. A gameplay change says why the trace changed and reports
+`MONSTER=all tools/sim.sh 48 heroes 6` and `... 48 monster 6` (target 40-60 % hero wins per
+monster).
+
+- **Committed baselines** (`tools/baselines/trace_<id>.txt`, one per roster monster) were recorded
+  with **Godot 4.7.2 on the development Mac**. The hashes depend on the engine build and the CPU.
+  **The hourly cloud loop must re-record on its own runner before it compares**
+  (`MONSTER=all RECORD_DIR=<dir> tools/sim_trace.sh` on the untouched tree, then
+  `BASELINE_DIR=<dir>` after its change) and must not commit baselines recorded elsewhere over
+  the committed ones unless it changed gameplay on purpose.
+- `tools/bench.sh 2 2 900 300` (or `5 2 ...` for a gate) before and after, back to back, when
+  visuals touch the match runtime; more than 15 % in frame mean or p99 is fixed or explained.
+- A headless MenuRoot run still reports 3 leaked RefCounted at exit: Godot's own threaded-load
+  tokens, not ours.
+
+## Balance (measured, headless sim)
+
+Threat 0, fresh save, 48 seeds (`MONSTER=<id> tools/sim.sh 48 <side> 6`), hero wins:
+
+| Monster | Heroes side | Monster side | Timeouts (H / M) | Median Stage 3 | Notes |
+|---|---|---|---|---|---|
+| Grount before 6.3 (`16aed14`) | 19 % | 25 % | 4 / 4 | 324 / 325 s | |
+| **Grount** (6.3, `f6b6454`) | **46 %** | **48 %** | 4 / 3 | 322 / 323 s | Trap Cage fix alone: 33 %; plus Stage 3 damage × 0.9 |
+| **Nyxa** (6.4, `84b0760`) | **54 %** | **52 %** | 18 / 17 | 371 / 371 s | wins mostly by timeout: accepted |
+| **Gorrak** (6.5, `15fc5dc`) | **42 %** | **52 %** | 5 / 5 | 346 / 347 s | Stage 3 HP 1500 instead of the design's 1600 (38 % / 50 %) |
+
+This closes "Balance retune after `74e2bff`" (heroes 29 % then).
+
+Opponent Threat parity (6.8, `MONSTER=all THREAT=all tools/sim.sh 24 <side> 8`, hero wins, heroes
+side / monster side):
+
+| threat | Grount | Nyxa | Gorrak |
+|---|---|---|---|
+| 0 | 50 % / 54 % | 58 % / 62 % | 38 % / 46 % |
+| 1 | 46 % / 50 % | 46 % / 54 % | 62 % / 42 % |
+| 2 | 42 % / 33 % | 67 % / 62 % | 58 % / 67 % |
+| 3 | 46 % / 33 % | 71 % / 67 % | 62 % / 71 % |
+| 4 | 58 % / 50 % | 42 % / 50 % | 71 % / 75 % |
+
+- 21 of 30 cells are inside 35-65 % (24 seeds: one standard error is about 10 points). Gorrak at
+  threat 3-4 is the weak spot.
+- Threshold finding: a player at P = 6T (a real save with the first 12 `ai_build_order` entries of
+  the base tree and of each played tree, threat 4) beats the AI at T4: heroes side 100 % (Grount),
+  71 % (Nyxa), 88 % (Gorrak); monster side 12 %, 12 %, 38 % hero wins.
+- Fully ranked hero saves (power ranks 39-42) beat a threat-4 Grount 79 % without capstones and
+  92-100 % with them.
+- Capstone sanity (6.6: a fully ranked monster with one capstone against fresh heroes, 24 seeds):
+  Grount Titan Form 0 % hero wins, Rampage 29 %, Trample 33 %; Nyxa and Gorrak 0 % with every
+  capstone.
+- Income (8.2, 72 sim matches per side, threat 0): median about 715 Steel per hero match and 915
+  Leaves per monster match (target 800 / 1,000); before, with every mob death counted, 1,440 / 1,470.
+
+## Performance (measured, headless `tools/bench.sh`, 232 mobs, stress config)
+
+The machine was loaded (load 4-9) for all of these; compare only pairs run back to back.
+
+| What | Rigs asleep (frame mean) | All 232 rigs awake |
+|---|---|---|
+| Phase 1 baseline `885e86a` | 1.505 ms | n/a (pixel sprites) |
+| 7.3 `9e70025` → `22160b7` | 1.609 → 1.543 ms (p99 4.12 → 3.31) | 2.175 → 2.034 ms (p99 5.04 → 3.60) |
+| 7.4 `e656c1d` | 1.535 / 1.526 ms | 1.946 / 2.020 / 2.026 ms |
+| 8.4 `4204a8c` → `d5798bd` | 1.931 → 1.752 ms (p99 5.25 → 4.74) | |
+
+- Total overhead of the overhaul against `885e86a`: about +0.03 ms with the rigs asleep and about
+  +0.5 ms with all 232 awake (the limit was +0.6 ms).
+- Open: the same on a device, and the rigs-awake p99 on an idle machine (Backlog).
 
 ## Tech Debt / Improvements
 
-- [x] Debug `print()` statements — all game code goes through `Globals.debug_log` (only the
-      DEBUGWORLD test scene still prints).
-- [x] `MonsterBase.get_health()` returned *max* health — fixed in P0: `get_health()` = current,
-      new virtual `get_max_health()` on EntityBase (Mob/Hero/Monster overrides).
-- [ ] Balance retune after P1 layer split (aggro 344→~203 px, AoE reach radius+172→radius+31, single
-      hits, Mine/MediKit/TrapCage trigger on Body overlap) — playtest `detection_radius` + AoE radii.
-- [x] Sim seed 24 (v13B): the stage-1 monster died with no hero damage — mobs killed it. Fixed in
-      `81fa426` (a resting monster fights back attacking mobs) and `74e2bff` (it flees Hogs that
-      attack it instead of farming the Bats beside them); the sim now records `monster_killer`.
-- [ ] Balance retune after `74e2bff`: heroes 29% (24 seeds; the free stage-1 wins are gone). README
-      knob: stage-3 monster damage x0.9 (user decision).
-- [x] Movement no longer runs on the state chart's per-frame `state_processing` — P4 drives the
-      active state through `StateChart.step()` from TickScheduler at an LOD rate (FULL/20/10/3 Hz).
+- [x] Debug `print()` statements — all game code goes through `Globals.debug_log`.
+- [x] `MonsterBase.get_health()` returned *max* health — fixed in P0.
+- [x] Sim seed 24 (v13B): the stage-1 monster died to mobs — fixed in `81fa426` and `74e2bff`.
+- [x] Balance retune after `74e2bff` (heroes 29 %) — closed by 6.3: 46 % (heroes side) / 48 %
+      (monster side) at 48 seeds, timeouts 4 / 3, median Stage 3 at 322 / 323 s, versus 19 % / 25 %
+      before; the Trap Cage fix alone gave 33 % (see Balance).
+- [x] Movement no longer runs on the state chart's per-frame `state_processing` (P4).
+- [x] Hot `get_nodes_in_group` sites → `EntityRegistry` (P3). A few cold one-shot / per-cast sites
+      remain (world.gd, main_cam.gd, game_manager.gd, Irelia / River casts) — fine as is.
+- [x] Legacy in-round `Scripts/Skilltree/` removed.
+- [x] Exit leaks: the test run ends with nothing leaked (8.4; 8.3 left 140 objects, 66 resources
+      and a test Bat's RIDs).
+- [x] The old UI (MainMenu, PreRoundSetup, MetaSkills, MatchResult, HeroContainer) and the pixel
+      `AnimatedSprite2D` path are deleted (8.3); `test_menu_root` and `test_legacy_retired` keep
+      them gone.
+- [ ] Balance retune after the P1 layer split — playtest `detection_radius` + AoE radii (Backlog).
 - [ ] Headless runs never put a mob on screen: nothing is drawn, so VisibleOnScreenNotifier2D never
-      fires. In `tools/sim.sh` and a plain `tools/bench.sh` every mob ticks at 20/10/3 Hz (NEAR/MID/FAR)
-      and only the heroes and the monster tick every frame; on a device every mob inside the camera
-      rect ticks at 60 Hz. A sim/device timing difference to keep in mind (mob reaction 50–333 ms vs
-      16 ms), not changed. `tools/bench.sh` now prints the mean entities per LOD bucket (`lod_FULL` …)
-      and takes a 5th arg `onscreen=1`, which marks the mobs inside the MainCam rect (+64 px) on screen
-      every frame. The headless viewport is 1280×1280, so the rect is 640×640 world px at zoom 2.
-      `tools/bench.sh 3 2 1800 600 0|1` (230 mobs), three calls per mode, alternating, load 5–6 on
-      8 cores: onscreen=0: FULL 4.5–5.0, frame mean 1.31–1.44 ms, p99 3.3–3.6 ms, CPU 4.9–5.3 s;
-      onscreen=1: FULL 8.5–8.7 (about 4 mobs on screen), mean 1.39–1.54 ms, p99 3.5–3.8 ms, CPU
-      5.4–5.7 s (0.3 s of it the bench's own marking); its third call hit 94–108 ms load hitches (mean
-      1.83, p99 6.9 ms). At default zoom the FULL path adds ~0.1 ms. Open: F3 numbers on a device,
-      also at pinch zoom 0.5.
-- [x] Hot `get_nodes_in_group` sites → `EntityRegistry` (P3). ~20 cold one-shot/per-cast sites remain
-      (world.gd, main_cam.gd, game_manager.gd, hero_container.gd, Irelia/River casts) — fine as is.
-- [x] Legacy in-round `Scripts/Skilltree/` removed (zero references outside the folder).
+      fires. In `tools/sim.sh` and a plain `tools/bench.sh` every mob ticks at 20/10/3 Hz
+      (NEAR/MID/FAR) and only the heroes and the monster tick every frame; on a device every mob
+      inside the camera rect ticks at 60 Hz (mob reaction 50–333 ms vs 16 ms). `tools/bench.sh`
+      takes `onscreen=1` (marks the mobs inside the MainCam rect) and `rigs_awake=1` (animates
+      every rig). Open: F3 numbers on a device, also at pinch zoom 0.5.
+- [ ] Generated resources have no `uid` header (Backlog).
+- [ ] `MonsterBase._pick_camp` / `_count_slam_targets` count warband mobs (Backlog, bug).
+- [ ] Content strings are English-only data (Backlog).
+- [ ] A headless MenuRoot run reports 3 leaked RefCounted (Godot's threaded-load tokens).
+- [ ] `tools/sim_match.gd` counts a mob kill for the heroes when the killer is any `Node2D` that
+      is not a monster (`_is(killer, "Node2D")`). Checked in 8.5: `is_class` matches inherited
+      classes, so Ted's fox (a CharacterBody2D) counts; an earlier note said it did not. The game
+      uses `GameManager.killer_side`; the sim could use the same rule. Low priority.
 
 ## Changelog
+### 2026-11-11 — the "Jungle Guild" overhaul: 40 batches in 8 phases (`6985f6e`..8.5)
+Run as a workflow from the plan in the session scratchpad (design deliverables backed up in
+`../evolvemobile-design-backup`): one batch per commit (5.4 and 6.6 as one commit per character),
+each behind lint, the suite and the determinism trace (presentational batches: byte-identical;
+gameplay batches: the reason, new baselines and `tools/sim.sh` numbers), plus a muted render that was
+looked at. The suite grew from 167 to 589 tests. Nothing was pushed.
+
+- **Phase 1 — visual and UI foundation** (`6985f6e`, `b7ea686`, `df3494e`, `a41cb6e`, `0435084`;
+  no gameplay change). `tools/art/palette.py` is the one source of every colour (100 tokens) →
+  `UiPalette` + `palette.tres`; `build.py` writes the SVG kit (64 with 8.2's three ribbons), 81
+  icons and the crests as DPITextures; `make_theme.py` writes the one project Theme with Lilita One
+  (SIL OFL 1.1, licence in `Assets/Fonts`); a lint rule forbids colour literals under `Scenes/UI`;
+  every ability resource got its icon; `VfxManager` (pooled sprites, damage numbers, hit flash,
+  camera trauma, telegraphs) with a per-frame hit budget. Bench: frame mean 1.359 → 1.364 ms.
+- **Phase 2 — SVG rigs and the ground style** (`0dca17a`, `2393cd7`, `fdb24f5`, `cea2768`,
+  `7599f34`; no gameplay change). `CharacterRig` / `RigBody` / `RigProfile` and `tools/build_rigs.sh`
+  (SVG parts + `rig_src.json` → one sheet and a body scene per character); ten characters; the four
+  heroes, the fox, Grount with his three stages' parts, Bat and Hog draw their rigs; off-screen rigs
+  sleep and a budget caps the awake ones; the pixel tiles got a muted, darker grade
+  (`ground_grade`), every rig an ink contact shadow. Bench with all 232 rigs awake: mean 1.460 →
+  1.772 ms (+0.31, budget +0.4).
+- **Phase 3 — lobby, rosters, nav** (`8d8e2aa`, `85f082b`, `e102059`, `9a666c7`; no gameplay
+  change). `roster.tres` + a `CharacterDef` per character (the one registry for menus, match, tools
+  and save), `MonsterSlot` spawns the selected monster at Grount's old point of the enter pass;
+  CharacterCard, RigView, TopBar, CurrencyChip, NavBar; `MenuRoot.tscn` is the main scene with the
+  lobby's campfire and lair (tap a side); the 4-column rosters and the character page.
+- **Phase 4 — match HUD** (`cf09154`, `accce01`, `a388bdd`; no gameplay change). `CooldownSource`
+  (read-only view of an entity's slots) and `AbilitySlot` (radial sweep, countdown, ready glow,
+  stage lock); `MatchHud` replaced HeroContainer and holds the minimap; event toasts (evolved,
+  fallen, ultimates) and the level-up pop.
+- **Phase 5 — ranked skill trees** (`7a866a0`, `ec862d9`, `8bdf570`, `f41f622`, `09a55d1`,
+  `e4e6913`, `7f62756`, `6a91e33`, `07ae717`, `0661a6b`). Ranks, capstones (one equipped per tree),
+  level / points gates and save v3 with a migration that loses no purchase; nine trees as
+  `Data/SkillTrees/*.tres` (3 branches × 4 tiers; all 71 v1 ids kept with their v1 effect as rank
+  1); new generic stat keys (damage taken, cooldowns, start level, regen, ...); the twelve hero
+  capstones and Ted's Beastmaster nodes; `SAVE=` for the sim; the tree screen with the upgrade flow;
+  Earning Rates v2 (150 / 75 + 15 per kill ...).
+  - For existing saves: the retargeted nodes `t2_trapcd`, `t3_trapdur` (Trap Cage was named
+    "TED ULt"), `i2_rallycd` and `i3_dashcd` (now Irelia's Divine Shield and Monster Taunt
+    cooldowns) start working; purchases made after the update use the v2 prices and gates.
+  - Known limitation: node names, effect texts and tree titles are English only.
+  - Balance check then (24 seeds, against a fresh Grount, before 6.2/6.3): fresh heroes 33 %; one
+    capstone branch 42-71 %; all four hero trees fully ranked 92 %.
+- **Phase 6 — multiple monsters** (`951175c`, `16aed14`, `f6b6454`, `84b0760`, `15fc5dc`, `6c0541e`,
+  `bc5da84`, `c633c2c`, `51884c3`, `3cff7cf`). `MonsterStats` reach / armour, `AbilityBase.deal`
+  with lifesteal, `tick_active`, `get_cast_center`: a new monster is a scene plus data;
+  `MONSTER=<id>|all` for sim / trace / bench, per-monster baselines in `tools/baselines`, and a
+  reproducible sim (async navigation off on the copies: 24 seeds of identical code had given 17 %
+  and 33 %). Grount retuned (Trap Cage traps what it lands on; Stage 3 damage × 0.9); Nyxa
+  (lifesteal skirmisher, Night Swarm) and Gorrak (armour, returning Tusk Axe, stunning Warcry
+  Stomp); eight monster capstones incl. the chart's Scattered state for Vampiric Rebirth; tonight's
+  quarry, the Change picker and the Leaves unlocks; the side rule, Opponent Threat
+  `T = min(4, floor(P / 6))`, AI builds and the +10 % reward bonus per threat. Numbers: "Balance".
+- **Phase 7 — ability animations** (`e1738da`, `9e70025`, `22160b7`, `e656c1d`; no gameplay
+  change). Authored attack / cast / ultimate moves per body plan and `AbilityBase.move_name`; an
+  `AbilityFxRecipe` per ability (27 recipes, colours by palette token) drawn by `AbilityVfx` from
+  pooled sprites, ground telegraphs for the monsters' area attacks; mob and fox swings follow the
+  rig budget (`CharacterRig.plays_moves()`). Numbers: "Performance".
+- **Phase 8 — polish** (`fdd3597`, `53b039b`, `4204a8c`, `d5798bd`, 8.5; no gameplay change).
+  PreRoundScreen (quarry or monster, dials, formation, forecast, threat) and MatchResultScreen
+  (ribbon, cast, count-up rewards, XP bars, upgrades ready) keep the old contracts; rewards now pay
+  the played side's kills (median 715 Steel / 915 Leaves at threat 0 instead of 1,440 / 1,470) and
+  the HUD kills chip shows them; 8.3 deleted the old screens and the pixel sprite path (281 files,
+  5,927 lines out); Settings as a bottom sheet, coach-mark tutorial (camp tour, HUD tips), Codex,
+  pause menu and back button; the test run exits with nothing leaked. 8.5: README reconciled with
+  the data (hero kits, mob camps, map XP, fog, evolution maths, roadmap), the Nyxa / Gorrak tree
+  tables, `test/test_readme_spec.gd`, `Docs/INSTRUCTOR.md` rewritten for the current code,
+  `Docs/README.md` (a v0.1 copy of the spec) replaced by a pointer, this file.
+
 ### 2026-11-09 — code cleanup (54 batches), walls/corner fixes, Godot 4.7, unneeded scenes removed
 - **Cleanup**: a 6-area audit (111 verified findings) became 59 batches; 54 landed one commit each
   (`2f8207d`..`141924e`), every one behind lint + 167 tests + the determinism trace (above); 5 skipped
