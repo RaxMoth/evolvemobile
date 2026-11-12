@@ -27,7 +27,7 @@ signal damaged(packet: DamagePacket)
 @export var min_distance: float = 30.0
 @export var max_distance: float = 150.0
 @export var strafe_enabled: bool = true
-@export var strafe_speed: float = 60.0
+@export var strafe_speed: float = 72.0
 
 @export_group("Smart Targeting")
 @export var target_reeval_interval_approach: float = 0.5
@@ -439,7 +439,7 @@ func _get_entity_level() -> int:
 
 func _get_move_speed() -> float:
 	"""Get movement speed. Override in child classes."""
-	return 80.0
+	return 96.0
 
 func _get_attack_range() -> float:
 	"""Get attack range. Override in child classes."""

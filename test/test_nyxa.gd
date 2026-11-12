@@ -94,17 +94,18 @@ func test_motion_full_speed_is_her_stage_1_speed() -> void:
 
 # ---------- stages ----------
 
-## HP 600/950/1250 at 150 and 400 XP, speed 85/105/125; Screech 8/10/8 in a
-## 50/60/70 degree cone, Swoop 12/16/22; Night Swarm locked at Stage 1, then
-## 4 a bite in 110 px every 18 s, then 5 in 140 px every 14 s.
+## HP 600/950/1250 at 150 and 400 XP, speed 102/126/150 (85/105/125 before
+## P1's +20 %); Screech 8/10/8 in a 50/60/70 degree cone, Swoop 12/16/22; Night
+## Swarm locked at Stage 1, then 4 a bite in 110 px every 18 s, then 5 in
+## 140 px every 14 s.
 func test_stage_numbers() -> void:
 	var n := await _nyxa()
 	var screech := n.ability_1 as BullFrontCleave
 	var swarm := n.ability_3 as NightSwarm
 	var rows: Array[Array] = [
-		[1, 600.0, 85.0, 8.0, 50.0, 12.0],
-		[2, 950.0, 105.0, 10.0, 60.0, 16.0],
-		[3, 1250.0, 125.0, 8.0, 70.0, 22.0],
+		[1, 600.0, 102.0, 8.0, 50.0, 12.0],
+		[2, 950.0, 126.0, 10.0, 60.0, 16.0],
+		[3, 1250.0, 150.0, 8.0, 70.0, 22.0],
 	]
 	assert_eq(n.get_evolution_threshold(), 150)
 	for row: Array in rows:

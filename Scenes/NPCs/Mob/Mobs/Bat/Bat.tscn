@@ -6,7 +6,7 @@
 [ext_resource type="Resource" path="res://Assets/Vfx/recipes/fx_generic_bite.tres" id="4_swing"]
 
 [node name="Bat" groups=["Enemy"] instance=ExtResource("1_u0xgj")]
-base_move_speed = 150.0
+base_move_speed = 180.0
 xp_value = 8.0
 hero_xp_value = 6.0
 max_chase_distance = 100.0

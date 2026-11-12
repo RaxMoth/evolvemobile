@@ -11,7 +11,7 @@ class_name HeroStats
 
 @export_group("Base Combat Stats")
 @export var base_max_health: float = 100.0
-@export var base_move_speed: float = 80.0
+@export var base_move_speed: float = 96.0
 @export var base_attack_range: float = 50.0
 @export var base_attack_damage: float = 10.0
 ## Fog-of-war reveal radius when this hero carries the player's vision.
@@ -25,7 +25,7 @@ class_name HeroStats
 @export_group("Progression")
 @export var health_per_level: float = 10.0
 @export var damage_per_level: float = 1.0
-@export var speed_per_level: float = 2.0
+@export var speed_per_level: float = 2.4
 
 @export_group("Combat Behavior")
 @export var combat_role: Types.CombatRole = Types.CombatRole.MELEE
@@ -36,5 +36,5 @@ class_name HeroStats
 @export var min_distance: float = 30.0
 @export var max_distance: float = 150.0
 @export var strafe_enabled: bool = true
-@export var strafe_speed: float = 60.0
+@export var strafe_speed: float = 72.0
 @export var strafe_change_interval: float = 2.0

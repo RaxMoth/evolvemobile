@@ -7,7 +7,7 @@
 script = ExtResource("1_profile")
 body_plan = 1
 world_scale = 0.38
-full_speed = 70.0
+full_speed = 84.0
 stride = 19.1
 leg_swing = 0.55
 moves = ExtResource("2_moves")

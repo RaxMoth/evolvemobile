@@ -81,8 +81,9 @@ var _death_beat: bool = false
 
 # --- Match speed ---
 ## The match's base speed: game seconds per real second while a match runs at
-## the speed button's normal setting. The one number that sets the pace of a
-## round (the clock, cooldowns, movement, effects and the HUD all follow it).
+## the speed button's normal setting. The one number that sets the time scale
+## of a round (the clock, cooldowns, movement, effects and the HUD all follow
+## it); how fast each character walks is its own data (README "Match Speed").
 const MATCH_BASE_SPEED: float = 1.2
 ## The speed button's fast setting: the base speed times this.
 const MATCH_FAST_FACTOR: float = 2.0

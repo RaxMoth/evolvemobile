@@ -90,7 +90,8 @@ anything (see "Verification gate").
 - [ ] **Push and review** (user step): `git log origin/main..main` is the whole overhaul; a
       whole-overhaul review (`885e86a..HEAD`) before the push was planned.
 - [ ] **Decisions for the user** and **Placeholder copy** below (user step): each entry names the
-      default that ships.
+      default that ships. The user accepted the list as it stood on 2026-11-11; the open list holds
+      what came after.
 - [ ] **Parity table at 48 seeds** — `MONSTER=all THREAT=all tools/sim.sh 48 heroes 8` and
       `... 48 monster 8`; at 24 seeds 9 of 30 cells are outside 35-65 % (Gorrak T3/T4 62-75 % both
       sides, Nyxa T2/T3 heroes side 67 / 71 %, Grount T2/T3 monster side 33 / 33 %).
@@ -152,7 +153,39 @@ anything (see "Verification gate").
 
 ## Decisions for the user (the default that ships; change or confirm)
 
+The user reviewed this list on 2026-11-11 and said the decisions look good overall. The entries
+that were on it then are under "Accepted by the user (2026-11-11)", kept as a record; the open
+list holds what was added after that review, and entries a later batch changed (marked).
+
+### Open (added or changed after the review of 2026-11-11)
+
 Gameplay:
+- **Faster rounds** (P1, the user's request of 2026-11-11: "each round should be slightly
+  faster, so faster movement speed and ingame speed"): everybody walks 20 % faster than before,
+  on top of F3's base speed 1.2 (unchanged, `GameManager.MATCH_BASE_SPEED`). Every walking
+  speed is x1.2 in the data (heroes 90 / 96 / 102 / 102 px/s, Grount 72 / 96 / 132, Nyxa 102 /
+  126 / 150, Gorrak 67.2 / 76.8 / 88.8, Bats 180, Hogs 84, Ted's fox 144; strafing and the
+  per-level gain too) with each rig's `full_speed`. On screen a character walks 1.44 times as
+  fast as before both changes, everything else plays 1.2 times as fast. The match clock, the
+  10-minute cap and every duration count game seconds, so a full match is 8:20 of real time.
+  Measured, `MONSTER=all tools/sim.sh 24 <side> 2` (144 matches a run, threat 0; real s = game s
+  / base speed; "before" = the parent `c60fa2f` at base 1.0, "base 1.2" = the parent as shipped):
+
+  | Monster | Hero wins, heroes / monster side | Median match, real s: before / base 1.2 / P1 | Median first contact, real s | Reach Stage 2 / 3 | No contact, timeouts |
+  |---|---|---|---|---|---|
+  | Grount | 50 / 50 -> 58 / 54 % | 439 / 366 / **326** (-26 %) | 392 / 327 / **258** | 71 / 71 -> 50 / 50 % | 2, 2 -> 4, 4 |
+  | Nyxa | 46 / 46 -> 58 / 58 % | 478 / 398 / **360** (-25 %) | 428 / 357 / **320** | 75 / 54 -> 71 / 54 % | 14, 15 -> 12, 12 |
+  | Gorrak | 50 / 58 -> 46 / 42 % | 487 / 406 / **364** (-25 %) | 442 / 369 / **329** | 75 / 71 -> 83 / 75 % | 5, 5 -> 6, 6 |
+  | All 144 | 50 -> 53 % | 480 / 400 / **351** (-27 %); mean 426 / 355 / 317 (-26 %) | 429 / 358 / **320** (-25 %) | | 21, 22 -> 22, 22 |
+
+  In game seconds the median match went 480 -> 422 (-12 %). The goal was 25-35 % less real
+  time ("slightly": not past about 40 %), so the pair stays at walking +20 % and base 1.2, at
+  the low end of the goal. Options: base 1.25 gives about 30 % (422 / 1.25 = 338 s) with no
+  other change (the sims do not see the base speed); walking +25 % needs a new sim. The match cap,
+  the XP thresholds and the respawn times are untouched.
+- **Gorrak walks 67.2 / 76.8 / 88.8** (P1): exactly 1.2 x his 56 / 64 / 74, so the character
+  overview's Move speed tile shows "67.2" (every other character a whole number). Option: 67 /
+  77 / 89 (the ratios to the others then move by 0.3-0.5 %).
 - **No Reset Progress in a match** (R2): the pause menu's settings sheet hides the button
   (`SettingsScreen.allow_reset`), because a wipe in a running match let that match pay into the
   fresh save. Option: keep the button and have the wipe also drop the running match's rewards.
@@ -166,20 +199,6 @@ Gameplay:
   (4509, 1794) in Zone 3 and the match goes on. The match clock and the heroes do not wait (the
   map answered within about 0.25 s in every windowed run, so the clock loses at most about 0.6
   game seconds on fast).
-- **AI opponent build**: 3T character + 2T base entries, so a player at the threshold owns more
-  ranks than the AI. Options: 3T base entries, a higher `MAX_THREAT`, or keep it.
-- **`THREAT=N` in `tools/sim.sh`** gives both sides their threat-N AI build (the "parity check");
-  `SAVE=` runs the real rule on a save.
-- **Call of the Herd** recruits only on a Warcry Stomp aimed at a hero or Ted's pet (otherwise
-  Gorrak recruited the Hogs he must eat and stalled at Stage 2: 17 of 24 sanity matches timed out).
-- **Unstoppable** is immunity to crowd control (taunt, Trap Cage), not to damage: Spiked Cage's
-  spikes still hurt him.
-- **Vampiric Rebirth** re-forms by a jump to the scatter point when heroes are still within 400 px.
-- **Evolution heals to full** (`heal_to_full_on_evolution`); the first design said "new max − old
-  max". It also gates Grount's "Second Wind".
-- **Knockback** does not exist (`knockback_force` on Ram Dash is unused).
-- **Nyxa's timeouts** (17-18 of 48 matches) are accepted as her trait.
-- **Monster instincts** are hidden; every monster plays its Ambusher (default) strategy.
 - **Supply Drop** (G1): the crate heals only once it has landed (0.5 s), only hurt heroes use it,
   and it fades once it has healed someone and nobody hurt is left on it (else after 20 s). River
   drops it only when a hero within its 60 px pickup radius of her (herself included) misses at
@@ -222,7 +241,6 @@ Gameplay:
   r - 150 / r + 50 / r + 250 px, so the default dial keeps the 300 / 500 / 700 px the group always
   used and the default-strategy traces stay byte-identical. Option: centre them on r
   (r - 200 / r / r + 200), which changes the default exploration.
-- **Match rewards pay the played side's kills** (8.2), and the HUD's kills chip shows them.
 - **The scattered bats shed Irelia's taunt** (R3): Vampiric Rebirth's Scattered state drops the
   taunt with the target and the stun (the bats are cc-immune), so a re-formed Nyxa is no longer
   sent back to the taunter for the rest of its 5 s; a Trap Cage that held her lets her go for
@@ -251,6 +269,81 @@ Look and feel:
   screen's XP row show his Stage II / III portrait with a wider crop (Rect2(44, 24, 82, 82) and
   Rect2(26, 8, 100, 100) of the 128x160 canvas) so the grown horns fit; the head itself is
   smaller in the ring at Stage III. Option: crop the horn tips for a bigger head.
+- **A never-ending swarm's slot** (R3): under Brood Mother the running swarm cannot be cast
+  again, so once its cooldown is over its A3 slot shows the plain icon: no ready glow, no pop, no
+  number (F3: "running"). Option: an "active" look (a ring or a pulsing frame) for a running
+  ability.
+- **Death beat** (F2, R2; changed after the review): a dying hero, the fox and the monster pop up, fall backwards and fade
+  in 0.8 s; the result screen follows 0.95 s after the deciding death. The match keeps running
+  during that second (decided, its clock stopped, Pause off): the survivors move on and the
+  camera shake and kill puffs play. Since R2 no hit lands in it (every `damage_requested` is
+  canceled), so nobody dies after the decision and no kill feeds the monster; the rewards are
+  paid at the end of the deciding death's frame, after the kill's XP (a deciding kill that
+  evolves the monster pays the new stage). Alternatives: freeze the match at the killing blow
+  and let only the corpse move, or let the world run on and make the result follow its final
+  state.
+- **The speed button's look** (F3, changed in R5 after the review): two arrows always, on the grey round button at
+  the normal speed and on the amber one (lit) on fast, no number, so it stays true whatever the
+  base is. The single arrow it showed at the normal speed was the pause button's own play icon
+  and read as "play"; in R5's render the grey and the amber two-arrow buttons tell the two
+  states apart at a glance. Option: back to one arrow at the normal speed. The choice is saved
+  (`match_fast`) and holds for the next launch. Option: every match starts at the normal speed.
+- **A toast that is on screen when the language is switched** (the pause menu's settings; R5
+  changed it after the review) keeps its language until it fades; everything else on screen
+  follows at once. Its repeat guard no longer depends on the language (R5).
+- **Safe area** (R5): on a phone with a notch or a home indicator the whole menu (MenuRoot) and
+  the whole match HUD (`Root`) move inside the display's safe area; the menu's bands show the
+  clear colour, the match's the world (the pause menu's scrim stops at the safe area too).
+  Option: keep the screens edge to edge and only push the bars in (each screen's body would need
+  the same inset). Not seen on a device: no export preset exists yet.
+- **Last Stand's text** (R5): "Once per match a lethal hit leaves Irelia at 1 HP and makes her
+  invulnerable for 2 s" (it wrapped with "2 s" alone on the second line); the German row is
+  unchanged. A sheet test now fails on any effect line that ends on a number and its unit alone.
+- **The formation tile is 144 px tall** (R5, was 128): the heading arrow has its own band above
+  the dots, which keep their spacing. Option: keep 128 and pull the Spread dots closer.
+- **The old Codex count is dropped, not moved** (R5): a save's `[settings] codex_seen_monsters`
+  is removed on load; the Codex dot lights once more for pages such a save had seen (a count
+  carried over could outlive a Reset Progress and hide new pages).
+
+Tools (T1):
+- **A stuck test stops the whole run**: after 120 s (wall clock) the runner names the test
+  (`TIMEOUT <file>::<test>`) and kills the process, so the tests after it do not run. A GDScript
+  loop on the main thread cannot be interrupted any other way; an `await` that never returns
+  could be skipped instead, at the cost of a second mechanism. The slowest test takes a few
+  seconds.
+- **The runner exits 1 when it is not isolated** (started by hand on a copy whose `user://` name
+  lacks `evolvemobile_tests`): the save tests are then skipped, and the run says `NOT ISOLATED`.
+  Probe set-ups name their user dir `evolvemobile_tests_<something>`.
+- **`sim_trace.sh` plays 2 matches at a time** by default (`JOBS=2`), for the 8 GB machine; the
+  full gate (all three monsters) took 151 s here. `JOBS=6` restores the old six at once.
+- **`bench.sh`'s `process_peak_ms` / `physics_peak_ms` are gone**: they read Godot's
+  per-wall-second monitors, which reached back into the warm-up and the world load.
+  `frame_peak_ms` (the mean of the slowest frame per 60 measured frames) replaces them; older
+  bench logs cannot be compared on that line. The CPU time now comes from zsh's `times` instead
+  of `/usr/bin/time` (so a kill reaches Godot).
+- **The audio rate-limit test** retries when the machine stalled between the two plays instead of
+  driving AudioManager from a fake clock (no test hook in the game code).
+
+### Accepted by the user (2026-11-11)
+
+Gameplay:
+- **AI opponent build**: 3T character + 2T base entries, so a player at the threshold owns more
+  ranks than the AI. Options: 3T base entries, a higher `MAX_THREAT`, or keep it.
+- **`THREAT=N` in `tools/sim.sh`** gives both sides their threat-N AI build (the "parity check");
+  `SAVE=` runs the real rule on a save.
+- **Call of the Herd** recruits only on a Warcry Stomp aimed at a hero or Ted's pet (otherwise
+  Gorrak recruited the Hogs he must eat and stalled at Stage 2: 17 of 24 sanity matches timed out).
+- **Unstoppable** is immunity to crowd control (taunt, Trap Cage), not to damage: Spiked Cage's
+  spikes still hurt him.
+- **Vampiric Rebirth** re-forms by a jump to the scatter point when heroes are still within 400 px.
+- **Evolution heals to full** (`heal_to_full_on_evolution`); the first design said "new max − old
+  max". It also gates Grount's "Second Wind".
+- **Knockback** does not exist (`knockback_force` on Ram Dash is unused).
+- **Nyxa's timeouts** (17-18 of 48 matches) are accepted as her trait.
+- **Monster instincts** are hidden; every monster plays its Ambusher (default) strategy.
+- **Match rewards pay the played side's kills** (8.2), and the HUD's kills chip shows them.
+
+Look and feel:
 - **Hit effects land on the damage frame**; the attack move reaches contact about 0.1-0.16 s
   later. A contact marker could delay the hit sprite to match the lunge. The prototype's
   per-ability wind-up poses and hit-feedback delay were not ported.
@@ -269,10 +362,6 @@ Look and feel:
 - **Monster panel slots** (F1): the row got larger slots (56 / 68 / 68 / 72 px) spread over the
   free width instead of ability names under them; names plus larger slots need a taller panel
   than 178 px.
-- **A never-ending swarm's slot** (R3): under Brood Mother the running swarm cannot be cast
-  again, so once its cooldown is over its A3 slot shows the plain icon: no ready glow, no pop, no
-  number (F3: "running"). Option: an "active" look (a ring or a pulsing frame) for a running
-  ability.
 - **Clear colour** (F1): `default_clear_color` is the palette's `bg_void` for the whole project,
   so wherever nothing is drawn (past the tile map's edge in a match) the screen is the fog's
   near-black, not Godot's grey. 28 flowers and rocks of the Deko layer that stood outside the
@@ -281,15 +370,6 @@ Look and feel:
   (`CharacterRig.hurt_flash_interval`), and the monsters' flash is a 55 % white mix at its peak
   (`hurt_flash_gain` 1.55 on `monster_base_class.tscn`; heroes and mobs keep the full white).
   Options: a longer interval, the same soft flash for heroes, or a flash only on big hits.
-- **Death beat** (F2, R2): a dying hero, the fox and the monster pop up, fall backwards and fade
-  in 0.8 s; the result screen follows 0.95 s after the deciding death. The match keeps running
-  during that second (decided, its clock stopped, Pause off): the survivors move on and the
-  camera shake and kill puffs play. Since R2 no hit lands in it (every `damage_requested` is
-  canceled), so nobody dies after the decision and no kill feeds the monster; the rewards are
-  paid at the end of the deciding death's frame, after the kill's XP (a deciding kill that
-  evolves the monster pays the new stage). Alternatives: freeze the match at the killing blow
-  and let only the corpse move, or let the world run on and make the result follow its final
-  state.
 - **Draw order** (F2): characters are y-sorted, so a hero standing behind (north of) a big
   monster's feet is behind its body. HP bars and level pills draw above every body, so the bar of
   a hidden hero shows over the monster. Stand-off distances are the next gameplay batch (G1).
@@ -316,12 +396,6 @@ Look and feel:
   sims 60. Same rules, not the same match step for step; fast on a 30 fps phone is 12.5 steps
   per game second (the scheduler caps a step at 0.5 s). The alternative, several logic steps
   per frame, needs the entity logic moved off `_process`.
-- **The speed button's look** (F3, changed in R5): two arrows always, on the grey round button at
-  the normal speed and on the amber one (lit) on fast, no number, so it stays true whatever the
-  base is. The single arrow it showed at the normal speed was the pause button's own play icon
-  and read as "play"; in R5's render the grey and the amber two-arrow buttons tell the two
-  states apart at a glance. Option: back to one arrow at the normal speed. The choice is saved
-  (`match_fast`) and holds for the next launch. Option: every match starts at the normal speed.
 - **A decided match plays at normal speed** (F3): the scale goes back to 1 at the deciding death,
   so the death beat (0.95 s) and the result screen are real time, as are the pause menu and
   every menu.
@@ -401,47 +475,12 @@ Look and feel:
   rule is "Benötigt Lv-3-Monster": "Benötigt ein Monster auf Lv 3" ran 2 px past both screen
   edges under Nyxa and Gorrak.
 - **Numbers in German** keep the English format ("0.5 s", "2,200"); see Backlog.
-- **A toast that is on screen when the language is switched** (the pause menu's settings) keeps
-  its language until it fades; everything else on screen follows at once. Its repeat guard no
-  longer depends on the language (R5).
-- **Safe area** (R5): on a phone with a notch or a home indicator the whole menu (MenuRoot) and
-  the whole match HUD (`Root`) move inside the display's safe area; the menu's bands show the
-  clear colour, the match's the world (the pause menu's scrim stops at the safe area too).
-  Option: keep the screens edge to edge and only push the bars in (each screen's body would need
-  the same inset). Not seen on a device: no export preset exists yet.
-- **Last Stand's text** (R5): "Once per match a lethal hit leaves Irelia at 1 HP and makes her
-  invulnerable for 2 s" (it wrapped with "2 s" alone on the second line); the German row is
-  unchanged. A sheet test now fails on any effect line that ends on a number and its unit alone.
-- **The formation tile is 144 px tall** (R5, was 128): the heading arrow has its own band above
-  the dots, which keep their spacing. Option: keep 128 and pull the Spread dots closer.
-- **The old Codex count is dropped, not moved** (R5): a save's `[settings] codex_seen_monsters`
-  is removed on load; the Codex dot lights once more for pages such a save had seen (a count
-  carried over could outlive a Reset Progress and hide new pages).
 - **Fallen hero on the result screen**: tint 0.62 / 0.58 / 0.58 plus a colour drain instead of the
   UX spec's 0.42 / 0.39 / 0.39.
 - **Heroes-side pre-round** needs a scroll on 720x1280 (Backlog).
 - **Font**: Lilita One (approved, SIL OFL 1.1) is the display font. It has one weight and Latin
   glyphs only (German umlauts and ß included); anything else falls back to the body font (Godot's
   Open Sans SemiBold). A language beyond Latin needs a display font with wider coverage first.
-
-Tools (T1):
-- **A stuck test stops the whole run**: after 120 s (wall clock) the runner names the test
-  (`TIMEOUT <file>::<test>`) and kills the process, so the tests after it do not run. A GDScript
-  loop on the main thread cannot be interrupted any other way; an `await` that never returns
-  could be skipped instead, at the cost of a second mechanism. The slowest test takes a few
-  seconds.
-- **The runner exits 1 when it is not isolated** (started by hand on a copy whose `user://` name
-  lacks `evolvemobile_tests`): the save tests are then skipped, and the run says `NOT ISOLATED`.
-  Probe set-ups name their user dir `evolvemobile_tests_<something>`.
-- **`sim_trace.sh` plays 2 matches at a time** by default (`JOBS=2`), for the 8 GB machine; the
-  full gate (all three monsters) took 151 s here. `JOBS=6` restores the old six at once.
-- **`bench.sh`'s `process_peak_ms` / `physics_peak_ms` are gone**: they read Godot's
-  per-wall-second monitors, which reached back into the warm-up and the world load.
-  `frame_peak_ms` (the mean of the slowest frame per 60 measured frames) replaces them; older
-  bench logs cannot be compared on that line. The CPU time now comes from zsh's `times` instead
-  of `/usr/bin/time` (so a kill reaches Godot).
-- **The audio rate-limit test** retries when the machine stalled between the two plays instead of
-  driving AudioManager from a fake clock (no test hook in the game code).
 
 ## Placeholder copy for the user's review
 
@@ -469,7 +508,7 @@ Tools (T1):
 ## Verification gate
 
 Every change passes `tools/lint.sh` (errors=0; every GDScript warning is an error there) and
-`tools/run_tests.sh` (exit 0; 741 tests: 740 passed, 1 skipped headless, the run exits with nothing
+`tools/run_tests.sh` (exit 0; 744 tests: 743 passed, 1 skipped headless, the run exits with nothing
 leaked). A change that must not alter gameplay also keeps the determinism trace byte-identical:
 `MONSTER=all BASELINE_DIR=tools/baselines tools/sim_trace.sh > <new trace>` (exit 0): seeds 1-3 ×
 heroes/monster × every monster as full matches, `JOBS=2` at a time by default (no per-seed split
@@ -508,12 +547,25 @@ Threat 0, fresh save, 48 seeds (`MONSTER=<id> tools/sim.sh 48 <side> 6`), hero w
 | Grount (R1, 12 seeds) | 67 % | 67 % | 0 / 0 | 305 / 305 s | River's staff heals (every 4 s); parent 42 / 42 % |
 | Nyxa (R1, 12 seeds) | 50 % | 50 % | 4 / 4 | 376 / 376 s | parent 42 / 42 % |
 | Gorrak (R1, 12 seeds) | 50 % | 50 % | 0 / 0 | 326 / 326 s | parent 25 / 33 % |
+| Grount before P1 (`c60fa2f`, 24 seeds) | 50 % | 50 % | 1 / 1 | 331 / 331 s | first contact 392 s |
+| Nyxa before P1 (`c60fa2f`, 24 seeds) | 46 % | 46 % | 8 / 7 | 376 / 376 s | first contact 428 s; 7 of 24 without contact |
+| Gorrak before P1 (`c60fa2f`, 24 seeds) | 50 % | 58 % | 3 / 2 | 349 / 350 s | first contact 442 s |
+| **Grount** (P1: walking +20 %, 24 seeds) | **58 %** | **54 %** | 2 / 2 | 296 / 296 s | first contact 309 s; 12 of 24 end at Stage 1 (was 7) |
+| **Nyxa** (P1, 24 seeds) | **58 %** | **58 %** | 6 / 6 | 342 / 341 s | first contact 382 / 386 s; 6 of 24 without contact |
+| **Gorrak** (P1, 24 seeds) | **46 %** | **42 %** | 3 / 3 | 304 / 313 s | first contact 393 / 396 s |
 
 R1 (`MONSTER=all tools/sim.sh 12 <side> 2`, the parent `524536a` run the same way): River's staff
 healed for the first time (`staff_heals`: 207-225 heals in 12 matches against Grount or Gorrak
 at 1.4 s, 71-84 at 4 s). At the README's first 1.4 s per heal the heroes won 100 / 67 / 83 % (heroes side) and 100 / 67 / 83 %
 (monster side), hero deaths against Grount fell from 31 to 6 in 12 matches; every 2.8 s gave
 75 / 33 / 58 %, every 4 s (shipped) 67 / 50 / 50 % on both sides.
+
+P1 (`MONSTER=all tools/sim.sh 24 <side> 2`, the parent `c60fa2f` the same way): everybody walks
+20 % faster; every monster is inside 40-60 % on both sides, so nothing was retuned. Median match
+480 -> 422 game s (144 matches), median first contact 429 -> 384 game s, 46 of 144 matches end
+with the monster at Stage 1 (was 38): the faster walk finds the monster earlier. For the final
+balance batch: the earlier contact moves the fights toward Stage 1, and a watched match on fast
+takes longer steps than before (see the P1 changelog).
 
 G1 (`MONSTER=all tools/sim.sh 24 <side> 2`): every monster is inside 30-70 %, Grount and Nyxa
 below the 40-60 % target; the final balance batch retunes. Without ability 2 in fights the heroes
@@ -566,6 +618,12 @@ Match speed (F3, `tools/bench.sh 3 2 900 300 0 <rigs_awake> <speed>`, back to ba
 | normal, 1.2 (what a player watches) | 1.829 / 4.47 ms | 2.418 / 5.61 ms |
 | fast, 2.4 | 3.341 / 6.42 ms | 3.945 / 7.79 ms |
 
+Walking +20 % (P1, `tools/bench.sh <runs> 2 900 300 0 1 <speed>`, all rigs awake, the parent
+`c60fa2f` and P1 back to back, load 3-5): at the base speed (5 runs, alternated twice) 2.441 /
+2.391 -> 2.507 / 2.535 ms frame mean (+3 to +6 %), p99 4.20 / 4.62 -> 4.53 / 4.05 ms; on fast
+(2 runs) 3.386 -> 3.494 ms (+3 %), p99 5.56 -> 5.67 ms. Far inside the 16.7 ms frame, so fast
+stays at 2.4.
+
 - Total overhead of the overhaul against `885e86a`: about +0.03 ms with the rigs asleep and about
   +0.5 ms with all 232 awake (the limit was +0.6 ms).
 - A frame costs more at speed because the game-time paced work (the mobs' 20 / 10 / 3 Hz AI
@@ -608,6 +666,72 @@ Match speed (F3, `tools/bench.sh 3 2 900 300 0 <rigs_awake> <speed>`, back to ba
       uses `GameManager.killer_side`; the sim could use the same rule. Low priority.
 
 ## Changelog
+### 2026-11-12 — fix batch P1: faster rounds (everybody walks 20 % faster, base speed 1.2, pace measured)
+Eighth batch of the second fix run: the user's request of 2026-11-11 ("each round should be
+slightly faster, so faster movement speed and ingame speed so it does not feel as waiting").
+Gameplay: every walker is faster, so the determinism traces change; the three baselines are
+re-recorded in this commit.
+
+- **Walking x1.2, in the data** (no hidden multiplier): `HeroStats` defaults (`base_move_speed`
+  80 -> 96, which is Vlad's, `speed_per_level` 2.0 -> 2.4, `strafe_speed` 60 -> 72) and the four
+  heroes' `.tres` (River and Ted 85 -> 102, Irelia 75 -> 90; per level 1.5 -> 1.8, 1.0 -> 1.2,
+  Vlad's 1.2 -> 1.44; strafe 70 -> 84, 50 -> 60, 55 -> 66, Vlad's 75 -> 90); the fallbacks in
+  `HeroBase._get_move_speed` and `EntityBase._get_move_speed` (80 -> 96) and
+  `EntityBase.strafe_speed` (60 -> 72; only the monsters keep it, and they never strafe); the
+  mobs (`mobs_base_class` 70 -> 84 = the Hog, strafe 40 -> 48; `Bat.tscn` 150 -> 180);
+  `MonsterStats` (Grount's defaults 60 / 80 / 110 -> 72 / 96 / 132, Nyxa 85 / 105 / 125 -> 102 /
+  126 / 150, Gorrak 56 / 64 / 74 -> 67.2 / 76.8 / 88.8) and `TedsPet.move_speed` 120 -> 144. Left
+  alone as asked: the percent effects (Enrage x1.3, Rebirth's flight x1.5, Adaptive Movement
+  x1.5, the tree nodes), the dashes (Ram Dash 500, Shadow Swoop 700 px/s), the axe (520). A
+  Stage III Grount's dash is still 3.8 times his walk (2.9 enraged).
+- **Rigs**: every `<id>_motion.tres` `full_speed` is the new walk speed (a monster's Stage 1);
+  `stride` is unchanged. The steps follow the distance walked, so the feet stay planted at any
+  speed: in the render Irelia walked 17.40 px per step cycle against a `walk_stride()` of 17.44
+  at the base speed and 17.44 on fast. Her legs cycle 5.95 times a real second at the base
+  speed and 11.6 on fast (2.6 frames a cycle in a 30 fps render: choppy but still a walk; 5.2
+  frames at 60 fps).
+- **Base speed 1.2** (F3, `c13f1b2`): it was there and is unchanged. `GameManager.MATCH_BASE_SPEED`
+  is the time scale of a running match and 1.0 for the pause menu, the death beat, the result
+  screen, a scene change and the menus (`test_match_speed`, 7 tests); headless runs keep game
+  time. The render's clock ran 4.80 game seconds in 4.00 real seconds (x1.20) and 9.60 on fast
+  (x2.40).
+- **Pace** (`MONSTER=all tools/sim.sh 24 <side> 2`, parent and P1, 144 matches each): median
+  match 480 -> 422 game s; in real time at the normal setting 480 s before both changes, 400 s
+  with the base speed alone, 351 s now (-27 %; per monster -25 to -26 %); mean -26 %, median
+  first contact -25 %. Inside the 25-35 % goal (low end), so the pair stays; base 1.25 would give
+  about 30 % (Decisions, with the table). The 600 s cap, XP thresholds and respawn times are
+  untouched.
+- **Balance**: hero wins (heroes / monster side) Grount 50 / 50 -> 58 / 54 %, Nyxa 46 / 46 -> 58 /
+  58 %, Gorrak 50 / 58 -> 46 / 42 %, all inside 40-60 %, so nothing was retuned. The heroes meet
+  the monster sooner (Grount 392 -> 309 game s) and 46 of 144 matches end at Stage 1 (was 38).
+  Recorded for the final balance batch (README Measured Balance, Balance below).
+- **Distance per step** (checked, nothing changed): `_steer_along_nav` and `move_toward_point`
+  clamp a step to the next path point and to the mesh; the rig counts a frame step over 64 px as
+  a teleport, and the fastest walker (a Bat, 180 px/s) covers 14 px a frame on fast at 30 fps
+  (29 px for a rig that skips every other frame over the budget); the melee bands between
+  `min_distance` and the attack range are 20 px or wider against 8 px a frame for a hero on
+  fast at 30 fps; the camera's follow lag is speed / 5.22, 29 px behind a Stage III Nyxa.
+  In the render the camera kept the followed hero centred at both speeds.
+- **Tests**: new `test/test_walk_speed.gd` (3): every walker's numbers are x1.2 of the pre-P1
+  table (heroes, monsters, both mob scenes, the fox), every rig's `full_speed` is its walk speed
+  and the menus' `CharacterDef.rig_profile` is the scene's, and a level 1 Vlad covers 96 px in a
+  game second (80 before), straight and along a navigation path. On the parent the first and the
+  third fail (29 failed asserts); the rig check passes there too (it guards the pairing).
+  Updated: `test_gorrak` / `test_nyxa` stage speeds, `test_spawn_pool` mob strafe 48,
+  `test_detail_fit_and_stats` Irelia's Move speed tile "90 +8".
+- **Docs**: README Match Speed (the walking paragraph, the pace table, longer steps per frame),
+  hero details, the three stage tables, Mob Camps, the rig table, Measured Balance and the
+  roster overview, "If Matches Too Long", the Short Loop; INSTRUCTOR section 10 ("walking speeds
+  are data"); `GameManager`'s comment. Decisions: split into an open list and the entries the
+  user accepted on 2026-11-11 (kept as a record; three entries a later batch changed are in the
+  open list, marked), with this batch's two entries on top.
+- **Verified**: `tools/lint.sh` errors=0; `tools/run_tests.sh` 743 passed, 0 failed, 1 skipped (the rendered
+  minimap test), nothing leaked; traces re-recorded
+  (`MONSTER=all RECORD_DIR=tools/baselines tools/sim_trace.sh`: 1316 / 3226 / 2516 lines, were
+  1998 / 3428 / 2846: the matches end sooner) and checked byte-identical with and without `RIGS_AWAKE=1`;
+  bench in Performance; muted renders (walk at zoom 2.6 at both speeds, the first camp fight,
+  a Stage III Grount fight with its toasts).
+
 ### 2026-11-12 — fix batch R5: components and HUD leftovers (pops, dials, safe area, toasts, speed button)
 Seventh batch of the second fix run: review findings components-1, -2, -3, -6, -7, -9, -10,
 menus-11 and hud-7, the second review's flow-3, locale-1, menus-1, menus-2 and menus-3, and the

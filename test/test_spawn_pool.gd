@@ -192,7 +192,7 @@ func test_mob_combat_defaults_come_from_the_base_scene() -> void:
 		var m := await spawn_frozen(path, Vector2(x, 4000))
 		x += 3000.0
 		var file: String = path.get_file()
-		assert_near(m.strafe_speed, 40.0, 0.001, file + " strafe_speed")
+		assert_near(m.strafe_speed, 48.0, 0.001, file + " strafe_speed")
 		assert_near(m.alert_allies_radius, 200.0, 0.001, file + " alert_allies_radius")
 		assert_near(m.strafe_change_interval, 3.0, 0.001, file + " strafe_change_interval")
 		assert_near(m.preferred_distance, 32.0, 0.001, file + " preferred_distance")

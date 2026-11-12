@@ -27,21 +27,21 @@ class_name MonsterStats
 
 @export_group("Stage 1 Stats")
 @export var stage_1_health: float = 800.0
-@export var stage_1_speed: float = 60.0
+@export var stage_1_speed: float = 72.0
 @export var stage_1_damage_multiplier: float = 1.0
 @export var stage_1_scale: Vector2 = Vector2.ONE
 @export var stage_1_xp_value: float = 100.0
 
 @export_group("Stage 2 Stats")
 @export var stage_2_health: float = 1400.0
-@export var stage_2_speed: float = 80.0
+@export var stage_2_speed: float = 96.0
 @export var stage_2_damage_multiplier: float = 1.4
 @export var stage_2_scale: Vector2 = Vector2(1.25, 1.25)
 @export var stage_2_xp_value: float = 200.0
 
 @export_group("Stage 3 Stats")
 @export var stage_3_health: float = 2200.0
-@export var stage_3_speed: float = 110.0
+@export var stage_3_speed: float = 132.0
 @export var stage_3_damage_multiplier: float = 2.0
 @export var stage_3_scale: Vector2 = Vector2(1.5, 1.5)
 @export var stage_3_xp_value: float = 400.0

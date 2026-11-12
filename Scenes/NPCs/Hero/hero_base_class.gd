@@ -257,7 +257,7 @@ func _on_level_changed(new_level: int) -> void:
 		lv_label.text = str(new_level)
 
 func _get_move_speed() -> float:
-	var speed: float = stats.get_move_speed() if stats else 80.0
+	var speed: float = stats.get_move_speed() if stats else 96.0
 	return speed * team_move_speed_aura()
 
 ## The hero team's move-speed aura (River's Pathfinder); x1.0 without one.

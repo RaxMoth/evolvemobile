@@ -6,7 +6,7 @@ const WARBAND_TINT: float = 0.45
 
 @export_group("Mob Stats")
 @export var max_health: float = 50.0
-@export var base_move_speed: float = 70.0
+@export var base_move_speed: float = 84.0
 @export var base_attack_range: float = 40.0
 @export var base_attack_damage: float = 5.0
 @export var attack_cooldown: float = 1.5
@@ -150,7 +150,7 @@ func _reset_to_spawn() -> void:
 
 ## Melee spacing derived from base_attack_range. The scene-tunable combat
 ## defaults live on the mobs_base_class.tscn root, so a mob scene can override
-## them: strafe_speed 40, and alert_allies_radius 200 (a spotted hero pulls
+## them: strafe_speed 48.0, and alert_allies_radius 200 (a spotted hero pulls
 ## pack-mates in without crossing the map).
 func _setup_mob_combat_role() -> void:
 	preferred_distance = base_attack_range * 0.8

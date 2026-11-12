@@ -7,7 +7,7 @@ signal ability_cast(ability: AbilityBase, target: Node)
 signal damaged(packet: DamagePacket)
 
 @export var max_health: float = 50.0
-@export var move_speed: float = 120.0
+@export var move_speed: float = 144.0
 @export var attack_damage: float = 9.0
 @export var attack_range: float = 60.0
 @export var attack_cooldown: float = 1.2

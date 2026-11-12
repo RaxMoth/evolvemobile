@@ -416,7 +416,7 @@ func test_overview_tiles_show_what_the_owned_ranks_add() -> void:
 	assert_eq(tiles[1].value + " " + tiles[1].bonus, "5 +0.4", "a small stat keeps a tenth")
 	assert_eq(tiles[2].value + " " + tiles[2].bonus, "0.67/s +0.07", "the basic attack recovers 10% faster")
 	assert_eq(tiles[3].value + " " + tiles[3].bonus, "120 ", "no range node")
-	assert_eq(tiles[4].value + " " + tiles[4].bonus, "75 +7")
+	assert_eq(tiles[4].value + " " + tiles[4].bonus, "90 +8", "move speed 90 (75 before P1), +9 %")
 	assert_eq(tiles[5].bonus, "", "no node changes the vision")
 	# Veteran Squad: heroes start at level 2, one level of growth on top.
 	PersistedData.set_skill_rank(MetaSkillManager.TREE_HERO_BASE, &"hb_startlvl", 1)

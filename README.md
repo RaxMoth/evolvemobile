@@ -65,8 +65,9 @@ strategy, Opponent Threat) → the match with its HUD → the match result
 4. **Confrontation**: Teams clash based on strategy
 5. **Victory**: One side is eliminated, or the 10-minute clock runs out
 
-The round plays faster than real time and the HUD's speed button makes it
-faster still (see Match Speed).
+The round plays faster than real time, everybody walks 20 % faster than
+before batch P1, and the HUD's speed button makes it faster still (see Match
+Speed).
 
 **Post-Round Phase** (Rewards & Upgrade):
 
@@ -99,7 +100,33 @@ waiting, and the player can double that with the HUD's speed button.
 | Normal (the base speed) | 1.2 | `GameManager.MATCH_BASE_SPEED` |
 | Fast (the speed button) | 2.4 | base x `GameManager.MATCH_FAST_FACTOR` (2) |
 
-- **One number sets the pace**: `MATCH_BASE_SPEED`. While a match runs,
+**Walking is faster too** (fix batch P1, the same request): every character
+walks 1.2 times as fast as before P1, heroes, monsters, mobs and Ted's fox
+alike, so the ratios between them stay. The speeds are each character's data
+(the hero details, the monsters' stage tables, Mob Camps, `TedsPet.move_speed`
+144), and each rig's `full_speed` with them (Character Rigs); the percent
+effects (Enrage, Rebirth's flight, Adaptive Movement, the tree nodes) multiply
+on top as before. On screen at the base speed a character walks 1.44 times as
+fast as before both changes; everything else (attacks, cooldowns, the clock)
+plays 1.2 times as fast. Measured (`MONSTER=all tools/sim.sh 24 <side> 2`,
+144 matches each, threat 0; real time at the normal setting = game seconds /
+base speed):
+
+| Round | Before both (base 1.0) | Base 1.2 alone (`c60fa2f`) | Base 1.2 and walking x1.2 (P1) |
+|---|---|---|---|
+| Median match | 480 s | 400 s real (480 game s) | **351 s** real (422 game s): -27 % |
+| Mean match | 426 s | 355 s real | **317 s** real (380 game s): -26 % |
+| Median first contact | 429 s | 358 s real | **320 s** real (384 game s): -25 % |
+| Per monster, median match | 439 / 478 / 487 s | 366 / 398 / 406 s | **326 / 360 / 364 s** (Grount / Nyxa / Gorrak) |
+
+The goal was 25-35 % less real time per round, "slightly" faster: the pair
+(walking x1.2, base 1.2) reaches 25-26 % per monster and 27 % over all 144
+matches, the low end of the goal. The faster walk also
+moves the match itself: more matches end early, with the monster found at
+Stage 1 (46 of 144 end at Stage 1, was 38; Grount first meets the heroes at
+309 game s, was 392), see Measured Balance.
+
+- **One number sets the time scale**: `MATCH_BASE_SPEED`. While a match runs,
   `Engine.time_scale` is `GameManager.match_speed()` (the base, times the
   factor on fast). Godot scales every delta, timer, tween, animation and
   particle with it, so movement, cooldowns, the HUD's countdowns, toasts and
@@ -127,7 +154,11 @@ waiting, and the player can double that with the HUD's speed button.
   frame, so at 60 fps a frame is 1/50 game second at the base speed and 1/25
   on fast (what a 25 fps device plays at real time). The sims play 60 steps
   per game second, so a watched match is the same game but not the same
-  match step for step.
+  match step for step. The faster walk makes each step longer: a 102 px/s
+  hero moves 2 px a frame at the base speed and 4 px on fast at 60 fps (8 px
+  on fast at 30 fps), a Bat 14 px and a Stage III Nyxa 12 px on fast at
+  30 fps, still inside every melee fighter's 20 px or wider band between
+  `min_distance` and the attack range.
 - **Cost**: a frame costs more at speed, because everything that is paced in
   game time comes more often per frame (the mobs' 20 / 10 / 3 Hz AI ticks
   first of all). Stress bench on the development Mac
@@ -269,7 +300,7 @@ cooldown.
 
 #### River (Support/Scout)
 
-- **Base Stats**: 100 HP, 85 speed, 300 vision
+- **Base Stats**: 100 HP, 102 speed, 300 vision
 - **Passive**: Adaptive Movement (after taking damage, +50% move speed and
   +50% attack speed for 3 s)
 - **Active**: Weapon Swap (switches between the sniper rifle and the heal
@@ -303,7 +334,7 @@ cooldown.
 
 #### Vlad (DPS/Berserker)
 
-- **Base Stats**: 110 HP, 80 speed, 250 vision
+- **Base Stats**: 110 HP, 96 speed, 250 vision
 - **Passive**: Bloodlust (below 30% HP his damage and attack speed rise as HP
   falls: a linear ramp from nothing at 30% to +50% dmg and +100% attack speed
   at 0 HP)
@@ -319,7 +350,7 @@ cooldown.
 
 #### Ted (DPS/Pet Master)
 
-- **Base Stats**: 105 HP, 85 speed, 220 vision
+- **Base Stats**: 105 HP, 102 speed, 220 vision
 - **Pet Stats**: 50 HP, 9 dmg, 60 range, 1.2s cooldown
 - **Passive**: Loyal Companion (the fox fights beside him and respawns after 10s)
 - **Active**: Rally Cry (Ted and his pet +50% attack speed for 5s; 10 s cooldown)
@@ -335,7 +366,7 @@ cooldown.
 
 #### Irelia (Tank/Support)
 
-- **Base Stats**: 160 HP, 75 speed, 200 vision
+- **Base Stats**: 160 HP, 90 speed, 200 vision
 - **Passive**: Regeneration (0.5 HP/s)
 - **Active**: Divine Shield (18 HP shield to all heroes, 7s duration; 13 s cooldown)
 - **Basic Attack**: Shield Bash, 5 dmg at 120 range / 1.5s (+40 threat on the
@@ -366,14 +397,15 @@ plus its stats, strategy and ability `.tres` (see "Shared Monster Framework"
 and "Character Roster"). Hero wins at threat 0 are `MONSTER=<id> tools/sim.sh
 48 heroes 6` / `... 48 monster 6` (fresh save, reproducible since 6.2); the
 target is 40-60 % per monster on both sides. The columns repeat the latest
-measurement: fix batch G1's 24 seeds per side (see Measured Balance; Grount
-and Nyxa are below the target until the final balance batch).
+measurement: fix batch P1's 24 seeds per side (everybody walks 20 % faster;
+see Measured Balance and Match Speed); all three are inside the target, the
+final balance batch measures them again with 48 seeds.
 
 | Monster | Role | Owned / unlock | Heroes meet it after | HP (S1 / S2 / S3) | Evolves at (total XP) | Hero wins, heroes side / monster side | Timeouts (H / M) |
 | ------- | ---- | -------------- | -------------------- | ----------------- | --------------------- | ------------------------------------ | ---------------- |
-| **Grount**, the Bull | brute: cone cleave, ram dash, leaping slam | from the start | 0 hunts | 800 / 1400 / 2200 | 150 / 300 | 33 % / 33 % | 1 / 1 |
-| **Nyxa**, the Dusk Matriarch | stalker: lifesteal skirmisher, bat aura | 2,500 Leaves once a monster is Lv 3 | 3 hunts | 600 / 950 / 1250 | 150 / 400 | 33 % / 33 % | 8 / 7 |
-| **Gorrak**, the Boar King | brute: armoured, returning axe, stunning stomp | 3,000 Leaves once a monster is Lv 3 | 6 hunts | 1100 / 1450 / 1500 | 150 / 500 | 38 % / 50 % | 3 / 2 |
+| **Grount**, the Bull | brute: cone cleave, ram dash, leaping slam | from the start | 0 hunts | 800 / 1400 / 2200 | 150 / 300 | 58 % / 54 % | 2 / 2 |
+| **Nyxa**, the Dusk Matriarch | stalker: lifesteal skirmisher, bat aura | 2,500 Leaves once a monster is Lv 3 | 3 hunts | 600 / 950 / 1250 | 150 / 400 | 58 % / 58 % | 6 / 6 |
+| **Gorrak**, the Boar King | brute: armoured, returning axe, stunning stomp | 3,000 Leaves once a monster is Lv 3 | 6 hunts | 1100 / 1450 / 1500 | 150 / 500 | 46 % / 42 % | 3 / 3 |
 
 - Every monster heals to full on evolving (`heal_to_full_on_evolution`).
   Each has a per-stage table for every ability, so `stage_N_damage_multiplier`
@@ -385,8 +417,8 @@ and Nyxa are below the target until the final balance batch).
   24 seeds): Grount Titan Form 0 %, Rampage 29 %, Trample 33 % hero wins;
   Nyxa and Gorrak 0 % with every capstone ("Monster capstones and behaviour
   nodes").
-- Nyxa's wins are mostly timeouts (she evades): accepted as her trait (G1:
-  7 of 24 matches per side without contact).
+- Nyxa's wins are mostly timeouts (she evades): accepted as her trait (P1:
+  6 of 24 matches per side without contact; G1: 7).
 - Codex, roster and pre-round show each monster's stage names, tip and moves
   from its `CharacterDef` (`Assets/Characters/<id>/<id>_def.tres`).
 
@@ -404,7 +436,7 @@ Bullcalf, Rampager, Alpha Bull.
 | Attribute        | Stage 1 (Vulnerable) | Stage 2 (Dangerous) | Stage 3 (Apex Predator) |
 | ---------------- | -------------------- | ------------------- | ----------------------- |
 | **HP**           | 800                  | 1400 (+600 heal)    | 2200 (+800 heal)        |
-| **Speed**        | 60                   | 80 (+33%)           | 110 (+83%)              |
+| **Speed**        | 72                   | 96 (+33%)           | 132 (+83%)              |
 | **Damage Mult**  | 1.0x                 | 1.4x                | 1.8x (2.0x × 0.9, 6.3)  |
 | **Attack Range** | 80 (flat × Monster Base range skill) | 80 | 80                 |
 | **XP Required**  | Start                | 150 XP              | 300 XP                  |
@@ -497,7 +529,7 @@ hunts (`opponent_after_matches`).
 | Attribute        | Stage 1 (Duskling) | Stage 2 (Night Hunter) | Stage 3 (Dusk Matriarch) |
 | ---------------- | ------------------ | ---------------------- | ------------------------ |
 | **HP**           | 600                | 950 (heals to full)    | 1250 (heals to full)     |
-| **Speed**        | 85                 | 105                    | 125                      |
+| **Speed**        | 102                | 126                    | 150                      |
 | **Scale**        | 1.0                | 1.12                   | 1.25                     |
 | **XP Required**  | Start              | 150 XP                 | 400 XP                   |
 
@@ -546,7 +578,7 @@ and the Heroes side meets him after 6 hunts (`opponent_after_matches`).
 | ---------------- | ---------------- | ------------------- | -------------------- |
 | **HP**           | 1100             | 1450 (heals to full) | 1500 (heals to full) |
 | **Damage taken** | × 0.85           | × 0.90              | × 1.00               |
-| **Speed**        | 56               | 64                  | 74                   |
+| **Speed**        | 67.2             | 76.8                | 88.8                 |
 | **Scale**        | 1.0              | 1.15                | 1.3                  |
 | **XP Required**  | Start            | 150 XP              | 500 XP               |
 
@@ -628,7 +660,7 @@ The zone diagram is the design intent. `World.tscn` ships 39 camps (29 Bat,
 
 Mob numbers live on the scenes (`mobs_base_class.tscn` for the Bat's
 defaults, `Hog.tscn`): `max_health`, `base_attack_damage`, `attack_cooldown`,
-`hero_xp_value`, `xp_value`. Bats fly at 150 px/s, Hogs walk at 70. One Bat
+`hero_xp_value`, `xp_value`. Bats fly at 180 px/s, Hogs walk at 84. One Bat
 camp holds 2 Bats, every other camp 3.
 
 **Total Map XP** (for the monster, all 39 camps once; 26-30 of them are
@@ -700,7 +732,9 @@ Early Ambush        ⚠️ 40% Win            ✅ 60% Win
 **If Matches Too Long (>10 min)**:
 
 - Reduce map size or add shortcuts
-- Increase movement speeds (+10-15 for both sides)
+- Increase movement speeds (+10-15 for both sides): done in P1, +20 % for
+  everybody, which took 12 % off the median match in game seconds (see Match
+  Speed)
 - Buff damage across the board (+20%)
 
 **If Matches Too Short (<4 min)**:
@@ -722,6 +756,8 @@ fresh saves, threat 0; the balance at each Opponent Threat level is under
 | before 6.3 (`16aed14`) | 19 % | 25 % | 4 / 4 | 324 s / 325 s | 409 s / 389 s |
 | 6.3: Trap Cage fixed + Stage 3 damage × 0.9 | **46 %** | **48 %** | 4 / 3 | 322 s / 323 s | 400 s / 408 s |
 | G1: combat AI fixes (24 seeds) | 33 % | 33 % | 1 / 1 | 327 s / 327 s | 390 s / 390 s |
+| before P1 (`c60fa2f`, after R1-R5; 24 seeds) | 50 % | 50 % | 1 / 1 | 331 s / 331 s | 392 s / 392 s |
+| P1: everybody walks 20 % faster (24 seeds) | 58 % | 54 % | 2 / 2 | 296 s / 296 s | 309 s / 309 s |
 
 - 6.3 changed two things. Ted's Trap Cage now traps what it lands on (it
   trapped almost nothing; see "Hero capstones and behaviour nodes"), which
@@ -743,6 +779,8 @@ fresh saves, threat 0; the balance at each Opponent Threat level is under
 | ---- | ----------- | ------------ | ---------------- | -------------- | -------------------- |
 | 6.4: gamedesign config v9 (24 seeds in the design: 46 %, 8 timeouts) | **54 %** | **52 %** | 18 / 17 | 371 s / 371 s | 417 s / 417 s |
 | G1: combat AI fixes (24 seeds) | 33 % | 33 % | 8 / 7 | 376 s / 369 s | 428 s / 428 s |
+| before P1 (`c60fa2f`, after R1-R5; 24 seeds) | 46 % | 46 % | 8 / 7 | 376 s / 376 s | 428 s / 428 s |
+| P1: everybody walks 20 % faster (24 seeds) | 58 % | 58 % | 6 / 6 | 342 s / 341 s | 382 s / 386 s |
 
 - Nyxa's wins are almost all timeouts: in 17 of 48 matches the heroes never
   meet her (she farms Bats away from them and swoops off). When they meet
@@ -754,6 +792,8 @@ fresh saves, threat 0; the balance at each Opponent Threat level is under
 | gamedesign config v6, Stage 3 HP 1600 (24 seeds in the design: 42 %) | 38 % | 50 % | 5 / 5 | 346 s / 347 s | 448 s / 456 s |
 | 6.5: Stage 3 HP 1600 → 1500 | **42 %** | **52 %** | 5 / 5 | 346 s / 347 s | 448 s / 456 s |
 | G1: combat AI fixes (24 seeds) | 38 % | 50 % | 3 / 2 | 349 s / 350 s | 442 s / 442 s |
+| before P1 (`c60fa2f`, after R1-R5; 24 seeds) | 50 % | 58 % | 3 / 2 | 349 s / 350 s | 442 s / 442 s |
+| P1: everybody walks 20 % faster (24 seeds) | 46 % | 42 % | 3 / 3 | 304 s / 313 s | 393 s / 396 s |
 
 - G1 (fix batch, `MONSTER=all tools/sim.sh 24 <side> 2`) changed both sides at once: ultimates
   only in reach and never at a reused pooled mob, the Supply Drop landing before it heals,
@@ -766,6 +806,13 @@ fresh saves, threat 0; the balance at each Opponent Threat level is under
   before). No hero ultimate went off at a target more than 400 px away in the 144 matches
   (`hero_ults_far`). Grount and Nyxa sit at 33 %, inside the batch's 30-70 % band and below the
   40-60 % target: the final balance batch retunes.
+- P1 (fix batch, `MONSTER=all tools/sim.sh 24 <side> 2`, the parent `c60fa2f` run the same way
+  for the "before P1" rows, which R1's staff heals had already lifted): every character walks
+  20 % faster. Every monster is now inside the 40-60 % target on both sides. The heroes find the
+  monster sooner (median first contact 429 -> 384 game s over all 144 matches; Grount 392 ->
+  309 s) and more matches end at Stage 1 (46 of 144, was 38; Grount 12 of 24 per side, was 7);
+  the median match is 480 -> 422 game s (see Match Speed for real time). Nyxa still goes
+  unmet in 6 of 24 matches per side (was 7).
 
 - The design tuned him against the old Grount framework (17 % for Grount
   then). Against today's heroes (Trap Cage traps, 6.3) config v6 came out
@@ -987,13 +1034,13 @@ Gorrak and the Bat and Hog mobs.
 
   | id | who | parts | body plan | world_scale | sheet svg/scale | full_speed / stride |
   |---|---|---|---|---|---|---|
-  | irelia, vlad, ted, river | heroes | 7 | HUMANOID | 0.4 | 3 | 75 / 80 / 85 / 85, stride 18.1 |
-  | grount | monster (3 stages: horns, eyes, spikes, cracks, chain) | 16 | HUMANOID | 0.6 | 3 | 60, 24.3 |
-  | gorrak | monster | 7 | HUMANOID | 0.6 | 3 | 56, 25.1 |
-  | nyxa | monster | 6 | FLYER | 0.6 | 3 | 85 (no legs) |
-  | hog | mob | 5 | QUADRUPED | 0.38 | 2 | 70, 19.1 |
-  | bat | mob | 4 | FLYER | 0.32 | 2 | 150 (no legs) |
-  | pet | Ted's fox | 5 | QUADRUPED | 0.3 | 2 | 120, 20.1 |
+  | irelia, vlad, ted, river | heroes | 7 | HUMANOID | 0.4 | 3 | 90 / 96 / 102 / 102, stride 18.1 |
+  | grount | monster (3 stages: horns, eyes, spikes, cracks, chain) | 16 | HUMANOID | 0.6 | 3 | 72, 24.3 |
+  | gorrak | monster | 7 | HUMANOID | 0.6 | 3 | 67.2, 25.1 |
+  | nyxa | monster | 6 | FLYER | 0.6 | 3 | 102 (no legs) |
+  | hog | mob | 5 | QUADRUPED | 0.38 | 2 | 84, 19.1 |
+  | bat | mob | 4 | FLYER | 0.32 | 2 | 180 (no legs) |
+  | pet | Ted's fox | 5 | QUADRUPED | 0.3 | 2 | 144, 20.1 |
 
   The small ones' sheets rasterise at 2 px per art unit (VRAM); the rest at 3,
   which stays crisp up to about camera zoom x7.5 for heroes. `full_speed` is
@@ -1002,7 +1049,10 @@ Gorrak and the Bat and Hog mobs.
   sin(`leg_swing`) x `world_scale`, so a planted foot does not slide. In a
   match the rig steps by `walk_stride()` = `stride` x its own +-4 % size x
   the entity's scale, so an evolved Grount (1.25x, 1.5x) or any growing
-  monster takes proportionally longer steps instead of pedalling.
+  monster takes proportionally longer steps instead of pedalling. The steps
+  follow the distance walked, so the feet stay planted at any walk or match
+  speed; `test/test_walk_speed.gd` checks that every rig's `full_speed` is
+  its character's walk speed (P1 raised both by 20 %, see Match Speed).
 - **Builder**: `tools/build_rigs.sh [id ...]` runs `tools/rig_builder.gd`
   (`RigBuilder`) on a temp copy and copies back, per character:
     - `<id>_sheet.svg`: every part cropped to its alpha box and shelf-packed
@@ -4029,7 +4079,7 @@ Lv 3, 5 and 8 take about 2, 7 and 19 matches with that character.
 **Short Loop** (Per Round - 5-10 min):
 
 ```
-Setup (1 min) → Watch Battle (4-8 min) → Rewards (30s) → Upgrade (1 min)
+Setup (1 min) → Watch Battle (1.5-8 min, median 6 at the normal speed; half that on fast) → Rewards (30s) → Upgrade (1 min)
 ```
 
 **Medium Loop** (Per Session - 30-60 min):

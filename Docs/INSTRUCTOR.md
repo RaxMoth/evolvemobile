@@ -214,7 +214,7 @@ HeroBase
 class_name HeroStats
 @export var hero_id: StringName = &""
 @export var base_max_health: float = 100.0
-@export var base_move_speed: float = 80.0
+@export var base_move_speed: float = 96.0
 
 # stat_component.gd (Node - uses the resource)
 class_name HeroStatsComponent
@@ -243,11 +243,11 @@ look), `RigProfile` (how a rig moves), `MatchConfig` (the pre-round choices),
 // ✅ CORRECT - Virtual methods in base class
 # EntityBase
 func _get_move_speed() -> float:
-    return 80.0
+    return 96.0
 
 # HeroBase
 func _get_move_speed() -> float:
-    return stats.get_move_speed() if stats else 80.0
+    return stats.get_move_speed() if stats else 96.0
 
 # MonsterBase
 func _get_move_speed() -> float:
@@ -568,7 +568,7 @@ EntityBase gets the same `Hud` node scene-side (`TedsPet.tscn`), wired to its no
   a dead entity across frames must check `is_instance_valid` before passing it on (the Trap Cage
   did not).
 
-### 10. Match speed (fix batch F3)
+### 10. Match speed and walking speeds (fix batches F3, P1)
 
 - **One owner**: `GameManager._sync_time_scale()` is the only code that writes
   `Engine.time_scale`: `match_speed()` (`MATCH_BASE_SPEED`, times `MATCH_FAST_FACTOR` on the speed
@@ -590,6 +590,13 @@ EntityBase gets the same `Hud` node scene-side (`TedsPet.tscn`), wired to its no
 - **Headless runs are not scaled** (`GameManager.speed_scaling` is false without a display): the
   sims and the trace keep 60 steps per game second. A test that needs the speed sets
   `speed_scaling` and restores it (`test/test_match_speed.gd`).
+- **Walking speeds are data** (fix batch P1 raised all of them by 20 %): `HeroStats`
+  (`base_move_speed`, `speed_per_level`, `strafe_speed`), `MonsterStats` (`stage_N_speed`), the
+  mob scenes (`base_move_speed`, `strafe_speed`) and `TedsPet.move_speed`, each with its rig's
+  `RigProfile.full_speed` (the hero's base speed, the monster's Stage 1 speed). Change a speed and
+  its `full_speed` together and keep the README's tables in step (`test/test_walk_speed.gd`,
+  `test_readme_spec`); never put a hidden multiplier on `move_speed`. Unlike the match speed, a
+  walking speed changes the game: the trace baselines and the balance tables move with it.
 
 ### 11. Localization (fix batch F6)
 
@@ -637,7 +644,7 @@ func _ready():
 
 // ✅ CORRECT
 # river_stats.tres (Resource file)
-base_move_speed = 85.0
+base_move_speed = 102.0
 vision_radius = 300.0
 # river.gd overrides only behaviour (her weapon mode), no stats
 ```
