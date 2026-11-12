@@ -184,6 +184,26 @@ Gameplay:
   (Grount / Nyxa / Gorrak, heroes side, 24 seeds) against 58 / 67 / 67 % without it. The interval
   keeps the cooldowns, the texts and the README tables as they were; the HUD slot then shows the
   ability ready for a while between casts. Option: longer cooldowns in the data instead.
+- **River's staff** (R1): with the staff her patient comes first in every state, also between
+  fights: the most hurt other hero below 95 % within 350 px; she walks to 120 px and heals within
+  the staff's 150 px. Her Fight gate stays the rifle's in both modes. Options: heal only in a
+  fight, let her heal herself, or keep the staff out of Idle so she enters the next fight still
+  holding it.
+- **Staff heal every 4 s** (R1 retune): the README's first design said 9 HP every 1.4 s. Once the
+  staff really healed, that took the heroes from 42 / 42 / 25 % to 100 / 67 / 83 % wins (Grount /
+  Nyxa / Gorrak, heroes side, 12 seeds); every 2.8 s gave 75 / 33 / 58 %, every 4 s 67 / 50 / 50
+  %. One number changed (`heal_cooldown`, `river_basic_attack.tres`); the final balance batch
+  may move it, or tune the monsters instead and give the staff its old pace back.
+- **Fight leave margin** (R1): Fight is left no closer than 1.15 x the range Approach enters it at
+  (`EntityBase.FIGHT_LEAVE_MARGIN`), so range nodes always pay. The stock entities are unchanged
+  (their `max_distance` is already further out). Wide Sweep and Long Reach lengthen only the
+  Fight gate, not Front Cleave's 80 px cone or the other abilities' reach; the cleave still
+  connects at the maxed 108.6 px because a standard body adds 31 px. Making the keys lengthen
+  the abilities too, as "+% ability range" suggests, is a balance change left open.
+- **Exploration dial** (R1): the scan radius r (300-600 px) moves the three sample distances to
+  r - 150 / r + 50 / r + 250 px, so the default dial keeps the 300 / 500 / 700 px the group always
+  used and the default-strategy traces stay byte-identical. Option: centre them on r
+  (r - 200 / r / r + 200), which changes the default exploration.
 - **Match rewards pay the played side's kills** (8.2), and the HUD's kills chip shows them.
 
 Look and feel:
@@ -418,6 +438,15 @@ Threat 0, fresh save, 48 seeds (`MONSTER=<id> tools/sim.sh 48 <side> 6`), hero w
 | Grount (G1, 24 seeds) | 33 % | 33 % | 1 / 1 | 327 / 327 s | combat AI fixes; ability 2 in fights every 15 s |
 | Nyxa (G1, 24 seeds) | 33 % | 33 % | 8 / 7 | 376 / 369 s | 7 matches of 24 without contact on each side |
 | Gorrak (G1, 24 seeds) | 38 % | 50 % | 3 / 2 | 349 / 350 s | |
+| Grount (R1, 12 seeds) | 67 % | 67 % | 0 / 0 | 305 / 305 s | River's staff heals (every 4 s); parent 42 / 42 % |
+| Nyxa (R1, 12 seeds) | 50 % | 50 % | 4 / 4 | 376 / 376 s | parent 42 / 42 % |
+| Gorrak (R1, 12 seeds) | 50 % | 50 % | 0 / 0 | 326 / 326 s | parent 25 / 33 % |
+
+R1 (`MONSTER=all tools/sim.sh 12 <side> 2`, the parent `524536a` run the same way): River's staff
+healed for the first time (`staff_heals`: 207-225 heals in 12 matches against Grount or Gorrak
+at 1.4 s, 71-84 at 4 s). At the README's first 1.4 s per heal the heroes won 100 / 67 / 83 % (heroes side) and 100 / 67 / 83 %
+(monster side), hero deaths against Grount fell from 31 to 6 in 12 matches; every 2.8 s gave
+75 / 33 / 58 %, every 4 s (shipped) 67 / 50 / 50 % on both sides.
 
 G1 (`MONSTER=all tools/sim.sh 24 <side> 2`): every monster is inside 30-70 %, Grount and Nyxa
 below the 40-60 % target; the final balance batch retunes. Without ability 2 in fights the heroes
@@ -512,6 +541,58 @@ Match speed (F3, `tools/bench.sh 3 2 900 300 0 <rigs_awake> <speed>`, back to ba
       uses `GameManager.killer_side`; the sim could use the same rule. Low priority.
 
 ## Changelog
+### 2026-11-12 — fix batch R1: River's staff, the range-node freeze, mines after death, the scan dial
+Third batch of the second fix run: review findings heroes-2, heroes-12, meta-1, meta-2, vfx-1 /
+heroes-6, heroes-7 and heroes-9. Gameplay: the traces change because River's staff heals now;
+`tools/baselines` is re-recorded.
+
+- **River's staff** (heroes-2, high): in staff mode `River._get_attack_range` returned the staff's
+  150 px, under her `min_distance` of 180, so the Fight gate (measured to the enemy) never opened
+  and `_on_fight_logic`, the only caller of the heal, never ran; the Approach override only turned
+  her toward the ally. From the first wounded ally on she neither healed nor shot (0 staff heals in
+  the reviewer's matches, 85 % of each match in staff mode). Now the Fight gate stays the rifle's
+  in both modes, and in staff mode `_staff_step` serves the patient at the top of her Idle,
+  Approach and Fight handlers (no new state; the chart stays the only state machine): the most
+  hurt other hero below 95 % within 350 px, walked to along the nav path until 120 px away, healed
+  whenever within 150 px and the staff is ready. With nobody to heal the state's own logic runs.
+- **Retune**: the working heal at the README's 1.4 s took the heroes from 42 / 42 / 25 % to
+  100 / 67 / 83 % wins (Grount / Nyxa / Gorrak, 12 seeds), outside 30-70 %. One number:
+  `heal_cooldown` 1.4 -> 4.0 s, 67 / 50 / 50 % on both sides (Balance, Decisions).
+- **Range nodes froze the fighter** (meta-1 high, meta-2 medium): the Fight leave distance was a
+  fixed `max_distance` while the range nodes grew the enter range: Grount with Wide Sweep 3 + Long
+  Reach 2 entered at 108.6 px and left at 100, River with Long Scope 4+ entered at 351+ and left at
+  350 (the AI River at threat 3-4 holds 382.9), Ted with both nodes maxed 80.44 against 80. In
+  that band the entity flipped Approach / Fight every tick, stood still and never attacked. One
+  rule for every entity: `EntityBase.fight_enter_range()` (attack range or keep distance) and
+  `fight_leave_range()` = `max(max_distance, 1.15 x enter)`. Every stock entity already left
+  further out, so the fresh-save traces of this rule alone (with the exploration change, River's
+  file at the parent) were byte-identical to the baselines.
+- **Mines after Vlad's death** (vfx-1 / heroes-6): already fixed in G1 (`524536a`: the blast
+  passes the guarded placer); this batch adds the test, which fails with the old line (the SCRIPT
+  ERROR, the Hog at 100 HP, the mine still there). The class: Trap Cage (heroes-7) was fixed in
+  F2 (`5b55a21`, covered by `test_trap_cage_outlives_a_target_freed_inside_it`); the Supply Drop,
+  Divine Shield, Monster Taunt, Tusk Axe and Night Swarm never pass a freed owner or target on
+  (checked; new tests for a kit and a taunt that outlive River and Irelia, and a mine's lifetime).
+- **Exploration dial** (heroes-9): "scanning N px ahead" was stored and never read. The scan
+  radius r now sets the sample distances (r - 150 / r + 50 / r + 250 px) and the random fallback
+  (r +- 150), so the text is true; the default dial keeps 300 / 500 / 700 px.
+- **Tests** (heroes-12): `test_review2_regressions` pinned the broken staff reach; it now checks
+  the rifle's gate in staff mode. New `test/test_fight_gates.gd` runs the heroes' own charts:
+  River heals in a fight and between fights and shoots with the rifle, every hero swings at a Hog
+  inside its band, Vlad's Blood Bomb goes through `HeroBase._process` only among the enemies,
+  River with Long Scope 5 + Sniper's Nest 3 shoots from 450 px, and every range-node rank
+  combination of the roster (80 spawns, River in both modes) leaves Fight past its gate. Also
+  Grount at Wide Sweep 3 + Long Reach 2 cleaves at his reach, the exploration dial's distances,
+  and the placed objects above. On the parent's code all of them fail except the controls (the
+  rifle shot, every hero's swing, Blood Bomb, the kit, the taunt, the mine's lifetime).
+- `tools/sim_match.gd` reports `staff_heals` and `staff_heal_hp`.
+- Traces: re-recorded (1,998 / 3,428 / 2,846 lines) and reproduced byte-identical. They part
+  from the old baselines at frames 8,040-28,620, where an ally first drops below 60 % near River;
+  Nyxa's seeds 1 and 3 (no such moment) are unchanged.
+- Render (muted, a scratch driver: Vlad dropped to 40 % HP about 300 px from River one second
+  in): she swaps to the staff at 1.5 s, walks over, heals him +9 at 3.1 s and then every 4 s,
+  staying about 120 px from him as he walks on.
+
 ### 2026-11-12 — fix batch G1: combat AI (stale targets, ultimates in reach, ability 2, warband, stand-off)
 Second batch of the second fix run: the walkthrough's combat items and the review findings
 heroes-1, monsters-1, heroes-3, heroes-4, heroes-8 and monsters-5. Gameplay: the traces change

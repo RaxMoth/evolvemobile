@@ -268,7 +268,16 @@ cooldown.
   drops below 60% HP and back above 85%)
 - **Basic Attack**: Adaptive Weapon
     - Sniper Mode: 12 dmg at 300 range / 1.1s
-    - Healer Mode: 9 heal at 150 range / 1.4s
+    - Healer Mode: 9 heal at 150 range / 4s. With the staff her patient
+      comes first, in a fight and between fights: the most hurt other hero
+      below 95% HP within 350 px. She walks to it until it is 120 px away and
+      heals it whenever it is within the staff's 150 px (`River._staff_step`);
+      with nobody to heal she fights as with the rifle. Her Fight gate stays
+      the rifle's in both modes (until fix batch R1 the staff's 150 px was the
+      gate, under her 180 px minimum distance: she neither healed nor shot).
+      The staff heals every 4 s: at the first design's 1.4 s the working heal
+      took the heroes from 42 / 42 / 25 % to 100 / 67 / 83 % wins
+      (Grount / Nyxa / Gorrak, 12 seeds; see PROGRESS "Balance")
 - **Ultimate**: Emergency Supply Drop (a MediKit that heals every hero who
   walks over it 30 HP once, then vanishes; 25 s cooldown). The crate falls for
   0.5 s onto River's feet and heals only once it has landed, every hurt hero
@@ -1849,6 +1858,17 @@ built.
 
 - Basic attack when in range (the Fight gate: `min_distance <= distance <=
   attack range`); between swings an entity strafes at its preferred distance
+- **Fight enter and leave**: Approach enters Fight once the target is within
+  `fight_enter_range()` (the attack range, or `keep_distance` when that is
+  further) and Fight goes back to Approach past `fight_leave_range()`:
+  `max_distance`, but never less than 1.15 x the enter range
+  (`EntityBase.FIGHT_LEAVE_MARGIN`). Every stock entity already leaves further
+  out (River 345 / 350, Irelia 138 / 140, Grount 92 / 100); the margin acts
+  once a range node grew the reach. Wide Sweep 3 + Long Reach 2 (Grount 108.6
+  px against 100) or Long Scope 4+ (River 351+ against 350) used to put the
+  enter range past the leave distance: the entity flipped between the two
+  states every tick and stood still (`test_fight_gates.gd` walks every range
+  node combination of the roster)
 - **Stand-off**: ranges to an evolved monster are measured from the edge of
   his grown body (`EntityBase.range_to`: centre distance less
   `reach_bonus()`, the Body circle's 31 px x (stage scale - 1), Titan Form
@@ -2006,7 +2026,8 @@ one new ability script. Every default is Grount's old behaviour:
 - **`MonsterStats`** (per monster `.tres`):
   - Combat: `base_attack_range` (80; attack range = this x the range nodes +
     Titan Form's flat bonus) and `fight_leave_distance` (100; + the same
-    bonus). These were MonsterBase constants. The spacing (`combat_role`,
+    bonus; Fight leaves no closer than 1.15 x the attack range, see Combat AI
+    "Fight enter and leave"). These were MonsterBase constants. The spacing (`combat_role`,
     `preferred_distance` 45, `min_distance` 20) stays on the scene root, set in
     `monster_base_class.tscn` and overridden by a monster scene's own root.
   - Toughness: `damage_taken_mult_per_stage` (index 0 = Stage 1; empty or
@@ -2645,7 +2666,11 @@ tracks and asks for one start.
       MatchConfig's derived values in words: "Ultimates fire at 3+ enemies, or
       when an ally drops below 28% HP.", "Mob camps weigh 70 against 100 for
       the monster.", "New targets every 3.2 s, scanning 450 px ahead, 100 px
-      apart."
+      apart." The scan radius r (300-600 px by the Exploration dial) sets
+      where the group samples for unexplored ground: r - 150, r + 50 and
+      r + 250 px ahead (300 / 500 / 700 at the default), and the random
+      fallback r ± 150 (`HeroExplorationController._sample_distances`); until
+      fix batch R1 the radius was stored and never read
     - START HUNT (`ButtonPrimary`): the config with `quarry_id` = the quarry.
 - **Monster ("Your Beast")**:
     - THE LAIR (`BannerMonster`): the picked monster big on the lair backdrop
@@ -3086,7 +3111,8 @@ No tool can pass by accident, and none leaks when it is stopped:
   node's name) or by mob. Each result line also counts the casts of every
   ability by caster (`ability_casts`, `"Grount:Ram Dash": 9`; the heroes'
   basic attacks apart in `hero_basic_casts`) and the hero ultimates cast at a
-  target more than 400 px away (`hero_ults_far`). `OUT=<file>` keeps the raw JSON lines (every monster's;
+  target more than 400 px away (`hero_ults_far`), and River's staff heals
+  (`staff_heals`, the HP they gave in `staff_heal_hp`). `OUT=<file>` keeps the raw JSON lines (every monster's;
   `sim_summary.py <file>` summarizes them the same way), `SAVE=<save.cfg>`
   starts every match from that save (its power ranks set the threat; the
   summary prints it). `THREAT=<0-4>` (or a list, `THREAT="0 2 4"`, or

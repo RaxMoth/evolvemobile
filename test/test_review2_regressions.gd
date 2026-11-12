@@ -65,8 +65,11 @@ func test_river_exposes_weapon_mode_and_scaled_range() -> void:
 	assert_near(river.attack_range, 300.0, 0.01)
 	river._use_active_now()  # the Weapon Swap: flips the mode on River's own copy of the active
 	assert_eq(river.get_weapon_mode(), 1, "heal staff")
-	var basic := (river.get_node("AbilitySystem") as AbilitySystem).basic_attack as RiverBasicAttack
-	assert_near(river.attack_range, basic.heal_range, 0.01, "heal-mode reach is the staff's heal_range")
+	# The Fight gate stays the rifle's: the staff's 150 px used to be the gate,
+	# under her min_distance of 180, so it never opened (review heroes-2). The
+	# staff heals by its patient instead (test_fight_gates.gd).
+	assert_near(river.attack_range, 300.0, 0.01, "the Fight gate is the rifle's in staff mode too")
+	assert_true(river.min_distance < river.attack_range, "and it can open")
 	var shared: AbilityBase = load("res://Scenes/NPCs/Hero/Heros/Healer/River/Abilities/active/river_active.tres")
 	assert_eq(int(shared.get("current_mode")), 0, "the shared .tres keeps its mode")
 	river.queue_free()

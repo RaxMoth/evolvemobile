@@ -246,7 +246,10 @@ func test_behaviour_nodes_are_off_on_a_fresh_save() -> void:
 	assert_true(g.debug_meta_line().ends_with("nodes: -"), g.debug_meta_line())
 
 
-func test_range_nodes_alone_keep_the_stock_fight_leave_distance() -> void:
+## The range nodes keep the stock max_distance (only Titan Form moves it), and
+## the Fight leave distance follows the longer reach 15 % out
+## (EntityBase.fight_leave_range): 96.8 px at rank 1 + rank 1 leaves at 111.3.
+func test_range_nodes_keep_the_fight_leave_past_the_reach() -> void:
 	if not require_isolated():
 		return
 	_grant(["g1_range"])
@@ -254,7 +257,34 @@ func test_range_nodes_alone_keep_the_stock_fight_leave_distance() -> void:
 	var g := await _grount()
 	await _evolve_to_3(g)
 	assert_near(g.attack_range, 80.0 * 1.1 * 1.1, 0.001)
-	assert_eq(g.max_distance, 100.0, "no Titan: Fight still leaves at 100 px")
+	assert_eq(g.max_distance, 100.0, "no Titan: the stat stays 100 px")
+	assert_near(g.fight_leave_range(), 80.0 * 1.1 * 1.1 * EntityBase.FIGHT_LEAVE_MARGIN, 0.001, "Fight leaves 15 % past the reach")
+
+
+## meta-1: Wide Sweep 3 and Long Reach 2 (108.6 px, no Titan) used to enter
+## Fight past the fixed 100 px leave distance: a target 100-108 px away left
+## Grount flipping between Approach and Fight every tick, standing still and
+## never casting. He now holds the fight and cleaves it.
+func test_maxed_range_nodes_fight_at_their_reach() -> void:
+	if not require_isolated():
+		return
+	PersistedData.set_skill_rank(_tree(), &"g1_range", 3)
+	PersistedData.set_skill_rank(MetaSkillManager.TREE_MONSTER_BASE, &"mt3_range", 2)
+	var g := await _grount()
+	await _evolve_to_3(g)  # he hunts heroes from Stage III
+	var reach: float = g.attack_range
+	assert_near(reach, 80.0 * 1.18 * 1.15, 0.001)
+	assert_true(reach > g.max_distance, "the case that froze him")
+	var v := await _hero(Vector2(reach - 1.0, 0))
+	g.ability_cooldowns["ability_2"] = 99.0  # a fight casts Ram Dash first; this is about the cleave
+	g._update_strategy()  # picks the hero up from its own detection area
+	assert_true(g.target_entity == v, "acquired the hero")
+	for i in range(6):
+		g._tick(0.1)
+		await wait_frames(1)
+	assert_eq(active_state_of(g), "Fight", "no Approach/Fight ping-pong at the longer reach")
+	assert_false(g.is_ability_ready("ability_1"), "Front Cleave was cast")
+	assert_true(v.get_health() < v.get_max_health(), "and connected at attack_range - 1")
 
 
 # ---------- Enrage ----------

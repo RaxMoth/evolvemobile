@@ -35,7 +35,7 @@ func test_basic_attacks_match_the_readme_roster() -> void:
 	var river: AbilityBase = load("res://Scenes/NPCs/Hero/Heros/Healer/River/Abilities/basic_attack/river_basic_attack.tres")
 	assert_near(river.damage, 12.0); assert_near(river.cooldown, 1.1); assert_near(river.ability_range, 300.0)
 	assert_near(river.heal_amount, 9.0, 0.001, "Healer mode heals (was 0)")
-	assert_near(float(river.get("heal_cooldown")), 1.4)
+	assert_near(float(river.get("heal_cooldown")), 4.0, 0.001, "one staff heal every 4 s (fix batch R1; it was 1.4 s while the staff never healed)")
 	var irelia: AbilityBase = load("res://Scenes/NPCs/Hero/Heros/Support/Irelia/Abilities/Basic_attack/irelia_basic_attack.tres")
 	assert_near(irelia.damage, 5.0); assert_near(irelia.cooldown, 1.5)
 	var vlad: AbilityBase = load("res://Scenes/NPCs/Hero/Heros/DMG/Vlad/Abilities/basic_attack/basic_attack.tres")

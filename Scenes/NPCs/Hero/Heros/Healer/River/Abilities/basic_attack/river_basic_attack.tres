@@ -9,7 +9,7 @@
 script = ExtResource("1_basic")
 sniper_cooldown = 1.1
 heal_range = 150.0
-heal_cooldown = 1.4
+heal_cooldown = 4.0
 heal_icon = ExtResource("3_heal_icon")
 ability_name = "Adaptive Weapon"
 move_name = &"aim"

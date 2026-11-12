@@ -337,3 +337,95 @@ func test_each_hero_owns_its_ability_copies() -> void:
 	assert_true(bare.active_ability.resource_path.is_empty())
 	assert_false(shared.resource_path.is_empty(), "the shared .tres keeps its path")
 	holder.queue_free()
+
+
+# ---------------------------------------------------------------- placed objects outliving their caster
+
+const MINE := "res://Scenes/NPCs/Hero/Heros/DMG/Vlad/Abilities/active/Mine/Mine.tscn"
+
+
+## The node of `type_name` a cast added under the test since `before`, or null.
+func _placed(before: Array[Node], type_name: String) -> Node:
+	for n in get_children():
+		if not before.has(n) and n.get_script() != null and (n.get_script() as Script).get_global_name() == type_name:
+			return n
+	return null
+
+
+## Kill `hero` through the damage pipeline (Dead -> queue_free) and let it go.
+func _kill(hero: Node) -> void:
+	EventBus.deal_damage(null, hero, 999999.0)
+	await wait_frames(3)
+
+
+## vfx-1 / heroes-6: a Land Mine outlives Vlad (it lies under his parent). An
+## enemy that walks onto it after he died still sets it off for its full
+## damage, and the mine frees itself. The blast used to pass the freed Vlad to
+## EventBus.deal_damage: a SCRIPT ERROR, no damage, and the hidden mine stayed.
+func test_a_mine_goes_off_after_vlad_died() -> void:
+	var vlad := await spawn_frozen(VLAD, Vector2(0, 0))
+	var before: Array[Node] = get_children()
+	(vlad.get_node("AbilitySystem") as AbilitySystem).active_ability.execute(vlad)
+	var mine := _placed(before, "Mine") as Mine
+	assert_true(mine != null, "a mine is placed")
+	if mine == null:
+		vlad.queue_free()
+		return
+	var damage: float = mine.damage
+	await _kill(vlad)
+	assert_false(is_instance_valid(vlad), "Vlad is gone")
+	assert_false(mine.has_exploded, "nothing near it yet")
+	var hog := (await spawn_frozen(HOG, mine.global_position + Vector2(20, 0))) as EntityBase
+	await wait_seconds(0.8)
+	assert_near(hog.get_health(), hog.get_max_health() - damage, 0.01, "the Hog took the mine's %.0f damage" % damage)
+	assert_false(is_instance_valid(mine), "the mine freed itself")
+	hog.queue_free()
+
+
+## A mine nobody steps on frees itself after its lifetime.
+func test_an_untouched_mine_frees_itself_after_its_lifetime() -> void:
+	var mine := (load(MINE) as PackedScene).instantiate() as Mine
+	mine.lifetime = 0.3
+	add_child(mine)
+	await wait_seconds(0.5)
+	assert_false(is_instance_valid(mine), "gone after its lifetime")
+
+
+## Monster Taunt outlives Irelia: the taunted monster stops naming her as its
+## taunter once she is gone, and its TauntEffect is removed after the taunt's
+## duration all the same.
+func test_a_taunt_ends_after_its_duration_when_irelia_died() -> void:
+	var irelia := await spawn_frozen(IRELIA, Vector2(0, 0))
+	var g := (await spawn_frozen(GROUNT, Vector2(120, 0))) as MonsterBase
+	var ult: AbilityBase = (irelia.get_node("AbilitySystem") as AbilitySystem).ultimate_ability
+	ult.duration = 0.4  # Irelia's own copy
+	ult.execute(irelia)
+	assert_true(g.has_node(^"TauntEffect"), "the monster is taunted")
+	assert_true(g._get_taunter() == irelia, "by Irelia")
+	await _kill(irelia)
+	assert_true(g._get_taunter() == null, "no taunter once she is gone")
+	await wait_seconds(0.5)
+	assert_false(g.has_node(^"TauntEffect"), "the taunt ended after its duration")
+	g.queue_free()
+
+
+## The Supply Drop outlives River: a kit dropped just before she died still
+## lands and heals a hurt hero who walks over it, then frees itself.
+func test_a_supply_drop_outlives_river() -> void:
+	var river := await spawn_frozen(RIVER, Vector2(0, 0))
+	var vlad := (await spawn_frozen(VLAD, Vector2(400, 0))) as HeroBase
+	vlad.stats.take_damage(40.0)
+	var hp: float = vlad.get_health()
+	var before: Array[Node] = get_children()
+	(river.get_node("AbilitySystem") as AbilitySystem).ultimate_ability.execute(river)
+	var kit := _placed(before, "MediKit") as MediKit
+	assert_true(kit != null, "a kit is dropped")
+	await _kill(river)
+	await wait_seconds(0.7)
+	assert_true(is_instance_valid(kit) and kit.landed, "it lands without River")
+	vlad.global_position = Vector2(20, 0)
+	await wait_physics_frames(3)
+	assert_near(vlad.get_health(), hp + 30.0, 0.001, "and heals Vlad")
+	await wait_seconds(0.8)
+	assert_false(is_instance_valid(kit), "then it is gone")
+	vlad.queue_free()

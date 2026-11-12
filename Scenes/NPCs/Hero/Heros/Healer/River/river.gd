@@ -2,8 +2,8 @@ extends HeroBase
 class_name River
 
 @export_group("Healer Behavior")
-## Heal targets at or below this HP fraction. River's blackboard query
-## skips fully-healthy allies so she only swaps to staff for real injuries.
+## The staff heals allies below this HP fraction (_staff_patient), so a
+## nearly healthy ally is not worth a swing.
 @export var heal_threshold_pct: float = 0.95
 ## Switch to the heal staff when an ally within heal_watch_range drops below
 ## this HP fraction; switch back to the sniper once every ally there is above
@@ -11,6 +11,14 @@ class_name River
 @export var heal_switch_pct: float = 0.6
 @export var sniper_return_pct: float = 0.85
 @export var heal_watch_range: float = 350.0
+
+## The rifle's reach on a fresh save (the README's 300; the attack_range
+## upgrades scale it).
+const SNIPER_RANGE: float = 300.0
+## Staff mode: River walks toward her patient until it is within this fraction
+## of the staff's heal_range, and heals as soon as it is within the range, so
+## a patient on the move does not leave her stopping and starting at the edge.
+const STAFF_CLOSE_IN: float = 0.8
 
 ## Read by RiverBasicAttack.execute (a RiverActiveWeaponSwap.WeaponMode:
 ## 0 = sniper, 1 = heal staff). The mode lives only on this River's own copy
@@ -22,21 +30,22 @@ func get_weapon_mode() -> int:
 func _in_heal_mode() -> bool:
 	return get_weapon_mode() == RiverActiveWeaponSwap.WeaponMode.HEAL_STAFF
 
-## The heal staff's reach: heal_range of this River's own basic-attack copy.
-## Ally selection and the heal itself use it unscaled; only the Fight gate
-## (_get_attack_range) scales it with the attack_range upgrades.
+## The heal staff's reach: heal_range of this River's own basic-attack copy,
+## unscaled (RiverBasicAttack._execute_heal checks the same number).
 func _heal_range() -> float:
 	var basic: RiverBasicAttack = (ability_system.basic_attack as RiverBasicAttack) if ability_system else null
 	return basic.heal_range if basic else 0.0
 
+## The Fight gate is the rifle's in both modes (300 px x the attack_range
+## upgrades), so a swap never changes where she stands in a fight. The staff
+## does not use it: in staff mode the patient decides (_staff_step). The staff
+## mode used to return the heal range here, 150 px under her min_distance of
+## 180, so the gate could never open and she neither healed nor shot.
 func _get_attack_range() -> float:
-	# Mode ranges scale with the permanent attack_range upgrades (HeroStats).
 	var mult: float = 1.0
 	if stats and stats.base_stats and stats.base_stats.base_attack_range > 0.0:
 		mult = stats.get_attack_range() / stats.base_stats.base_attack_range
-	if _in_heal_mode():
-		return _heal_range() * mult
-	return 300.0 * mult
+	return SNIPER_RANGE * mult
 
 ## The weapon swap IS River's active: decide from the team's health instead
 ## of "fire when fighting".
@@ -91,53 +100,82 @@ func _get_move_speed() -> float:
 		return base_speed * adaptive.get_speed_multiplier()
 	return base_speed
 
+## The rifle in a fight. The staff is never swung from here: in staff mode
+## _staff_step serves the patient before the Fight logic runs, and without a
+## patient she is about to swap back.
 func _on_fight_logic(_delta: float) -> void:
-	if not ability_system:
-		return
-	
-	match get_weapon_mode():
-		RiverActiveWeaponSwap.WeaponMode.SNIPER:
-			if is_target_valid() and target_entity.is_in_group("Enemy"):
-				ability_system.use_basic_attack(target_entity)
-		
-		RiverActiveWeaponSwap.WeaponMode.HEAL_STAFF:
-			var ally := _find_nearest_wounded_ally()
-			if ally:
-				ability_system.use_basic_attack(ally)
+	if ability_system and not _in_heal_mode() and is_target_valid() and target_entity.is_in_group("Enemy"):
+		ability_system.use_basic_attack(target_entity)
 
-func _find_nearest_wounded_ally() -> Node2D:
-	## Healer target selection via the team blackboard. Picks the lowest-HP
-	## ally below heal_threshold_pct, then verifies they're in range.
-	## Reading from the blackboard means we skip the per-call group walk
-	## (the blackboard's `members` is maintained as entities register/exit).
+
+## The staff's patient: the most hurt living hero (lowest HP fraction, below
+## heal_threshold_pct) within heal_watch_range of River, never River herself
+## (the staff heals others) or Ted's fox (no HeroBase); null when nobody there
+## needs a heal.
+func _staff_patient() -> HeroBase:
 	var team := TeamRegistry.get_team(TeamRegistry.HEROES)
 	if team == null:
 		return null
-	var wounded := team.find_lowest_hp_ally(heal_threshold_pct, self)
-	if wounded == null or not (wounded is Node2D):
-		return null
-	var w2d := wounded as Node2D
-	if w2d.global_position.distance_to(global_position) > _heal_range():
-		return null
-	return w2d
+	var best: HeroBase = null
+	var best_pct: float = heal_threshold_pct
+	var r_sq := heal_watch_range * heal_watch_range
+	for ally in team.members:
+		if ally == self or not is_instance_valid(ally) or not (ally is HeroBase):
+			continue
+		var hero := ally as HeroBase
+		if not hero.is_alive() or hero.get_max_health() <= 0.0 \
+				or hero.global_position.distance_squared_to(global_position) > r_sq:
+			continue
+		var pct: float = hero.get_health() / hero.get_max_health()
+		if pct < best_pct:
+			best_pct = pct
+			best = hero
+	return best
+
+
+## Staff mode, in every state of her chart (Idle, Approach, Fight): the
+## patient (_staff_patient) comes first. Further than STAFF_CLOSE_IN of the
+## staff's reach she walks to it (along the navigation path); within the reach
+## she heals it whenever the staff is ready (a flinch does not stop a heal),
+## facing it while she stands. false = nobody to heal: the state's own logic
+## runs (a fight goes on as with the rifle).
+func _staff_step(delta: float) -> bool:
+	var patient := _staff_patient()
+	if patient == null:
+		return false
+	var to_patient: Vector2 = patient.global_position - global_position
+	var distance: float = to_patient.length()
+	var reach: float = _heal_range()
+	if distance > reach * STAFF_CLOSE_IN:
+		if is_instance_valid(navigation_agent_2d):
+			_set_nav_target_lazy(patient.global_position)
+			_steer_along_nav(move_speed, delta)
+		else:
+			move_toward_point(patient.global_position, move_speed, delta)
+	else:
+		_face(to_patient, delta)
+	if distance <= reach and _is_attack_ready() and ability_system:
+		ability_system.use_basic_attack(patient)
+	return true
+
+
+## Staff mode heals between fights too: she would otherwise walk into the next
+## fight still holding the staff next to the ally she swapped for.
+func _on_idle_state_processing(delta: float) -> void:
+	if _in_heal_mode() and _staff_step(delta):
+		# The idle goal is stale after the walk: pick a fresh one next tick.
+		_idle_timer = 0.0
+		return
+	super._on_idle_state_processing(delta)
+
 
 func _on_approach_state_processing(delta: float) -> void:
-	match get_weapon_mode():
-		RiverActiveWeaponSwap.WeaponMode.SNIPER:
-			super._on_approach_state_processing(delta)
-		
-		RiverActiveWeaponSwap.WeaponMode.HEAL_STAFF:
-			var ally := _find_nearest_wounded_ally()
-			if ally:
-				var distance := global_position.distance_to(ally.global_position)
-				if distance <= _heal_range():
-					var dir: Vector2 = (ally.global_position - global_position).normalized()
-					sprite.rotation = dir.angle()
-				elif is_instance_valid(navigation_agent_2d):
-					# Path to the ally: a straight line went through walls.
-					_set_nav_target_lazy(ally.global_position)
-					_steer_along_nav(move_speed, delta)
-				else:
-					move_toward_point(ally.global_position, move_speed, delta)
-			else:
-				super._on_approach_state_processing(delta)
+	if _in_heal_mode() and is_target_valid() and _staff_step(delta):
+		return
+	super._on_approach_state_processing(delta)
+
+
+func _on_fight_state_processing(delta: float) -> void:
+	if _in_heal_mode() and is_target_valid() and _staff_step(delta):
+		return
+	super._on_fight_state_processing(delta)

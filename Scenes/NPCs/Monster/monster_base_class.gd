@@ -228,7 +228,9 @@ func _enter_stage() -> void:
 	strafe_change_interval = monster_stats.get_strafe_interval_for_stage(stage)
 	# Approach enters Fight at attack_range and Fight leaves past max_distance:
 	# Titan Form's flat reach moves both by the same amount, so the hysteresis
-	# stays what it was (no Approach/Fight ping-pong at the longer range).
+	# stays what it was (no Approach/Fight ping-pong at the longer range). The
+	# range multipliers (Wide Sweep, Long Reach) do not move it; for them
+	# EntityBase.fight_leave_range keeps the leave 15 % past the reach.
 	max_distance = monster_stats.fight_leave_distance + get_range_bonus()
 
 func _get_entity_level() -> int:

@@ -7,7 +7,7 @@ class_name RiverBasicAttack
 # each execute, so execute sets it to the active mode's value).
 @export var sniper_cooldown: float = 1.1
 @export var heal_range: float = 150.0
-@export var heal_cooldown: float = 1.4
+@export var heal_cooldown: float = 4.0
 ## The heal staff's icon; `icon` is the rifle's. get_display_icon picks one.
 @export var heal_icon: Texture2D
 ## The rig move of a staff heal; `move_name` is the rifle shot's.
@@ -117,7 +117,7 @@ func _extra_targets_near(caster: Node2D, primary: Node2D) -> Array[Node2D]:
 
 
 ## River only swings the staff at the wounded ally she picked
-## (River._find_nearest_wounded_ally), never at herself.
+## (River._staff_patient), never at herself.
 func _execute_heal(caster: Node2D, target: Node2D) -> void:
 	if not target or target == caster:
 		return

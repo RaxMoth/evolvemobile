@@ -16,8 +16,11 @@ var exploration_update_interval: float = 3.0
 
 @export_group("Exploration Settings")
 @export var exploration_tile_size: int = 32
+## How far ahead the group looks for unexplored ground (the pre-round
+## forecast's "scanning N px ahead", 300-600 px by the Exploration dial).
+## _sample_distances and the random fallback are built around it.
 ## Not an export: _apply_match_config sets it from MatchConfig in _ready.
-var search_radius_per_check: float = 400.0
+var search_radius_per_check: float = 450.0
 @export var waypoint_reached_distance: float = 100.0
 @export var stuck_detection_time: float = 5.0
 ## A hero that stays inside this radius for stuck_detection_time (out of combat,
@@ -164,7 +167,7 @@ func _find_next_exploration_zone(from_position: Vector2) -> Vector2:
 
 	# Sample in a cone ahead if prefer_forward is enabled
 	var angles = 12
-	var distances = [300, 500, 700] # Explore further ahead
+	var distances: Array[float] = _sample_distances()
 	
 	for angle_step in angles:
 		var base_angle = (angle_step / float(angles)) * TAU
@@ -204,6 +207,16 @@ func _find_next_exploration_zone(from_position: Vector2) -> Vector2:
 	# Best first; equal scores keep sampling order (the old strict ">" kept the first).
 	candidates.sort_custom(func(a: Array, b: Array) -> bool: return float(a[0]) > float(b[0]))
 	return _first_reachable(candidates.map(func(c: Array) -> Vector2: return c[1]))
+
+
+## The three distances _find_next_exploration_zone samples at, from the
+## Exploration dial's search_radius_per_check r: r - 150, r + 50 and r + 250
+## px. The default dial (r = 450) gives the 300 / 500 / 700 px the group
+## always sampled; Methodical (300) looks 150 px nearer, Roam wide (600)
+## 150 px further.
+func _sample_distances() -> Array[float]:
+	var r: float = search_radius_per_check
+	return [r - 150.0, r + 50.0, r + 250.0]
 
 
 ## How many candidate waypoints may cost a path query per exploration update.
@@ -285,12 +298,13 @@ func _get_random_unexplored_position(near_position: Vector2) -> Vector2:
 	if not fog_system:
 		return _get_random_map_position()
 	
-	# Try 10 random points; the first unexplored one the group can reach wins
+	# Try 10 random points within 150 px of the dial's scan radius (300-600 px
+	# at the default); the first unexplored one the group can reach wins
 	var fog_rect: Rect2 = _fog_rect()
 	var candidates: Array = []
 	for i in range(10):
 		var angle = randf() * TAU
-		var distance = randf_range(300, 600)
+		var distance = randf_range(search_radius_per_check - 150.0, search_radius_per_check + 150.0)
 		var candidate = near_position + Vector2.from_angle(angle) * distance
 
 		if fog_rect.has_point(candidate) and not _is_abandoned(candidate) and not fog_system.is_tile_explored(candidate):

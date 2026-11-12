@@ -144,3 +144,23 @@ func _old_count_unexplored(fog: FogOfWarSystem, center: Vector2, radius: float, 
 				if not fog.is_tile_explored(check_pos):
 					count += 1
 	return count
+
+
+## heroes-9: the Exploration dial's "scanning N px ahead" (MatchConfig.
+## search_radius, 300-600 px) moves the distances the group samples for
+## unexplored ground; it was stored and never read. The default dial keeps the
+## 300 / 500 / 700 px the group always sampled.
+func test_the_exploration_dial_moves_the_scan_distances() -> void:
+	var ctrl := (load(CTRL) as PackedScene).instantiate() as HeroExplorationController
+	var cfg := MatchConfig.new()
+	var cases: Array = [[0.5, [300.0, 500.0, 700.0]], [0.0, [150.0, 350.0, 550.0]], [1.0, [450.0, 650.0, 850.0]]]
+	for c: Array in cases:
+		cfg.exploration = float(c[0])
+		ctrl._apply_match_config(cfg)
+		assert_near(ctrl.search_radius_per_check, cfg.search_radius(), 0.001, "the dial's radius arrives")
+		var got: Array[float] = ctrl._sample_distances()
+		var want: Array = c[1]
+		assert_eq(got.size(), want.size())
+		for i in mini(got.size(), want.size()):
+			assert_near(got[i], float(want[i]), 0.001, "exploration %.1f, sample %d" % [float(c[0]), i])
+	ctrl.free()

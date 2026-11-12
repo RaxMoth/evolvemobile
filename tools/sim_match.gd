@@ -76,6 +76,9 @@ var _ability_casts: Dictionary = {}
 ## auto-cast counts what the ultimate reaches; heroes-1 / heroes-3).
 var _hero_ults_far: int = 0
 const ULT_FAR: float = 400.0
+## River's staff heals (FxEvents.HEAL_SHOT): how many, and the HP they gave.
+var _staff_heals: int = 0
+var _staff_heal_hp: float = 0.0
 var _monster_dmg_taken: Dictionary = {"heroes": 0.0, "mobs": 0.0, "other": 0.0}
 var _monster_killer: String = ""
 
@@ -121,6 +124,7 @@ func _start() -> void:
 	bus.connect("entity_died", _on_entity_died)
 	bus.connect("monster_evolved", _on_monster_evolved)
 	bus.connect("ability_cast", _on_ability_cast)
+	bus.connect("ability_event", _on_ability_event)
 	var world := (load(WORLD) as PackedScene).instantiate()
 	root.add_child(world)
 	current_scene = world
@@ -243,6 +247,13 @@ func _on_ability_cast(caster: Object, ability: Object, target: Object) -> void:
 		_hero_ults_far += 1
 
 
+## FxEvents.HEAL_SHOT by name: a -s script names no project class.
+func _on_ability_event(_source: Object, _ability: Object, event: StringName, _pos: Vector2, value: float) -> void:
+	if event == &"heal_shot":
+		_staff_heals += 1
+		_staff_heal_hp += value
+
+
 func _on_monster_evolved(_m: Object, stage: int) -> void:
 	_monster_stage_times.append({"stage": stage, "t": snappedf(_t(), 0.1)})
 
@@ -299,6 +310,8 @@ func _report(reason: String, winner: String, t: float) -> void:
 		"hero_basic_casts": _hero_attack_casts,
 		"ability_casts": _ability_casts,
 		"hero_ults_far": _hero_ults_far,
+		"staff_heals": _staff_heals,
+		"staff_heal_hp": roundi(_staff_heal_hp),
 		"monster_dmg_taken": _monster_dmg_taken,
 		"monster_killer": _monster_killer,
 	}

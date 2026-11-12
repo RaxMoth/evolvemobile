@@ -129,6 +129,13 @@ var _target_reeval_timer: float = 0.0
 ## Fight sides (_hold_fight_side): within this angle (radians) of the side's
 ## direction the entity stands.
 const FIGHT_SIDE_TOLERANCE: float = 0.15
+## Fight is left no closer than this many times the range Approach enters it
+## at (fight_leave_range), whatever max_distance says: range upgrades (Wide
+## Sweep, Long Reach, Long Scope...) used to push the enter range past a fixed
+## max_distance, and the entity flipped between the two states every tick,
+## standing still. Every stock entity already leaves further out (River
+## 345 / 350, Irelia 138 / 140), so this only acts once a range grew.
+const FIGHT_LEAVE_MARGIN: float = 1.15
 
 # Phase A polish
 var _personal_distance_offset: float = 0.0  ## Picked once in _ready: ± distance_jitter
@@ -466,6 +473,17 @@ func is_target_valid() -> bool:
 static func life_of(node: Node) -> int:
 	var e := node as EntityBase
 	return e.life_id if e != null else 0
+
+## Approach enters Fight once the target is this close (range_to): the attack
+## range, or keep_distance when that is further.
+func fight_enter_range() -> float:
+	return maxf(attack_range, keep_distance)
+
+## Fight leaves (back to Approach) once the target is further than this:
+## max_distance, but always FIGHT_LEAVE_MARGIN past fight_enter_range, so the
+## two can never cross (the hysteresis holds for any upgraded range).
+func fight_leave_range() -> float:
+	return maxf(max_distance, fight_enter_range() * FIGHT_LEAVE_MARGIN)
 
 ## Range distance to the current target (range_to); INF without one.
 func distance_to_target() -> float:
@@ -1009,7 +1027,7 @@ func _on_approach_state_processing(delta: float) -> void:
 		_drop_lost_target(CombatEvents.ENEMY_EXITED)
 		return
 
-	if range_to(target_entity) <= maxf(attack_range, keep_distance):
+	if range_to(target_entity) <= fight_enter_range():
 		state_chart.send_event(CombatEvents.ENEMY_FIGHT)
 		return
 
@@ -1051,7 +1069,7 @@ func _on_fight_state_processing(delta: float) -> void:
 
 	var distance: float = range_to(target_entity)
 
-	if distance > max_distance:
+	if distance > fight_leave_range():
 		state_chart.send_event(CombatEvents.RE_APPROACH)
 		return
 

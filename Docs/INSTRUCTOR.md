@@ -405,7 +405,10 @@ signal ability_used(ability: AbilityBase)
    one place (`_set_target_pair`), which records the target's `life_id`;
    `is_target_valid()` compares it, and Approach / Fight clear a lost target
    (`_drop_lost_target`). A pooled mob that died and came back in another
-   camp is nobody's old target.
+   camp is nobody's old target. Approach enters Fight within
+   `fight_enter_range()` and Fight leaves past `fight_leave_range()`, which
+   is always 15 % beyond the enter range (`FIGHT_LEAVE_MARGIN`), so a range
+   upgrade can never make the two cross and freeze an entity between them.
 4. In Fight: attack ready and in range → stand and attack; on cooldown →
    reposition by combat role (strafe at the preferred distance; a hero with
    a fight side, `HeroBase.hold_fight_side`, walks round the target to its
@@ -979,7 +982,7 @@ Debug keys work in debug builds only (F3 overlay, F1 / K / M, Shift+R).
 **Start here**:
 1. `Scenes/NPCs/npc_base_class.gd` sections 1-6 (exports, lifecycle, tick, virtual methods)
 2. `Scenes/NPCs/Hero/hero_base_class.gd`: how it overrides the virtuals and auto-uses abilities
-3. `Scenes/NPCs/Hero/Heros/Healer/River/river.gd`: a hero with one special rule (her weapon mode)
+3. `Scenes/NPCs/Hero/Heros/Healer/River/river.gd`: a hero with one special rule (her weapon mode: with the staff, `_staff_step` serves her patient at the top of each state handler before the base logic runs)
 4. `Scenes/NPCs/Hero/Abilities/ability_system.gd` and `ability_base.gd`
 5. `Scenes/NPCs/Monster/Grount/abilities/bull_front_cleave.gd`: a monster ability with per-stage data
 6. `Scenes/NPCs/Monster/Nyxa/abilities/night_swarm.gd`: an ability that keeps acting (`tick_active`)
