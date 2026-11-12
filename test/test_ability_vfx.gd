@@ -135,6 +135,40 @@ func test_taunt_mark_sits_above_the_head_and_the_tether_follows_both_bodies() ->
 	await wait_frames(1)
 
 
+## vfx-3 (pause half): the tether and the anger vein last as long as the taunt
+## itself. A pause holds both (the taunt's timer is pausable since c008b27 and
+## AbilityVfx ages its riders in a pausable _process), so after a pause longer
+## than the taunt both are still there, and once the match runs again they end
+## together. (The taunt's timer used to run on the paused tree: the tether and
+## vein outlived it by the paused seconds.)
+func test_a_paused_taunt_keeps_its_tether_and_both_end_together() -> void:
+	var grount := (await spawn_frozen(GROUNT, Vector2(0, 0))) as MonsterBase
+	var irelia := await spawn_frozen(IRELIA, Vector2(120, 0))
+	var vfx := _vfx()
+	var ult: AbilityBase = (irelia.get_node("AbilitySystem") as AbilitySystem).ultimate_ability
+	ult.duration = 1.0  # Irelia's own copy
+	ult.execute(irelia)
+	await wait_frames(1)
+	assert_true(grount.has_node(^"TauntEffect"), "taunted")
+	assert_eq(vfx.tethers_live(), 1, "the tether")
+	get_tree().paused = true
+	await wait_seconds(1.5)  # an always-processing timer: runs on the paused tree
+	var taunt_held := grount.has_node(^"TauntEffect")
+	var tether_held := vfx.tethers_live()
+	get_tree().paused = false
+	assert_true(taunt_held, "1.5 s of pause: the 1 s taunt is still on")
+	assert_eq(tether_held, 1, "and so is its tether")
+	await wait_seconds(0.5)
+	assert_true(grount.has_node(^"TauntEffect") and vfx.tethers_live() == 1, "running again: both still on")
+	await wait_seconds(0.7)
+	assert_false(grount.has_node(^"TauntEffect"), "the taunt ran out")
+	assert_eq(vfx.tethers_live(), 0, "and its tether with it")
+	vfx.queue_free()
+	grount.queue_free()
+	irelia.queue_free()
+	await wait_frames(1)
+
+
 ## Divine Shield: every shielded hero gets a ward at its feet that pulses on
 ## an absorbed hit and snaps (six shards) when the shield breaks.
 func test_divine_shield_wards_follow_the_shields() -> void:

@@ -280,6 +280,83 @@ func test_rebirth_far_from_the_heroes_stays_put() -> void:
 	await _free([n, v])
 
 
+## monsters-9: the lethal hit lands mid-swoop. The scattered bats (0 HP, the
+## chart in Scattered) stop the swoop where they are: one DASH_ENDED, no more
+## steps and no hit on the hero in the swoop's path, 200 px on. (The swoop
+## flew on and hit him for 12 while she was scattered.)
+func test_a_swoop_ends_when_the_bats_scatter() -> void:
+	if not require_isolated():
+		return
+	_own(NYXA_TREE, &"ny_rebirth")
+	var n := (await _spawn(NYXA)) as MonsterBase
+	var v := (await _spawn(VLAD, Vector2(200, 0))) as HeroBase
+	var swoop := n.ability_2 as BullRamDash
+	var ended: Array[int] = [0]
+	var on_event := func(_source: Node, ability: AbilityBase, event: StringName, _pos: Vector2, _value: float) -> void:
+		if ability == swoop and event == FxEvents.DASH_ENDED:
+			ended[0] += 1
+	EventBus.ability_event.connect(on_event)
+	var hp: float = v.get_health()
+	assert_true(n._cast("ability_2", swoop, v), "she swoops at the hero")
+	await wait_frames(2)
+	assert_true(swoop.is_dashing, "in flight")
+	var x_at_hit: float = n.global_position.x
+	assert_true(x_at_hit < 150.0, "short of the hero (x %.0f)" % x_at_hit)
+	EventBus.deal_damage(null, n, 99999.0)
+	assert_eq(active_state_of(n), "Scattered", "the lethal hit scatters her")
+	await wait_seconds(1.0)
+	EventBus.ability_event.disconnect(on_event)
+	assert_false(swoop.is_dashing, "the swoop ended")
+	assert_eq(ended[0], 1, "once")
+	assert_eq(v.get_health(), hp, "the hero in its path is not hit")
+	assert_near(n.global_position.x, x_at_hit, 30.0, "she stopped where the bats burst (x %.0f)" % n.global_position.x)
+	await _free([n, v])
+
+
+## monsters-8: the bats never re-form in a sealed pocket of the navigation
+## mesh. A mesh like the baked world's: the main part ends at x 380 and a
+## sealed 40 px pocket lies 15 px past it, right where the flee fan's first
+## point falls (400 px from her, straight away from the hero). A path from her
+## stops at the main part's edge 20 px short of it (nav_path_reaches' default
+## 32 px tolerance would let it through), so she re-forms on the first fan
+## point her path reaches instead. (She was teleported into the pocket and
+## could not leave it for the rest of the match.)
+func test_rebirth_never_lands_in_a_sealed_pocket() -> void:
+	if not require_isolated():
+		return
+	_own(NYXA_TREE, &"ny_rebirth")
+	var region := NavigationRegion2D.new()
+	var poly := NavigationPolygon.new()
+	poly.agent_radius = 0.0
+	var src := NavigationMeshSourceGeometryData2D.new()
+	src.add_traversable_outline(PackedVector2Array([Vector2(-600, -400), Vector2(380, -400), Vector2(380, 400), Vector2(-600, 400)]))
+	src.add_traversable_outline(PackedVector2Array([Vector2(395, -20), Vector2(435, -20), Vector2(435, 20), Vector2(395, 20)]))
+	NavigationServer2D.bake_from_source_geometry_data(poly, src)
+	region.navigation_polygon = poly
+	add_child(region)
+	await wait_physics_frames(6)  # polygons land one map sync after the region
+	var n := (await _spawn(NYXA)) as MonsterBase
+	var v := (await _spawn(VLAD, Vector2(-100, 0))) as HeroBase
+	var w := n.get_world_2d()
+	var pocket := Vector2(400, 0)
+	assert_true(n._is_on_nav_mesh(pocket), "the pocket is mesh")
+	assert_false(GameUtils.nav_path_reaches(w, n.global_position, pocket, 4.0), "but sealed from her")
+	var p: Vector2 = n._scatter_point()
+	assert_true(p.x < 380.5, "not in the pocket (%s)" % str(p))
+	assert_true(GameUtils.nav_path_reaches(w, n.global_position, p, 4.0), "a point her path reaches (%s)" % str(p))
+	assert_true(p.distance_to(v.global_position) >= n.rebirth_return_distance, "400 px from the hero")
+	# Through the chart: the lethal hit, 3 s of bats, the re-form.
+	var from: Vector2 = n.global_position
+	EventBus.deal_damage(v, n, 99999.0)
+	assert_eq(active_state_of(n), "Scattered")
+	await wait_seconds(3.1)
+	assert_eq(active_state_of(n), "Idle", "re-formed")
+	assert_true(n.global_position.x < 380.5, "on the main part (%s)" % str(n.global_position))
+	assert_true(GameUtils.nav_path_reaches(w, from, n.global_position, 4.0), "where a path leads (%s)" % str(n.global_position))
+	await _free([n, v, region])
+	await wait_physics_frames(6)
+
+
 # ---------- Nyxa: Echo Strike ----------
 
 ## A swoop at a hero 150 px away: one hit stock, two with Echo Strike, which
@@ -356,6 +433,43 @@ func test_brood_mother_keeps_the_stage_3_swarm_running() -> void:
 			assert_true(swarm.can_use(n))
 		await _free([n])
 	assert_eq((load(NYXA_SWARM) as NightSwarm).permanent_from_stage, 0, "the shared .tres is untouched")
+
+
+## monsters-4: Brood Mother owned. A swarm cast at Stage 2 through _cast (as
+## the AI casts it) is still running when a kill evolves her to Stage 3: it
+## turns permanent and bites from then on for the Stage 3 number (5, x Apex
+## Predator when owned), not the Stage 2 one (4) it was cast with.
+func test_brood_mother_bites_for_stage_3_with_a_swarm_cast_at_stage_2() -> void:
+	if not require_isolated():
+		return
+	_own(NYXA_TREE, &"ny_brood")
+	var n := (await _spawn(NYXA)) as MonsterBase
+	var v := (await _spawn(VLAD, Vector2(60, 0))) as HeroBase
+	var swarm := n.ability_3 as NightSwarm
+	evolve_to(n, 2)
+	var stage_2_bite: float = n.effective_ability_damage(swarm)
+	var bites: Array[float] = []
+	var on_hit := func(packet: DamagePacket) -> void:
+		if packet.ability == swarm and packet.target == v:
+			bites.append(packet.amount)
+	EventBus.damage_applied.connect(on_hit)
+	assert_true(n._cast("ability_3", swarm, v), "cast at Stage 2")
+	await wait_frames(3)
+	assert_true(bites.size() >= 1 and is_equal_approx(bites[0], stage_2_bite), "a Stage 2 bite: %s" % str(bites))
+	assert_false(swarm.is_permanent(), "a normal swarm at Stage 2")
+	n.gain_xp(1000.0)  # the kill that evolves her
+	assert_eq(n.get_stage(), 3)
+	assert_true(swarm.is_active() and swarm.is_permanent(), "the running swarm never ends now")
+	var stage_3_bite: float = n.effective_ability_damage(swarm)
+	assert_true(stage_3_bite > stage_2_bite, "Stage 3 bites harder (%.2f > %.2f)" % [stage_3_bite, stage_2_bite])
+	bites.clear()
+	await wait_seconds(1.2)
+	EventBus.damage_applied.disconnect(on_hit)
+	assert_true(bites.size() >= 2, "it keeps biting: %s" % str(bites))
+	for bite in bites:
+		assert_near(bite, stage_3_bite, 0.001, "each bite at the Stage 3 number")
+	assert_false(swarm.can_use(n), "and it is not cast again while it runs")
+	await _free([n, v])
 
 
 # ---------- Gorrak: Whirlwind ----------
@@ -447,7 +561,11 @@ func test_unstoppable_skips_the_taunt_and_the_cage() -> void:
 
 
 ## Nyxa's scattered bats are cc-immune too: a cage that held her lets the
-## bats fly out.
+## bats fly out, and lets her go for good. monsters-3: she re-forms (the
+## chart's delayed ToIdle, 3 s into the 6 s cage) where the bats flew, and
+## the still-closed cage neither holds her again nor pulls her back in (it
+## did: re-formed and no longer immune, she was moved to its edge in the same
+## frame and held among the heroes until it opened).
 func test_a_cage_lets_the_scattered_bats_out() -> void:
 	if not require_isolated():
 		return
@@ -456,12 +574,28 @@ func test_a_cage_lets_the_scattered_bats_out() -> void:
 	var ted := (await _spawn(TED, Vector2(0, 600))) as HeroBase
 	var cage := _drop_cage(ted, n)
 	assert_true(cage != null and cage.trapped_enemies.has(n), "held while alive")
+	if cage == null:
+		await _free([n, ted])
+		return
 	assert_false(n.is_cc_immune())
 	EventBus.deal_damage(ted, n, 99999.0)
+	assert_eq(active_state_of(n), "Scattered")
 	assert_true(n.is_scattered() and n.is_cc_immune(), "the scattered bats are immune")
 	n.global_position = cage.global_position + Vector2(300, 0)
 	await wait_frames(2)
 	assert_true(n.global_position.distance_to(cage.global_position) > cage.cage_radius, "the bats fly out")
+	assert_false(cage.trapped_enemies.has(n), "the cage let her go")
+	await wait_seconds(3.1)
+	assert_eq(active_state_of(n), "Idle", "the bats re-formed")
+	assert_false(n.is_cc_immune(), "no longer immune")
+	assert_true(cage.cage_active, "the 6 s cage is still closed")
+	for i in 5:
+		await wait_physics_frames(1)
+		assert_true(n.global_position.distance_to(cage.global_position) > cage.cage_radius,
+				"frame %d: not pulled back in (%.0f px from the cage)" % [i, n.global_position.distance_to(cage.global_position)])
+	assert_false(cage.trapped_enemies.has(n), "nor held again")
+	var vis := n.visual_root()
+	assert_true(vis == null or (vis.modulate.r == 1.0 and vis.modulate.g == 1.0), "and not tinted")
 	await _free([n, ted, cage])
 
 
@@ -543,3 +677,42 @@ func test_call_of_the_herd_recruits_the_hogs_for_20_s() -> void:
 	assert_true(hog_b.warband_timer.is_stopped())
 	assert_eq((load(GORRAK_STOMP) as BullGroundSlam).recruit_radius, 0.0, "the shared .tres is untouched")
 	await _free([g, hog_a, hog_b, far_hog, bat, v])
+
+
+## monsters-7: a recruit that sees no hero still fights. A ticking camp Hog
+## (its leash, chase_distance, 100 px: shorter than its sight) 300 px from
+## the hero joins the warband: it goes for the nearest hero within
+## warband_seek_radius (350), keeps after him out of sight past its first
+## re-evaluation and reaches him. When the warband ends (its timer, or the
+## pool) it drops nothing it does not see again: its pursue radius is back to
+## the scene's 0. (It found no hero within 100 px, or dropped him 0.5 s later,
+## and stood idle in its camp for the whole 20 s.)
+func test_a_recruit_goes_for_a_hero_it_cannot_see() -> void:
+	if not require_isolated():
+		return
+	var region := await bake_nav_rect(Rect2(-1200, -600, 2400, 1200))
+	var g := (await _spawn(GORRAK, Vector2(-900, 0))) as MonsterBase
+	var v := (await _spawn(VLAD, Vector2(300, 0))) as HeroBase
+	var hog := (await spawn_entity(HOG, Vector2.ZERO)) as MobBase
+	hog.chase_distance = 100.0  # a World camp's leash (MobSpawnArea.reset_for_spawn)
+	assert_eq(hog.pursue_out_of_sight_radius, 0.0, "a mob drops what it does not see")
+	assert_false(hog.is_target_valid(), "the hero is out of its sight")
+	hog.join_warband(g, 20.0)
+	assert_true(hog.target_entity == v, "it goes for the hero it cannot see")
+	assert_eq(hog.pursue_out_of_sight_radius, hog.warband_seek_radius)
+	await wait_seconds(1.0)
+	assert_true(hog.is_target_valid() and hog.target_entity == v, "and keeps after him past its re-evaluation")
+	for i in 60:
+		if active_state_of(hog) == "Fight":
+			break
+		await wait_seconds(0.1)
+	assert_eq(active_state_of(hog), "Fight", "it reaches him (%.0f px)" % hog.global_position.distance_to(v.global_position))
+	hog.warband_timer.start(0.05)
+	await wait_seconds(0.2)
+	assert_false(hog.is_in_warband())
+	assert_eq(hog.pursue_out_of_sight_radius, 0.0, "the timer ends the pursuit radius")
+	hog.join_warband(g, 20.0)
+	hog.prepare_for_pool()
+	assert_eq(hog.pursue_out_of_sight_radius, 0.0, "and so does the pool")
+	await _free([g, v, hog, region])
+	await wait_physics_frames(6)

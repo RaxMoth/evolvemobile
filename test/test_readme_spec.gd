@@ -311,9 +311,6 @@ func test_monster_stage_tables_are_the_stats() -> void:
 				"Scale":
 					var sizes: Array[float] = [stats.stage_1_scale.x, stats.stage_2_scale.x, stats.stage_3_scale.x]
 					_assert_numbers(per_stage, sizes, "%s scale" % id)
-				"Strafe":
-					var strafe: Array[float] = [stats.stage_1_strafe_speed, stats.stage_2_strafe_speed, stats.stage_3_strafe_speed]
-					_assert_numbers(per_stage, strafe, "%s strafe speed" % id)
 				"Damage Mult":
 					for stage: int in [1, 2, 3]:
 						assert_near(per_stage[stage - 1], stats.get_damage_mult_for_stage(stage), 0.001, "%s damage multiplier at stage %d" % [id, stage])
@@ -325,6 +322,10 @@ func test_monster_stage_tables_are_the_stats() -> void:
 					assert_near(per_stage[2], float(stats.stage_3_xp), 0.001, "%s stage 3 XP" % id)
 		for key: String in ["HP", "Speed", "XP Required"]:
 			assert_true(seen.has(key), "%s: the README stage table has a '%s' row" % [id, key])
+		# monsters-6: a monster is MELEE and never strafes; MonsterStats has no
+		# strafe numbers for such a row to name.
+		assert_false(seen.has("Strafe"), "%s: no 'Strafe' row" % id)
+		assert_false(section.contains("preferred_distance"), "%s: no preferred distance (MELEE)" % id)
 		for stage_name in def.stage_names:
 			assert_true(section.contains(stage_name), "%s: the README names the stage '%s'" % [id, stage_name])
 		for ability in def.abilities():

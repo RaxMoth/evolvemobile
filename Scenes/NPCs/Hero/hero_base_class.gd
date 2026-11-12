@@ -319,6 +319,8 @@ func _survives_lethal_hit() -> bool:
 
 func _receive_damage(packet: DamagePacket) -> void:
 	if not is_alive() or not stats:
+		# A hit on a fallen hero (its death frame) lands nowhere.
+		packet.canceled = true
 		return
 	if is_invulnerable():
 		# Nothing lands: EventBus skips the reaction and damage_applied.

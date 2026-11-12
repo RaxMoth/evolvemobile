@@ -19,9 +19,11 @@ extends Node2D
 ## it lives and dies with the match. It sits right after the ground layers, so
 ## its telegraph lines (absolute z 0) draw on the ground under the characters,
 ## while its own sprites and numbers draw above them (z_index 50, below the
-## fog's 100). Its hooks are EventBus.damage_applied, ability_event (the heal
-## numbers) and monster_evolved (the evolution shake), connected in _ready (an
-## autoload cannot be the source of a scene [connection]). The hit
+## fog's 100). Its hooks are EventBus.damage_applied, entity_died (the kill's
+## puffs and the down shake: taken from the death, never inferred from a hit,
+## so the hit that scatters Nyxa's bats at 0 HP is no kill), ability_event
+## (the heal numbers) and monster_evolved (the evolution shake), connected in
+## _ready (an autoload cannot be the source of a scene [connection]). The hit
 ## flash is not drawn here: the CharacterRig's hurt
 ## reaction (wired scene-side to `damaged`) drives it, and the shared
 ## hit_flash shader on every rig body turns it into a white silhouette.
@@ -200,6 +202,7 @@ func _ready() -> void:
 	_update_view()
 	# Code-side: an autoload cannot be the source of a scene [connection].
 	EventBus.damage_applied.connect(_on_damage_applied)
+	EventBus.entity_died.connect(_on_entity_died)
 	EventBus.ability_event.connect(_on_ability_event)
 	EventBus.monster_evolved.connect(_on_monster_evolved)
 
@@ -225,14 +228,24 @@ func _on_damage_applied(packet: DamagePacket) -> void:
 	var target := packet.target as Node2D
 	if target == null:
 		return
-	var entity := target as EntityBase
-	show_hit(target, packet.amount, entity != null and not entity.is_alive())
+	show_hit(target, packet.amount)
+
+
+## A death (EventBus.entity_died; it comes inside the killing blow, before its
+## damage_applied): the kill's feedback, in view. Entities only (Ted's pet has
+## none, as before).
+func _on_entity_died(entity: Node, _killer: Node) -> void:
+	var e := entity as EntityBase
+	if e == null or not _view_rect.has_point(e.global_position):
+		return
+	_show_kill(e)
 
 
 ## The feedback of one landed hit on `target`: an impact star with sparks and
-## a damage number, and on a killing blow a puff burst; trauma when a hero or
-## the monster goes down or takes a big hit. Skipped outside the camera view;
-## past MAX_HITS_PER_FRAME only the number counts.
+## a damage number, and with `killed` the kill's (_show_kill: the bus's hits
+## pass false, the kill comes from entity_died); trauma when a living hero or
+## the monster takes a big hit. Skipped outside the camera view; past
+## MAX_HITS_PER_FRAME only the number counts.
 func show_hit(target: Node2D, amount: float, killed: bool = false) -> void:
 	var at: Vector2 = target.global_position
 	if not _view_rect.has_point(at):
@@ -248,10 +261,26 @@ func show_hit(target: Node2D, amount: float, killed: bool = false) -> void:
 		_spawn_impact(at + Vector2(_rng.randf_range(-5.0, 5.0), _rng.randf_range(-16.0, -8.0)) * s, big, ours)
 	else:
 		hits_over_budget += 1
-	if killed and _kills_this_frame < MAX_KILLS_PER_FRAME:
+	if killed:
+		_show_kill(target)
+	elif big and camera != null and (target is HeroBase or target is MonsterBase) \
+			and (target as EntityBase).is_alive():
+		camera.add_trauma(trauma_big_hit)
+
+
+## A kill on `target` (in view): a puff burst (at most MAX_KILLS_PER_FRAME a
+## frame) and the down trauma when it is a hero or the monster.
+func _show_kill(target: Node2D) -> void:
+	var s: float = absf(target.scale.y)
+	if _kills_this_frame < MAX_KILLS_PER_FRAME:
 		_kills_this_frame += 1
-		_spawn_kill(at + Vector2(0.0, -6.0 * s), 1.6 if target is MonsterBase else 1.0)
-	_add_trauma(target, big, killed)
+		_spawn_kill(target.global_position + Vector2(0.0, -6.0 * s), 1.6 if target is MonsterBase else 1.0)
+	if camera == null:
+		return
+	if target is MonsterBase:
+		camera.add_trauma(trauma_monster_down)
+	elif target is HeroBase:
+		camera.add_trauma(trauma_hero_down)
 
 
 func _spawn_impact(p: Vector2, big: bool, ours: bool) -> void:
@@ -275,19 +304,6 @@ func _spawn_kill(p: Vector2, size_k: float) -> void:
 	var star: int = sprites.spawn(FxTex.STAR, p, 18.0 * size_k, 12.0 * size_k, 0.28, _c_spark,
 			FxSpriteBuffer.Anim.POP, _rng.randf() * TAU)
 	sprites.spin[star] = 3.0
-
-
-func _add_trauma(target: Node2D, big: bool, killed: bool) -> void:
-	if camera == null:
-		return
-	var hero: bool = target is HeroBase
-	var monster: bool = target is MonsterBase
-	if killed and monster:
-		camera.add_trauma(trauma_monster_down)
-	elif killed and hero:
-		camera.add_trauma(trauma_hero_down)
-	elif big and (hero or monster):
-		camera.add_trauma(trauma_big_hit)
 
 
 ## The monster evolving: trauma_evolve, in view or not.

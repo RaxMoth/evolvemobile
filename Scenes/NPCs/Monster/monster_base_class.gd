@@ -59,6 +59,10 @@ const TITAN_BONUS_HEALTH: float = 500.0
 const SCATTER_ALPHA: float = 0.3
 const SCATTER_FADE_TIME: float = 0.25
 const SCATTER_RADIUS_FACTORS: Array[float] = [1.0, 1.5, 2.0]
+## How close a path from her must end to a scatter point for it to count
+## (px). Not nav_path_reaches' default 32: three of the world's sealed
+## pockets lie 19-30 px from the main mesh.
+const SCATTER_REACH_TOLERANCE: float = 4.0
 
 ## Current strategy. A pure function of stage, health and nearby heroes,
 ## recomputed every strategy_eval_interval (see _compute_strategy). It only
@@ -195,13 +199,16 @@ func heal_self(amount: float) -> void:
 
 
 ## Applies everything that depends on current_stage: HP, damage, XP value,
-## ability stats, size, aggro radius, strafing and the Fight leave distance.
+## ability stats, size, aggro radius and the Fight leave distance.
 ## Idempotent, so re-entering a stage never stacks anything. The values that
-## never change per stage live on the monster_base_class.tscn root: spacing
-## (preferred 45 / min 20) and taunt_strength 1.5 (more threat per damage
-## point than a mob, so a hero Tank has to work harder to peel the monster);
-## a monster scene overrides them on its own root. Reach and the Fight leave
-## distance are MonsterStats numbers (base_attack_range, fight_leave_distance).
+## never change per stage live on the monster_base_class.tscn root:
+## min_distance 20 and taunt_strength 1.5 (more threat per damage point than a
+## mob, so a hero Tank has to work harder to peel the monster); a monster
+## scene overrides them on its own root. A monster is MELEE: in a fight it
+## closes to its reach and holds there between casts (no strafing, no
+## preferred distance; EntityBase._melee_reposition). Reach and the Fight
+## leave distance are MonsterStats numbers (base_attack_range,
+## fight_leave_distance).
 func _enter_stage() -> void:
 	var stage: int = current_stage
 	var new_health: float = _max_health_for_stage(stage)
@@ -224,8 +231,6 @@ func _enter_stage() -> void:
 	# _get_detection_shape_radius; the scale tween keeps it in step).
 	_update_detection_radius()
 
-	strafe_speed = monster_stats.get_strafe_speed_for_stage(stage)
-	strafe_change_interval = monster_stats.get_strafe_interval_for_stage(stage)
 	# Approach enters Fight at attack_range and Fight leaves past max_distance:
 	# Titan Form's flat reach moves both by the same amount, so the hysteresis
 	# stays what it was (no Approach/Fight ping-pong at the longer range). The
@@ -344,6 +349,9 @@ func _receive_damage(packet: DamagePacket) -> void:
 		packet.canceled = true
 		return
 	if not is_alive():
+		# A hit on the corpse in its death frame (it is freed at the frame's
+		# end) lands nowhere: no number, no lifesteal, no threat.
+		packet.canceled = true
 		return
 
 	last_attacker = packet.source if packet.source is Node2D else null
@@ -598,11 +606,16 @@ func _try_rebirth() -> bool:
 
 ## Scattered (scene-wired): the bats are untargetable. At 0 HP no one keeps
 ## her as a target (is_alive), hits are canceled (_receive_damage) and with
-## the Body layer off no area or overlap query finds her. She drops her target
-## and any stun and flies away from the heroes.
+## the Body layer off no area or overlap query finds her. She drops her target,
+## any stun and Irelia's taunt (the bats are cc-immune; a taunt that outlived
+## the scatter sent her back to the taunter) and flies away from the heroes.
 func _on_scattered_state_entered() -> void:
 	clear_target()
 	clear_stun()
+	var taunt: Node = get_node_or_null(^"TauntEffect")
+	if taunt != null:
+		remove_child(taunt)
+		taunt.queue_free()
 	_scatter_left = 0.0
 	_scatter_body_layer = _body_area.collision_layer
 	_body_area.collision_layer = 0
@@ -648,7 +661,10 @@ func _on_scattered_state_exited() -> void:
 ## fan, rebirth_return_distance from her and then further out, that is on the
 ## navigation mesh and at least rebirth_return_distance from every living
 ## hero; else the first mesh point of the fan; her own spot when no hero is
-## that close or no point fits.
+## that close or no point fits. A fan point counts only snapped onto the mesh
+## and reached by a path from her (within SCATTER_REACH_TOLERANCE): the baked
+## world has sealed pockets (tools/bake_nav.gd keeps islands from 400 px2) and
+## a point in one, or in a wall edge, would hold her for the rest of the match.
 func _scatter_point() -> Vector2:
 	var reach: float = rebirth_return_distance * 2.0
 	var centroid := Vector2.ZERO
@@ -665,10 +681,14 @@ func _scatter_point() -> Vector2:
 	away = away.normalized() if away.length_squared() > 0.0001 else Vector2.from_angle(_facing_angle + PI)
 	var fallback: Vector2 = global_position
 	var found_fallback: bool = false
+	var world := get_world_2d()
 	for factor: float in SCATTER_RADIUS_FACTORS:
 		for deg: float in FLEE_ANGLES_DEG:
 			var p: Vector2 = global_position + away.rotated(deg_to_rad(deg)) * rebirth_return_distance * factor
 			if not _is_on_nav_mesh(p):
+				continue
+			p = GameUtils.snap_to_nav(world, p)
+			if not GameUtils.nav_path_reaches(world, global_position, p, SCATTER_REACH_TOLERANCE):
 				continue
 			if EntityRegistry.nearest(EntityRegistry.heroes, p, rebirth_return_distance) == null:
 				return p

@@ -11,7 +11,6 @@
 [ext_resource type="Resource" path="res://Assets/Characters/nyxa/nyxa_motion.tres" id="10_motion"]
 
 [node name="Nyxa" instance=ExtResource("1_base")]
-preferred_distance = 55.0
 monster_stats = ExtResource("2_stats")
 ability_1 = ExtResource("3_screech")
 ability_2 = ExtResource("4_swoop")

@@ -410,9 +410,11 @@ signal ability_used(ability: AbilityBase)
    is always 15 % beyond the enter range (`FIGHT_LEAVE_MARGIN`), so a range
    upgrade can never make the two cross and freeze an entity between them.
 4. In Fight: attack ready and in range → stand and attack; on cooldown →
-   reposition by combat role (strafe at the preferred distance; a hero with
-   a fight side, `HeroBase.hold_fight_side`, walks round the target to its
-   own side instead: `EntityBase._hold_fight_side`). Every range TO an
+   reposition by combat role (RANGED / SUPPORT strafe at the preferred
+   distance; MELEE walks in past its reach, out below `min_distance`, else
+   holds: a hero with a fight side, `HeroBase.hold_fight_side`, walks round
+   the target to its own side, `EntityBase._hold_fight_side`, and a monster,
+   always MELEE, stands where it is between casts). Every range TO an
    entity is `range_to(target)`: centre distance less its `reach_bonus()`
    (0, or what an evolved monster's body grew by), so melee attackers stand
    at the edge of a Stage III body. The basic attacks' hit checks subtract
@@ -420,6 +422,10 @@ signal ability_used(ability: AbilityBase)
 5. Damage goes `EventBus.deal_damage` → `damage_requested` (shields absorb) →
    the target's `_receive_damage` → `_on_damage_taken` → `damage_applied`
    (threat, VFX, audio). `AbilityBase.deal()` wraps it and applies lifesteal.
+   A target that cancels the packet in `_receive_damage` (a corpse hit again
+   in its death frame, Nyxa's scattered bats, Last Stand) gets no reaction and
+   no `damage_applied`, and `deal_damage` returns 0. VfxManager takes a kill
+   from `entity_died`, never from a hit.
 6. Hero ultimates (`HeroBase._should_auto_use_ultimate`, 4 Hz) ask the
    ultimate what a cast would reach (`AbilityBase.count_reached`: its own
    centre and radius) and fire at the pre-round dial's enemy count, or at one
@@ -443,8 +449,8 @@ opponent applies its threat build (`MetaSkillManager.spawn_ranks`).
 ### Monster evolution
 
 Total XP against `MonsterStats.stage_2_xp` / `stage_3_xp` (Grount 150 / 300,
-Nyxa 150 / 400, Gorrak 150 / 500). On evolving: the stage's HP, speed, scale
-and strafe, every ability's `apply_stage_stats(stage)` (per-stage damage,
+Nyxa 150 / 400, Gorrak 150 / 500). On evolving: the stage's HP, speed and
+scale, every ability's `apply_stage_stats(stage)` (per-stage damage,
 cooldown, range, radius; an `unlock_stage`), the rig's stage parts, a heal to
 full, `EventBus.monster_evolved`.
 

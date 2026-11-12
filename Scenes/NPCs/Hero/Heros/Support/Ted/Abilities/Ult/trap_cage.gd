@@ -56,11 +56,16 @@ func _process(delta: float) -> void:
 	
 	# Force trapped enemies to stay inside. A freed entry (the monster died
 	# and was freed inside the cage; mobs are parked, not freed) is skipped
-	# before any typed call: a freed object is no Node2D argument.
+	# before any typed call: a freed object is no Node2D argument. One that
+	# turned cc-immune is let go for good (_release), after the loop.
+	var released: Array[Node2D] = []
 	for enemy in trapped_enemies:
-		if not is_instance_valid(enemy) or not _still_trapped(enemy) or _is_cc_immune(enemy):
+		if not is_instance_valid(enemy) or not _still_trapped(enemy):
 			continue
-		
+		if _is_cc_immune(enemy):
+			released.append(enemy)
+			continue
+
 		var dist = enemy.global_position.distance_to(global_position)
 		if dist > cage_radius - 15:
 			# Push back inside, at the edge it tried to leave by (the push
@@ -69,6 +74,8 @@ func _process(delta: float) -> void:
 			var push_pos = global_position + dir * (cage_radius - 20)
 			# Never through a wall (the push teleports).
 			enemy.global_position = GameUtils.clamp_to_nav_segment(get_world_2d(), enemy.global_position, push_pos)
+	for enemy in released:
+		_release(enemy)
 
 ## One Spiked Cage tick: every valid enemy whose body overlaps the cage, once.
 func _spike() -> void:
@@ -109,13 +116,24 @@ func _prevent_exit(node: Node) -> void:
 	if not cage_active or not node:
 		return
 	
-	var entity = _get_entity(node)
-	
-	# FIXED: Check if entity is Node2D before checking array
-	if entity and entity is Node2D and trapped_enemies.has(entity) and _still_trapped(entity) \
-			and not _is_cc_immune(entity):
-		# Teleport back to center of cage
-		entity.global_position = global_position
+	var entity := _get_entity(node)
+	if entity == null or not trapped_enemies.has(entity) or not _still_trapped(entity):
+		return
+	if _is_cc_immune(entity):
+		_release(entity)
+		return
+	# Teleport back to center of cage
+	entity.global_position = global_position
+
+
+## Lets `enemy` go for good: it turned cc-immune while held (Nyxa's Vampiric
+## Rebirth scatters her into bats). The cage forgets it and its tint, so the
+## monster that re-forms 400 px away is not pulled back in when the immunity
+## ends.
+func _release(enemy: Node2D) -> void:
+	trapped_enemies.erase(enemy)
+	_kill_sprite_tween(enemy)
+	_trapped_life_ids.erase(enemy)
 
 ## A trapped enemy's drawn body (its CharacterRig, else its sprite:
 ## EntityBase.visual_root) pulses toward the palette's `ted` and back. Only the
@@ -163,7 +181,8 @@ func _clear_tint(enemy: Node2D) -> void:
 
 ## Gorrak's Unstoppable (MonsterBase.is_cc_immune): the cage never holds him
 ## (its spikes still hurt whatever overlaps it). Asked every frame, so the
-## scattered bats of Nyxa's Vampiric Rebirth fly out of a cage too.
+## scattered bats of Nyxa's Vampiric Rebirth fly out of a cage too, and the
+## cage lets her go for good (_release).
 func _is_cc_immune(entity: Node) -> bool:
 	return entity is MonsterBase and (entity as MonsterBase).is_cc_immune()
 

@@ -18,6 +18,7 @@ const VLAD := "res://Scenes/NPCs/Hero/Heros/DMG/Vlad/Vlad.tscn"
 const IRELIA := "res://Scenes/NPCs/Hero/Heros/Support/Irelia/Irelia.tscn"
 const TED := "res://Scenes/NPCs/Hero/Heros/Support/Ted/Ted.tscn"
 const HOG := "res://Scenes/NPCs/Mob/Mobs/Hog/Hog.tscn"
+const BAT := "res://Scenes/NPCs/Mob/Mobs/Bat/Bat.tscn"
 const ABILITIES := "res://Scenes/NPCs/Monster/"
 const CLEAVE := ABILITIES + "Grount/abilities/grount_front_cleave.tres"
 const DASH := ABILITIES + "Grount/abilities/grout_ram_dash.tres"
@@ -278,6 +279,114 @@ func test_capstone_moments_reach_the_vfx() -> void:
 	if is_instance_valid(v):
 		v.queue_free()
 	await wait_frames(1)
+
+
+## vfx-3 (scatter half): Irelia's taunt holds Nyxa when the lethal hit
+## scatters her bats (Vampiric Rebirth, through the chart). The chart drops the
+## taunt with her target and stun, and AbilityVfx ends the tether and the anger
+## vein on SCATTERED. (Both rode the fleeing bats for the rest of the taunt,
+## the tether hundreds of px long, and the taunt still held her once she
+## re-formed.)
+func test_the_scattered_bats_shed_the_taunt_and_its_tether() -> void:
+	if not require_isolated():
+		return
+	PersistedData.set_skill_rank(&"monster_nyxa", &"ny_rebirth", 1)
+	PersistedData.set_equipped_capstone(&"monster_nyxa", &"ny_rebirth")
+	var pair := _pair()
+	var mgr: VfxManager = pair[0]
+	var vfx: AbilityVfx = pair[1]
+	var n := (await spawn_frozen(NYXA, Vector2(100, 100))) as MonsterBase
+	var irelia := await spawn_frozen(IRELIA, Vector2(200, 100))
+	(irelia.get_node(^"AbilitySystem") as AbilitySystem).ultimate_ability.execute(irelia)
+	await wait_frames(1)
+	assert_true(n.has_node(^"TauntEffect") and n._get_taunter() == irelia, "taunted by Irelia")
+	assert_eq(vfx.tethers_live(), 1, "the tether")
+	assert_eq(_anger_marks_on(vfx, n), 1, "the anger vein")
+	EventBus.deal_damage(irelia, n, 99999.0)
+	assert_eq(active_state_of(n), "Scattered", "the lethal hit scatters her")
+	assert_false(n.has_node(^"TauntEffect"), "the bats shook off the taunt")
+	assert_true(n._get_taunter() == null)
+	await wait_seconds(AbilityVfx.TETHER_FADE + 0.1)
+	assert_eq(vfx.tethers_live(), 0, "the tether ended with the scatter")
+	assert_eq(_anger_marks_on(vfx, n), 0, "and the vein")
+	await wait_seconds(3.0)
+	assert_eq(active_state_of(n), "Idle", "re-formed")
+	assert_true(n._get_taunter() == null and vfx.tethers_live() == 0, "untaunted")
+	for node: Node in [n, irelia, mgr]:
+		node.queue_free()
+	await wait_frames(1)
+
+
+## Live anger veins riding `host` in the vfx's marks.
+func _anger_marks_on(vfx: AbilityVfx, host: Node) -> int:
+	var count: int = 0
+	for i in vfx.marks.capacity:
+		if vfx.marks.tex[i] == FxTex.ANGER and vfx.marks.follow[i] == host.get_instance_id():
+			count += 1
+	return count
+
+
+## vfx-4: VfxManager takes a kill from the death (EventBus.entity_died), not
+## from a hit that leaves its target at 0 HP. The lethal hit that scatters
+## Nyxa's bats shows its number, but no kill puffs and no monster-down shake;
+## her real death plays them, once. A second hit on a Bat in its death frame
+## (the pool parks it at the frame's end) is canceled: deal_damage returns 0,
+## the number stays the first hit's and no second kill plays. (The scatter
+## played the biggest shake in the game, and corpse hits replayed the kill and
+## healed lifesteal.)
+func test_a_scatter_is_no_kill_and_a_corpse_takes_no_hit() -> void:
+	if not require_isolated():
+		return
+	var shake_before: bool = GameCamera.shake_setting_on()
+	GameCamera.set_shake_setting(true)
+	PersistedData.set_skill_rank(&"monster_nyxa", &"ny_rebirth", 1)
+	PersistedData.set_equipped_capstone(&"monster_nyxa", &"ny_rebirth")
+	var pair := _pair()
+	var mgr: VfxManager = pair[0]
+	var cam := GameCamera.new()
+	mgr.camera = cam
+	var n := (await spawn_frozen(NYXA, Vector2(100, 100))) as MonsterBase
+	var v := await spawn_frozen(VLAD, Vector2(900, 100))
+	var bat := (await spawn_frozen(BAT, Vector2(200, 260))) as MobBase
+	await wait_frames(1)
+	cam.trauma = 0.0
+	var puffs := _kill_puffs(mgr)
+	EventBus.deal_damage(v, n, 99999.0)
+	assert_true(n.is_scattered(), "the bats scatter")
+	assert_eq(mgr.numbers_on(n).size(), 1, "the hit's number shows")
+	assert_near(cam.trauma, 0.0, 0.0001, "no monster-down shake")
+	assert_eq(_kill_puffs(mgr), puffs, "no kill puffs")
+	await wait_seconds(3.1)
+	assert_false(n.is_scattered(), "re-formed")
+	cam.trauma = 0.0
+	puffs = _kill_puffs(mgr)
+	EventBus.deal_damage(v, n, 99999.0)
+	assert_eq(active_state_of(n), "Dead", "the second lethal hit kills")
+	assert_near(cam.trauma, mgr.trauma_monster_down, 0.0001, "the monster-down shake, once")
+	assert_eq(_kill_puffs(mgr), puffs + VfxManager.PUFFS_PER_KILL, "the kill's puffs, once")
+	# A corpse in its death frame.
+	await wait_frames(1)
+	puffs = _kill_puffs(mgr)
+	var first: float = EventBus.deal_damage(v, bat, 9999.0)
+	assert_false(bat.is_alive(), "the Bat dies")
+	assert_eq(EventBus.deal_damage(v, bat, 55.0), 0.0, "a hit on its corpse lands nowhere")
+	assert_eq(mgr.numbers_on(bat), PackedFloat32Array([first]), "one number: the killing blow's")
+	assert_eq(_kill_puffs(mgr), puffs + VfxManager.PUFFS_PER_KILL, "one kill")
+	for node: Node in [v, bat, mgr]:
+		if is_instance_valid(node):
+			node.queue_free()
+	cam.free()
+	GameCamera.set_shake_setting(shake_before)
+	await wait_frames(1)
+
+
+## Kill puffs alive in the manager's sprite pool.
+func _kill_puffs(mgr: VfxManager) -> int:
+	var count: int = 0
+	for i in mgr.sprites.capacity:
+		if mgr.sprites.tex[i] == FxTex.PUFF:
+			count += 1
+	return count
 
 
 ## Call of the Herd: RECRUITED per Hog; each gets a ring at its feet while it

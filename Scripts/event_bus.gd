@@ -13,7 +13,8 @@ extends Node
 ##      (Irelia shield, lifesteal, skill-tree damage mods all hook here)
 ##   3. If not canceled, target._receive_damage(packet) applies the final amount
 ##      and may send CombatEvents.SELF_DEAD to its own state chart. It may still
-##      cancel the hit itself (a hero's Last Stand invulnerability): then nothing
+##      cancel the hit itself (a hero's Last Stand invulnerability, Nyxa's
+##      scattered bats, a corpse hit again in its death frame): then nothing
 ##      landed, so steps 4 and 5 are skipped and deal_damage returns 0
 ##   4. If the target is a living EntityBase, target._on_damage_taken(packet)
 ##      runs — the per-target reaction hook (flinch, "help!" broadcasts).

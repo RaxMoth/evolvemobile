@@ -39,7 +39,8 @@ extends Node2D
 ##                              stuns, recruits, Rampage, Vampiric Rebirth,
 ##                              Unstoppable
 ##   EventBus.entity_died    -> marks, tethers, wards, halos, stun stars and
-##                              warband rings on the fallen end
+##                              warband rings on the fallen end (and on
+##                              Nyxa's body when it scatters, SCATTERED)
 ##
 ## Toning-down rules (the anim prototype's previews were too busy):
 ##   - rings at most MAX_RING_WIDTH (3) world px wide, ink included, and on
@@ -544,6 +545,11 @@ func _on_ability_event(source: Node, ability: AbilityBase, event: StringName, po
 	var t0: int = Time.get_ticks_usec()
 	var fx: AbilityFxRecipe = ability.fx if ability != null else null
 	var s := source as Node2D
+	if event == FxEvents.SCATTERED:
+		# The scattered bats shed what rode her body, in view or not: the
+		# taunt's tether and anger vein (the chart dropped the taunt and the
+		# stun), stun stars. Its one-shot burst plays below, in view only.
+		_end_riders(source)
 	match event:
 		# Lasting effects start even out of view.
 		FxEvents.SHIELD_UP:
@@ -628,6 +634,13 @@ func _on_ability_event(source: Node, ability: AbilityBase, event: StringName, po
 ## Whatever rides a character that died ends with it (a pooled mob comes back
 ## as the same node).
 func _on_entity_died(entity: Node, _killer: Node) -> void:
+	_end_riders(entity)
+
+
+## Ends everything that rides `entity` (marks, tethers to or from it, its
+## ward, halo, stun stars and warband ring): it died, or its body scattered
+## into bats (Vampiric Rebirth).
+func _end_riders(entity: Node) -> void:
 	if entity == null:
 		return
 	var id: int = entity.get_instance_id()

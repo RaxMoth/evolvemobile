@@ -374,6 +374,46 @@ func test_an_evolved_monster_is_hit_from_the_edge_of_his_body() -> void:
 	await _free([g, v])
 
 
+## monsters-6: a monster is MELEE. In a fight, between casts (every ability
+## on cooldown) and with its target inside its reach and beyond min_distance,
+## it holds the spot it reached: no strafing and no preferred distance. (The
+## per-stage strafe numbers and the scenes' preferred_distance were never read
+## and are gone.)
+func test_a_monster_holds_its_spot_in_a_fight_between_casts() -> void:
+	var region := await bake_nav_rect(Rect2(-600, -600, 1200, 1200))
+	for path: String in [GROUNT, NYXA, GORRAK]:
+		var m := (await spawn_entity(path, Vector2.ZERO)) as MonsterBase
+		evolve_to(m, 3)  # HUNT: it fights the hero
+		_set_all_cooldowns(m, 100.0)
+		var reach: float = m.attack_range
+		var v := await _hero(VLAD, Vector2(reach * 0.6, 0))
+		for i in 120:
+			if active_state_of(m) == "Fight":
+				break
+			_set_all_cooldowns(m, 100.0)
+			await wait_physics_frames(1)
+		assert_eq(active_state_of(m), "Fight", "%s fights the hero" % m.name)
+		var d: float = m.distance_to_target()
+		assert_true(d >= m.min_distance and d <= reach, "%s: the hero inside its band (%.0f px)" % [m.name, d])
+		var walked := 0.0
+		var last: Vector2 = m.global_position
+		for i in 60:
+			_set_all_cooldowns(m, 100.0)
+			await wait_physics_frames(1)
+			walked += m.global_position.distance_to(last)
+			last = m.global_position
+		assert_eq(active_state_of(m), "Fight", "%s still fights" % m.name)
+		assert_true(walked < 1.0, "%s holds its spot between casts (walked %.1f px)" % [m.name, walked])
+		await _free([m, v])
+	await _free([region])
+	await wait_physics_frames(6)
+
+
+func _set_all_cooldowns(m: MonsterBase, seconds: float) -> void:
+	for key in m.ability_cooldowns.keys():
+		m.ability_cooldowns[key] = seconds
+
+
 ## Vlad and Ted come at a Stage III Grount from behind (north of his feet,
 ## where y-sort hides them behind his body). They stop at the edge of his body
 ## and walk round to their own sides (Vlad 20 degrees, Ted 160: beside him,

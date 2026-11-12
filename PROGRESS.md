@@ -218,6 +218,23 @@ Gameplay:
   used and the default-strategy traces stay byte-identical. Option: centre them on r
   (r - 200 / r / r + 200), which changes the default exploration.
 - **Match rewards pay the played side's kills** (8.2), and the HUD's kills chip shows them.
+- **The scattered bats shed Irelia's taunt** (R3): Vampiric Rebirth's Scattered state drops the
+  taunt with the target and the stun (the bats are cc-immune), so a re-formed Nyxa is no longer
+  sent back to the taunter for the rest of its 5 s; a Trap Cage that held her lets her go for
+  good. Option: keep the taunt on her after the re-form (it was).
+- **Call of the Herd's recruits seek 350 px** (R3): a recruit that sees no hero goes for the
+  nearest one within `MobBase.warband_seek_radius` (350 = the 250 px recruit radius plus the
+  stomp's reach) and keeps after him out of sight while the warband lasts. Before, the camp's
+  100 px leash found nobody and the recruit stood idle for 20 s, so the capstone is stronger
+  now. Options: another radius, or drop the fallback (only recruits that see a hero fight).
+- **Monsters stand still between casts** (R3, monsters-6): every monster is MELEE and holds its
+  spot in a fight between casts, as Grount always did; the per-stage strafe numbers and the
+  scenes' `preferred_distance` that nothing read are gone (README tables too). Giving monsters a
+  between-casts strafe is a design choice left open: it changes every monster fight, all three
+  trace baselines and the balance tables.
+- **Hits on a corpse land nowhere** (R3): a second hit in an entity's death frame (three mines on
+  one spot, an area attack after the killing blow) is canceled: no number, no lifesteal, no
+  threat, and `deal_damage` returns 0.
 
 Look and feel:
 - **Hit effects land on the damage frame**; the attack move reaches contact about 0.1-0.16 s
@@ -238,6 +255,10 @@ Look and feel:
 - **Monster panel slots** (F1): the row got larger slots (56 / 68 / 68 / 72 px) spread over the
   free width instead of ability names under them; names plus larger slots need a taller panel
   than 178 px.
+- **A never-ending swarm's slot** (R3): under Brood Mother the running swarm cannot be cast
+  again, so once its cooldown is over its A3 slot shows the plain icon: no ready glow, no pop, no
+  number (F3: "running"). Option: an "active" look (a ring or a pulsing frame) for a running
+  ability.
 - **Clear colour** (F1): `default_clear_color` is the palette's `bg_void` for the whole project,
   so wherever nothing is drawn (past the tile map's edge in a match) the screen is the fog's
   near-black, not Godot's grey. 28 flowers and rocks of the Deko layer that stood outside the
@@ -558,6 +579,85 @@ Match speed (F3, `tools/bench.sh 3 2 900 300 0 <rigs_awake> <speed>`, back to ba
       uses `GameManager.killer_side`; the sim could use the same rule. Low priority.
 
 ## Changelog
+### 2026-11-12 — fix batch R3: monster bugs (Rebirth and the cage, Brood Mother, recruits, strafe data, intent pill)
+Fifth batch of the second fix run: review findings monsters-3, monsters-4, monsters-6,
+monsters-7, monsters-8, monsters-9, vfx-3, vfx-4, hud-2, hud-6 and hud-10. Flagged gameplay,
+but the traces of all three monsters stayed byte-identical (1,998 / 3,428 / 2,846 lines), so
+`tools/baselines` is unchanged: the capstone fixes act only where a save owns Vampiric Rebirth,
+Brood Mother or Call of the Herd (no fresh save and no threat-0 build does), and the two
+fresh-save edges (a hit on a corpse in its death frame, a dash whose caster died) never came up
+before `match_ended` in the six traced matches per monster. The threat-0 sims (12 seeds, both
+sides) gave the same summaries before and after.
+
+- **Vampiric Rebirth and the cage** (monsters-3): a Trap Cage only skipped Nyxa while her bats
+  were cc-immune; she stayed in `trapped_enemies`, so on the re-form, 3 s into the 6 s cage, the
+  cage moved her from 400 px away to its edge in the same frame and held her among the heroes at
+  30 % HP. `TrapCage._release` now lets a held enemy that turns cc-immune go for good (its
+  `_process` hold and its exit check), with its tint. The stock test runs on past the re-form.
+- **Rebirth into a sealed pocket** (monsters-8): `_scatter_point` took any fan point within
+  16 px of a polygon, so the jump could land in one of the baked world's seven sealed pockets
+  (or a wall edge) and hold her for the rest of the match. A point now counts only snapped onto
+  the mesh and reached by a path from her within 4 px (`SCATTER_REACH_TOLERANCE`; the default
+  32 px lets three pockets 19-30 px off the mesh through). Test: a pocket 15 px past the main
+  mesh on the fan's first point; she re-forms on the next point her path reaches.
+- **A swoop while scattered** (monsters-9): `BullRamDash._dash_update` stopped only for a freed
+  caster, so a swoop in flight carried the scattered bats on and hit the heroes in its lane. It
+  ends (one `DASH_ENDED`) for a caster that is not alive, as Night Swarm and the Tusk Axe do.
+  The step reads its caster from `_dash_caster` instead of a bound argument, so a step queued
+  for a monster freed in its death frame no longer fails to be called (the engine's "Cannot
+  convert argument 1" line).
+- **The taunt on the bats** (vfx-3): the Scattered state now drops Irelia's taunt with the
+  target and the stun, and AbilityVfx ends whatever rode her body on `SCATTERED`
+  (`_end_riders`, the same as on a death): the tether and the anger vein no longer ride the
+  fleeing bats (381 px of tether in the review's probe) or follow her after the re-form. The
+  pause half was fixed by R2 (`c008b27`, a pausable taunt timer); a new test pauses longer than
+  the taunt and sees the taunt and its tether end together after the resume.
+- **Brood Mother** (monsters-4): a swarm cast at Stage 2 and still running when a kill evolved
+  her turned permanent with the Stage 2 bite (4 instead of 5, without Apex Predator) for the rest
+  of the match. `apply_stage_stats` flags the turn and the next tick takes the bite from
+  `MonsterBase.effective_ability_damage` again. Test through `_cast` and `gain_xp`.
+- **The never-ending swarm's slot** (hud-6): once its cooldown was over the A3 slot popped and
+  glowed as a ready ultimate for the rest of the match, though the swarm could not be cast.
+  `CooldownSource.castable` (the ability's `can_use`) feeds `AbilitySlot.set_cooldown`: cooled
+  down but not castable shows the plain icon, no glow, no pop, no number; F3 says "running".
+- **Call of the Herd recruits** (monsters-7): the "nearest hero within chase_distance" fallback
+  used the camp's 100 px leash, shorter than the mob's sight, and mobs drop what they do not see
+  at their first re-evaluation (0.5 s), so recruits that saw no hero stood idle for the 20 s.
+  `MobBase.warband_seek_radius` (350) is the fallback's radius and the warband's
+  `pursue_out_of_sight_radius`, back to the scene's 0 when the warband ends. Test: a ticking camp
+  Hog 300 px from the hero reaches him.
+- **Strafe data** (monsters-6): monsters are MELEE and never read `strafe_speed` or
+  `preferred_distance`; the per-stage strafe exports and values (`MonsterStats`, Nyxa's and
+  Gorrak's stats), the two writes in `_enter_stage`, the scenes' `preferred_distance` and the
+  README's Strafe rows and "keeps 55 / 50 px" are gone. Behaviour unchanged (no strafing added,
+  see Decisions). A behaviour test replaces the property asserts: each monster in a fight
+  between casts holds its spot (0 px in 60 frames); the README spec test refuses a Strafe row.
+- **The intent pill** (hud-2, hud-10): `current_intent` tested `monster.target is HeroBase`,
+  but `target` is the hero's Body Area2D, so a FARM or AMBUSH monster fighting a hero never read
+  HUNTING. It tests `target_entity` now. A panel test drives a real chart (a Bat as target: the
+  strategy; a hero in Approach and Fight: HUNTING) and the World test's tautology compares with an
+  intent worked out from the chart instead.
+- **Kills and corpse hits** (vfx-4): VfxManager inferred a kill from `is_alive()` after a hit, so
+  the hit that scattered Nyxa's bats played the 0.6 monster-down shake and the kill puffs. Kills
+  now come from `EventBus.entity_died` (in view), the big-hit shake only for a living target. A
+  hit on a corpse in its death frame (the release is deferred: three mines on one spot) is
+  canceled in Mob/Hero/Monster/pet `_receive_damage`: no second number or kill, no lifesteal or
+  threat, `deal_damage` returns 0.
+- Balance (`THREAT=0 MONSTER=all tools/sim.sh 12 <side> 2`), hero wins before / after: heroes
+  side Grount 67 / 67 %, Nyxa 50 / 50 %, Gorrak 50 / 50 %; monster side the same 67 / 50 / 50
+  % (every summary line identical before and after). No retune.
+- Render (muted, a scratch driver, Monster side as Nyxa): at Stage I, FARM, fighting Vlad, the
+  pill reads HUNTING; with Brood Mother at Stage III the 12-bat swarm circles her and its A3 slot
+  shows the plain icon (no glow, no number), F3 "running"; with Vampiric Rebirth and Irelia's
+  taunt (vein and tether on her before), the lethal hit scatters the bats with no tether or vein
+  on them, no shake (trauma 0.00 -> 0.00), and she re-forms at 180 / 600 HP untaunted.
+- Gate: `tools/lint.sh` errors=0; `tools/run_tests.sh` 710 passed, 0 failed, 1 skipped (the
+  windowed minimap test), nothing leaked at exit; 10 new tests, 3 extended. Run against the
+  parent code (the new test files on a copy of `c008b27`), 9 fail there (8 new ones and the
+  extended cage test); the pause test (fixed by R2) and the hold-your-spot test (it pins
+  behaviour that did not change) pass there too.
+  `MONSTER=all BASELINE_DIR=tools/baselines tools/sim_trace.sh`: identical.
+
 ### 2026-11-12 — fix batch R2: pause-safe timers, match start and end edges, save robustness
 Fourth batch of the second fix run: review findings heroes-5, monsters-2, meta-4, menus-8, hud-8,
 menus-7, vfx-2 / gaps-1, review2:flow-1 and review2:flow-2, and the review gaps "match start with

@@ -39,6 +39,9 @@ var _hit_entities: Array = [] # Track entities already hit during this dash
 var _return_pending: bool = false
 ## Distance this pass moved so far: the length of the return pass.
 var _travelled: float = 0.0
+## The entity the running dash moves (each per-frame step reads it here: a
+## step bound to a freed caster could not even be called).
+var _dash_caster: Node2D = null
 
 func _init() -> void:
 	ability_name = "Ram Dash"
@@ -102,12 +105,22 @@ func execute(caster: Node2D, target: Node2D = null, override_damage: float = -1.
 
 	# Start dash process. One step per frame on pausable timers (the default,
 	# process_always, kept a dash sliding under the match-result screen).
-	caster.get_tree().create_timer(0.0, false).timeout.connect(_dash_update.bind(caster))
+	_dash_caster = caster
+	caster.get_tree().create_timer(0.0, false).timeout.connect(_dash_update)
 
-func _dash_update(caster: Node2D) -> void:
+func _dash_update() -> void:
 	# A caster freed or taken out of the tree mid-dash (a test ending) stops it.
-	if not is_dashing or not is_instance_valid(caster) or not caster.is_inside_tree():
+	if not is_dashing or not is_instance_valid(_dash_caster) or not _dash_caster.is_inside_tree():
 		is_dashing = false
+		return
+	var caster: Node2D = _dash_caster
+	# A caster at 0 HP stops where it is, before another step or hit: a monster
+	# killed mid-dash, or Nyxa's bats scattered by Vampiric Rebirth mid-swoop
+	# (as Night Swarm and the Tusk Axe stop with her).
+	if not (caster as EntityBase).is_alive():
+		is_dashing = false
+		_return_pending = false
+		EventBus.notify_ability_event(caster, self, FxEvents.DASH_ENDED, caster.global_position)
 		return
 	
 	var delta = caster.get_process_delta_time()
@@ -139,7 +152,7 @@ func _dash_update(caster: Node2D) -> void:
 	
 	# Continue dashing
 	if is_dashing:
-		caster.get_tree().create_timer(0.0, false).timeout.connect(_dash_update.bind(caster))
+		caster.get_tree().create_timer(0.0, false).timeout.connect(_dash_update)
 
 ## Echo Strike: turn around and run back the distance this pass travelled,
 ## along the same lane, with a fresh hit list (the target is passed again).

@@ -55,7 +55,6 @@ func test_scene_wires_her_kit() -> void:
 	assert_eq(n.monster_stats.monster_type, "Dusk Matriarch")
 	assert_eq(n.attack_range, 110.0, "reach 110")
 	assert_eq(n.max_distance, 150.0, "leaves Fight past 150 px")
-	assert_eq(n.preferred_distance, 55.0, "keeps 55 px (the scene root's spacing)")
 	assert_eq(n.min_distance, 20.0)
 	assert_eq(n.combat_role, Types.CombatRole.MELEE)
 	var screech := n.ability_1 as BullFrontCleave

@@ -120,7 +120,8 @@ func current_intent() -> Intent:
 	if not is_instance_valid(monster) or monster.strategy_profile == null or not monster.strategy_profile.enabled:
 		return Intent.HUNTING
 	var chasing := (_approach != null and _approach.active) or (_fight != null and _fight.active)
-	var engaging := chasing and is_instance_valid(monster.target) and monster.target is HeroBase
+	# target_entity: `target` is the entity's Body Area2D, never a HeroBase.
+	var engaging := chasing and monster.is_target_valid() and monster.target_entity is HeroBase
 	return intent_of(monster.strategy, monster.is_resting(), engaging)
 
 

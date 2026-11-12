@@ -65,21 +65,31 @@ func lock_hint(_slot: int) -> String:
 	return ""
 
 
+## False while the ability refuses a cast although its cooldown is over: Night
+## Swarm under Brood Mother while its never-ending swarm runs. The slot then
+## shows no ready glow and no pop. A read: every can_use only reads.
+func castable(_slot: int) -> bool:
+	return true
+
+
 ## False once the entity is gone; a bound slot then goes dead.
 func is_valid() -> bool:
 	return false
 
 
 ## The slot's state as F3 text, read the way an AbilitySlot reads it:
-## "locked II", "ready" or the time left ("left 2.31 s"); "" for a slot that
-## never cools down (a passive, an empty slot).
+## "locked II", "ready", the time left ("left 2.31 s") or "running" (cooled
+## down but not castable, castable()); "" for a slot that never cools down (a
+## passive, an empty slot).
 func debug_state(slot: int) -> String:
 	if ability(slot) == null or slot_type(slot) == AbilityBase.AbilityType.PASSIVE:
 		return ""
 	if locked(slot):
 		return "locked " + lock_hint(slot)
 	var left := remaining(slot)
-	return "left %.2f s" % left if left > 0.0 else "ready"
+	if left > 0.0:
+		return "left %.2f s" % left
+	return "ready" if castable(slot) else "running"
 
 
 ## A hero's four abilities, read from its AbilitySystem.
@@ -167,6 +177,10 @@ class Monster extends CooldownSource:
 	func locked(slot: int) -> bool:
 		var a := ability(slot)
 		return a != null and not a.is_unlocked_at(_monster.get_stage())
+
+	func castable(slot: int) -> bool:
+		var a := ability(slot)
+		return a == null or a.can_use(_monster)
 
 	func lock_hint(slot: int) -> String:
 		var a := ability(slot)

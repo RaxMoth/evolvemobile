@@ -497,11 +497,12 @@ hunts (`opponent_after_matches`).
 | **HP**           | 600                | 950 (heals to full)    | 1250 (heals to full)     |
 | **Speed**        | 85                 | 105                    | 125                      |
 | **Scale**        | 1.0                | 1.12                   | 1.25                     |
-| **Strafe**       | 90 px/s, 1.2 s     | 110, 1.0 s             | 130, 0.8 s               |
 | **XP Required**  | Start              | 150 XP                 | 400 XP                   |
 
-Reach 110 (`base_attack_range`), she keeps 55 px (`preferred_distance` on the
-scene root; min 20) and leaves Fight past 150 px. Every ability has a
+Reach 110 (`base_attack_range`); she is MELEE like every monster: she closes
+to her reach and holds her spot between casts (no strafing, no preferred
+distance; `min_distance` 20 on the scene root is the only spacing that acts)
+and leaves Fight past 150 px. Every ability has a
 per-stage table, so the stage damage multiplier never applies to her.
 
 - **Sonic Screech** (ability 1, `BullFrontCleave`): a 110 px cone of
@@ -545,11 +546,10 @@ and the Heroes side meets him after 6 hunts (`opponent_after_matches`).
 | **Damage taken** | × 0.85           | × 0.90              | × 1.00               |
 | **Speed**        | 56               | 64                  | 74                   |
 | **Scale**        | 1.0              | 1.15                | 1.3                  |
-| **Strafe**       | 40 px/s, 2.5 s   | 50, 2.0 s           | 60, 1.5 s            |
 | **XP Required**  | Start            | 150 XP              | 500 XP               |
 
-Reach 85 (`base_attack_range`), he keeps 50 px (`preferred_distance` on the
-scene root; min 20) and leaves Fight past 110 px. Every ability has a
+Reach 85 (`base_attack_range`); MELEE, he closes to his reach and holds his
+spot between casts (`min_distance` 20) and leaves Fight past 110 px. Every ability has a
 per-stage table, so the stage damage multiplier never applies to him.
 
 - **Bristled Hide** (passive slot, his armour): every hit on him lands × 0.85
@@ -1473,7 +1473,8 @@ writes gameplay state, so `tools/sim_trace.sh` stays byte-identical.
       intent pill: FARMING (moss), AMBUSH (amber), HUNTING (danger), RETREAT
       (xp blue). `MonsterHudPanel.intent_of()` reads the strategy, the rest
       state and the state chart: resting or RETREAT retreats, a monster in
-      Approach / Fight against a hero hunts, otherwise the strategy names it;
+      Approach / Fight against a hero (its `target_entity`, a living
+      `HeroBase`) hunts, otherwise the strategy names it;
     - the HP bar ("1008 / 1400") and the EVOLVE bar (XP towards
       `MonsterBase.get_evolution_threshold()`, hidden at Stage III);
     - the passive (56 px; every monster scene has a passive resource:
@@ -1572,7 +1573,10 @@ drifted from the real cooldown under attack-speed boosts and pauses).
     - Becoming ready: `ready_flash` 1 → 0 over 0.25 s, a 1.18 scale pop and
       `became_ready(slot)`. A slot that starts ready does not pop; unlocking
       into a ready ability does. An ultimate wears the `ready_glow.gdshader`
-      halo while it is ready.
+      halo while it is ready. Cooled down but refusing a cast
+      (`CooldownSource.castable`: the ability's `can_use`, Night Swarm under
+      Brood Mother while its never-ending swarm runs) is not ready: the plain
+      icon, no glow, no pop, no number; F3 reads "running".
     - `set_locked(true, "II")`: the padlock and the stage numeral, the icon
       greyed (`locked`), no sweep or number, the `slot_locked` frame.
     - `set_dead()`: the owner fell. The icon greyed (the shader's `locked`
@@ -1602,7 +1606,8 @@ drifted from the real cooldown under attack-speed boosts and pauses).
 `VfxManager` (`Scripts/Vfx/vfx_manager.gd`) is the match's hit feedback: a
 `Vfx` node of `World.tscn` in group `vfx` (not an autoload, so it lives and
 dies with the match; `camera` wired to `MainCam` scene-side). Its hooks are
-`EventBus.damage_applied`, `EventBus.ability_event` (the heal numbers) and
+`EventBus.damage_applied`, `EventBus.entity_died` (the kill),
+`EventBus.ability_event` (the heal numbers) and
 `EventBus.monster_evolved` (the evolution shake), connected in `_ready` (an
 autoload cannot be the source of a scene `[connection]`). What makes each
 ability recognisable is AbilityVfx's (see Ability Effects below); it asks
@@ -1631,16 +1636,20 @@ camera view (grown by 64 px):
   palette's `heal` green, the HP actually healed (a heal on a full bar shows
   nothing). Heals add up with heals only, in their own number beside the
   damage numbers (`show_heal`, `heals_on`).
-- **Kill**: on a killing blow, 4 puffs (`fx_puff.svg`) and a star; a hero,
-  the fox and the monster also play the rig's death beat (see Character
-  Rigs).
+- **Kill**: on an entity's death in view (`EventBus.entity_died`, never
+  inferred from a hit: the lethal hit that scatters Nyxa's bats leaves her at
+  0 HP without dying and plays no kill), 4 puffs (`fx_puff.svg`) and a star;
+  a hero, the fox and the monster also play the rig's death beat (see
+  Character Rigs). A hit on a corpse in its death frame is canceled by its
+  `_receive_damage` (no number, no second kill, no lifesteal).
 - **Hit flash**: the CharacterRig's hurt reaction rendered white by the
   shared hit flash shader (see Character Rigs). VfxManager does not flash.
 - **Screen shake**: camera trauma (`GameCamera.add_trauma`): 0.6 when the
   monster goes down, 0.45 when it evolves (in view or not: the alert),
   0.35 for a hero, 0.12 for a big hit on a hero or the monster, plus a
   recipe's own `trauma` (a slam, a stomp, a blood bomb). Trauma is capped at 0.8, decays 1.8/s, and the offset is
-  9 px x trauma², so only big moments move the view. Settings → Display →
+  9 px x trauma², so only big moments move the view. The down shakes come
+  with the kill (`entity_died`), the big-hit shake only for a living target. Settings → Display →
   "Screen shake" (`screen_shake`, on by default) and the camera's
   `shake_enabled` export gate it; the offset uses the camera's private RNG.
 - **Ground telegraphs**: where an ability lands, in the recipe's accent at
@@ -1873,7 +1882,12 @@ built.
 **Current**:
 
 - Basic attack when in range (the Fight gate: `min_distance <= distance <=
-  attack range`); between swings an entity strafes at its preferred distance
+  attack range`); between swings a ranged or support entity (River) strafes
+  at its preferred distance, a MELEE one walks in past its reach and out
+  below `min_distance` and otherwise holds its spot (or its fight side, see
+  below). Every monster is MELEE: it holds its spot between casts, so
+  `MonsterStats` has no strafe numbers and the monster scenes no
+  `preferred_distance`
 - **Fight enter and leave**: Approach enters Fight once the target is within
   `fight_enter_range()` (the attack range, or `keep_distance` when that is
   further) and Fight goes back to Approach past `fight_leave_range()`:
@@ -2062,8 +2076,8 @@ one new ability script. Every default is Grount's old behaviour:
   - Combat: `base_attack_range` (80; attack range = this x the range nodes +
     Titan Form's flat bonus) and `fight_leave_distance` (100; + the same
     bonus; Fight leaves no closer than 1.15 x the attack range, see Combat AI
-    "Fight enter and leave"). These were MonsterBase constants. The spacing (`combat_role`,
-    `preferred_distance` 45, `min_distance` 20) stays on the scene root, set in
+    "Fight enter and leave"). These were MonsterBase constants. The spacing (`combat_role`
+    MELEE, `min_distance` 20) stays on the scene root, set in
     `monster_base_class.tscn` and overridden by a monster scene's own root.
   - Toughness: `damage_taken_mult_per_stage` (index 0 = Stage 1; empty or
     shorter = 1.0) and `get_damage_taken_mult(stage)`. `_receive_damage`
@@ -2189,8 +2203,8 @@ entity registers it and draws from the global RNG).
   The SIM_RESULT JSON carries `monster` and `monster_name`.
 - **Adding a monster**: a scene inheriting `monster_base_class.tscn` with its own
   MonsterStats (`monster_id`, reach, Fight leave distance, armour; see Shared
-  Monster Framework below), its spacing on the scene root (`preferred_distance`,
-  `min_distance`), ability `.tres` (a passive one too, for the HUD's passive
+  Monster Framework below), its spacing on the scene root (`min_distance`),
+  ability `.tres` (a passive one too, for the HUD's passive
   slot) and strategy; its
   `Assets/Characters/<id>/` rig (`src/` + `tools/build_rigs.sh`); a
   `<id>_def.tres` added to `roster.tres`; its `Data/SkillTrees/monster_<id>.tres`
@@ -3576,12 +3590,12 @@ from a seeded save.
 |---|---|---|
 | g4_rampage CAP | `monster_rampage`; `MonsterBase.rampage_heal_pct` 0.15 | `MonsterBase` connects to `EventBus.entity_died` only while it applies; a `HeroBase` death whose killer is this monster zeroes every `ability_cooldowns` slot and heals 15% of max HP (`heal_self`, never a dead monster). Look: `RAMPAGE` (rings, an anger vein, rising sparks, "+N"; see Ability Effects). F3: "rampage(N)" with the hero kills so far |
 | g4_stampede CAP | `trample`; `trample_hit_radius` 70, `trample_from_stage` 3, `trample_cooldown_mult` 0.5 (Ram Dash, `BullRamDash`) | the dash hits everything within 70 px of the bull's centre as it passes (`get_hit_radius`; the stock lane is the `dash_hit_radius` export, 40, which was the const `DASH_HIT_RADIUS`), and from Stage 3 `apply_stage_stats` halves its cooldown (5 s -> 2.5 s). Look: the dash's lane telegraph at 70 px and its dust at the lane's edges. F3: "trample 70 px" |
-| ny_rebirth CAP | `monster_rebirth`; `MonsterBase.rebirth_health_pct` 0.3, `rebirth_return_distance` 400, `rebirth_flee_speed_mult` 1.5 | once per match the lethal hit sends `CombatEvents.SELF_SCATTERED` instead of `SELF_DEAD`: the chart's **Scattered** state (an atomic state of `monster_base_class.tscn`, entered from any state by `ToScattered`, its handlers wired scene-side) is the whole rebirth, no flag mirrors it (`is_scattered()` asks the state). While in it she has 0 HP, so `is_alive()` is false and nobody keeps her as a target; `_receive_damage` cancels every hit; her Body's collision layer is 0, so no detection area or overlap query finds her; her target and stun are dropped; each AI step flies her toward the scatter point at x1.5 speed, and her body fades to 30% alpha (look: a bat-scatter burst on entry, `SCATTERED`, and the bats flying to the re-form point on exit, `REFORMED`). The state's delayed `ToIdle` transition (3 s) ends it: still within 400 px of a hero, she re-forms at the scatter point (on the flee fan away from the centroid of the heroes within 800 px, 400, 600 or 800 px from her, the first point on the mesh that is at least 400 px from every living hero; her own spot if none is close), then the layer is back and she has 30% of max HP. No `entity_died` is reported, so the match goes on. F3: the chart state "Scattered"; "rebirth" / "rebirth! 1.2 s" (the pending transition's countdown) / "rebirth spent" |
+| ny_rebirth CAP | `monster_rebirth`; `MonsterBase.rebirth_health_pct` 0.3, `rebirth_return_distance` 400, `rebirth_flee_speed_mult` 1.5 | once per match the lethal hit sends `CombatEvents.SELF_SCATTERED` instead of `SELF_DEAD`: the chart's **Scattered** state (an atomic state of `monster_base_class.tscn`, entered from any state by `ToScattered`, its handlers wired scene-side) is the whole rebirth, no flag mirrors it (`is_scattered()` asks the state). While in it she has 0 HP, so `is_alive()` is false and nobody keeps her as a target; `_receive_damage` cancels every hit; her Body's collision layer is 0, so no detection area or overlap query finds her; her target, stun and Irelia's taunt are dropped (the taunt's tether and anger vein end with it), a swoop in flight ends where the bats burst (`BullRamDash` stops for a caster that is not alive, as Night Swarm and the Tusk Axe do), and a Trap Cage that held her lets her go for good; each AI step flies her toward the scatter point at x1.5 speed, and her body fades to 30% alpha (look: a bat-scatter burst on entry, `SCATTERED`, and the bats flying to the re-form point on exit, `REFORMED`). The state's delayed `ToIdle` transition (3 s) ends it: still within 400 px of a hero, she re-forms at the scatter point (on the flee fan away from the centroid of the heroes within 800 px, 400, 600 or 800 px from her, the first point on the mesh that a path from her reaches, snapped onto the mesh and within 4 px (`SCATTER_REACH_TOLERANCE`: the baked world keeps seven sealed pockets, three of them 19-30 px from the main mesh, and a point in one held her for the rest of the match), that is at least 400 px from every living hero; her own spot if none is close), then the layer is back and she has 30% of max HP. No `entity_died` is reported, so the match goes on. F3: the chart state "Scattered"; "rebirth" / "rebirth! 1.2 s" (the pending transition's countdown) / "rebirth spent" |
 | ny_echo CAP | `double_pass` (Shadow Swoop, `BullRamDash`) | a targeted swoop turns at its end and runs back the distance it travelled along the same lane with its hit list cleared, so the target is hit twice (she ends where she started); an escape swoop (no target) never turns. `is_channeling` covers both passes. Look: `DASH_TURNED`, a lane telegraph back and her streak running back along it. F3: "echo" |
-| ny_brood CAP | `permanent_from_stage` 3 (Night Swarm, `NightSwarm`) | from Stage 3 (`apply_stage_stats`) a running swarm never runs out; it stops only with her (dead or scattered). While it runs `can_use` is false, so the combo falls back to the screech instead of re-casting it. Look: 12 bats instead of 8, for as long as it runs. F3: "swarm! forever" |
+| ny_brood CAP | `permanent_from_stage` 3 (Night Swarm, `NightSwarm`) | from Stage 3 (`apply_stage_stats`) a running swarm never runs out; it stops only with her (dead or scattered). A swarm cast at Stage 2 and still running when she evolves turns permanent and takes its bite again on its next tick (`MonsterBase.effective_ability_damage` at Stage 3: 5, Apex Predator included), so it never bites for the Stage 2 number. While it runs `can_use` is false, so the combo falls back to the screech instead of re-casting it, and its HUD slot shows no ready glow once the cooldown is over (`CooldownSource.castable`). Look: 12 bats instead of 8, for as long as it runs. F3: "swarm! forever" |
 | gk_whirl CAP | `full_circle_from_stage` 3 (Cleaver Chop, `BullFrontCleave`) | from Stage 3 `apply_stage_stats` sets `cone_angle` to 360 and `execute` skips the cone test: the chop hits everything within its reach all around him. Look: a circle telegraph and four spinning slashes (the rig's `spin` move). F3: "whirlwind" / "whirlwind!" |
-| gk_unstoppable CAP | `monster_cc_immune` | `MonsterBase.is_cc_immune()` (also true while Nyxa's bats are scattered). Look: a taunt or cage that skips him bursts into shards off him (`CC_SHRUGGED`). `IreliaUltimateTaunt` skips such a monster in both of its passes (a monster is in the "Enemy" group too), so the taunt falls back on the mobs around; `TrapCage` never traps it, and its per-frame hold and its exit check skip it, so a cage that held Nyxa lets her scattered bats out. The cage's spikes still hurt whatever overlaps it. F3: "unstoppable" |
-| gk_warband CAP | `recruit_radius` 250, `recruit_duration` 20 (Warcry Stomp, `BullGroundSlam`) | a stomp cast at a hero (or Ted's pet; a stomp at a mob while farming recruits nobody, or he would stall at Stage 2 beside a camp he may no longer eat: 17 of 24 sanity matches timed out before that rule) calls the herd: at impact, before the damage, every living mob within 250 px whose scene allows it (`MobBase.can_join_warband`, set on `Hog.tscn`) joins the caster's warband (`MobBase.join_warband`): `ally_monster` is the caster while its `WarbandTimer` (a one-shot Timer in `mobs_base_class.tscn`, timeout wired scene-side) runs 20 s. `GameUtils.can_entity_target` honours it both ways (the mob never targets him, his abilities never hit it, so the stomp spares it); heroes stay its targets, it drops him as a target and goes for the hero in sight or the nearest within its `chase_distance`. Tinted toward Gorrak's palette colour (`monster3_light`) while it lasts, with a ring at its feet and a "!" as it joins (`RECRUITED`); the timeout and `prepare_for_pool` end it. F3: "warband(last N)"; a warband mob's overlay label shows "WARBAND" |
+| gk_unstoppable CAP | `monster_cc_immune` | `MonsterBase.is_cc_immune()` (also true while Nyxa's bats are scattered). Look: a taunt or cage that skips him bursts into shards off him (`CC_SHRUGGED`). `IreliaUltimateTaunt` skips such a monster in both of its passes (a monster is in the "Enemy" group too), so the taunt falls back on the mobs around; `TrapCage` never traps it, and its per-frame hold and its exit check let it go for good (`TrapCage._release`), so a cage that held Nyxa lets her scattered bats out and does not pull her back in when she re-forms. The cage's spikes still hurt whatever overlaps it. F3: "unstoppable" |
+| gk_warband CAP | `recruit_radius` 250, `recruit_duration` 20 (Warcry Stomp, `BullGroundSlam`) | a stomp cast at a hero (or Ted's pet; a stomp at a mob while farming recruits nobody, or he would stall at Stage 2 beside a camp he may no longer eat: 17 of 24 sanity matches timed out before that rule) calls the herd: at impact, before the damage, every living mob within 250 px whose scene allows it (`MobBase.can_join_warband`, set on `Hog.tscn`) joins the caster's warband (`MobBase.join_warband`): `ally_monster` is the caster while its `WarbandTimer` (a one-shot Timer in `mobs_base_class.tscn`, timeout wired scene-side) runs 20 s. `GameUtils.can_entity_target` honours it both ways (the mob never targets him, his abilities never hit it, so the stomp spares it); heroes stay its targets, it drops him as a target and goes for the hero in sight or the nearest within `MobBase.warband_seek_radius` (350 px: the recruit radius plus the stomp's reach; a camp's 100 px leash, its `chase_distance`, is shorter than its sight), and while the warband lasts it keeps after a hero out of sight within that radius (`pursue_out_of_sight_radius`, back to the scene's 0 when the warband ends). Tinted toward Gorrak's palette colour (`monster3_light`) while it lasts, with a ring at its feet and a "!" as it joins (`RECRUITED`); the timeout and `prepare_for_pool` end it. F3: "warband(last N)"; a warband mob's overlay label shows "WARBAND" |
 
 Sanity check (6.6; `SAVE=<save.cfg> MONSTER=<id> tools/sim.sh 24 heroes 6`):
 each monster with `monster_base` and its own tree fully ranked (70-76 ranks)

@@ -93,7 +93,6 @@ func test_scene_wires_his_kit() -> void:
 	assert_eq(g.monster_stats.monster_type, "Boar King")
 	assert_eq(g.attack_range, 85.0, "reach 85")
 	assert_eq(g.max_distance, 110.0, "leaves Fight past 110 px")
-	assert_eq(g.preferred_distance, 50.0, "keeps 50 px (the scene root's spacing)")
 	assert_eq(g.min_distance, 20.0)
 	assert_eq(g.combat_role, Types.CombatRole.MELEE)
 	var chop := g.ability_1 as BullFrontCleave

@@ -11,6 +11,7 @@ extends TestCase
 const SLOT := "res://Scenes/UI/Hud/AbilitySlot.tscn"
 const RIVER := "res://Scenes/NPCs/Hero/Heros/Healer/River/River.tscn"
 const GROUNT := "res://Scenes/NPCs/Monster/Grount/Grount.tscn"
+const NYXA := "res://Scenes/NPCs/Monster/Nyxa/Nyxa.tscn"
 const VLAD := "res://Scenes/NPCs/Hero/Heros/DMG/Vlad/Vlad.tscn"
 const KIT := "res://Assets/UI/Kit/%s.svg"
 const READY_GLOW := "res://Assets/UI/Shaders/ready_glow.gdshader"
@@ -265,6 +266,53 @@ func test_monster_slot_unlocks_on_evolution_and_stops_with_the_monster() -> void
 	assert_false(_glowing(slot), "a dead ultimate does not glow")
 	slot.queue_free()
 	await wait_frames(1)
+
+
+## hud-6: under Brood Mother, Nyxa's Stage III Night Swarm never ends and
+## refuses a recast while it runs (NightSwarm.can_use). Once its cooldown is
+## over its slot shows the plain icon (CooldownSource.castable false): no
+## ready glow, no pop, no number; F3 reads "running". Without the capstone the
+## same slot pops and glows (the swarm may be cast again).
+func test_a_never_ending_swarm_is_no_ready_ultimate() -> void:
+	if not require_isolated():
+		return
+	play_side(MatchRewards.Side.MONSTER)
+	for owned: bool in [true, false]:
+		PersistedData.wipe_progress(false)
+		if owned:
+			PersistedData.set_skill_rank(&"monster_nyxa", &"ny_brood", 1)
+			PersistedData.set_equipped_capstone(&"monster_nyxa", &"ny_brood")
+		var n := (await spawn_frozen(NYXA, Vector2(4000, 0))) as MonsterBase
+		evolve_to(n, 3)
+		var swarm := n.ability_3 as NightSwarm
+		assert_eq(swarm.is_permanent(), owned, "Brood Mother: %s" % str(owned))
+		var src := CooldownSource.Monster.new(n)
+		var slot := _make_slot()
+		var fired: Array[int] = []
+		slot.became_ready.connect(func(i: int) -> void: fired.append(i))
+		slot.bind(src, 2)
+		await wait_frames(1)
+		assert_true(n._cast("ability_3", swarm, null), "the swarm is cast")
+		await wait_frames(2)
+		assert_false(_glowing(slot), "cooling down: no glow")
+		n.ability_cooldowns["ability_3"] = 0.0  # its cooldown is over
+		await wait_frames(2)
+		assert_true(swarm.is_active(), "the swarm still runs")
+		assert_eq(swarm.can_use(n), not owned, "a recast: %s" % str(not owned))
+		assert_eq(src.castable(2), not owned)
+		assert_false(_number(slot).visible, "no countdown")
+		if owned:
+			assert_false(_glowing(slot), "a running never-ending swarm does not glow")
+			assert_true(fired.is_empty(), "and does not pop")
+			assert_eq(src.debug_state(2), "running")
+		else:
+			assert_true(_glowing(slot), "a ready ultimate glows")
+			assert_eq(fired, [2] as Array[int], "and pops")
+			assert_eq(src.debug_state(2), "ready")
+		slot.queue_free()
+		n.queue_free()
+		await wait_frames(1)
+	PersistedData.wipe_progress(false)
 
 
 ## set_dead(): no number, no sweep, no glow, the icon greyed under its own

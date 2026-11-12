@@ -15,7 +15,8 @@ extends Control
 ##     tenths below ("3", "2", "1.0", "0.4");
 ##   - Lock: the padlock and the stage numeral (set_locked(true, "II")).
 ## When the ability becomes ready: ready_flash 1 -> 0 over FLASH_TIME, a
-## POP_SCALE pop and became_ready.
+## POP_SCALE pop and became_ready. Cooled down but not castable (a running
+## never-ending Night Swarm) is not ready: the plain icon, no glow, no pop.
 ## A fallen owner's slot is dead (set_dead): the icon greyed, no sweep, no
 ## number, no glow, and nothing feeds it any more.
 ##
@@ -115,12 +116,14 @@ func bind(source: CooldownSource, slot: int) -> void:
 
 
 ## Mirrors a cooldown: progress 0 = just cast, 1 = ready; remaining in
-## seconds. Ignored while locked or dead.
-func set_cooldown(progress: float, remaining: float) -> void:
+## seconds. `castable` false: cooled down but refusing a cast
+## (CooldownSource.castable: a never-ending Night Swarm already runs), so not
+## ready: no glow, no pop, no number. Ignored while locked or dead.
+func set_cooldown(progress: float, remaining: float, castable: bool = true) -> void:
 	if _locked or _dead:
 		return
 	_write_progress(progress)
-	var now_ready := progress >= READY_AT
+	var now_ready := progress >= READY_AT and castable
 	_show_seconds(0.0 if now_ready or not show_countdown else remaining)
 	_set_ready(now_ready)
 
@@ -230,7 +233,7 @@ func _poll() -> void:
 	if now_locked != _locked:
 		set_locked(now_locked, _source.lock_hint(_slot) if now_locked else "")
 	if not now_locked:
-		set_cooldown(_source.progress(_slot), _source.remaining(_slot))
+		set_cooldown(_source.progress(_slot), _source.remaining(_slot), _source.castable(_slot))
 
 
 func _write_progress(p: float) -> void:

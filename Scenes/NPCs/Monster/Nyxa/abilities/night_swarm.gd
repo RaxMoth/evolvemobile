@@ -25,6 +25,9 @@ var _time_left: float = 0.0
 var _permanent: bool = false
 var _tick_left: float = 0.0
 var _bite_damage: float = 0.0
+## Brood Mother turned the running swarm permanent (apply_stage_stats): the
+## next tick takes its bite from the caster again, at the new stage.
+var _rebite: bool = false
 
 
 func _init() -> void:
@@ -55,10 +58,16 @@ func is_permanent() -> bool:
 	return _permanent
 
 
-## The stage's numbers, then whether Brood Mother holds at this stage.
+## The stage's numbers, then whether Brood Mother holds at this stage. A
+## swarm that is running as she reaches it never ends, so it must not keep
+## the bite of the stage it was cast at (a Stage 2 swarm's 4 instead of 5,
+## without Apex Predator): tick_active takes the bite again (_rebite).
 func apply_stage_stats(stage: int) -> void:
 	super.apply_stage_stats(stage)
+	var was_permanent: bool = _permanent
 	_permanent = permanent_from_stage > 0 and stage >= permanent_from_stage
+	if _permanent and not was_permanent and is_active():
+		_rebite = true
 
 
 ## A never-ending swarm is not cast again while it runs (the combo falls
@@ -74,6 +83,7 @@ func time_left() -> float:
 
 func execute(_caster: Node2D, _target: Node2D = null, override_damage: float = -1.0) -> void:
 	_bite_damage = override_damage if override_damage >= 0.0 else damage
+	_rebite = false
 	_time_left = duration
 	_tick_left = 0.0
 
@@ -84,6 +94,11 @@ func tick_active(caster: Node2D, delta: float) -> void:
 	if not is_instance_valid(caster) or not (caster as EntityBase).is_alive():
 		_time_left = 0.0
 		return
+	if _rebite:
+		_rebite = false
+		var monster := caster as MonsterBase
+		if monster != null:
+			_bite_damage = monster.effective_ability_damage(self)
 	if not _permanent:
 		_time_left -= delta
 	_tick_left -= delta

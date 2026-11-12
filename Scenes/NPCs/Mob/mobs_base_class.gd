@@ -29,6 +29,14 @@ const WARBAND_TINT: float = 0.45
 ## Gorrak's "Call of the Herd" (BullGroundSlam.recruit_radius) may recruit
 ## this mob into his warband: set on the Hog scene.
 @export var can_join_warband: bool = false
+## While in a warband the mob goes for the nearest hero this close when it sees
+## none, and keeps after a hero it lost from sight while it is this close
+## (pursue_out_of_sight_radius for the warband's time). 350 = Call of the
+## Herd's 250 px recruit radius plus the stomp's reach. A camp's leash
+## (chase_distance, 100 px) is shorter than the mob's own sight, so it found
+## no hero the mob did not already see, and a lost hero was dropped at the
+## first re-evaluation: the recruit stood idle for the whole 20 s.
+@export var warband_seek_radius: float = 350.0
 
 @onready var attack_timer: Timer = %AttackTimer
 ## Runs while the mob fights for a monster (join_warband); its timeout is
@@ -39,6 +47,8 @@ const WARBAND_TINT: float = 0.45
 ## Only valid while warband_timer runs. GameUtils.can_entity_target reads it:
 ## the mob and that monster spare each other; heroes stay its targets.
 var ally_monster: Node2D = null
+## The scene's pursue_out_of_sight_radius, put back when the warband ends.
+var _own_pursue_radius: float = 0.0
 
 var current_health: float
 var attacking: bool = false
@@ -59,6 +69,7 @@ var _spawn_scale: Vector2 = Vector2.ONE
 var is_in_combat: bool = false
 
 func _ready() -> void:
+	_own_pursue_radius = pursue_out_of_sight_radius
 	_setup_mob_combat_role()
 	current_health = max_health
 	attack_timer.wait_time = attack_cooldown
@@ -184,6 +195,10 @@ func get_max_health() -> float:
 
 func _receive_damage(packet: DamagePacket) -> void:
 	if not is_alive():
+		# A second hit in the death frame (the release is deferred: three mines
+		# on one spot) lands on a corpse: canceled, so it shows no number or
+		# kill again and heals no lifesteal.
+		packet.canceled = true
 		return
 
 	last_attacker = packet.source if packet.source is Node2D else null
@@ -273,18 +288,20 @@ func _share_hero_xp() -> void:
 
 ## Fight for `monster` for `duration` seconds: it stops being a target (and
 ## stops targeting this mob), and the mob goes for the heroes, the nearest
-## one within chase_distance when none is in sight.
+## one within warband_seek_radius when none is in sight, and keeps after it
+## out of sight within that radius.
 func join_warband(monster: Node2D, duration: float) -> void:
 	if duration <= 0.0 or not is_alive():
 		return
 	ally_monster = monster
 	warband_timer.start(duration)
+	pursue_out_of_sight_radius = warband_seek_radius
 	modulate = _warband_tint()
 	if is_target_valid() and target_entity == monster:
 		clear_target()
 	_reevaluate_current_target(0.0)
 	if not is_target_valid():
-		var hero: Node2D = EntityRegistry.nearest(EntityRegistry.heroes, global_position, chase_distance)
+		var hero: Node2D = EntityRegistry.nearest(EntityRegistry.heroes, global_position, warband_seek_radius)
 		if hero != null:
 			set_target(hero)
 			state_chart.send_event(CombatEvents.ENEMY_ENTERED)
@@ -303,6 +320,7 @@ func _on_warband_timer_timeout() -> void:
 
 func _leave_warband() -> void:
 	ally_monster = null
+	pursue_out_of_sight_radius = _own_pursue_radius
 	if warband_timer:
 		warband_timer.stop()
 	modulate = Color.WHITE

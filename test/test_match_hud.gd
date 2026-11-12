@@ -9,6 +9,10 @@ extends TestCase
 
 const WORLD := "res://Scenes/World/World.tscn"
 const EVOLUTION_ICON := "res://Assets/UI/Icons/Abilities/grount_passive_evolution.svg"
+const MONSTER_PANEL := "res://Scenes/UI/Hud/MonsterHudPanel.tscn"
+const GROUNT := "res://Scenes/NPCs/Monster/Grount/Grount.tscn"
+const VLAD := "res://Scenes/NPCs/Hero/Heros/DMG/Vlad/Vlad.tscn"
+const BAT := "res://Scenes/NPCs/Mob/Mobs/Bat/Bat.tscn"
 
 
 func test_intent_mapping() -> void:
@@ -24,6 +28,48 @@ func test_intent_mapping() -> void:
 	assert_eq(MonsterHudPanel.intent_of(AMBUSH, false, true), MonsterHudPanel.Intent.HUNTING, "a sprung ambush hunts")
 	assert_eq(MonsterHudPanel.intent_of(FARM, false, true), MonsterHudPanel.Intent.HUNTING, "a cornered farmer hunts")
 	assert_eq(MonsterHudPanel.intent_of(RETREAT, false, true), MonsterHudPanel.Intent.RETREAT, "retreat wins")
+
+
+## hud-2 / hud-10: the panel on a real monster. Closing in on or fighting a
+## hero (the chart in Approach or Fight, a HeroBase as target_entity) reads
+## HUNTING under FARM and AMBUSH; chasing a Bat, or idle, the strategy names
+## it. (The panel tested `target`, the hero's Body Area2D, so it never read
+## HUNTING before Stage III's HUNT strategy.)
+func test_the_intent_pill_hunts_while_the_monster_engages_a_hero() -> void:
+	var g := (await spawn_frozen(GROUNT, Vector2.ZERO)) as MonsterBase
+	var hero := await spawn_frozen(VLAD, Vector2(1500, 0))
+	var bat := await spawn_frozen(BAT, Vector2(-1500, 0))
+	var panel := (load(MONSTER_PANEL) as PackedScene).instantiate() as MonsterHudPanel
+	add_child(panel)
+	panel.bind_to_monster(g, 4)
+	var label := panel.get_node(^"%Intent") as Label
+	assert_eq(active_state_of(g), "Idle", "nothing in sight")
+	for strategy: MonsterBase.Strategy in [MonsterBase.Strategy.FARM, MonsterBase.Strategy.AMBUSH]:
+		g.strategy = strategy
+		var own: String = "FARMING" if strategy == MonsterBase.Strategy.FARM else "AMBUSH"
+		panel._refresh()
+		assert_eq(label.text, own, "idle: the strategy")
+		g.set_target(bat)
+		g.state_chart.send_event(CombatEvents.ENEMY_ENTERED)
+		assert_eq(active_state_of(g), "Approach")
+		panel._refresh()
+		assert_eq(label.text, own, "%s, chasing a Bat: the strategy" % own)
+		g.set_target(hero)
+		panel._refresh()
+		assert_eq(panel.current_intent(), MonsterHudPanel.Intent.HUNTING, "%s, chasing a hero" % own)
+		assert_eq(label.text, "HUNTING", "%s, chasing a hero: the pill" % own)
+		g.state_chart.send_event(CombatEvents.ENEMY_FIGHT)
+		assert_eq(active_state_of(g), "Fight")
+		panel._refresh()
+		assert_eq(label.text, "HUNTING", "%s, fighting a hero" % own)
+		g.clear_target()
+		g.state_chart.send_event(CombatEvents.TARGET_LOST)
+		g.state_chart.send_event(CombatEvents.ENEMY_EXITED)
+		assert_eq(active_state_of(g), "Idle", "back to idle")
+	panel.queue_free()
+	for n: Node in [g, hero, bat]:
+		n.queue_free()
+	await wait_frames(1)
 
 
 func test_clock_and_hp_band_helpers() -> void:
@@ -323,7 +369,10 @@ func test_monster_side_panel_and_tracker() -> void:
 	assert_true(last_right >= 0.6 * card.size.x, "and fills the width (it ended at 374 of 684 px)")
 	panel._refresh()  # the panel polls at 10 Hz: read it and the monster in one go
 	var intent := panel.get_node(^"%Intent") as Label
-	assert_eq(intent.text, MonsterHudPanel.INTENT_NAMES[panel.current_intent()], "the intent pill names the plan")
+	var engaging: bool = active_state_of(grount) in ["Approach", "Fight"] and grount.is_target_valid() \
+			and grount.target_entity is HeroBase
+	var plan := MonsterHudPanel.intent_of(grount.strategy, grount.is_resting(), engaging)
+	assert_eq(intent.text, MonsterHudPanel.INTENT_NAMES[plan], "the intent pill names the plan")
 	assert_eq((panel.get_node(^"%HpText") as Label).text, "%d / %d" % [roundi(grount.get_health()), roundi(grount.get_max_health())])
 	assert_true((panel.get_node(^"%Evo") as CanvasItem).visible, "evolving")
 
