@@ -6,6 +6,12 @@ extends Node2D
 ## match starts. Off = it stays where World.tscn places it.
 @export var randomize_monster_spawn: bool = true
 @export var monster_spawn_zone: Rect2 = Rect2(3500, 300, 2000, 4800)
+## The longest the match start waits for the navigation map to answer, in real
+## seconds. With the shipped asynchronous map and region iterations the map
+## answers about 10 to 15 physics frames after World enters (0.2 to 0.3 s on a
+## desktop at 60 fps, also under CPU load and on fast); if it never does, the
+## monster keeps MonsterSlot's spawn (inside the zone) and the match goes on.
+@export var nav_wait_limit_sec: float = 10.0
 
 @export_group("Vision")
 ## Monster-side play: reveal radius of the monster player's VisionArea, wider
@@ -16,7 +22,15 @@ extends Node2D
 var exploration_controller: HeroExplorationController
 ## Emitted once the monster stands at its match spawn (or placement gave up).
 signal monster_placed
+## The monster placement's wait is over: this world's navigation map synced
+## (map_changed) or nav_wait_limit_sec ran out.
+signal _nav_wait_over
 var _monster_placed: bool = false
+## nav_wait_limit_sec ran out before the monster was placed.
+var _nav_wait_expired: bool = false
+## Placement tries on a map that answers (each samples up to 32 points of the
+## zone) before the monster keeps MonsterSlot's spawn.
+const PLACEMENT_TRIES: int = 180
 
 func _ready():
 	# Tell GameManager a fresh match has started. This resets per-match
@@ -34,26 +48,60 @@ func _ready():
 
 ## The scene placed Grount at (1715, 309), inside the heroes' own spawn zone:
 ## heroes met the stage-1 monster after ~50 s in half the simulated matches.
+## The start waits for the navigation map, not a number of frames: until the
+## map answers (GameUtils.nav_map_answers) there is nothing to sample, so each
+## miss waits for this world's next map sync (NavigationServer2D.map_changed),
+## then tries on the physics frame after it. An unthrottled headless run with
+## the asynchronous iterations on passes about 95 physics frames in that wait,
+## a 60 fps window about 10 to 15. A map that never answers within
+## nav_wait_limit_sec leaves the monster on MonsterSlot's spawn.
 func _place_monster() -> void:
-	# A region's polygons reach the navigation map one sync after the region
-	# itself (queries return the origin until then), so retry for up to 3 s.
-	for i in range(180):
+	var world := get_world_2d()
+	# Real seconds (process_always, ignore_time_scale): neither the match
+	# speed nor a pause stretches the limit.
+	get_tree().create_timer(nav_wait_limit_sec, true, false, true).timeout.connect(_on_nav_wait_limit)
+	NavigationServer2D.map_changed.connect(_on_nav_map_changed)
+	var tries := 0
+	while tries < PLACEMENT_TRIES:
 		await get_tree().physics_frame
 		var monster := EntityRegistry.first_monster() as MonsterBase
 		if monster == null or not monster.is_alive():
 			_finish_monster_placement()
 			return
 		var from: Vector2 = EntityRegistry.heroes[0].global_position if not EntityRegistry.heroes.is_empty() else global_position
-		var spot: Vector2 = GameUtils.random_reachable_point(get_world_2d(), monster_spawn_zone, from, Vector2.INF)
+		if not GameUtils.nav_map_answers(world, from):
+			if _nav_wait_expired:
+				break
+			# Nothing to sample yet: wait for the map's next sync or the limit.
+			await _nav_wait_over
+			continue
+		tries += 1
+		var spot: Vector2 = GameUtils.random_reachable_point(world, monster_spawn_zone, from, Vector2.INF)
 		if spot.is_finite():
 			monster.teleport_to(spot)
 			_finish_monster_placement()
 			return
-	push_warning("Monster spawn: no reachable point in %s; keeping the scene position" % str(monster_spawn_zone))
+	push_warning("Monster spawn: %s; keeping the scene position" % (
+		"the navigation map did not answer in %.0f s" % nav_wait_limit_sec if _nav_wait_expired
+		else "no reachable point in %s" % str(monster_spawn_zone)))
 	_finish_monster_placement()
 
 
+## A sync of this world's navigation map ends the placement's wait.
+func _on_nav_map_changed(map: RID) -> void:
+	if map == get_world_2d().navigation_map:
+		_nav_wait_over.emit()
+
+
+## nav_wait_limit_sec is over: a placement still waiting for the map gives up.
+func _on_nav_wait_limit() -> void:
+	_nav_wait_expired = true
+	_nav_wait_over.emit()
+
+
 func _finish_monster_placement() -> void:
+	if NavigationServer2D.map_changed.is_connected(_on_nav_map_changed):
+		NavigationServer2D.map_changed.disconnect(_on_nav_map_changed)
 	_monster_placed = true
 	monster_placed.emit()
 

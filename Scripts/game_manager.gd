@@ -10,10 +10,14 @@ extends Node
 ##   • Monster dead      → HEROES win   (heroes-side WIN for the player)
 ##   • 10-min timeout    → MONSTER win  (heroes failed to find them in time)
 ##
-## A death that decides the match settles everything at once (outcome, clock,
-## rewards, save, match_ended), then the match runs on for DEATH_BEAT_SEC so
-## the monster's or the last hero's death beat plays (CharacterRig) before the
-## result screen comes up over the paused tree. A timeout shows it at once.
+## A death that decides the match ends it at once (outcome, clock,
+## match_ended); the rewards and the save follow at the end of that frame,
+## once the kill's XP has reached the monster (an evolution it causes pays).
+## Then the match runs on for DEATH_BEAT_SEC so the monster's or the last
+## hero's death beat plays (CharacterRig) before the result screen comes up
+## over the paused tree (result_shown). In the beat no hit lands: nobody dies
+## after the decision and no kill feeds the monster, so the beat, the result
+## screen and the rewards agree. A timeout shows the result at once.
 ##
 ## Match speed (README "Match Speed"): a running match plays MATCH_BASE_SPEED
 ## game seconds per real second, times MATCH_FAST_FACTOR while the HUD's speed
@@ -23,6 +27,10 @@ extends Node
 ## menus. A headless run (the sims, the trace, the tests) keeps game time.
 
 signal match_ended(winner: String, time: float)
+## The result screen came up and the tree paused under it (the end of the
+## death beat, or at once on a timeout). AudioManager silences the world's
+## sounds here, so none of them finishes when the player leaves the screen.
+signal result_shown
 
 const MATCH_RESULT_SCENE: PackedScene = preload("res://Scenes/UI/Screens/MatchResultScreen.tscn")
 
@@ -66,6 +74,10 @@ const MAX_CLOCK_STEP: float = 0.25
 ## Counts the matches started and aborted: a result held back for the death
 ## beat is dropped when its match is no longer the current one.
 var _match_serial: int = 0
+## True from the death that decided the match until its result screen (the
+## death beat): every hit is canceled (_on_damage_requested). Not
+## match_ended_flag: the test runner holds that one true.
+var _death_beat: bool = false
 
 # --- Match speed ---
 ## The match's base speed: game seconds per real second while a match runs at
@@ -153,18 +165,28 @@ func _ready() -> void:
 	# the clock itself only advances while unpaused (see _process).
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_quarry_rng.randomize()
-	var saved_monster: Variant = PersistedData.get_setting(SETTING_SELECTED_MONSTER, String(ROSTER.default_monster_id))
-	select_monster(StringName(str(saved_monster)), false)
-	var saved_side: Variant = PersistedData.get_setting(SETTING_CHOSEN_SIDE, MatchRewards.Side.HEROES)
-	choose_side(int(saved_side), false)
-	match_fast = bool(PersistedData.get_setting(SETTING_MATCH_FAST, false))
+	load_saved_choices()
 	EventBus.entity_died.connect(_on_entity_died)
+	# The death beat: connected before any entity's listener (Irelia's shield),
+	# so a canceled hit uses up no shield.
+	EventBus.damage_requested.connect(_on_damage_requested)
 	# Record evolution as it happens: the old death-only update paid a monster
 	# that WON (or survived to the timeout) as stage 1.
 	EventBus.monster_evolved.connect(_on_monster_evolved)
 	# No match here: world.gd calls start_new_match() on every World load. The
 	# old unconditional call started the 10-minute clock in the main menu, which
 	# ended a phantom "match" (result screen + rewards) after 10 idle minutes.
+
+
+## The player's saved choices: the own monster, the side, the match speed.
+## An unknown id or a value of the wrong type reads as the default
+## (PersistedData.get_setting), so a damaged save never breaks the menu.
+func load_saved_choices() -> void:
+	var saved_monster: Variant = PersistedData.get_setting(SETTING_SELECTED_MONSTER, String(ROSTER.default_monster_id))
+	select_monster(StringName(str(saved_monster)), false)
+	var saved_side: Variant = PersistedData.get_setting(SETTING_CHOSEN_SIDE, MatchRewards.Side.HEROES)
+	choose_side(int(saved_side), false)
+	match_fast = bool(PersistedData.get_setting(SETTING_MATCH_FAST, false))
 
 
 ## Picks the next match's monster. An unknown or removed id falls back to the
@@ -321,6 +343,7 @@ func start_new_match() -> void:
 	_match_time = 0.0
 	_match_active = true
 	match_ended_flag = false
+	_death_beat = false
 	heroes_alive = 0
 	monster_alive = false
 	monster_stage_reached = 1
@@ -358,6 +381,7 @@ func _elapsed() -> float:
 func abort_match() -> void:
 	_match_serial += 1
 	_match_active = false
+	_death_beat = false
 	_sync_time_scale()
 
 
@@ -436,6 +460,17 @@ func _on_monster_evolved(_monster: Node, stage: int) -> void:
 	monster_stage_reached = maxi(monster_stage_reached, stage)
 
 
+## The death beat: the decided match deals no damage until its result screen.
+func _on_damage_requested(packet: DamagePacket) -> void:
+	if _death_beat:
+		packet.canceled = true
+
+
+## True during the death beat (from the deciding death to the result screen).
+func in_death_beat() -> bool:
+	return _death_beat
+
+
 func _on_entity_died(entity: Node, killer: Node) -> void:
 	if not is_instance_valid(entity):
 		return
@@ -478,9 +513,10 @@ func _end_match_timeout() -> void:
 	_end_match_with_outcome(MatchRewards.Outcome.TIMEOUT)
 
 
-## Ends the match now: the result, the rewards, the save and match_ended.
-## `beat` > 0 (a deciding death) holds the result screen and the pause back
-## that many game seconds; nothing that happens in between changes the result.
+## Ends the match now: the outcome, the clock and match_ended. `beat` > 0 (a
+## deciding death) settles the rewards at the end of this frame and holds the
+## result screen and the pause back that many game seconds (the death beat, in
+## which no hit lands); a timeout settles and shows the result at once.
 func _end_match_with_outcome(outcome: int, beat: float = 0.0) -> void:
 	if match_ended_flag:
 		return
@@ -490,14 +526,33 @@ func _end_match_with_outcome(outcome: int, beat: float = 0.0) -> void:
 	_sync_time_scale()
 
 	var duration := _elapsed()
-	# `outcome` is the heroes' perspective (match_ended below keeps it).
-	# Rewards, label and jingle must use the PLAYED side's perspective.
-	var player_outcome := MatchRewards.outcome_for_side(chosen_side, outcome)
+	# match_ended feeds analytics, audio and the sim. `outcome` is the
+	# heroes' perspective; the result takes the played side's.
+	if outcome == MatchRewards.Outcome.WIN:
+		match_ended.emit("Heroes", duration)
+	else:
+		match_ended.emit("Monster", duration)
+
+	if beat > 0.0:
+		_death_beat = true
+		var beat_timer := get_tree().create_timer(beat, false)
+		# Deferred: we are inside the deciding entity_died, and the kill's XP
+		# reaches the monster only after it (EntityBase._on_dead_state_entered),
+		# so an evolution it causes is in monster_stage_reached by then.
+		_settle_after_death.call_deferred(outcome, duration, beat_timer, _match_serial)
+		return
+	var result := _settle(outcome, duration)
+	_show_result(result)
+
+
+## The result of the decided match (the PLAYED side's view), paid into the
+## save.
+func _settle(outcome: int, duration: float) -> MatchRewards.Result:
 	# The played side's kills pay (README "Earning Rates v2": a kill by the
 	# played side), not every mob death.
 	var result := MatchRewards.compute(
 		chosen_side,
-		player_outcome,
+		MatchRewards.outcome_for_side(chosen_side, outcome),
 		duration,
 		played_side_kills(),
 		maxi(0, heroes_alive),
@@ -507,32 +562,32 @@ func _end_match_with_outcome(outcome: int, beat: float = 0.0) -> void:
 	result.hero_ids.assign(_participating_hero_ids)
 	result.fallen_hero_ids.assign(_fallen_hero_ids)
 	result.monster_id = _monster_id
-
-	# match_ended feeds analytics, audio and the sim.
-	if outcome == MatchRewards.Outcome.WIN:
-		match_ended.emit("Heroes", duration)
-	else:
-		match_ended.emit("Monster", duration)
-
 	_apply_rewards_to_save(result)
-	if beat > 0.0:
-		_show_result_after(result, beat)
-		return
-	_show_result_screen(result)
-	get_tree().paused = true
+	return result
 
 
-## The death beat: the decided match runs on (its clock stopped, the HUD's
-## pause off) for `beat` game seconds, then the result screen comes up over
-## the paused tree. Dropped when that World is gone by then (abort_match) or a
-## new match began.
-func _show_result_after(result: MatchRewards.Result, beat: float) -> void:
-	var serial := _match_serial
-	await get_tree().create_timer(beat, false).timeout
+## The death beat: the decided match is settled at the end of the deciding
+## death's frame and runs on (its clock stopped, the HUD's pause off, no hit
+## landing) until `beat_timer` (game time), then the result screen comes up
+## over the paused tree. Dropped, paying nothing, when that World is gone by
+## then (abort_match) or a new match began.
+func _settle_after_death(outcome: int, duration: float, beat_timer: SceneTreeTimer, serial: int) -> void:
 	if serial != _match_serial or not match_ended_flag:
 		return
+	var result := _settle(outcome, duration)
+	if beat_timer.time_left > 0.0:
+		await beat_timer.timeout
+	if serial != _match_serial or not match_ended_flag:
+		return
+	_show_result(result)
+
+
+## The result screen over the paused tree (result_shown).
+func _show_result(result: MatchRewards.Result) -> void:
+	_death_beat = false
 	_show_result_screen(result)
 	get_tree().paused = true
+	result_shown.emit()
 
 
 func _apply_rewards_to_save(result: MatchRewards.Result) -> void:

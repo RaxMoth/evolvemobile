@@ -148,6 +148,19 @@ anything (see "Verification gate").
 ## Decisions for the user (the default that ships; change or confirm)
 
 Gameplay:
+- **No Reset Progress in a match** (R2): the pause menu's settings sheet hides the button
+  (`SettingsScreen.allow_reset`), because a wipe in a running match let that match pay into the
+  fresh save. Option: keep the button and have the wipe also drop the running match's rewards.
+- **Damaged save values** (R2): a value of the wrong type reads as its default and stays in the
+  file until that value is written again; a save from a newer build is backed up
+  (`save.cfg.v<N>.bak`) and played on what this build knows (its version stamp is lowered on the
+  next save); a file that no longer parses starts a fresh save next to `save.cfg.corrupt.bak`.
+  Options: refuse a newer save with a message, or rewrite repaired values at once.
+- **Match start without a map** (R2): the monster's placement waits up to 10 real seconds
+  (`World.nav_wait_limit_sec`) for the navigation map, then keeps `MonsterSlot.spawn_position`
+  (4509, 1794) in Zone 3 and the match goes on. The match clock and the heroes do not wait (the
+  map answered within about 0.25 s in every windowed run, so the clock loses at most about 0.6
+  game seconds on fast).
 - **AI opponent build**: 3T character + 2T base entries, so a player at the threshold owns more
   ranks than the AI. Options: 3T base entries, a higher `MAX_THREAT`, or keep it.
 - **`THREAT=N` in `tools/sim.sh`** gives both sides their threat-N AI build (the "parity check");
@@ -233,11 +246,15 @@ Look and feel:
   (`CharacterRig.hurt_flash_interval`), and the monsters' flash is a 55 % white mix at its peak
   (`hurt_flash_gain` 1.55 on `monster_base_class.tscn`; heroes and mobs keep the full white).
   Options: a longer interval, the same soft flash for heroes, or a flash only on big hits.
-- **Death beat** (F2): a dying hero, the fox and the monster pop up, fall backwards and fade in
-  0.8 s; the result screen follows 0.95 s after the deciding death. The match keeps running during
-  that second (decided, its clock stopped, Pause off): the survivors move on and the camera shake
-  and kill puffs play. The alternative is to freeze the match at the killing blow and let only
-  the corpse move.
+- **Death beat** (F2, R2): a dying hero, the fox and the monster pop up, fall backwards and fade
+  in 0.8 s; the result screen follows 0.95 s after the deciding death. The match keeps running
+  during that second (decided, its clock stopped, Pause off): the survivors move on and the
+  camera shake and kill puffs play. Since R2 no hit lands in it (every `damage_requested` is
+  canceled), so nobody dies after the decision and no kill feeds the monster; the rewards are
+  paid at the end of the deciding death's frame, after the kill's XP (a deciding kill that
+  evolves the monster pays the new stage). Alternatives: freeze the match at the killing blow
+  and let only the corpse move, or let the world run on and make the result follow its final
+  state.
 - **Draw order** (F2): characters are y-sorted, so a hero standing behind (north of) a big
   monster's feet is behind its body. HP bars and level pills draw above every body, so the bar of
   a hidden hero shows over the monster. Stand-off distances are the next gameplay batch (G1).
@@ -402,7 +419,7 @@ Tools (T1):
 ## Verification gate
 
 Every change passes `tools/lint.sh` (errors=0; every GDScript warning is an error there) and
-`tools/run_tests.sh` (exit 0; 659 tests: 658 passed, 1 skipped headless, the run exits with nothing
+`tools/run_tests.sh` (exit 0; 701 tests: 700 passed, 1 skipped headless, the run exits with nothing
 leaked). A change that must not alter gameplay also keeps the determinism trace byte-identical:
 `MONSTER=all BASELINE_DIR=tools/baselines tools/sim_trace.sh > <new trace>` (exit 0): seeds 1-3 ×
 heroes/monster × every monster as full matches, `JOBS=2` at a time by default (no per-seed split
@@ -541,6 +558,91 @@ Match speed (F3, `tools/bench.sh 3 2 900 300 0 <rigs_awake> <speed>`, back to ba
       uses `GameManager.killer_side`; the sim could use the same rule. Low priority.
 
 ## Changelog
+### 2026-11-12 — fix batch R2: pause-safe timers, match start and end edges, save robustness
+Fourth batch of the second fix run: review findings heroes-5, monsters-2, meta-4, menus-8, hud-8,
+menus-7, vfx-2 / gaps-1, review2:flow-1 and review2:flow-2, and the review gaps "match start with
+the shipped navigation setting" and "corrupt saves". Flagged gameplay, but the traces of all
+three monsters stayed byte-identical (1,998 / 3,428 / 2,846 lines), so `tools/baselines` is
+unchanged: every change acts only on a paused tree, after the match is decided (the sims print
+their END line and quit at `match_ended`), or while the navigation map is late (with the sims'
+synchronous map the placement still tries on the second physics frame).
+
+- **Pause-safe timers** (heroes-5, monsters-2): `SceneTree.create_timer(t)` defaults to
+  `process_always = true`, so Trap Cage, the taunt's cleanup, a mine's lifetime, fuse and free,
+  and a camp's 40 s respawn ran on while the pause menu or the result screen paused the tree: a
+  7 s pause opened the cage and ended the taunt, a 30 s pause removed every mine, and a 40 s
+  pause refilled a cleared camp (more kills, XP and pay). They are `create_timer(t, false)` now,
+  like the slam, the dash and (since G1) the Supply Drop, and run in game time with the match
+  speed. Tests: a 7 s pause keeps the 6 s cage closed (the monster pushed out is held), the 2 s
+  taunt on and a 1 s mine in place, all run out after the resume; a 3 s pause holds a 1.2 s
+  respawn, and at the fast speed (x2.4) it comes between frame 24 and 36. On the old timers all
+  of these fail.
+- **First-match HUD tips** (hud-8): their 1.5 s delay is a pausable timer, so a pause menu opened
+  first holds them back until the resume; they no longer open over the menu and block RESUME.
+- **First-run tour** (menus-7): `MenuRoot._auto_open_tutorial` opens it only over the bare,
+  settled lobby; with HUNT, the settings or the unlock sheet up it looks again every 0.9 s (a
+  HUNT inside the delay used to get the six lobby steps over the pre-round, the gear made it
+  skip the tour for the visit). Render: no tour over the pre-round 1.3 s after the tap, step
+  1 / 6 over the lobby after back.
+- **QUIT TO LOBBY** (menus-8): the confirming tap calls `GameManager.abort_match()` before the
+  tree unpauses, so a kill in the one physics step before the scene change cannot end and pay
+  the forfeited match. Test: a monster death after the confirming tap ends nothing and pays
+  nothing (it ended and paid the match before).
+- **Reset Progress in a match** (meta-4): the pause menu's settings sheet has no Reset button
+  (`SettingsScreen.allow_reset`, an export the pause menu turns off); the lobby's sheet keeps it.
+- **Death beat** (vfx-2, gaps-1, review2:flow-1, review2:flow-2): vfx-2 itself was fixed by the
+  F2 death beat (`5b55a21`); a test in a real World now shows the killing blow's number, the
+  0.6 monster-down shake and its sounds at the kill, and the shake and the number done when the
+  result screen pauses. Three edges of the beat are closed. (1) gaps-1: a world sound still
+  playing when the result screen paused the tree finished when the player left the screen; the
+  new `GameManager.result_shown` stops the pool there (`AudioManager.stop_world_sfx`, no longer
+  at `match_ended`, so the kill's own sounds play), and `play_sfx` starts nothing on a paused
+  tree. (2) flow-1: the kill's XP reaches the monster after the death is announced, so a
+  deciding kill that evolved the monster paid the old stage (Monster side: 25 Leaves and 10 XP
+  per stage short) while the beat showed the evolution. The rewards and the save are now paid at
+  the end of the deciding death's frame (`_settle_after_death`, deferred); `match_ended`, the
+  clock and the outcome stay at the death. Test: a Monster-side kill 1 XP short of Stage II pays
+  200 Leaves / 45 XP and shows Stage II (175 / 35 and Stage I before). (3) flow-2: a hero who
+  died in the beat fell, got a "HAS FALLEN" toast and then celebrated on the result screen. One
+  rule now: no hit lands in the beat (`GameManager` cancels every `damage_requested` while
+  `in_death_beat()`), so nobody dies after the decision and no kill feeds the monster. Test: a
+  1e9 hit on River in the beat lands nothing, no toast, four survivors on the result.
+- **Match start with the shipped navigation setting** (review gap): measured with a muted
+  windowed run on the default settings (asynchronous map and region iterations on): the map
+  answered 10 to 14 physics frames after World entered (about 0.25 s; 0.34 game seconds at the
+  base speed, 0.59 on fast), 14 frames with 12 busy processes on the 8 cores; heroes started to
+  move 3 to 5 frames later. An unthrottled headless run needs 96 frames (1.6 game seconds, 33 ms
+  of wall clock); the old placement gave up after 180 physics frames and left the monster on its
+  scene spot. `world.gd _place_monster` now waits for the map itself: until
+  `GameUtils.nav_map_answers` (synchronised, with polygons) each miss waits for this world's next
+  `NavigationServer2D.map_changed`, then tries on the next physics frame, so the sims' timing is
+  unchanged; `nav_wait_limit_sec` (10 real seconds) is the fallback: the monster keeps
+  `MonsterSlot.spawn_position` (inside Zone 3) and the match goes on. Test: World without its
+  region waits 200 physics frames unplaced, and the region's arrival places it in the zone; a map
+  that never answers places it once at the limit.
+- **Save robustness** (review gap): `test/test_save_robustness.gd` feeds seven save.cfg variants
+  through `PersistedData.load_data`, reads them as the menus and a match do, opens the lobby
+  and starts a match. Before the fix the wrong-types case raised 160 SCRIPT ERRORs (`int()`,
+  `float()`, `bool()` and `String()` of a list, a word or a table in `get_currency`,
+  `get_hero_xp`, `get_skill_ranks`, `get_equipped_capstone`, the quarries, the volumes, the
+  tutorial flags, the analytics and shake settings, `load_saved_choices`), 99 ranks counted 99
+  in `points_spent` (POINTS gates) and `applied_ranks`, and a newer save was overwritten without
+  a copy. Now every count reads through `_as_non_negative_int`, every id through `_as_id`,
+  `get_setting` returns the default when the saved value's type does not fit it, ranks above
+  the maximum count as the maximum, and a newer save is backed up as `save.cfg.v<N>.bak`. What
+  each case does is the README's "Save File" table (missing: defaults; wrong type: default,
+  repaired on the next write; unknown ids: ignored and kept; above max: the max; newer: backed
+  up and played; truncated: kept as `save.cfg.corrupt.bak`, fresh save; empty: fresh save).
+  `GameManager.load_saved_choices()` holds the boot's reads of the saved side, monster and speed.
+- Render (muted, a scratch driver, Heroes side): the pause menu's settings show no Reset
+  Progress; the tips open 1.5 s after the resume, not while paused; Grount killed beside the
+  heroes falls with his 1e9 number while a 1e9 hit on River in the beat lands nothing; the
+  result shows four heroes standing.
+- Gate: `tools/lint.sh` errors=0; `tools/run_tests.sh` 700 passed, 0 failed, 1 skipped (the
+  windowed minimap test; 15 new tests, 2 extended), nothing leaked at exit; each new test was
+  run against the old code (the fixes reverted on a copy) and fails there. The sims were not
+  rerun: with identical traces their matches are the same up to `match_ended`.
+
 ### 2026-11-12 — fix batch R1: River's staff, the range-node freeze, mines after death, the scan dial
 Third batch of the second fix run: review findings heroes-2, heroes-12, meta-1, meta-2, vfx-1 /
 heroes-6, heroes-7 and heroes-9. Gameplay: the traces change because River's staff heals now;

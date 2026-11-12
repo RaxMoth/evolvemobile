@@ -15,7 +15,8 @@ extends Control
 ##   - RESET PROGRESS wipes the save (PersistedData.wipe_progress) behind a
 ##     second tap (a ConfirmButton: armed for 3 s, and the confirming tap
 ##     counts only ConfirmButton.MIN_GAP after the first, so one double tap
-##     never wipes);
+##     never wipes); the lobby's sheet only (allow_reset: the pause menu's
+##     sheet has no reset, a running match would pay into the wiped save);
 ##   - CLOSE, the round close button, a tap on the scrim and ui_cancel (the
 ##     Android back button) save and close it.
 ## While it slides up it holds its TapGuard: the second tap of the double tap
@@ -30,6 +31,10 @@ signal closed
 ## Alpha of the bg_void scrim behind the sheet (the UnlockSheet's).
 const SCRIM_ALPHA := 0.72
 const SLIDE_TIME := 0.22
+
+## Offers RESET PROGRESS. The pause menu turns it off before adding the sheet:
+## no reset in a running match.
+@export var allow_reset: bool = true
 
 var _closing: bool = false
 
@@ -64,6 +69,7 @@ func _ready() -> void:
 	_fill_languages()
 	_shake.set_pressed_no_signal(GameCamera.shake_setting_on())
 	_analytics.set_pressed_no_signal(AnalyticsSink.is_enabled())
+	_reset_button.visible = allow_reset
 	_slide_in()
 
 

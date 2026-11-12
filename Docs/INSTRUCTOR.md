@@ -542,10 +542,13 @@ overlap, so four heroes on one spot show four rows.
 - **Cast facing**: the rig takes its side from the cast's target for 0.3 s, then from the facing
   carrier again.
 - **Death beat**: on `died` a FULL rig on screen leaves its entity and plays the fall as a puppet
-  (`CharacterRig._on_entity_died`); the entity is freed as before. `GameManager` settles the
-  match at the deciding death and shows the result screen `DEATH_BEAT_SEC` later. Anything that
-  keeps a reference to a dead entity across frames must check `is_instance_valid` before passing
-  it on (the Trap Cage did not).
+  (`CharacterRig._on_entity_died`); the entity is freed as before. `GameManager` decides the
+  match at the deciding death, pays it at the end of that frame (after the kill's XP reached the
+  monster: `_settle_after_death`, deferred) and shows the result screen `DEATH_BEAT_SEC` later
+  (`result_shown`, which stops the world's sounds). In the beat every hit is canceled
+  (`in_death_beat()`), so nothing can die after the decision. Anything that keeps a reference to
+  a dead entity across frames must check `is_instance_valid` before passing it on (the Trap Cage
+  did not).
 
 ### 10. Match speed (fix batch F3)
 
@@ -558,6 +561,12 @@ overlap, so four heroes on one spot show four rows.
   with the match. Only what a player must read may ask for real time: scale the duration by
   `Engine.time_scale` (the toast hold, `MatchHud.TOAST_MIN_REAL_HOLD`) instead of leaving game
   time.
+- **Match timers are pausable**: `get_tree().create_timer(t)` defaults to `process_always = true`
+  and keeps counting while the pause menu or the result screen has paused the tree. Anything that
+  belongs to the match passes `false` (`create_timer(t, false)`: the cage, the taunt, mines, the
+  kit, the slam, the dash, camp respawns, the death beat, the HUD tips) or is a node `_process`
+  timer. Only UI on `PROCESS_MODE_ALWAYS` (menus, the pause menu, the result screen) may use an
+  always-processing timer.
 - **Headless runs are not scaled** (`GameManager.speed_scaling` is false without a display): the
   sims and the trace keep 60 steps per game second. A test that needs the speed sets
   `speed_scaling` and restores it (`test/test_match_speed.gd`).

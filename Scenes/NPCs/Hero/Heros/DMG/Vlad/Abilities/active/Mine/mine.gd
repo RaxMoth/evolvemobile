@@ -26,8 +26,9 @@ func _ready() -> void:
 	$Pod/Lamp.self_modulate = UiPalette.get_default().danger
 	queue_redraw()  # for the runtime _draw overlay
 
-	# Auto-destroy after lifetime.
-	await get_tree().create_timer(lifetime).timeout
+	# Auto-destroy after lifetime. Every timer here is pausable (process_always
+	# false): a paused match ages no mine.
+	await get_tree().create_timer(lifetime, false).timeout
 	if not has_exploded:
 		queue_free()
 
@@ -81,7 +82,7 @@ func _explode() -> void:
 	visible = false
 	EventBus.notify_ability_event(self, source_ability, FxEvents.MINE_EXPLODED, global_position, detection_radius)
 	create_tween().tween_property(self, "scale", Vector2(3, 3), 0.2)
-	await get_tree().create_timer(explosion_delay).timeout
+	await get_tree().create_timer(explosion_delay, false).timeout
 	
 	# Every enemy in range, once each (never the placer). owner_entity is
 	# freed once the placer dies, and a freed object is no valid typed argument.
@@ -95,5 +96,5 @@ func _explode() -> void:
 			EventBus.deal_damage(placer, entity, damage, null)
 	
 	# Destroy mine
-	await get_tree().create_timer(0.2).timeout
+	await get_tree().create_timer(0.2, false).timeout
 	queue_free()

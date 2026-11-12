@@ -400,11 +400,12 @@ func _shown_result() -> MatchResultScreen:
 	return null
 
 
-## A death that decides the match: the outcome, the clock, the rewards, the
-## save and match_ended are settled at the death, as before; the result
-## screen and the pause follow GameManager.DEATH_BEAT_SEC of game time later,
-## after the death beat (README "Death beat"). A match that is gone by then (a
-## scene change: abort_match) shows nothing; a timeout has no beat.
+## A death that decides the match: the outcome, the clock and match_ended are
+## settled at the death; the rewards and the save at the end of that frame
+## (after the kill's XP reached the monster); the result screen and the pause
+## follow GameManager.DEATH_BEAT_SEC of game time later, after the death beat
+## (README "Death beat"). A match that is gone by then (a scene change:
+## abort_match) shows nothing; a timeout has no beat.
 func test_result_screen_waits_for_the_death_beat() -> void:
 	if not require_isolated():
 		return
@@ -438,10 +439,14 @@ func test_result_screen_waits_for_the_death_beat() -> void:
 	GameManager._on_entity_died(grount, null)
 	assert_eq(ended, [["Heroes", 125.0]], "match_ended at the death, with the death's clock")
 	assert_false(GameManager.is_match_active(), "decided at the death")
-	assert_eq(PersistedData.get_currency(PersistedData.STEEL), expected.steel, "the rewards are in the save at the death")
+	assert_true(GameManager.in_death_beat(), "the death beat begins")
+	assert_eq(PersistedData.get_currency(PersistedData.STEEL), 0, "paid at the end of the frame, not inside the death")
+	await wait_frames(1)
+	assert_eq(PersistedData.get_currency(PersistedData.STEEL), expected.steel, "the rewards are in the save one frame after the death")
 	assert_true(_shown_result() == null, "no result screen yet")
 	assert_false(get_tree().paused, "the match runs on for the beat")
 	GameManager.abort_match()
+	assert_false(GameManager.in_death_beat(), "a match that is gone has no beat")
 	await wait_seconds(GameManager.DEATH_BEAT_SEC + 0.2)
 	assert_true(_shown_result() == null, "a match that is gone shows no result")
 	assert_false(get_tree().paused, "and pauses nothing")
@@ -459,6 +464,7 @@ func test_result_screen_waits_for_the_death_beat() -> void:
 	var screen := _shown_result()
 	assert_true(screen != null, "the result screen follows the death beat")
 	assert_true(get_tree().paused, "over the paused match")
+	assert_false(GameManager.in_death_beat(), "the beat is over")
 	assert_true(GameManager.DEATH_BEAT_SEC >= CharacterRig.DEATH_TIME, "the beat covers the rig's fall and fade")
 	if screen != null:
 		assert_eq([screen.result.outcome, screen.result.steel, screen.result.gold], [WIN, expected.steel, expected.gold],
@@ -495,3 +501,144 @@ func test_result_screen_waits_for_the_death_beat() -> void:
 	GameManager._participating_hero_ids.assign(heroes_before)
 	GameManager._fallen_hero_ids.clear()
 	await wait_frames(2)
+
+
+# ------------------------------------------- a real match's deciding kill ----
+
+const WORLD := "res://Scenes/World/World.tscn"
+
+
+## A World on `side` with its HUD bound (4 hero cards on the Heroes side).
+func _world(side: int) -> Node:
+	play_side(side)
+	var world := (load(WORLD) as PackedScene).instantiate()
+	add_child(world)
+	for i in 120:
+		if bool(world.get("_monster_placed")) and GameManager.heroes_alive == 4:
+			break
+		await wait_frames(1)
+	assert_true(GameManager.is_match_active(), "the match runs")
+	return world
+
+
+func _heroes() -> Array[HeroBase]:
+	var out: Array[HeroBase] = []
+	for node in get_tree().get_nodes_in_group(&"Hero"):
+		if node is HeroBase and (node as HeroBase).is_alive():
+			out.append(node as HeroBase)
+	return out
+
+
+func _end_world(world: Node) -> void:
+	get_tree().paused = false
+	var screen := _shown_result()
+	if screen != null:
+		screen.queue_free()
+	GameManager.match_ended_flag = true
+	world.queue_free()
+	await wait_frames(3)
+	AudioManager.stop_all()
+
+
+## vfx-2 / gaps-1 / review2:flow-2. The monster dies to a hero's blow in a real
+## World: its hit feedback (number, shake) and its sounds play at the kill, as
+## the match runs on for the death beat; in the beat no hit lands (a hero hit
+## for 1e9 by a mob stays alive, no "HAS FALLEN" toast), so the result shows
+## the four survivors the HUD shows; when the result screen pauses the tree
+## the world's sounds are stopped and nothing new starts, so none finishes
+## when the player leaves the screen.
+func test_the_deciding_kill_plays_out_and_the_pause_silences_the_world() -> void:
+	if not require_isolated():
+		return
+	TutorialOverlay.mark_seen(TutorialOverlay.CHAPTER_HUD)
+	var world := await _world(HEROES)
+	var hud := (world.get_node("MainCam") as GameCamera).hud
+	var cam := world.get_node("MainCam") as GameCamera
+	var vfx := get_tree().get_first_node_in_group(&"vfx") as VfxManager
+	var heroes := _heroes()
+	var monster := EntityRegistry.first_monster() as MonsterBase
+	assert_true(vfx != null and monster != null and heroes.size() == 4, "a World with its VFX, the monster and four heroes")
+	# The fight in view: the monster next to the heroes, under the camera.
+	monster.teleport_to(heroes[0].global_position + Vector2(120.0, 0.0))
+	cam.global_position = heroes[0].global_position
+	await wait_frames(3)
+	AudioManager.stop_world_sfx()
+	OS.delay_msec(60)  # past the sound rate limit of the frames above
+	var numbers_before: int = vfx._numbers_live
+	EventBus.deal_damage(heroes[0], monster, 1e9)
+	assert_false(monster.is_alive(), "the killing blow")
+	assert_false(get_tree().paused, "the match runs on for the death beat")
+	assert_true(vfx._numbers_live > numbers_before, "the kill's number shows at the kill")
+	assert_true(cam.trauma >= vfx.trauma_monster_down - 0.001, "and the monster-down shake")
+	var playing := 0
+	for p in AudioManager._pool:
+		if p.playing:
+			playing += 1
+	assert_true(playing >= 1, "the kill's death and hit sounds play at the kill (%d)" % playing)
+	# A mob's blow on a hero inside the beat lands nowhere.
+	var victim := heroes[1]
+	var hp: float = victim.get_health()
+	await wait_frames(5)
+	assert_eq(EventBus.deal_damage(null, victim, 1e9), 0.0, "no hit lands in the death beat")
+	assert_true(victim.is_alive(), "the hero lives")
+	assert_near(victim.get_health(), hp, 0.001)
+	var toasts := Array(hud.pending_toasts()) + [hud.current_toast()]
+	assert_false(toasts.any(func(t: String) -> bool: return t.contains("FALLEN")), "no HAS FALLEN toast: %s" % str(toasts))
+	# A long world sound (0.6 s) that starts late in the beat is still playing
+	# when the result screen pauses the tree.
+	await wait_seconds(GameManager.DEATH_BEAT_SEC - 0.3)
+	assert_true(_shown_result() == null, "still inside the beat")
+	OS.delay_msec(60)
+	assert_true(AudioManager.play_sfx(&"death_big", heroes[0].global_position), "a world sound late in the beat")
+	await wait_seconds(0.3)
+	var screen := _shown_result()
+	assert_true(screen != null and get_tree().paused, "the result screen over the paused match")
+	assert_near(cam.trauma, 0.0, 0.001, "the shake played out inside the beat")
+	assert_eq(vfx._numbers_live, 0, "the kill's number aged out inside the beat")
+	if screen != null:
+		assert_eq(screen.result.heroes_alive, 4, "four survivors, as the HUD shows")
+		assert_eq(screen.result.fallen_hero_ids.size(), 0, "nobody fell")
+	# A paused player reports playing false but keeps its playback (and
+	# finishes it on the unpause); a stopped one has none.
+	for p in AudioManager._pool:
+		assert_false(p.has_stream_playback(), "the pause stopped every world sound")
+	OS.delay_msec(60)
+	assert_false(AudioManager.play_sfx(&"hit", heroes[0].global_position), "no world sound starts on the paused tree")
+	await _end_world(world)
+
+
+## review2:flow-1. Monster side: the kill that decides the match also evolves
+## the monster (its XP reaches the monster after the death is announced). The
+## match is settled after that XP, so the result and the save pay the new
+## stage; the deciding kill's evolution is the only one (no hit lands in the
+## beat).
+func test_a_deciding_kill_that_evolves_the_monster_pays_the_new_stage() -> void:
+	if not require_isolated():
+		return
+	TutorialOverlay.mark_seen(TutorialOverlay.CHAPTER_HUD)
+	var world := await _world(MONSTER)
+	var heroes := _heroes()
+	var monster := EntityRegistry.first_monster() as MonsterBase
+	assert_eq(monster.get_stage(), 1)
+	for i in 3:
+		EventBus.deal_damage(null, heroes[i], 1e9)
+	assert_eq(GameManager.heroes_alive, 1, "one hero left")
+	assert_true(GameManager.is_match_active())
+	monster.current_xp = float(monster._get_next_evolution_threshold()) - 1.0
+	var last := heroes[3]
+	last.global_position = monster.global_position + Vector2(60.0, 0.0)
+	EventBus.deal_damage(monster, last, 1e9)
+	assert_false(GameManager.is_match_active(), "decided")
+	assert_eq(monster.get_stage(), 2, "the kill's XP evolved the monster")
+	await wait_frames(1)
+	var expected := MatchRewards.compute(MONSTER, WIN, GameManager.get_match_elapsed(), GameManager.played_side_kills(),
+			0, 2, GameManager.match_threat)
+	assert_eq(PersistedData.get_currency(PersistedData.LEAVES), expected.leaves, "the save pays Stage II")
+	await wait_seconds(GameManager.DEATH_BEAT_SEC)
+	var screen := _shown_result()
+	assert_true(screen != null, "the result screen")
+	if screen != null:
+		assert_eq(screen.result.monster_stage, 2, "and shows Stage II")
+		assert_eq([screen.result.leaves, screen.result.xp], [expected.leaves, expected.xp])
+	assert_eq(monster.get_stage(), 2, "nothing evolved it further in the beat")
+	await _end_world(world)

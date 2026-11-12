@@ -378,7 +378,9 @@ func _on_mob_died(mob: MobBase) -> void:
 	# into virtual_count on the next activate().
 	_pending_respawns += 1
 	var epoch := _epoch
-	await get_tree().create_timer(respawn_time).timeout
+	# Pausable (process_always false): the pause menu and the result screen
+	# hold the respawn with the match clock (it runs in game time).
+	await get_tree().create_timer(respawn_time, false).timeout
 	if epoch != _epoch or not is_inside_tree():
 		return
 	_pending_respawns -= 1

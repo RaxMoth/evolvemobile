@@ -123,7 +123,8 @@ func _apply_taunt(enemy: Node2D, caster: Node2D) -> void:
 
 # FIXED: Separate timer function with validation
 func _schedule_taunt_cleanup(enemy: Node2D, taunt: Node, duration_time: float) -> void:
-	await enemy.get_tree().create_timer(duration_time).timeout
+	# Pausable (process_always false): a paused match keeps the taunt.
+	await enemy.get_tree().create_timer(duration_time, false).timeout
 	
 	# CRITICAL: Validate before cleanup
 	if is_instance_valid(taunt) and is_instance_valid(enemy):

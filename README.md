@@ -108,6 +108,13 @@ waiting, and the player can double that with the HUD's speed button.
   every duration in this README count game seconds. At the base speed the
   clock runs 1.2 times as fast as a wall clock (a full 10-minute match takes
   8:20), on fast 2.4 times (4:10).
+- **Match timers stop with the match**: everything that belongs to the
+  match waits on a pausable timer (`create_timer(t, false)`: Trap Cage, the
+  taunt, a mine's lifetime and fuse, the Supply Drop, the slam and dash, a
+  camp's respawn, the death beat, the first match's HUD tips), so the pause
+  menu and the result screen hold it, and it runs in game seconds like the
+  clock. Real time is kept only for taps, the sound rate limit and the match
+  start's wait for the navigation map (Spawn System).
 - **Only a running match is scaled**: `GameManager._sync_time_scale()` puts
   `Engine.time_scale` back to 1 for the pause menu (any paused tree), for a
   decided match (the death beat and the result screen play at normal speed),
@@ -632,7 +639,8 @@ eligible per match and every camp respawns after 40 s):
 ### Spawn System
 
 - **MobSpawnArea**: 39 circular camps (116 mobs configured). `SpawnManager` picks 26–30 of them as world-eligible per match and only instantiates a camp while a hero is inside its activation ring (200 px; despawn beyond 300 px)
-- **Respawn Time**: 40 s on every camp in `World.tscn` (prefab default 10 s). Dead and despawned mobs are recycled from a pool instead of re-instantiated
+- **Respawn Time**: 40 s on every camp in `World.tscn` (prefab default 10 s), in game seconds on a pausable timer (a paused match respawns nothing). Dead and despawned mobs are recycled from a pool instead of re-instantiated
+- **Monster placement** (`world.gd _place_monster`): the start waits for the navigation map, not a number of frames. Until the map answers (`GameUtils.nav_map_answers`: synchronised, with the region's polygons in) every miss waits for the world's next map sync (`NavigationServer2D.map_changed`), then tries on the physics frame after it. With the shipped asynchronous map and region iterations the map answered 10 to 14 physics frames after World entered in a muted 60 fps window (about 0.25 s; 0.34 to 0.59 game seconds at the base and the fast speed; 14 frames under the load of 12 busy processes on 8 cores) and about 95 in an unthrottled headless run (the sims and tests turn the asynchronous iterations off: there it answers on the second physics frame, as before). If it never answers within `nav_wait_limit_sec` (10 real seconds), the monster keeps `MonsterSlot.spawn_position`, inside Zone 3, and the match goes on. The old placement gave up after 180 physics frames, frames that an unthrottled or a fast run passes in a fraction of the wait
 - **Leash Distance**: Mobs return if heroes run too far (100 px from the camp centre)
 - **Camp Clearing**: Important strategic decision (delay monster vs gain XP)
 
@@ -1351,11 +1359,15 @@ writes gameplay state, so `tools/sim_trace.sh` stays byte-identical.
     - The pause menu (`Hud/PauseMenu.tscn`, `pause_menu.gd`, a Root child,
       `process_mode` ALWAYS): a `PanelLeafy` card over the `bg_void` scrim; it
       pauses the tree while it is up. RESUME (or back again) unpauses;
-      SETTINGS opens the settings sheet over it (back closes the sheet
-      first); QUIT TO LOBBY (a `ConfirmButton`) arms on the first tap
-      ("Leaving ends the hunt. It pays no rewards.", 3 s) and on a second
-      tap at least 0.6 s later goes to MenuRoot (`lobby_scene_path`; World's
-      exit stops the clock), tracked as `match_quit`. Opening the menu
+      SETTINGS opens the settings sheet over it without Reset Progress
+      (`allow_reset` off: a wipe in a running match would let that match
+      pay into the fresh save; back closes the sheet first); QUIT TO LOBBY
+      (a `ConfirmButton`) arms on the first tap ("Leaving ends the hunt. It
+      pays no rewards.", 3 s) and on a second tap at least 0.6 s later stops
+      the match (`GameManager.abort_match()`, before the tree unpauses: the
+      one physics step before the scene change can no longer end and pay
+      it) and goes to MenuRoot (`lobby_scene_path`), tracked as
+      `match_quit`. Opening the menu
       disarms it, and every arming starts a fresh 3 s. Its `opened` / `resumed` swap the Pause icon (wired in
       MatchHud.tscn).
     - Speed (`%Speed`, 62x64 like Pause, right of it; `pressed` wired in
@@ -1364,10 +1376,13 @@ writes gameplay state, so `tools/sim_trace.sh` stays byte-identical.
       setting, not a number: one arrow (`ui_play`) on the grey `ButtonRound`
       at the normal speed, two arrows (`ui_fast_forward`) on the amber
       `ButtonRoundPrimary` on fast. Tooltip "Match speed".
-    - The first match plays the tutorial's HUD chapter 1.5 s after the HUD
-      binds (TutorialOverlay `CHAPTER_HUD`, setting `tutorial_hud_seen`): the
-      cooldown slots, then the pause and speed buttons. It never pauses the
-      match, so a headless sim plays the same match with or without it.
+    - The first match plays the tutorial's HUD chapter 1.5 s of running
+      match after the HUD binds (TutorialOverlay `CHAPTER_HUD`, setting
+      `tutorial_hud_seen`): the cooldown slots, then the pause and speed
+      buttons. The delay is a pausable timer, so a pause menu opened first
+      holds the tips back until the resume (they never open over it). It
+      never pauses the match, so a headless sim plays the same match with or
+      without it.
     - Clock chip: `GameManager.get_match_elapsed()` as "03:42" (game
       seconds: it runs with the match speed).
     - Enemy tracker: heroes side, the monster's head, "STAGE II" and its HP;
@@ -1814,7 +1829,8 @@ built.
 `Scenes/NPCs/Monster/Grount/grount_strategy.tres`, a `MonsterStrategy` resource):
 
 - **Spawn**: a random reachable point of Zone 3 (x 3500–5500) at match start
-  (`world.gd monster_spawn_zone`; isolated nav islands are rejected)
+  (`world.gd monster_spawn_zone`; isolated nav islands are rejected), once
+  the navigation map answers (see Spawn System)
 - **Farm** (Stage 1): avoids heroes (moves away from any hero within 400 px, fights back only when
   cornered within 70 px), paths to the camp with the most mobs and no hero within 500 px; only
   camps whose mobs it can beat at its stage (`farm_max_mob_health`: Bats at Stage 1, Hogs from
@@ -2015,6 +2031,25 @@ The chart owns all state. Its active state is **stepped** by the `TickScheduler`
   ability's SVG tile; `get_display_icon(caster = null)` is what a HUD slot
   shows (read-only; RiverBasicAttack returns `heal_icon` while River holds the
   heal staff, every other ability its `icon`)
+
+### Save File (PersistedData)
+
+`user://save.cfg` (a `ConfigFile`, layout in `Scripts/persisted_data.gd`),
+written atomically (`save.cfg.tmp`, then a rename) and versioned
+(`[meta] save_version`; an older file is backed up as `save.cfg.v<N>.bak` and
+migrated). **Save robustness**: a damaged, hand-edited or newer file never
+crashes a read or locks the player out (`test/test_save_robustness.gd` loads
+each case below, opens the lobby and starts a match on it):
+
+| Case | What happens |
+|---|---|
+| Missing section or key | Read as its default (0, empty, the roster default) |
+| Value of the wrong type | Read as its default: counts take a non-negative int (a number written as text counts, anything else is 0), ids a String, settings the type of the caller's default (`PersistedData.get_setting`); the next write of that value repairs the file |
+| Unknown character, tree or node id | Ignored by the game and kept in the file (a retired node was still bought) |
+| Rank above a node's maximum | Counts as the maximum (`MetaSkillManager.points_spent`, `applied_ranks`, `owned_ranks`) |
+| `save_version` from a newer build | Backed up as `save.cfg.v<N>.bak`, then played on what this build knows; unknown sections stay in the file |
+| Truncated file that no longer parses | Kept as `save.cfg.corrupt.bak`; a fresh save starts (a finished `save.cfg.tmp` is recovered first) |
+| Empty file | A fresh save |
 
 ### Shared Monster Framework (MonsterBase, MonsterStats, AbilityBase)
 
@@ -2538,7 +2573,10 @@ and the match result's LOBBY returns to it. The old `MainMenu.tscn`,
 ### Tutorial, Codex and Settings (first-run flow)
 
 - **First-run flow**: the first launch opens MenuRoot on the lobby; 0.9 s in,
-  the tutorial's camp tour plays over it (setting `tutorial_seen`). The first
+  the tutorial's camp tour plays over it (setting `tutorial_seen`). Over the
+  bare, settled lobby only: while another screen (a HUNT tapped in those
+  0.9 s), the settings or the unlock sheet is up, it looks again every 0.9 s
+  and plays once the player is back on the lobby. The first
   match plays its HUD tips (setting `tutorial_hud_seen`). Skipping counts as
   seen. Both can be played again from the Codex's guide.
 - **`TutorialOverlay`** (`Scenes/UI/Tutorial/`, a CanvasLayer at layer 20,
@@ -2608,7 +2646,8 @@ and the match result's LOBBY returns to it. The old `MainMenu.tscn`,
   statistics: "Stored only on this device. Nothing is uploaded."); RESET
   PROGRESS (a `ConfirmButton`: the first tap arms it for 3 s, a second tap
   at least 0.6 s later wipes the progress, the settings stay; both taps of
-  one double tap only arm it); CLOSE, the round close button, a tap on the
+  one double tap only arm it; the lobby's sheet only: the pause menu sets
+  `allow_reset` off, so no reset happens in a running match); CLOSE, the round close button, a tap on the
   scrim and back save and close it (`closed`). While it slides up it holds
   its `TapGuard`, so the second tap of the double tap that opened it does
   not close it on the scrim. All wiring is in the scene.
@@ -2714,14 +2753,24 @@ ALWAYS. It replaced the old `MatchResult` overlay (deleted in 8.3) with the same
 `result_heroes.png`, `result_monster.png`, `result_heroes_defeat.png`.
 
 **Death beat**: a death that decides the match (the monster's, or the last
-hero's) settles everything at once, as before: the outcome, the clock, the
-rewards, the save and `match_ended`. The result screen and the pause follow
-`GameManager.DEATH_BEAT_SEC` (0.95 s of game time: the rig's 0.8 s fall and
-fade plus a breath) later, so the monster no longer vanishes under a result
-screen that pops in the same frame. During the beat the match runs on,
-decided: its clock is stopped and the HUD's Pause and the back button do
-nothing (`is_match_active()` is false). A match that is gone by then (a
-scene change: `abort_match()`) shows nothing. A timeout has no beat.
+hero's) ends it at once: the outcome, the clock and `match_ended`. The
+rewards and the save follow at the end of that frame, after the kill's XP
+has reached the monster (`EntityBase` grants it after announcing the death),
+so a deciding kill that evolves the monster pays and shows the new stage.
+The result screen and the pause follow `GameManager.DEATH_BEAT_SEC` (0.95 s
+of game time: the rig's 0.8 s fall and fade plus a breath) later, so the
+monster no longer vanishes under a result screen that pops in the same
+frame; the killing blow's number, shake and sounds play at the kill. During
+the beat the match runs on, decided: its clock is stopped, the HUD's Pause
+and the back button do nothing (`is_match_active()` is false), and no hit
+lands (`GameManager.in_death_beat()`: every `damage_requested` is canceled),
+so nobody dies after the decision, no kill feeds the monster, and the beat,
+the result screen and the rewards tell the same story. When the result
+screen pauses the tree, `GameManager.result_shown` stops the world's sounds
+(`AudioManager.stop_world_sfx`; a paused pool player would finish its sound
+when the player leaves the screen), and `play_sfx` starts nothing on a
+paused tree. A match that is gone by then (a scene change: `abort_match()`)
+shows nothing. A timeout has no beat.
 
 - **Ribbon**: `MatchRewards.outcome_label` (VICTORY / DEFEAT / TIME UP, 54 px
   `BannerTitle`) on `BannerVictory` (copper) for a heroes win,
@@ -3091,7 +3140,7 @@ No tool can pass by accident, and none leaks when it is stopped:
   (a script error aborts the function it is in, so the test's later checks
   never ran: a `Logger` in `test/run_tests.gd` catches it and fails the test
   that was running). A skipped test (`skip()`) counts as skipped, not passed:
-  `== 672 passed, 0 failed, 1 skipped ==` (the rendered minimap test). A run
+  `== 700 passed, 0 failed, 1 skipped ==` (the rendered minimap test). A run
   outside the isolated `user://` (the runner started by hand on a copy) skips
   the save tests, prints `NOT ISOLATED` and exits 1. A test still running
   after 120 s is named (`TIMEOUT <file>::<test>`) and the run is killed: a

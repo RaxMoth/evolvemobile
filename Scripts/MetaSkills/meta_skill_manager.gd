@@ -227,11 +227,16 @@ func owner_level(t: MetaSkillTree) -> int:
 
 
 ## Ranks owned in a tree (the POINTS gate's currency), unknown ids included:
-## a node retired from the data was still bought.
+## a node retired from the data was still bought. A known node counts at most
+## its max rank (a hand-edited save cannot open tiers).
 func points_spent(tree_id: StringName) -> int:
+	var t: MetaSkillTree = get_tree_def(tree_id)
+	var ranks := PersistedData.get_skill_ranks(tree_id)
 	var total := 0
-	for r: Variant in PersistedData.get_skill_ranks(tree_id).values():
-		total += int(r)
+	for id: String in ranks:
+		var n: MetaSkillNode = t.find_node(StringName(id)) if t != null else null
+		var rank: int = int(ranks[id])
+		total += mini(rank, n.max_rank) if n != null else rank
 	return total
 
 
@@ -480,9 +485,9 @@ func apply_ability_nodes_to_monster(monster_id: StringName, abilities: Array[Abi
 
 
 ## The nodes of a tree that take effect on a spawn of the played side, node
-## id -> rank: every owned node of the tree at its owned rank, except the
-## capstones that are not the equipped one. Unknown ids (no such node) and
-## hidden nodes are left out.
+## id -> rank: every owned node of the tree at its owned rank (at most its max
+## rank), except the capstones that are not the equipped one. Unknown ids (no
+## such node) and hidden nodes are left out.
 func applied_ranks(tree_id: StringName) -> Dictionary[StringName, int]:
 	var out: Dictionary[StringName, int] = {}
 	var t: MetaSkillTree = get_tree_def(tree_id)
@@ -491,7 +496,7 @@ func applied_ranks(tree_id: StringName) -> Dictionary[StringName, int]:
 	var ranks := PersistedData.get_skill_ranks(tree_id)
 	var equipped := equipped_capstone(tree_id)
 	for n in t.shown_nodes():
-		var rank: int = int(ranks.get(String(n.id), 0))
+		var rank: int = mini(int(ranks.get(String(n.id), 0)), n.max_rank)
 		if rank >= 1 and (not n.capstone or n.id == equipped):
 			out[n.id] = rank
 	return out

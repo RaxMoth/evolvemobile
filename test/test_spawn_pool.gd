@@ -213,3 +213,46 @@ func test_a_mob_scene_can_override_the_combat_defaults() -> void:
 	assert_near(m.strafe_speed, 55.0, 0.001, "scene strafe_speed kept")
 	assert_near(m.alert_allies_radius, 120.0, 0.001, "scene alert_allies_radius kept")
 	m.queue_free()
+
+
+## monsters-2: a cleared camp respawns in match time. The pause menu's pause
+## holds the respawn (a pausable timer), and it runs with the match speed:
+## at the fast speed (x2.4) 1.2 game seconds pass in 30 frames.
+func test_a_pause_holds_the_respawn_and_it_runs_in_game_time() -> void:
+	vlad = await spawn_frozen("res://Scenes/NPCs/Hero/Heros/DMG/Vlad/Vlad.tscn", Vector2(4000, 4000))
+	area.respawn_time = 1.2
+	area.activate()
+	await wait_physics_frames(4)
+	EventBus.deal_damage(vlad, area.spawned_mobs[0], 9999.0)
+	await wait_frames(2)
+	assert_eq(area.spawned_mobs.size(), 2, "one dead")
+	get_tree().paused = true
+	await wait_seconds(3.0)  # an always-processing timer: runs on the paused tree
+	var live_while_paused := area.spawned_mobs.size()
+	var pending_while_paused := area._pending_respawns
+	get_tree().paused = false
+	assert_eq(live_while_paused, 2, "3 s of pause: no respawn")
+	assert_eq(pending_while_paused, 1, "it is still pending")
+	await wait_seconds(1.4)
+	assert_eq(area.spawned_mobs.size(), 3, "running again, it respawns")
+	# The fast match speed: Engine.time_scale 2.4, a frame is 0.04 game seconds.
+	var scaling_before := GameManager.speed_scaling
+	var fast_before := GameManager.match_fast
+	GameManager.speed_scaling = true
+	GameManager._match_time = 0.0
+	GameManager._match_active = true
+	GameManager.match_ended_flag = false
+	GameManager.set_match_fast(true, false)
+	assert_near(Engine.time_scale, GameManager.MATCH_BASE_SPEED * GameManager.MATCH_FAST_FACTOR, 0.0001)
+	EventBus.deal_damage(vlad, area.spawned_mobs[0], 9999.0)
+	await wait_frames(24)
+	var live_early := area.spawned_mobs.size()
+	await wait_frames(12)
+	var live_late := area.spawned_mobs.size()
+	GameManager.abort_match()
+	GameManager.match_ended_flag = true
+	GameManager.speed_scaling = scaling_before
+	GameManager.set_match_fast(fast_before, false)
+	Engine.time_scale = 1.0
+	assert_eq(live_early, 2, "24 frames are 0.96 game seconds: not yet")
+	assert_eq(live_late, 3, "36 frames are 1.44 game seconds: respawned")

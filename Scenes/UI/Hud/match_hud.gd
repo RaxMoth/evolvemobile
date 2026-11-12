@@ -41,7 +41,9 @@ extends CanvasLayer
 ## next living hero so the camera does not stay at the death spot.
 ## The first match plays the tutorial's HUD chapter (TutorialOverlay
 ## CHAPTER_HUD: the cooldown slots, the pause and speed buttons)
-## HUD_TUTORIAL_DELAY seconds after the HUD binds; it never pauses the match.
+## HUD_TUTORIAL_DELAY seconds of the running match after the HUD binds (a
+## pausable timer: a pause menu opened first holds it back until the resume,
+## so the tips never open over the menu); it never pauses the match.
 
 signal hero_selected(hero: Node)
 ## The Follow button: centre the camera on what it follows again.
@@ -162,7 +164,8 @@ func _bind() -> void:
 	_refresh_top()
 	set_process(true)
 	if not TutorialOverlay.has_been_seen(TutorialOverlay.CHAPTER_HUD):
-		get_tree().create_timer(HUD_TUTORIAL_DELAY).timeout.connect(_open_hud_tutorial)
+		# process_always false: the delay only runs while the tree is unpaused.
+		get_tree().create_timer(HUD_TUTORIAL_DELAY, false).timeout.connect(_open_hud_tutorial)
 
 
 ## The first match's HUD tips (TutorialOverlay CHAPTER_HUD) over the HUD.

@@ -39,8 +39,10 @@ func _ready() -> void:
 	# Initial scan for enemies
 	_scan_for_enemies()
 	
-	# Expire after duration
-	await get_tree().create_timer(duration).timeout
+	# Expire after duration: a pausable timer (process_always false), so the
+	# pause menu and the result screen hold the cage with the match. It runs in
+	# game time (Engine.time_scale), as the match does.
+	await get_tree().create_timer(duration, false).timeout
 	_expire()
 
 func _process(delta: float) -> void:

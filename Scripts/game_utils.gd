@@ -47,6 +47,21 @@ func usable_nav_map(world: World2D) -> RID:
 	return nav_map
 
 
+## How close to a point on the mesh a closest-point query must land for the map
+## to count as answering there (random_reachable_point, nav_map_answers).
+const NAV_ANSWER_REACH: float = 64.0
+
+
+## True when the world's navigation map answers queries at `probe` (a point on
+## the mesh): synchronised, with regions, and with their polygons in. A
+## region's polygons reach the map one sync after the region itself; until
+## then every closest-point query returns the origin.
+func nav_map_answers(world: World2D, probe: Vector2) -> bool:
+	var nav_map: RID = usable_nav_map(world)
+	return nav_map.is_valid() \
+		and NavigationServer2D.map_get_closest_point(nav_map, probe).distance_to(probe) <= NAV_ANSWER_REACH
+
+
 ## A random point inside `rect` that lies on the navigation mesh and is not on
 ## an isolated nav island (the map has one-tile islands): a path from it
 ## toward `from` must either arrive or leave the point by at least
@@ -61,7 +76,7 @@ func random_reachable_point(world: World2D, rect: Rect2, from: Vector2, fallback
 	if not nav_map.is_valid():
 		return fallback
 	var start: Vector2 = NavigationServer2D.map_get_closest_point(nav_map, from)
-	if start.distance_to(from) > 64.0:
+	if start.distance_to(from) > NAV_ANSWER_REACH:
 		return fallback  # the map has regions but no queryable polygons yet
 	for i in range(tries):
 		var p := Vector2(randf_range(rect.position.x, rect.end.x), randf_range(rect.position.y, rect.end.y))

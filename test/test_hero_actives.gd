@@ -429,3 +429,53 @@ func test_a_supply_drop_outlives_river() -> void:
 	await wait_seconds(0.8)
 	assert_false(is_instance_valid(kit), "then it is gone")
 	vlad.queue_free()
+
+
+## heroes-5: the match's pause holds Trap Cage, the taunt and a mine. Their
+## lifetimes run on pausable timers (game time), so a pause longer than every
+## lifetime expires nothing: the cage still holds the monster and the taunt is
+## still on after it; once the match runs again they run out. (The timers used
+## to keep running on the paused tree: a pause freed the monster from the cage
+## and the taunt and removed every mine.)
+func test_a_pause_holds_the_cage_the_taunt_and_a_mine() -> void:
+	var ted := await spawn_frozen(TED, Vector2(0, 0))
+	var irelia := await spawn_frozen(IRELIA, Vector2(1880, 0))
+	var grount := await spawn_frozen(GROUNT, Vector2(2000, 0))
+	var cage_ult: AbilityBase = (ted.get_node("AbilitySystem") as AbilitySystem).ultimate_ability
+	cage_ult.ability_range = 3000.0  # Ted's own copy: a throw across the test bed
+	var taunt_ult: AbilityBase = (irelia.get_node("AbilitySystem") as AbilitySystem).ultimate_ability
+	taunt_ult.duration = 2.0  # Irelia's own copy
+	var before: Array[Node] = get_children()
+	cage_ult.execute(ted, grount)
+	var cage := _new_cage(self, before)
+	assert_true(cage != null, "a cage")
+	if cage == null:
+		for n: Node in [ted, irelia, grount]:
+			n.queue_free()
+		return
+	assert_eq(cage.duration, 6.0)
+	taunt_ult.execute(irelia)
+	assert_true(grount.has_node(^"TauntEffect"), "the monster is taunted")
+	var mine := (load(MINE) as PackedScene).instantiate() as Mine
+	mine.lifetime = 1.0
+	mine.position = Vector2(-3000, 0)
+	add_child(mine)
+	get_tree().paused = true
+	await wait_seconds(7.0)  # an always-processing timer: runs on the paused tree
+	var cage_held := cage.cage_active
+	var taunt_held := grount.has_node(^"TauntEffect")
+	var mine_held := is_instance_valid(mine)
+	get_tree().paused = false
+	assert_true(cage_held, "7 s of pause: the 6 s cage is still closed")
+	assert_true(taunt_held, "the 2 s taunt is still on")
+	assert_true(mine_held, "the 1 s mine is still there")
+	grount.global_position = cage.global_position + Vector2(300, 0)
+	await wait_frames(2)
+	assert_true(grount.global_position.distance_to(cage.global_position) < cage.cage_radius, "the cage still holds the monster")
+	await wait_seconds(2.2)
+	assert_false(grount.has_node(^"TauntEffect"), "running again, the taunt ends")
+	assert_false(is_instance_valid(mine), "and the mine runs out")
+	await wait_seconds(4.0)
+	assert_false(is_instance_valid(cage) and cage.cage_active, "and the cage opens")
+	for n: Node in [ted, irelia, grount]:
+		n.queue_free()

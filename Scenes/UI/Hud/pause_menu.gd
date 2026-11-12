@@ -7,13 +7,15 @@ extends Control
 ## tree while it is up:
 ##   - RESUME (or ui_cancel again) closes it and unpauses;
 ##   - SETTINGS opens the SettingsScreen sheet over it (back closes the sheet
-##     first);
+##     first), without Reset Progress (allow_reset off): a wipe in a running
+##     match would let that match pay into the fresh save;
 ##   - QUIT TO LOBBY asks for a second tap (a ConfirmButton: armed for 3 s,
 ##     and the confirming tap counts only ConfirmButton.MIN_GAP after the
 ##     first, so one double tap never forfeits the match; the match pays
-##     nothing), then leaves for the menu (lobby_scene_path); World's exit
-##     stops the match clock (GameManager.abort_match). Opening the menu
-##     disarms it.
+##     nothing), then stops the match (GameManager.abort_match, before the
+##     tree unpauses: the one physics step before the scene change can no
+##     longer end and pay it) and leaves for the menu (lobby_scene_path).
+##     Opening the menu disarms it.
 ## Theme variations only (PanelLeafy, HeaderLarge, BodyDim, ButtonPrimary,
 ## Button, ButtonMonster); the scrim takes the palette's bg_void. Every
 ## connection is in PauseMenu.tscn.
@@ -90,6 +92,7 @@ func _on_settings_pressed() -> void:
 	if settings() != null:
 		return
 	_settings = SETTINGS_SCENE.instantiate() as SettingsScreen
+	_settings.allow_reset = false
 	add_child(_settings)
 
 
@@ -108,6 +111,10 @@ func _on_quit_confirmed() -> void:
 	_leaving = true
 	quit_requested.emit()
 	AnalyticsSink.track(&"match_quit", {"elapsed": snappedf(GameManager.get_match_elapsed(), 0.1)})
+	# The forfeit stops the match now: World only leaves at the end of the
+	# frame, after one unpaused physics step in which a killing blow would
+	# still end the match and pay it.
+	GameManager.abort_match()
 	if not changes_scene:
 		return
 	get_tree().paused = false

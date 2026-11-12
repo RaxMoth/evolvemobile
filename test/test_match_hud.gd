@@ -367,3 +367,46 @@ func _kill(hero: Node) -> void:
 			break
 		EventBus.deal_damage(null, h, 1.0e7)
 	assert_false(h.is_alive(), "%s is dead" % h.name)
+
+
+## hud-8: the first match's HUD tips never open over the pause menu. Their
+## delay (HUD_TUTORIAL_DELAY) is a pausable timer: a pause menu opened right
+## after the HUD binds holds them back for as long as it is up, and they open
+## HUD_TUTORIAL_DELAY of running match after the resume.
+func test_the_hud_tips_wait_for_the_pause_menu() -> void:
+	if not require_isolated():
+		return
+	TutorialOverlay.forget(TutorialOverlay.CHAPTER_HUD)
+	var side_before: int = GameManager.chosen_side
+	GameManager.chosen_side = MatchRewards.Side.HEROES
+	var world := (load(WORLD) as PackedScene).instantiate()
+	add_child(world)
+	var hud := (world.get_node("MainCam") as GameCamera).hud
+	for i in range(60):  # the HUD binds two frames after _ready
+		if hud.cards.size() == 4:
+			break
+		await wait_frames(1)
+	hud.pause_menu().open()
+	await wait_seconds(MatchHud.HUD_TUTORIAL_DELAY * 2.0)  # an always-processing timer: runs while paused
+	var over_the_menu := _tips(hud)
+	hud.pause_menu().resume()
+	assert_eq(over_the_menu, 0, "no tips over the pause menu")
+	await wait_seconds(MatchHud.HUD_TUTORIAL_DELAY * 0.5)
+	assert_eq(_tips(hud), 0, "half the delay after the resume: not yet")
+	await wait_seconds(MatchHud.HUD_TUTORIAL_DELAY * 0.5 + 0.1)
+	assert_eq(_tips(hud), 1, "the delay of running match after the resume: the tips")
+	world.queue_free()
+	await wait_frames(2)
+	TutorialOverlay.mark_seen(TutorialOverlay.CHAPTER_HUD)
+	GameManager.chosen_side = side_before
+	GameManager.match_ended_flag = true
+	get_tree().paused = false
+	AudioManager.stop_music()
+
+
+func _tips(hud: MatchHud) -> int:
+	var count := 0
+	for child in hud.get_children():
+		if child is TutorialOverlay and not child.is_queued_for_deletion():
+			count += 1
+	return count

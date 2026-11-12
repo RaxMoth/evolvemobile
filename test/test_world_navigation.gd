@@ -100,3 +100,62 @@ func _is_lone_tile(ground: TileMapLayer, cell: Vector2i) -> bool:
 		if _walkable(ground, cell + off):
 			return false
 	return true
+
+
+## The match start waits for the navigation map, not a number of frames
+## (README "Spawn System"). The shipped asynchronous iterations make the map
+## answer about 95 physics frames after World enters in an unthrottled
+## headless run (10 to 15 in a 60 fps window), and longer under load; the
+## placement used to give up after 180 physics frames and leave the monster
+## where the scene put it. Here the map has no region for 200 physics frames
+## (World's Navigation is taken out; a disabled region still answers
+## closest-point queries): the monster waits unplaced, and the first map sync
+## after the region is back places it in the spawn zone. A map that never
+## answers within nav_wait_limit_sec leaves it on MonsterSlot's spawn and the
+## match goes on (monster_placed).
+func test_the_monster_placement_waits_for_the_map() -> void:
+	var side_before: int = GameManager.chosen_side
+	GameManager.chosen_side = MatchRewards.Side.HEROES
+	var world := (load(WORLD) as PackedScene).instantiate()
+	var region := world.get_node("Navigation") as NavigationRegion2D
+	world.remove_child(region)
+	region.owner = null
+	world.set("nav_wait_limit_sec", 60.0)
+	add_child(world)
+	var slot := world.get_node("MonsterSlot") as MonsterSlot
+	await wait_physics_frames(200)
+	assert_false(bool(world.get("_monster_placed")), "200 physics frames without a map: still waiting")
+	assert_eq(slot.monster.global_position, slot.spawn_position, "on the scene's spawn")
+	world.add_child(region)
+	for i in 30:
+		if bool(world.get("_monster_placed")):
+			break
+		await wait_physics_frames(1)
+	assert_true(bool(world.get("_monster_placed")), "the map's next sync places it")
+	var zone: Rect2 = world.get("monster_spawn_zone")
+	assert_true(zone.grow(8.0).has_point(slot.monster.global_position), "in the spawn zone: %s" % str(slot.monster.global_position))
+	assert_true(GameUtils.is_on_nav(world.get_world_2d(), slot.monster.global_position), "on the mesh")
+	GameManager.match_ended_flag = true
+	world.queue_free()
+	await wait_frames(3)
+	# A map that never answers: the limit (real seconds) ends the wait.
+	var silent := (load(WORLD) as PackedScene).instantiate()
+	var silent_region := silent.get_node("Navigation")
+	silent.remove_child(silent_region)
+	silent_region.free()
+	silent.set("nav_wait_limit_sec", 1.0)
+	var placed := [0]
+	silent.connect("monster_placed", func() -> void: placed[0] += 1)
+	add_child(silent)
+	var silent_slot := silent.get_node("MonsterSlot") as MonsterSlot
+	await wait_physics_frames(50)
+	assert_eq(placed[0], 0, "inside the limit: waiting")
+	await wait_physics_frames(25)
+	assert_eq(placed[0], 1, "past the limit: placed once, where the scene put it")
+	assert_eq(silent_slot.monster.global_position, silent_slot.spawn_position)
+	assert_true(GameManager.is_match_active(), "and the match goes on")
+	GameManager.match_ended_flag = true
+	silent.queue_free()
+	await wait_frames(3)
+	GameManager.chosen_side = side_before
+	AudioManager.stop_music()

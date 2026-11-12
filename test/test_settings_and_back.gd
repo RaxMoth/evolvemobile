@@ -92,6 +92,7 @@ func test_reset_needs_a_second_tap() -> void:
 	var sheet := SETTINGS.instantiate() as SettingsScreen
 	add_child(sheet)
 	var reset := sheet.get_node("%Reset") as Button
+	assert_true(reset.visible, "the lobby's sheet offers the reset")
 	reset.pressed.emit()
 	assert_eq(PersistedData.get_currency(PersistedData.GOLD), 500, "the first tap only arms it")
 	assert_eq(reset.text, "Tap again to confirm")
@@ -148,6 +149,53 @@ func test_pause_menu_pauses_resumes_and_quits_on_a_second_tap() -> void:
 	assert_eq(quits[0], 1, "the second tap leaves")
 	menu.queue_free()
 	get_tree().paused = false
+
+
+## meta-4 / menus-8. The pause menu's settings sheet has no Reset Progress
+## (a wipe in a running match let that match pay into the fresh save). QUIT
+## TO LOBBY stops the match on the confirming tap, before the tree unpauses:
+## a killing blow in the physics step before the scene change no longer ends
+## the match or pays it.
+func test_the_pause_menu_offers_no_reset_and_quit_stops_the_match() -> void:
+	if not require_isolated():
+		return
+	var menu := PAUSE_MENU.instantiate() as PauseMenu
+	menu.changes_scene = false
+	add_child(menu)
+	menu.open()
+	(menu.get_node("Center/Panel/VBox/Settings") as Button).pressed.emit()
+	var sheet := menu.settings()
+	assert_true(sheet != null, "SETTINGS opens the sheet")
+	if sheet != null:
+		assert_false(sheet.allow_reset, "without the reset")
+		assert_false((sheet.get_node("%Reset") as Control).visible, "no Reset Progress in a match")
+		assert_true((sheet.get_node("%Close") as Control).visible, "Close stays")
+		sheet.close()
+	await wait_frames(2)
+	var saved := {"active": GameManager._match_active, "ended": GameManager.match_ended_flag}
+	GameManager._match_active = true
+	GameManager.match_ended_flag = false
+	var ends := [0]
+	var on_end := func(_winner: String, _time: float) -> void: ends[0] += 1
+	GameManager.match_ended.connect(on_end)
+	var quit := menu.get_node("%Quit") as Button
+	quit.pressed.emit()
+	assert_true(GameManager.is_match_active(), "the first tap only arms QUIT")
+	await wait_seconds(ConfirmButton.MIN_GAP + 0.05)
+	quit.pressed.emit()
+	assert_false(GameManager.is_match_active(), "the confirming tap stops the match")
+	# The one unpaused physics step before the scene change: the monster dies.
+	get_tree().paused = false
+	var monster := MonsterBase.new()
+	GameManager._on_entity_died(monster, null)
+	await wait_frames(2)
+	assert_eq(ends[0], 0, "a forfeited match does not end on a late kill")
+	assert_eq(PersistedData.get_total_matches(), 0, "and pays nothing")
+	GameManager.match_ended.disconnect(on_end)
+	monster.free()
+	menu.queue_free()
+	GameManager._match_active = saved["active"]
+	GameManager.match_ended_flag = saved["ended"]
 
 
 func test_the_hud_owns_its_pause_menu() -> void:

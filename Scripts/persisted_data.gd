@@ -39,7 +39,16 @@ extends Node
 ## `save.cfg.v<N>.bak`, then walked up the `_migrate()` ladder one version at
 ## a time and re-saved. A file without a version key counts as v1 (the first
 ## shipped layout). Add a new `_migrate_vN_to_vN1()` step + bump
-## CURRENT_SAVE_VERSION whenever the layout changes.
+## CURRENT_SAVE_VERSION whenever the layout changes. A file from a NEWER build
+## is copied to `save.cfg.v<N>.bak` as it is and played on what this build
+## knows (sections it does not know stay in the file).
+##
+## Damaged or hand-edited values never break a read (README "Save
+## robustness"): every getter takes a value of the wrong type as its default
+## (counts: a non-negative int, a number written as text included; ids: a
+## String; settings: the type of the caller's default), unknown ids are kept
+## and ignored by the game, and a file that no longer parses is kept as
+## `save.cfg.corrupt.bak` before a fresh save starts.
 
 signal currency_changed(currency: StringName, new_amount: int)
 signal hero_xp_changed(hero_id: StringName, new_xp: int)
@@ -129,7 +138,10 @@ func load_data() -> void:
 			_migrate(from_version)
 			save_data()
 		elif from_version > CURRENT_SAVE_VERSION:
+			# Kept as it was: this build re-stamps the file with its own
+			# version on the next save.
 			push_warning("PersistedData: save is from a newer build (v%d, this build writes v%d)." % [from_version, CURRENT_SAVE_VERSION])
+			_backup_save("v%d" % from_version)
 	_loaded = true
 	# Push saved audio volumes onto the buses now that settings are available.
 	AudioSettings.apply_saved()
@@ -188,11 +200,12 @@ func _seed_defaults() -> void:
 
 
 ## Version stamp of the loaded file. A file without the key is a v1 save
-## (written before versioning was enforced); 0 means nothing is loaded.
+## (written before versioning was enforced); 0 means nothing is loaded (an
+## empty file too: it walks the whole ladder and is seeded like a fresh one).
 func get_save_version() -> int:
 	if not _config.has_section_key(SECTION_META, "save_version"):
 		return 1 if _config.get_sections().size() > 0 else 0
-	return int(_config.get_value(SECTION_META, "save_version", 1))
+	return _as_non_negative_int(_config.get_value(SECTION_META, "save_version", 1))
 
 
 # ============================================
@@ -294,6 +307,21 @@ static func _as_non_negative_int(value: Variant) -> int:
 	return 0
 
 
+## A saved id: a String (or StringName) as it is, "" for anything else.
+static func _as_id(value: Variant) -> String:
+	return String(value) if value is String or value is StringName else ""
+
+
+## True when a saved value can stand in for `like` (a getter's default): the
+## same type, or both numbers (bool, int, float), or both text.
+static func _same_kind(value: Variant, like: Variant) -> bool:
+	var numbers: Array[int] = [TYPE_BOOL, TYPE_INT, TYPE_FLOAT]
+	var texts: Array[int] = [TYPE_STRING, TYPE_STRING_NAME]
+	var a := typeof(value)
+	var b := typeof(like)
+	return a == b or (numbers.has(a) and numbers.has(b)) or (texts.has(a) and texts.has(b))
+
+
 ## Reset Progress: clears currency, XP, skill ranks, equipped capstones, the
 ## bought monsters, the quarry history, the Codex and match counters but KEEPS the [settings] section (volumes, language,
 ## analytics opt-out, tutorial flag, last match strategy) — those are device
@@ -330,7 +358,7 @@ func _section_keys(section: String) -> PackedStringArray:
 # ============================================
 
 func get_currency(currency: StringName) -> int:
-	return int(_config.get_value(SECTION_CURRENCY, currency, 0))
+	return _as_non_negative_int(_config.get_value(SECTION_CURRENCY, currency, 0))
 
 
 func add_currency(currency: StringName, amount: int) -> void:
@@ -364,7 +392,7 @@ func can_afford(currency: StringName, amount: int) -> bool:
 # ============================================
 
 func get_hero_xp(hero_id: StringName) -> int:
-	return int(_config.get_value(SECTION_HERO_XP, hero_id, 0))
+	return _as_non_negative_int(_config.get_value(SECTION_HERO_XP, hero_id, 0))
 
 
 func add_hero_xp(hero_id: StringName, amount: int) -> void:
@@ -377,7 +405,7 @@ func add_hero_xp(hero_id: StringName, amount: int) -> void:
 
 
 func get_monster_xp(monster_id: StringName) -> int:
-	return int(_config.get_value(SECTION_MONSTER_XP, monster_id, 0))
+	return _as_non_negative_int(_config.get_value(SECTION_MONSTER_XP, monster_id, 0))
 
 
 func add_monster_xp(monster_id: StringName, amount: int) -> void:
@@ -417,16 +445,18 @@ func level_progress(total_xp: int) -> Dictionary:
 # ============================================
 
 ## node id (String) -> rank (int >= 1) of every owned node of a tree. A copy:
-## write back with set_skill_rank.
+## write back with set_skill_rank. An entry whose id is no text or whose rank
+## is no number is left out (a damaged save); a rank above the node's maximum
+## is kept (MetaSkillManager counts it as the maximum).
 func get_skill_ranks(tree_id: StringName) -> Dictionary:
 	var raw: Variant = _config.get_value(SECTION_SKILL_RANKS, tree_id, {})
 	var out: Dictionary = {}
 	if raw is Dictionary:
 		var saved := raw as Dictionary
 		for id: Variant in saved:
-			var rank := int(saved[id])
-			if rank >= 1:
-				out[String(id)] = rank
+			var rank := _as_non_negative_int(saved[id])
+			if rank >= 1 and not _as_id(id).is_empty():
+				out[_as_id(id)] = rank
 	return out
 
 
@@ -434,7 +464,7 @@ func get_skill_ranks(tree_id: StringName) -> Dictionary:
 func get_skill_rank(tree_id: StringName, node_id: StringName) -> int:
 	var raw: Variant = _config.get_value(SECTION_SKILL_RANKS, tree_id, {})
 	if raw is Dictionary:
-		return maxi(int((raw as Dictionary).get(String(node_id), 0)), 0)
+		return _as_non_negative_int((raw as Dictionary).get(String(node_id), 0))
 	return 0
 
 
@@ -469,7 +499,7 @@ func set_unlocked_skills(tree_id: StringName, ids: Array) -> void:
 ## The capstone the player equipped in a tree, as saved; &"" when none was
 ## (MetaSkillManager.equipped_capstone resolves that to the first owned one).
 func get_equipped_capstone(tree_id: StringName) -> StringName:
-	return StringName(String(_config.get_value(SECTION_CAPSTONES, tree_id, "")))
+	return StringName(_as_id(_config.get_value(SECTION_CAPSTONES, tree_id, "")))
 
 
 ## &"" clears the tree's choice. Never saves by itself.
@@ -507,7 +537,7 @@ func add_owned_monster(monster_id: StringName) -> void:
 
 ## The monster of the last Heroes-side hunt (&"" before the first one).
 func get_last_quarry() -> StringName:
-	return StringName(String(_config.get_value(SECTION_MONSTERS, "last_quarry", "")))
+	return StringName(_as_id(_config.get_value(SECTION_MONSTERS, "last_quarry", "")))
 
 
 func set_last_quarry(monster_id: StringName) -> void:
@@ -517,7 +547,7 @@ func set_last_quarry(monster_id: StringName) -> void:
 
 ## The quarry the pre-round Change picker fixed; &"" = a random one each hunt.
 func get_locked_quarry() -> StringName:
-	return StringName(String(_config.get_value(SECTION_MONSTERS, "locked_quarry", "")))
+	return StringName(_as_id(_config.get_value(SECTION_MONSTERS, "locked_quarry", "")))
 
 
 func set_locked_quarry(monster_id: StringName) -> void:
@@ -587,8 +617,15 @@ func _append_id(section: String, key: String, id: StringName) -> void:
 # Settings (audio volumes, controls, etc.)
 # ============================================
 
+## The saved setting, or `default_value` when there is none or when the saved
+## value's type does not fit the default's (_same_kind: a damaged or
+## hand-edited save reads as the default instead of breaking the caller's
+## bool() / float() / int()). A null default returns the raw value.
 func get_setting(key: StringName, default_value: Variant = null) -> Variant:
-	return _config.get_value(SECTION_SETTINGS, key, default_value)
+	var value: Variant = _config.get_value(SECTION_SETTINGS, key, default_value)
+	if default_value == null or _same_kind(value, default_value):
+		return value
+	return default_value
 
 
 func set_setting(key: StringName, value: Variant) -> void:
@@ -605,7 +642,7 @@ func is_loaded() -> bool:
 
 
 func get_total_matches() -> int:
-	return int(_config.get_value(SECTION_META, "total_matches", 0))
+	return _as_non_negative_int(_config.get_value(SECTION_META, "total_matches", 0))
 
 
 func record_match_played() -> void:

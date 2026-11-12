@@ -19,6 +19,9 @@ extends Node2D
 ##   EventBus.ability_cast   → cast (ACTIVE) / ult (ULTIMATE)
 ##   EventBus.monster_evolved → evolve
 ##   GameManager.match_ended → victory / defeat (non-positional)
+##   GameManager.result_shown → the world's sounds stop (the tree pauses under
+##     the result screen: a paused pool player would finish its sound when the
+##     player leaves the screen)
 
 const ASSET_DIR := "res://Assets/Audio/"
 const SFX_KEYS: Array[StringName] = [&"hit", &"hit_big", &"death_mob", &"death_big", &"cast", &"ult", &"evolve", &"ui_click", &"victory", &"defeat"]
@@ -47,6 +50,7 @@ func _ready() -> void:
 	EventBus.entity_died.connect(_on_entity_died)
 	EventBus.ability_cast.connect(_on_ability_cast)
 	GameManager.match_ended.connect(_on_match_ended)
+	GameManager.result_shown.connect(stop_world_sfx)
 	EventBus.monster_evolved.connect(_on_monster_evolved)
 
 
@@ -58,9 +62,11 @@ func has_sfx(key: StringName) -> bool:
 	return _sfx.has(key)
 
 
-## Positional effect. Returns false when unknown, out of earshot or rate-limited.
+## Positional effect. Returns false when unknown, out of earshot,
+## rate-limited or asked for while the tree is paused: a pool player starts
+## only on its next physics step, so the sound would wait for the unpause.
 func play_sfx(key: StringName, pos: Vector2) -> bool:
-	if not _sfx.has(key) or not _in_earshot(pos) or not _allow(key):
+	if not _sfx.has(key) or get_tree().paused or not _in_earshot(pos) or not _allow(key):
 		return false
 	var player := _free_player()
 	player.stream = _sfx[key]
@@ -97,14 +103,20 @@ func stop_music() -> void:
 	_music_player.stop()
 
 
+## Stops every positional effect (the pool). The result screen's pause
+## (GameManager.result_shown): nothing frozen there plays on later.
+func stop_world_sfx() -> void:
+	for player in _pool:
+		player.stop()
+
+
 ## Silences every player, the music too (the playbacks end on the mixer's next
 ## step). The test runner calls it before it quits: a sound still playing at
 ## exit is reported as a leaked AudioStreamWAV and its playback.
 func stop_all() -> void:
 	stop_music()
 	_ui_player.stop()
-	for player in _pool:
-		player.stop()
+	stop_world_sfx()
 
 
 func current_music() -> StringName:
@@ -151,10 +163,9 @@ func _on_monster_evolved(monster: Node, _stage: int) -> void:
 		play_sfx(&"evolve", (monster as Node2D).global_position)
 
 
+## The deciding blow's own sounds still play (the death beat runs on);
+## result_shown stops the pool when the tree pauses.
 func _on_match_ended(winner: String, _time: float) -> void:
-	# Drop in-flight world SFX so they do not resume when the tree unpauses later.
-	for p in _pool:
-		p.stop()
 	var player_won := (winner == "Heroes") == (GameManager.chosen_side == MatchRewards.Side.HEROES)
 	play_global(&"victory" if player_won else &"defeat")
 

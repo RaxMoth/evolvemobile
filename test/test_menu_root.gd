@@ -358,6 +358,46 @@ func test_first_run_opens_the_tutorial() -> void:
 	again.queue_free()
 
 
+## menus-7: the first-run tour opens over the bare lobby only. HUNT inside
+## the delay: no tour over the pre-round (its steps frame the lobby's camp);
+## back on the lobby it opens and frames it. The settings opened inside the
+## delay: the tour waits for the sheet to close (it used to be skipped).
+func test_the_first_run_tour_waits_for_the_bare_lobby() -> void:
+	if not require_isolated():
+		return
+	PersistedData.wipe_progress(false)
+	var root := await _menu_root()
+	root._on_hunt_requested(GameManager.chosen_side)
+	assert_true(root.top() == root.pre_round, "HUNT inside the delay")
+	await wait_seconds(MenuRoot.TUTORIAL_DELAY + 0.3)
+	assert_eq(_overlays(root, &"TutorialOverlay").size(), 0, "no tour over the pre-round")
+	root.pop()
+	await wait_seconds(MenuRoot.SLIDE_TIME + MenuRoot.TUTORIAL_DELAY * 2.0 + 0.1)
+	var tours := _overlays(root, &"TutorialOverlay")
+	assert_eq(tours.size(), 1, "back on the lobby, the tour")
+	if tours.size() == 1:
+		var tour := tours[0] as TutorialOverlay
+		tour._show_step(1)
+		await wait_frames(2)
+		assert_true(tour.is_framed(), "its camp step frames the lobby's camp")
+	root.queue_free()
+	await wait_frames(1)
+	PersistedData.wipe_progress(false)
+	var again := await _menu_root()
+	again._on_settings_requested()
+	await wait_seconds(MenuRoot.TUTORIAL_DELAY + 0.3)
+	assert_eq(_overlays(again, &"TutorialOverlay").size(), 0, "not over the settings")
+	var sheets := _overlays(again, &"SettingsScreen")
+	assert_eq(sheets.size(), 1, "the settings are up")
+	if sheets.size() == 1:
+		(sheets[0] as SettingsScreen).close()
+	await wait_seconds(SettingsScreen.SLIDE_TIME + MenuRoot.TUTORIAL_DELAY * 2.0 + 0.1)
+	assert_eq(_overlays(again, &"TutorialOverlay").size(), 1, "the tour once the sheet is gone")
+	again.queue_free()
+	await wait_frames(1)
+	TutorialOverlay.mark_seen()
+
+
 func _settle() -> void:
 	await wait_seconds(MenuRoot.SLIDE_TIME + 0.1)
 

@@ -51,7 +51,9 @@ extends Control
 ## pops a screen; on the bare lobby the back button leaves the game.
 
 const SLIDE_TIME := 0.22
-## Seconds after entry before the first-run tutorial opens.
+## Seconds after entry before the first-run tutorial opens. It opens on the
+## bare lobby only: while another screen, an overlay (the settings) or the
+## unlock sheet is up it waits another TUTORIAL_DELAY and looks again.
 const TUTORIAL_DELAY := 0.9
 const TUTORIAL_SCENE: PackedScene = preload("res://Scenes/UI/Tutorial/TutorialOverlay.tscn")
 const SETTINGS_SCENE: PackedScene = preload("res://Scenes/UI/Settings/SettingsScreen.tscn")
@@ -248,8 +250,17 @@ func _open_overlay(overlay: Node) -> void:
 
 func _auto_open_tutorial() -> void:
 	# Re-check: the player may have opened and finished it within the delay.
-	if not TutorialOverlay.has_been_seen():
-		_open_tutorial()
+	if TutorialOverlay.has_been_seen():
+		return
+	# The tour frames the lobby's campfire, lair and arch: only over the bare,
+	# settled lobby. Anything else (a pushed screen or one sliding away, the
+	# settings, the unlock sheet) re-arms the delay; the timer's connection
+	# dies with MenuRoot.
+	var sliding := _slide != null and _slide.is_valid()
+	if top() != lobby or sliding or _overlay_open() or unlock_sheet.is_open():
+		get_tree().create_timer(TUTORIAL_DELAY).timeout.connect(_auto_open_tutorial)
+		return
+	_open_tutorial()
 
 
 func _open_tutorial() -> void:
