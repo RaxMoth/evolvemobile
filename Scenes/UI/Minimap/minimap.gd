@@ -155,7 +155,23 @@ func _sees(viewer: Node2D, pos: Vector2, fallback: float) -> bool:
 
 # ---------- drawing ----------
 
-func _draw() -> void:
+## One dot of the map: where (map coordinates), how big, which colour.
+class Dot:
+	var position: Vector2
+	var radius: float
+	var color: Color
+
+	func _init(at: Vector2, r: float, c: Color) -> void:
+		position = at
+		radius = r
+		color = c
+
+
+## The dots _draw() draws now, in draw order: the hero side (a pet smaller
+## and lighter), then the monster, each only where the fairness rules let the
+## played side see it (the played side's own always show).
+func dots() -> Array[Dot]:
+	var out: Array[Dot] = []
 	var hero_side := GameManager.chosen_side == MatchRewards.Side.HEROES
 	for h in EntityRegistry.hero_side:
 		if not is_instance_valid(h):
@@ -163,13 +179,19 @@ func _draw() -> void:
 		if not hero_side and not hero_visible_to_monster(h.global_position):
 			continue
 		var is_hero := h is HeroBase
-		draw_circle(world_to_map(h.global_position), 3.0 if is_hero else 2.0, _hero_color if is_hero else _pet_color)
+		out.append(Dot.new(world_to_map(h.global_position), 3.0 if is_hero else 2.0, _hero_color if is_hero else _pet_color))
 	for m in EntityRegistry.monsters:
 		if not is_instance_valid(m):
 			continue
 		if hero_side and not monster_visible_to_heroes(m.global_position):
 			continue
-		draw_circle(world_to_map(m.global_position), 4.0, _monster_color)
+		out.append(Dot.new(world_to_map(m.global_position), 4.0, _monster_color))
+	return out
+
+
+func _draw() -> void:
+	for dot in dots():
+		draw_circle(dot.position, dot.radius, dot.color)
 	var cam := get_viewport().get_camera_2d()
 	if cam and cam.has_method("get_viewport_rect_in_world"):
 		var r: Rect2 = cam.get_viewport_rect_in_world()

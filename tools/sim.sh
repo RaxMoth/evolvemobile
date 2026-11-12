@@ -24,7 +24,13 @@
 # isolated user:// via override.cfg), never on the real project directory.
 # Prints a summary per threat and monster: win rate, match length, first
 # contact, evolution timing. An unknown MONSTER id fails (exit 2) instead of
-# quietly playing the default monster, a THREAT outside 0-4 too.
+# quietly playing the default monster; so do a THREAT outside 0-4, a side
+# other than heroes or monster and a SAVE file that is not there.
+#
+# Exit 1 when a match hit a SCRIPT ERROR or ended without a result: the seed
+# and its first error lines go to stderr (the summary still prints, over the
+# matches that did finish). A kill (TERM, INT, HUP) stops the workers and
+# their matches and deletes the copies (tools/tool_env.zsh).
 #
 # Reproducible: the copies' override.cfg turns off the navigation server's
 # asynchronous map and region iterations, as tools/sim_trace.sh does, and every
@@ -41,10 +47,18 @@
 # the monster tick every frame in both. tools/bench.sh's onscreen=1 measures
 # the device's cost.
 setopt NULL_GLOB
-GODOT="${GODOT:-/Applications/Godot.app/Contents/MacOS/Godot}"
 RUNS="${1:-24}"; SIDE="${2:-heroes}"; WORKERS="${3:-6}"; CAP="${4:-660}"
 SRC="$(cd "$(dirname "$0")/.." && pwd)"
+source "$SRC/tools/tool_env.zsh"
 source "$SRC/tools/monster_env.zsh"
+if [[ "$SIDE" != (heroes|monster) ]]; then
+  echo "side=$SIDE: heroes or monster" >&2
+  exit 2
+fi
+if [ -n "$SAVE" ] && [ ! -f "$SAVE" ]; then
+  echo "SAVE=$SAVE: no such file" >&2
+  exit 2
+fi
 # THREATS: ("") = no threat= argument (the save decides), else 0..4 each.
 THREATS=("")
 if [ -n "$THREAT" ]; then
@@ -60,23 +74,25 @@ if [ -n "$THREAT" ]; then
     fi
   done
 fi
-TMP="$(mktemp -d)"
+tool_tmp
 # One user dir per worker AND per run: concurrent sim.sh runs must not share saves.
 USER_DIRS="$HOME/Library/Application Support/evolvemobile_sim_$$"
-trap 'rm -rf "$TMP"; for i in {0..63}; do rm -rf "${USER_DIRS}_$i"; done' EXIT
 rsync -a --exclude .git --exclude .DS_Store "$SRC/" "$TMP/base/"
-"$GODOT" --headless --import --path "$TMP/base" > "$TMP/import.log" 2>&1
+run_godot "$TMP/import.log" --headless --import --path "$TMP/base"
 for ((w = 0; w < WORKERS; w++)); do
   cp -R "$TMP/base" "$TMP/w$w"
   printf '[application]\nconfig/use_custom_user_dir=true\nconfig/custom_user_dir_name="evolvemobile_sim_%d_%d"\n\n[navigation]\nworld/map_use_async_iterations=false\nworld/region_use_async_iterations=false\n' "$$" "$w" > "$TMP/w$w/override.cfg"
+  tool_clean "${USER_DIRS}_$w"
 done
 resolve_monsters "$TMP/w0" || exit 2
+STATUS=0
 for t in "${THREATS[@]}"; do
   for m in "${MONSTERS[@]}"; do
     res="$TMP/results_${t:-save}_${m:-default}"
     mkdir -p "$res"
     for ((w = 0; w < WORKERS; w++)); do
       (
+        tool_worker
         for ((s = w + 1; s <= RUNS; s += WORKERS)); do
           # A match writes its rewards back: every seed starts from a fresh save
           # (or the given one) again, so a seed's result never depends on which
@@ -86,18 +102,30 @@ for t in "${THREATS[@]}"; do
             mkdir -p "${USER_DIRS}_$w"
             cp "$SAVE" "${USER_DIRS}_$w/save.cfg"
           fi
-          "$GODOT" --headless --fixed-fps 60 --max-fps 0 --path "$TMP/w$w" -s res://tools/sim_match.gd -- "$s" "$SIDE" "$CAP" ${m:+monster=$m} ${t:+threat=$t} 2>&1 \
-            | grep "^SIM_RESULT " | sed 's/^SIM_RESULT //' >> "$res/w$w.jsonl"
+          run_godot "$res/seed_$s.log" --headless --fixed-fps 60 --max-fps 0 --path "$TMP/w$w" \
+            -s res://tools/sim_match.gd -- "$s" "$SIDE" "$CAP" ${m:+monster=$m} ${t:+threat=$t}
         done
       ) &
+      TOOL_PIDS+=($!)
     done
     wait
-    cat "$res"/w*.jsonl > "$res.jsonl" 2>/dev/null
+    TOOL_PIDS=()
+    # Seed order; a match with a SCRIPT ERROR (an ability that errors on every
+    # cast still lets the match finish) or without a result fails the run.
+    : > "$res.jsonl"
+    for ((s = 1; s <= RUNS; s++)); do
+      log="$res/seed_$s.log"
+      sed -n 's/^SIM_RESULT //p' "$log" >> "$res.jsonl"
+      if grep -q "SCRIPT ERROR" "$log" || ! grep -q "^SIM_RESULT " "$log"; then
+        echo "${t:+threat $t }${m:+$m }seed $s: failed ($(grep -c "SCRIPT ERROR" "$log") script errors$(grep -q "^SIM_RESULT " "$log" || echo ", no result"))" >&2
+        { grep -m 5 -A 2 "SCRIPT ERROR" "$log" || tail -5 "$log"; } >&2
+        STATUS=1
+      fi
+    done
     cat "$res.jsonl" >> "$TMP/results.jsonl"
   done
 done
 [ -n "$OUT" ] && cp "$TMP/results.jsonl" "$OUT"
-STATUS=0
 first=1
 for t in "${THREATS[@]}"; do
   for m in "${MONSTERS[@]}"; do

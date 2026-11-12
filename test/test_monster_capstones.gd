@@ -85,11 +85,6 @@ func _cooldowns_reset(m: MonsterBase) -> bool:
 	return true
 
 
-func _evolve(m: MonsterBase, stage: int) -> void:
-	while m.get_stage() < stage:
-		m.gain_xp(1000.0)
-
-
 # ---------- Grount: Rampage ----------
 
 ## Fresh save: no EventBus listener, and a hero kill changes nothing.
@@ -161,7 +156,7 @@ func test_trample_is_off_on_a_fresh_save() -> void:
 	var dash := g.ability_2 as BullRamDash
 	assert_false(dash.trample)
 	assert_eq(dash.get_hit_radius(), 40.0, "the stock lane")
-	_evolve(g, 3)
+	evolve_to(g, 3)
 	assert_near(dash.cooldown, 5.0, 0.001, "the stock Stage 3 cooldown")
 	assert_eq(dash.debug_tag(), "")
 	await _free([g])
@@ -177,9 +172,9 @@ func test_trample_widens_the_lane_and_halves_the_stage_3_cooldown() -> void:
 	assert_true(dash.trample, "the node sets the flag on Grount's copy")
 	assert_eq(dash.get_hit_radius(), 70.0)
 	assert_near(dash.cooldown, 12.0, 0.001, "Stage 1: the stock cooldown")
-	_evolve(g, 2)
+	evolve_to(g, 2)
 	assert_near(dash.cooldown, 8.0, 0.001, "Stage 2: the stock cooldown")
-	_evolve(g, 3)
+	evolve_to(g, 3)
 	assert_near(dash.cooldown, 2.5, 0.001, "Stage 3: twice as fast")
 	g._evolve_to_stage(3)
 	assert_near(dash.cooldown, 2.5, 0.001, "re-entering the stage never compounds")
@@ -342,12 +337,12 @@ func test_brood_mother_keeps_the_stage_3_swarm_running() -> void:
 		var n := (await _spawn(NYXA)) as MonsterBase
 		var swarm := n.ability_3 as NightSwarm
 		assert_eq(swarm.permanent_from_stage, 3 if owned else 0)
-		_evolve(n, 2)
+		evolve_to(n, 2)
 		assert_false(swarm.is_permanent(), "Stage 2: a normal swarm")
 		swarm.execute(n, null, 1.0)
 		swarm.tick_active(n, swarm.duration + 0.1)
 		assert_false(swarm.is_active(), "it runs out at Stage 2")
-		_evolve(n, 3)
+		evolve_to(n, 3)
 		assert_eq(swarm.is_permanent(), owned)
 		swarm.execute(n, null, 1.0)
 		swarm.tick_active(n, 60.0)
@@ -382,7 +377,7 @@ func test_whirlwind_hits_all_around_from_stage_3() -> void:
 		chop.execute(g, null, 10.0)
 		assert_eq(v.get_health(), v.get_max_health(), "Stage 1: a frontal arc, owned or not")
 		assert_near(chop.cone_angle, 70.0, 0.001)
-		_evolve(g, 3)
+		evolve_to(g, 3)
 		assert_near(chop.cone_angle, 360.0 if owned else 90.0, 0.001, "the Stage 3 arc")
 		g.sprite.rotation = 0.0
 		chop.execute(g, null, 10.0)

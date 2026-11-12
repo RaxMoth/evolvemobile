@@ -219,12 +219,12 @@ func _first_reachable(positions: Array) -> Vector2:
 	var from: Vector2 = _formation_leader.global_position if is_instance_valid(_formation_leader) else _calculate_group_center()
 	var checks: int = 0
 	for p: Vector2 in positions:
-		var snapped: Vector2 = _snap_to_nav(p)
-		if _is_abandoned(snapped):
+		var on_mesh: Vector2 = _snap_to_nav(p)
+		if _is_abandoned(on_mesh):
 			continue
-		if GameUtils.nav_path_reaches(world, from, snapped):
-			return snapped
-		_mark_unreachable(snapped)
+		if GameUtils.nav_path_reaches(world, from, on_mesh):
+			return on_mesh
+		_mark_unreachable(on_mesh)
 		checks += 1
 		if checks >= MAX_REACH_CHECKS:
 			break

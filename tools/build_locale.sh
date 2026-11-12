@@ -12,16 +12,16 @@
 # (override.cfg), never runs Godot on the real project directory (the editor
 # may have it open). Headless, no window, no audio. Prints one "LOCALE <file>
 # <state>" line per translation file.
-GODOT="${GODOT:-/Applications/Godot.app/Contents/MacOS/Godot}"
 SRC="$(cd "$(dirname "$0")/.." && pwd)"
-TMP="$(mktemp -d)"
+source "$SRC/tools/tool_env.zsh"
+tool_tmp
 USERDIR="evolvemobile_locale_$$"
-trap 'rm -rf "$TMP" "$HOME/Library/Application Support/$USERDIR"' EXIT
+tool_clean "$HOME/Library/Application Support/$USERDIR"
 rsync -a --exclude .git --exclude .DS_Store "$SRC/" "$TMP/proj/"
 printf '[application]\nconfig/use_custom_user_dir=true\nconfig/custom_user_dir_name="%s"\n' "$USERDIR" > "$TMP/proj/override.cfg"
 # A missing output makes the import run whatever the copied import cache says.
 rm -f "$TMP/proj/Assets/Locale/"strings.*.translation
-"$GODOT" --headless --import --path "$TMP/proj" > "$TMP/import.log" 2>&1
+run_godot "$TMP/import.log" --headless --import --path "$TMP/proj"
 STATUS=0
 FOUND=0
 for built in "$TMP/proj/Assets/Locale/"strings.*.translation(N); do

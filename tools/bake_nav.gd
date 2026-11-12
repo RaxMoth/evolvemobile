@@ -60,29 +60,29 @@ func _drop_small_islands(navpoly: NavigationPolygon) -> int:
 				_union(parent, i, int(edge_owner[key]))
 			else:
 				edge_owner[key] = i
-	var area: Dictionary = {}  # root -> px²
+	var area: Dictionary = {}  # island (its union-find root) -> px²
 	for i in range(count):
-		var root: int = _find(parent, i)
-		area[root] = float(area.get(root, 0.0)) + _polygon_area(verts, navpoly.get_polygon(i))
+		var island: int = _find(parent, i)
+		area[island] = float(area.get(island, 0.0)) + _polygon_area(verts, navpoly.get_polygon(i))
 	var kept: Array[PackedInt32Array] = []
 	var dropped_roots: Dictionary = {}
 	for i in range(count):
-		var root: int = _find(parent, i)
-		if float(area[root]) < MIN_ISLAND_AREA:
-			dropped_roots[root] = true
+		var island: int = _find(parent, i)
+		if float(area[island]) < MIN_ISLAND_AREA:
+			dropped_roots[island] = true
 		else:
 			kept.append(navpoly.get_polygon(i))
 	# Rebuild with only the vertices the kept polygons use.
-	var remap: Dictionary = {}
+	var vert_remap: Dictionary = {}
 	var new_verts := PackedVector2Array()
 	var new_polys: Array[PackedInt32Array] = []
 	for poly in kept:
 		var np := PackedInt32Array()
 		for idx in poly:
-			if not remap.has(idx):
-				remap[idx] = new_verts.size()
+			if not vert_remap.has(idx):
+				vert_remap[idx] = new_verts.size()
 				new_verts.append(verts[idx])
-			np.append(int(remap[idx]))
+			np.append(int(vert_remap[idx]))
 		new_polys.append(np)
 	navpoly.clear_polygons()
 	navpoly.vertices = new_verts

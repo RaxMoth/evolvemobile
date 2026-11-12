@@ -1357,7 +1357,9 @@ writes gameplay state, so `tools/sim_trace.sh` stays byte-identical.
       entity stands on.
     - The Control itself draws the dots and the camera frame. `%Frame` and
       `%FogView` are its children with `show_behind_parent` on (set in
-      `Minimap.tscn`), so they draw under the dots.
+      `Minimap.tscn`), so they draw under the dots. `Minimap.dots()` lists
+      what `_draw()` draws (map position, radius, colour), so the headless
+      suite checks the dots without a renderer.
     - Fairness: the heroes side sees the monster's dot only while it is
       inside a hero's vision radius, the monster side a hero's dot only
       inside the monster's.
@@ -1468,7 +1470,8 @@ writes gameplay state, so `tools/sim_trace.sh` stays byte-identical.
   side, the level badge pop), `test/test_hud_fog.gd` (the minimap in its
   frame, both sides; the heroes never clear the monster player's fog) and
   `test/test_minimap.gd` (the mapping through `map_rect()`, the fairness
-  rules, the dots above the picture, the picture covering the whole world,
+  rules, the dots each side may see (`dots()`), the dots above the picture,
+  the picture covering the whole world,
   and a rendered pixel check of a hero's dot and of reveals that the headless
   runner skips: run that file in a window to use it) and
   `test/test_match_speed.gd` (the Speed button's two looks, its place and
@@ -2938,9 +2941,62 @@ Every tool copies the project to a temp directory with its own `user://`
 A headless match keeps game time: the match speed (see Match Speed) applies
 only with a display, so the sims, the trace and the tests are not affected by it.
 
+No tool can pass by accident, and none leaks when it is stopped:
+
+- **Failing**: a tool exits non-zero when Godot is missing (exit 2, before
+  any work), crashes or is killed before its end marker, or when a run prints
+  a `SCRIPT ERROR`; the run and its first error lines go to stderr.
+- **Stopping** (`tools/tool_env.zsh`, sourced by every tool): TERM, INT and
+  HUP stop every Godot and worker the tool started and delete its copies and
+  `user://` dirs (zsh alone skips the clean-up on TERM). SIGKILL cannot be
+  caught.
+- **`tools/selftest.sh`** checks both with a fake Godot (about 10 s, no real
+  Godot runs): 23 checks of lint, tests, sim, trace and bench, among them a
+  crash before the end marker, a planted `SCRIPT ERROR`, a seed without a
+  result, a bad side, a missing `SAVE`, `JOBS=0`, and a `TERM` mid-run after
+  which no match, copy or `user://` dir may be left. Run it after changing a
+  tool. The parent's tools fail 14 of the 23.
+
 - `tools/lint.sh`: loads every script, scene and resource and checks the scene
-  wiring; prints `errors=0`. `tools/run_tests.sh`: the headless suite
-  (`test/test_*.gd`). Both exit non-zero on a failure.
+  wiring; prints `LINT DONE ... warnings_as_errors=41` and `errors=0`, and
+  fails unless Godot reached `LINT DONE` and exited 0. **GDScript warnings
+  are errors** in the lint's copy: `tools/list_warnings.gd` lists the warnings
+  the project leaves at "warn", and the copy's `override.cfg` (never
+  `project.godot`) sets each to "error" (Godot 4.7 has no single "warnings as
+  errors" switch), so a warning fails as `Parse Error ... (Warning treated as
+  error.)`. Covered (37, plus the 4 Godot already treats as errors:
+  `inference_on_variant`, `native_method_override`,
+  `get_node_default_without_onready`, `onready_with_export`):
+  `unassigned_variable`, `unassigned_variable_op_assign`, `unused_variable`,
+  `unused_local_constant`, `unused_private_class_variable`,
+  `unused_parameter`, `unused_signal`, `shadowed_variable`,
+  `shadowed_variable_base_class`, `shadowed_global_identifier`,
+  `unreachable_code`, `unreachable_pattern`, `standalone_expression`,
+  `standalone_ternary`, `incompatible_ternary`, `unsafe_void_return`,
+  `static_called_on_instance`, `missing_tool`, `redundant_static_unload`,
+  `redundant_await`, `assert_always_true`, `assert_always_false`,
+  `integer_division`, `narrowing_conversion`, `int_as_enum_without_cast`,
+  `int_as_enum_without_match`, `enum_variable_without_default`,
+  `empty_file`, `deprecated_keyword`, `confusable_identifier`,
+  `confusable_local_declaration`, `confusable_local_usage`,
+  `confusable_capture_reassignment`, `confusable_temporary_modification`,
+  `property_used_as_function`, `constant_used_as_function`,
+  `function_used_as_property`. The ones the project ignores (the
+  `untyped_declaration` / `inferred_declaration` / `unsafe_*` family,
+  `return_value_discarded`, `missing_await`) stay ignored, as in the editor;
+  `addons/` is exempt (Godot's default).
+- `tools/run_tests.sh [name ...]`: the headless suite (`test/test_*.gd`;
+  names run only the files whose name contains one, e.g. `minimap`). A test
+  passes when it ran to its end with no failed assert and no `SCRIPT ERROR`
+  (a script error aborts the function it is in, so the test's later checks
+  never ran: a `Logger` in `test/run_tests.gd` catches it and fails the test
+  that was running). A skipped test (`skip()`) counts as skipped, not passed:
+  `== 658 passed, 0 failed, 1 skipped ==` (the rendered minimap test). A run
+  outside the isolated `user://` (the runner started by hand on a copy) skips
+  the save tests, prints `NOT ISOLATED` and exits 1. A test still running
+  after 120 s is named (`TIMEOUT <file>::<test>`) and the run is killed: a
+  loop that never ends cannot hang the suite. Test helpers that wait for a
+  condition are bounded (`TestCase.evolve_to`, the axe steppers).
 - Exit leaks: the suite ends with nothing leaked (8.3 left 140 objects, 66
   resources and the RIDs of a test Bat). The runner stops every player (`AudioManager.stop_all()`) and gives the mixer
   120 ms before it quits; `SpawnManager` frees parked mobs when it leaves the
@@ -2957,9 +3013,12 @@ only with a display, so the sims, the trace and the tests are not affected by it
   starts every match from that save (its power ranks set the threat; the
   summary prints it). `THREAT=<0-4>` (or a list, `THREAT="0 2 4"`, or
   `THREAT=all` = 0..4, one summary per threat and monster) is the Opponent
-  Threat parity check: each seed's fresh save gets the played side's parity
-  build at that threat (`MetaSkillManager.parity_build`, P = 6T), so the AI
-  opponent plays its threat-T build; `SAVE` and `THREAT` together exit 2.
+  Threat parity check: the AI opponent is put at threat T
+  (`MetaSkillManager.threat_override`) and each seed's fresh save gets the
+  played side's own AI build at T (`MetaSkillManager.side_ai_build`: 3T
+  entries of each played character tree's `ai_build_order`, 2T of its base
+  tree's, 5T power ranks, so the summary prints power 20 at threat 4);
+  `SAVE` and `THREAT` together exit 2.
   `sim_match.gd` takes it as `threat=<N>`, and every result line carries the
   match's `threat` and the played side's `power`. **Reproducible**: the copies turn off the
   navigation server's asynchronous map and region iterations (as
@@ -2967,11 +3026,23 @@ only with a display, so the sims, the trace and the tests are not affected by it
   `SAVE`), so the same tree gives the same numbers on every run, whatever the
   CPU load or worker count, and seed s is `sim_trace.sh`'s seed s. Before
   (async on), 24 seeds of identical code gave 17 % and 33 % hero wins.
+  **Checked**: a side other than `heroes` / `monster` and a `SAVE` file that
+  is not there exit 2 (a typo used to play a fresh save, or the heroes under
+  the typed label); a match with a `SCRIPT ERROR` or without a result fails
+  the run (exit 1, the seed and its errors on stderr; the summary still
+  prints), and so does a group with fewer rows than `runs` or a Monster win
+  before the time cap with a hero alive (`sim_summary.py`). Each result is
+  written at the end of the frame the match ended in, after the deciding
+  death and its killing blow were counted (`heroes_alive` 0 on a wipe).
 - `tools/sim_trace.sh [seeds="1 2 3"] [sides="heroes monster"] [cap_seconds=660]`:
   the determinism trace (a state hash every 60 frames and at the end), byte
   for byte the same for the same tree. `BASELINE=<file>` diffs the output with
   a saved one and exits 1 on a difference; `RIGS_AWAKE=1` animates every rig
-  and must not change it.
+  and must not change it. **`JOBS=<n>`** (default 2) matches run at a time,
+  each worker on its own copy with a fresh `user://` per match: on an 8 GB
+  machine the default keeps two Godot processes alive; `JOBS=6` plays a
+  monster's six default matches at once. The output order is the argument
+  order whatever `JOBS` is.
 - `tools/bench.sh [runs=5] [multiplier=2] [frames=1800] [warmup=600] [onscreen=0] [rigs_awake=0] [speed=0]`:
   performance in the stress config (all camps, `multiplier` mobs per slot),
   run r plays seed r, medians of frame time, CPU time and LOD buckets.
@@ -2984,6 +3055,13 @@ only with a display, so the sims, the trace and the tests are not affected by it
   window stops there (the tree pauses at the match end) and is flagged
   (`ended early: seed 3 at frame ...`; ended in the warm-up = left out). Use
   5 or more runs for a performance gate, before and after back to back.
+  Every frame time is tick to tick inside the window (the first tick only
+  starts the clock, so `warmup=0` no longer times the world's loading), and
+  `frame_peak_ms` is the mean of the slowest frame of each 60 measured
+  frames (it replaces `process_peak_ms` / `physics_peak_ms`, Godot's
+  per-wall-second monitors, which reached back into the warm-up). A run
+  without a result or with a `SCRIPT ERROR` fails the bench (exit 1); `runs:
+  m/n` counts the runs measured of those asked for.
 - **Monsters** (`tools/monster_env.zsh`, shared by `sim.sh`, `sim_trace.sh`
   and `bench.sh`):
   - no `MONSTER`: no `monster=` argument, the roster default (Grount) plays,
@@ -3115,7 +3193,8 @@ res://
    ├─ build_skill_trees.gd · build_skill_trees.sh (seed data → Data/SkillTrees, kept in step by a test)
    ├─ build_locale.sh (strings.csv → strings.en / strings.de.translation)
    ├─ bake_nav.gd · bake_nav.sh (Ground tiles → world_navigation.tres)
-   ├─ lint.sh · lint_all.gd · run_tests.sh (compile + wiring check, the suite)
+   ├─ lint.sh · lint_all.gd · list_warnings.gd · run_tests.sh (compile + wiring + warnings, the suite)
+   ├─ tool_env.zsh (clean-up on any end) · selftest.sh (the tools' own failure paths)
    ├─ sim.sh · sim_match.gd · sim_summary.py · sim_trace.sh · bench.sh · bench_match.gd
    │  (headless balance, determinism and performance; see Headless Tools)
    ├─ list_monsters.gd · monster_env.zsh (MONSTER=<id>|all for those three)
@@ -3778,9 +3857,9 @@ changelog with numbers); this section is the summary.
       until real assets land in `Assets/Audio/`)
 - [x] Performance pass: faction collision layers, EntityRegistry, TickScheduler
       AI LOD, HpBar2D, mob pooling, rig sleep and budget
-- [x] Headless tools: `tools/lint.sh`, `tools/run_tests.sh` (657 tests),
-      `tools/sim.sh`, `tools/sim_trace.sh`, `tools/bench.sh`, and the art, rig,
-      skill-tree and navigation builders
+- [x] Headless tools: `tools/lint.sh` (warnings are errors), `tools/run_tests.sh`
+      (659 tests), `tools/sim.sh`, `tools/sim_trace.sh`, `tools/bench.sh`,
+      `tools/selftest.sh`, and the art, rig, skill-tree and navigation builders
 
 ---
 

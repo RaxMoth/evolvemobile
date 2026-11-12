@@ -42,12 +42,22 @@ extends SceneTree
 ## marked on screen in TickScheduler, as the notifier would. The headless
 ## viewport measures 1280x1280, so at default_zoom 2 the rect is 640x640
 ## world px (a 720x1280 portrait phone shows 360x640). The frame_ms_* stats
-## leave the marking time out; cpu_s and the *_peak_ms monitors include it.
+## leave the marking time out; cpu_s includes it.
+##
+## Every frame_ms sample is the time from one tick to the next inside the
+## window: the first tick only starts the clock, so a warm-up of 0 does not
+## time the world's loading as a frame. `frame_peak_ms` is the mean of the
+## slowest frame of each PEAK_BLOCK measured frames (one game second): the
+## spikes of the window itself. (Godot's TIME_PROCESS monitor is the slowest
+## frame of the last wall-clock second, which at an unlocked frame rate
+## reaches back hundreds of frames, into the warm-up and the world load.)
 
 const WORLD := "res://Scenes/World/World.tscn"
 ## World px added around the camera rect (a notifier fires on its AABB, not
 ## on the mob's origin).
 const ONSCREEN_MARGIN: float = 64.0
+## Measured frames per frame_peak_ms block.
+const PEAK_BLOCK := 60
 
 var _seed: int = 1
 var _warmup: int = 600
@@ -69,11 +79,6 @@ var _last_us: int = 0
 var _frame_ms: Array[float] = []
 # Time the last tick spent in _mark_on_screen (left out of _frame_ms).
 var _mark_us: int = 0
-# Godot's TIME_PROCESS / TIME_PHYSICS_PROCESS monitors hold the slowest frame
-# of the last second (refreshed once per second): summed per frame they give
-# the mean of those per-second peaks.
-var _process_peak_ms: float = 0.0
-var _physics_peak_ms: float = 0.0
 var _peak_nodes: int = 0
 var _peak_mobs: int = 0
 var _peak_pairs: int = 0
@@ -140,14 +145,16 @@ func _start() -> void:
 
 
 func _tick() -> void:
-	_frame += 1
 	var now := Time.get_ticks_usec()
+	if _last_us == 0:
+		# The first tick starts the clock: before it lies the world's loading.
+		_last_us = now
+		return
+	_frame += 1
 	if _frame > _warmup:
 		# The bench's own marking (last tick, ~0.1 ms) is not game cost.
 		_frame_ms.append((now - _last_us - _mark_us) / 1000.0)
 		_time_scale = Engine.time_scale
-		_process_peak_ms += Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0
-		_physics_peak_ms += Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS) * 1000.0
 		_peak_nodes = maxi(_peak_nodes, int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT)))
 		_peak_pairs = maxi(_peak_pairs, int(Performance.get_monitor(Performance.PHYSICS_2D_COLLISION_PAIRS)))
 		_peak_mobs = maxi(_peak_mobs, (_registry.get("mobs") as Array).size())
@@ -214,8 +221,7 @@ func _finish() -> void:
 		"frame_ms_p95": snappedf(sorted[int(n * 0.95)], 0.001),
 		"frame_ms_p99": snappedf(sorted[int(n * 0.99)], 0.001),
 		"frame_ms_max": snappedf(sorted[last], 0.001),
-		"process_peak_ms": snappedf(_process_peak_ms / maxf(1.0, n), 0.001),
-		"physics_peak_ms": snappedf(_physics_peak_ms / maxf(1.0, n), 0.001),
+		"frame_peak_ms": snappedf(_block_peak_ms(), 0.001),
 		"peak_nodes": _peak_nodes,
 		"peak_mobs": _peak_mobs,
 		"peak_collision_pairs": _peak_pairs,
@@ -224,3 +230,17 @@ func _finish() -> void:
 	}
 	print("BENCH_RESULT " + JSON.stringify(out))
 	quit()
+
+
+## The mean over blocks of PEAK_BLOCK measured frames (the last one may be
+## shorter) of each block's slowest frame; 0 when nothing was measured.
+func _block_peak_ms() -> float:
+	var total := 0.0
+	var blocks := 0
+	for start in range(0, _frame_ms.size(), PEAK_BLOCK):
+		var block_max := 0.0
+		for i in range(start, mini(start + PEAK_BLOCK, _frame_ms.size())):
+			block_max = maxf(block_max, _frame_ms[i])
+		total += block_max
+		blocks += 1
+	return total / maxf(1.0, blocks)

@@ -5,7 +5,8 @@ extends SceneTree
 ## (see _check_scene_wiring) and that the UI has no colour literals (see
 ## _check_no_color_literals). Run through tools/lint.sh (which works on a temp
 ## COPY of the project — never run a newer editor binary against the real
-## project directory).
+## project directory), which also turns every GDScript warning into an error
+## on that copy (see _count_warnings_as_errors).
 
 ## The no-colour-literal rule covers every script, scene and resource here.
 const COLOR_RULE_ROOT := "res://Scenes/UI/"
@@ -16,10 +17,15 @@ const COLOR_RULE_EXEMPT: Array[String] = [
 	"res://Scenes/UI/Theme/palette.tres",
 	"res://Scenes/UI/Theme/ui_theme.tres",
 ]
+const WARNINGS_PREFIX := "debug/gdscript/warnings/"
+## ProjectSettings' warning levels (GDScriptWarning.WarnLevel).
+const LEVEL_WARN := 1
+const LEVEL_ERROR := 2
 
 
 func _initialize() -> void:
 	# Autoload names only exist as globals after Main::start, hence not _init().
+	var n_warnings := _count_warnings_as_errors()
 	var files: Array[String] = []
 	_walk("res://", files)
 	var n_scripts := 0
@@ -40,8 +46,30 @@ func _initialize() -> void:
 			elif res is PackedScene:
 				_check_scene_wiring(res as PackedScene, p)
 	var n_color_checked := _check_no_color_literals(files)
-	print("LINT DONE scripts=%d resources=%d ui_color_checked=%d" % [n_scripts, n_res, n_color_checked])
+	print("LINT DONE scripts=%d resources=%d ui_color_checked=%d warnings_as_errors=%d" % [n_scripts, n_res,
+			n_color_checked, n_warnings])
 	quit()
+
+
+## tools/lint.sh sets every GDScript warning the project leaves at "warn" to
+## "error" in its copy's override.cfg (tools/list_warnings.gd), so a script
+## with a warning fails to compile here. A warning still at "warn" means that
+## did not happen (lint_all.gd run by hand, or the list came back short): it
+## would pass unseen, so it is an error. Returns how many warnings are errors.
+func _count_warnings_as_errors() -> int:
+	var as_errors := 0
+	for prop: Dictionary in ProjectSettings.get_property_list():
+		var key: String = prop["name"]
+		if not key.begins_with(WARNINGS_PREFIX):
+			continue
+		var level: Variant = ProjectSettings.get_setting(key)
+		if typeof(level) != TYPE_INT:
+			continue
+		if int(level) == LEVEL_ERROR:
+			as_errors += 1
+		elif int(level) == LEVEL_WARN:
+			push_error("LINT: GDScript warning %s is only a warning (run the lint through tools/lint.sh)" % key)
+	return as_errors
 
 
 ## load() never connects a signal or resolves a NodePath, so broken scene

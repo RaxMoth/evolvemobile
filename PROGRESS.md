@@ -122,11 +122,6 @@ anything (see "Verification gate").
 - [ ] **Dead rows in `strings.csv`** — 35 rows of the v0.1 menus (Main Menu, Pre-Round Setup,
       the old tutorial texts, "Skills", "Coming soon", ...) are no longer used by any scene or
       script. They are never shown; removing them makes the German review shorter.
-- [ ] **Four GDScript warnings left** (found with every default warning set to error on a copy:
-      `debug/gdscript/warnings/<name>=2` in `project.godot`, then `tools/lint_all.gd`):
-      `hero_exploration_controller.gd:222` (a variable named `snapped`), `tools/bake_nav.gd:65/70/76`
-      (`root`, `remap`), `test/test_fight_readability.gd:62` (`rig` declared below in the parent
-      block). `debug/gdscript/warnings/treat_warnings_as_errors` no longer exists in Godot 4.7.
 - [ ] **uids on generated resources** — character bodies / motions / defs, Vfx recipes,
       `Data/SkillTrees`, `roster.tres`, Nyxa's and Gorrak's ability and stats files,
       `world_navigation.tres` and the `tools/preview` scenes have no `uid` in their header (the
@@ -139,8 +134,8 @@ anything (see "Verification gate").
       enable_lazy_activation = false, stress_mob_multiplier = 2), Compatibility vs Mobile renderer
       (`config/features` still says "GL Compatibility" while `rendering_method="mobile"`), physics
       30 Hz, F3 at pinch zoom 0.5, and the same with the speed button on fast (F3: a frame costs
-      about twice as much there). `treat_warnings_as_errors` stays off until an editor pass shows 0
-      warnings.
+      about twice as much there). (Warnings: `tools/lint.sh` turns every one into an error on its
+      copy since T1; `project.godot` keeps the editor's defaults.)
 - [ ] Real audio assets (user step): `Assets/Audio/<key>.ogg|wav`; the manager plays generated tones
       until then.
 - [ ] Balance retune after the P1 layer split (aggro 344→~203 px, AoE reach) — needs a playtest.
@@ -323,6 +318,25 @@ Look and feel:
   glyphs only (German umlauts and ß included); anything else falls back to the body font (Godot's
   Open Sans SemiBold). A language beyond Latin needs a display font with wider coverage first.
 
+Tools (T1):
+- **A stuck test stops the whole run**: after 120 s (wall clock) the runner names the test
+  (`TIMEOUT <file>::<test>`) and kills the process, so the tests after it do not run. A GDScript
+  loop on the main thread cannot be interrupted any other way; an `await` that never returns
+  could be skipped instead, at the cost of a second mechanism. The slowest test takes a few
+  seconds.
+- **The runner exits 1 when it is not isolated** (started by hand on a copy whose `user://` name
+  lacks `evolvemobile_tests`): the save tests are then skipped, and the run says `NOT ISOLATED`.
+  Probe set-ups name their user dir `evolvemobile_tests_<something>`.
+- **`sim_trace.sh` plays 2 matches at a time** by default (`JOBS=2`), for the 8 GB machine; the
+  full gate (all three monsters) took 151 s here. `JOBS=6` restores the old six at once.
+- **`bench.sh`'s `process_peak_ms` / `physics_peak_ms` are gone**: they read Godot's
+  per-wall-second monitors, which reached back into the warm-up and the world load.
+  `frame_peak_ms` (the mean of the slowest frame per 60 measured frames) replaces them; older
+  bench logs cannot be compared on that line. The CPU time now comes from zsh's `times` instead
+  of `/usr/bin/time` (so a kill reaches Godot).
+- **The audio rate-limit test** retries when the machine stalled between the two plays instead of
+  driving AudioManager from a fake clock (no test hook in the game code).
+
 ## Placeholder copy for the user's review
 
 - Grount's stage names (Bullcalf, Rampager, Alpha Bull) and his tip; Nyxa's (Duskling, Night
@@ -348,10 +362,12 @@ Look and feel:
 
 ## Verification gate
 
-Every change passes `tools/lint.sh` (errors=0) and `tools/run_tests.sh` (exit 0; 657 tests, the
-run exits with nothing leaked). A change that must not alter gameplay also keeps the determinism
-trace byte-identical: `BASELINE=<parent trace> tools/sim_trace.sh > <new trace>` (exit 0): seeds 1-3
-× heroes/monster as full matches (~40 s). Every 60 frames the trace hashes each EntityRegistry
+Every change passes `tools/lint.sh` (errors=0; every GDScript warning is an error there) and
+`tools/run_tests.sh` (exit 0; 659 tests: 658 passed, 1 skipped headless, the run exits with nothing
+leaked). A change that must not alter gameplay also keeps the determinism trace byte-identical:
+`MONSTER=all BASELINE_DIR=tools/baselines tools/sim_trace.sh > <new trace>` (exit 0): seeds 1-3 ×
+heroes/monster × every monster as full matches, `JOBS=2` at a time by default (no per-seed split
+needed on the 8 GB machine). A change to a tool also passes `tools/selftest.sh`. Every 60 frames the trace hashes each EntityRegistry
 entity's class, position (1 px), health and active state, the monster's stage and XP and the mob
 kill count — never node names. The temp copies turn off the navigation server's asynchronous
 map/region iterations (override.cfg only), which makes runs repeat from the first line under any
@@ -469,6 +485,97 @@ Match speed (F3, `tools/bench.sh 3 2 900 300 0 <rigs_awake> <speed>`, back to ba
       uses `GameManager.killer_side`; the sim could use the same rule. Low priority.
 
 ## Changelog
+### 2026-11-12 — fix batch T1: tools and gate that cannot pass by accident
+First batch of the second fix run (review findings tools-1 to tools-12, the review's test-strength
+gap, F4's warnings note). Presentational: the determinism traces of all three monsters are
+byte-identical to `tools/baselines` (Grount 2,503, Nyxa 3,252 and Gorrak 2,774 lines), run by the
+new `sim_trace.sh` in one call (`JOBS=2`, 151 s for all three monsters).
+
+- **Lint fails unless it ran** (tools-1): `GODOT=/nonexistent tools/lint.sh` and a Godot that
+  crashed before `LINT DONE` printed `errors=0`, exit 0. Now a missing binary exits 2 before any
+  work (every tool, `tools/tool_env.zsh`) and the lint fails unless Godot reached `LINT DONE` and
+  exited 0.
+- **Warnings are errors in the lint** (tools-6, F4's note): `tools/list_warnings.gd` lists the 37
+  warnings the project leaves at "warn" and `lint.sh` sets each to "error" in its copy's
+  `override.cfg` (never in `project.godot`); `lint_all.gd` reports `warnings_as_errors=41` (with
+  Godot's 4 default errors) and fails if one is still a warning. It found 5, all renamed:
+  `hero_exploration_controller.gd` `snapped` (a built-in) → `on_mesh`, `tools/bake_nav.gd` `root`
+  ×2 (shadowed `SceneTree.root`) → `island` and `remap` (a built-in) → `vert_remap`,
+  `test_fight_readability.gd` `rig` (declared below in the parent block) → `puppet`. README
+  "Headless Tools" lists the 37 names.
+- **sim.sh and bench.sh see errors** (tools-4): each match writes its own log; a `SCRIPT ERROR` or
+  a missing result names the seed on stderr with its first error lines and exits 1 (the summary
+  still prints). `sim_summary.py` exits 1 for a group with fewer rows than runs or a Monster win
+  before the cap with a hero alive. `bench.sh` fails a run without `BENCH_RESULT` or with a
+  `SCRIPT ERROR` (its stderr went to the `/usr/bin/time` file, so the old check never saw one).
+- **The runner** (tools-7, tools-12): a test that hits a SCRIPT ERROR fails (a `Logger` counts
+  them; the error aborted the test, so its later asserts never ran and it printed `ok`); a
+  skipped test counts as skipped, not passed (`== 658 passed, 0 failed, 1 skipped ==`, before
+  `657 passed, 0 failed, 1 skipped` counted the skip twice); a run outside the isolated `user://`
+  prints `NOT ISOLATED` and exits 1 (it reported the 221 save tests as passed, exit 0); a watchdog thread
+  names a test still running after 120 s (`TIMEOUT <test>`) and kills the run. `_evolve` (three
+  copies, unbounded) became the bounded `TestCase.evolve_to` with an assert, and Gorrak's F3-line
+  axe loop got the 120-step bound of its siblings. `tools/run_tests.sh [name ...]` runs only the
+  matching files.
+- **A kill leaves nothing** (tools-3): zsh skips the EXIT trap on TERM and holds traps until a
+  foreground child ends, so 26 sim user dirs, 6 trace dirs and 2 bench dirs had piled up in
+  Application Support and killed `sim.sh` workers kept starting matches. `tools/tool_env.zsh`
+  (sourced by all nine tools) turns TERM/INT/HUP into an exit, runs Godot in the background and
+  waits for it, and its EXIT trap stops every Godot and worker before deleting the copies and
+  user dirs.
+- **`sim_trace.sh` has `JOBS`** (default 2): worker w plays every JOBS-th match on its own copy
+  with a fresh `user://` per match, so the gate needs no per-seed split on the 8 GB machine; the
+  output keeps the argument order.
+- **sim details** (tools-2, tools-5, tools-8): the result is written at the end of the frame the
+  match ended in, after the sim's own handlers of the deciding death and its killing blow
+  (before: a wipe reported 3 hero deaths and `heroes_alive` 1). Seed 2 heroes now reports 4 deaths
+  (River at 394.1 s, no ally within 500 px), `heroes_alive` 0, monster damage 674 (was 642) and
+  monster XP 787 (was 687); seed 1 (a hero win) counts the killing blow: hero damage 1,355 (was
+  1,335). `heroes_alive` is
+  `GameManager.heroes_alive`. `SAVE=<missing file>` exits 2 (it played a fresh save), and a side
+  other than `heroes` / `monster` exits 2 in `sim.sh`, `sim_trace.sh` and `sim_match.gd` (it played
+  the heroes under the typed label). SIM_TRACE_END prints where it did, so the trace is unchanged.
+- **bench** (tools-9): the first tick only starts the clock (`warmup=0` timed the world load as a
+  frame: the review measured `frame_ms_max` 1,472 ms for `bench.sh 1 2 240 0`, now 20.3 ms against
+  a p99 of 6.9 ms); `process_peak_ms` / `physics_peak_ms` (Godot's per-wall-second
+  monitors, which reached into the warm-up) are replaced by `frame_peak_ms`, the mean of the
+  slowest frame per 60 measured frames. CPU time comes from zsh's `times` so Godot stays the
+  tool's own child (a kill reaches it). No bench gate: nothing that runs in a match changed (the
+  minimap's draw only moved into `dots()`, at 4 Hz).
+- **README** (tools-10): the THREAT text named a `MetaSkillManager.parity_build` with P = 6T that
+  never existed; it now says what `sim_match.gd` does (`threat_override` and `side_ai_build`, 5T
+  power ranks).
+- **Audio test** (tools-11): the rate-limit refusal is asserted only when the clock shows both
+  plays inside the 50 ms window; a stall between them is retried (up to 5 times).
+- **`tools/selftest.sh`** (new): 23 checks of lint, tests, sim, trace and bench against a fake
+  Godot on a stand-in project (about 10 s): crashes, planted SCRIPT ERRORs, a seed without a
+  result, a bad side, a missing SAVE, `JOBS=0`, the trace order with `JOBS=2`, and a TERM
+  mid-run of each tool after which no match may run and no copy or user dir may be left. The
+  parent's tools fail 14 of them.
+- **Test strength** (the review's gap): twelve mutations on a copy, the full suite each time. Caught:
+  River's heal restores no HP (3 tests, `test_hero_capstones`, `test_ability_vfx`); a cooldown
+  never starts (6: `test_hero_actives`, `test_stat_keys`, `test_hud_fog`, ...); every owned
+  capstone applies (4: `test_skill_ranks::test_capstone_exclusivity`,
+  `test_hero_capstones::test_only_the_equipped_capstone_applies`, ...); gold without the threat
+  bonus (`test_rewards`, `test_match_result`); the tap guard lets presses through (6,
+  `test_menu_flow`); no hit-flash rate limit (`test_fight_readability`); `move_speed` nodes not
+  applied (`test_detail_fit_and_stats`, `test_opponent_threat`); the player's fog never clears
+  (4, `test_hud_fog`, `test_match_toasts`); the heroes' fog memory never written (3,
+  `test_hud_fog`). Not caught, now covered: the minimap's dots (only the rendered test, skipped
+  headless, drew them): `Minimap.dots()` lists what `_draw()` draws and
+  `test_minimap::test_dots_show_what_the_played_side_may_see` checks both sides' fairness rules
+  on it; evolving at half the XP threshold was caught only by capstone tests and one XP point
+  early by none: `test_identity_and_evolution::test_evolution_waits_for_the_full_threshold`.
+- **The gate still fails when it should** (a copy with a planted unused variable and a null call
+  in `GameManager._on_entity_died`): lint exit 1 (`errors=3`, the warning as a Parse Error),
+  tests exit 1 (17 tests FAIL on the script error), `sim.sh 2 heroes 2 90` exit 1 (both seeds
+  named, 20 script errors each), `sim_trace.sh "1"` exit 1.
+- Tests: 657 → 659 (the two above). Gate: lint `errors=0` (225 scripts, `warnings_as_errors=41`);
+  `tools/run_tests.sh` `== 658 passed, 0 failed, 1 skipped ==`, exit 0, nothing leaked;
+  `tools/selftest.sh` 23 of 23; the traces above. Muted render of `test_minimap.gd` in a window
+  (`run_tests.sh`'s runner with the file filter): the rendered pixel test passes, the hero dot
+  drawn through `dots()` sits on the revealed moss (`impl_previews/fix_T1_*.png`).
+
 ### 2026-11-11 — fix batch F6: German for all content texts
 Sixth fix batch after the walkthrough (`walk_menus` problem 6; review findings menus-4, meta-5,
 heroes-11 and menus-9). Presentational: the determinism traces of all three monsters are

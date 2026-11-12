@@ -7,13 +7,16 @@
 #   MONSTER=all    -> every roster monster id, in roster order
 #
 # resolve_monsters <copy> runs tools/list_monsters.gd on <copy>, an imported
-# temp copy with its own user:// (override.cfg), only when MONSTER is set.
+# temp copy with its own user:// (override.cfg), only when MONSTER is set
+# (through run_godot, tools/tool_env.zsh: source that first; the log goes to
+# $TMP).
 # An id the roster lacks fails (return 1) instead of quietly playing the
 # default monster, which GameManager.select_monster would fall back to.
 resolve_monsters() {
   MONSTERS=("")
   [ -z "$MONSTER" ] && return 0
-  local ids=(${=$("$GODOT" --headless --path "$1" -s res://tools/list_monsters.gd 2>/dev/null | sed -n 's/^MONSTER_IDS //p')})
+  run_godot "$TMP/list_monsters.log" --headless --path "$1" -s res://tools/list_monsters.gd
+  local ids=(${=$(sed -n 's/^MONSTER_IDS //p' "$TMP/list_monsters.log")})
   if [ "$MONSTER" = all ]; then
     MONSTERS=($ids)
   elif (( ${ids[(Ie)$MONSTER]} )); then

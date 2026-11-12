@@ -824,15 +824,25 @@ runs Godot headless there: the real save is never touched, nothing makes a
 sound, and the editor can stay open. Details: README "Headless Tools".
 
 ```bash
-tools/lint.sh               # loads every script, scene and resource; scene wiring; UI colour literals
-tools/run_tests.sh          # the headless suite (GODOT=/path/to/godot overrides the binary)
+tools/lint.sh               # loads every script, scene and resource; scene wiring; UI colour literals;
+                            # every GDScript warning is an error on the lint's copy
+tools/run_tests.sh [name]   # the headless suite, or the files whose name contains <name>
+                            # (GODOT=/path/to/godot overrides the binary)
 BASELINE=<file> tools/sim_trace.sh > new.txt    # determinism: byte-identical for a non-gameplay change
+                                                # (JOBS=2 matches at a time by default)
 MONSTER=all tools/sim.sh 48 heroes 6            # balance per monster (also: monster side, THREAT=, SAVE=)
 tools/bench.sh 5 2 900 300                      # performance in the stress config
 tools/bake_nav.sh · tools/build_rigs.sh · tools/build_skill_trees.sh   # regenerate, copy back
 tools/build_locale.sh [--check]                 # strings.csv → the two .translation files
 python3 tools/art/build.py · python3 tools/art/make_theme.py           # UI kit, palette, theme
+tools/selftest.sh                               # the tools' own failure paths, with a fake Godot
 ```
+
+No tool passes by accident: a missing or crashed Godot, a run that never
+reached its end marker and any `SCRIPT ERROR` fail it, and a test that hits
+a script error fails even when its asserts passed. A killed tool stops its
+Godot processes and deletes its copies (`tools/tool_env.zsh`). After changing
+a tool run `tools/selftest.sh`.
 
 **The gate for every commit**: lint `errors=0`, the suite green, and
 
@@ -855,8 +865,10 @@ assert_false / assert_near / skip`. Helpers: `spawn_entity(scene, pos)` (adds
 under the test and waits for the awaited `_ready`), `spawn_frozen`,
 `active_state_of(entity)`, `wait_frames / wait_physics_frames / wait_seconds`,
 `play_side(side)`, `require_isolated()` for tests that write the save,
-`bake_nav_rect`. Nodes a test leaves behind are freed between tests; the
-locale is pinned to `en`; deaths never end a match. A probe script run with
+`bake_nav_rect`, `evolve_to(monster, stage)`. Nodes a test leaves behind are
+freed between tests; the locale is pinned to `en`; deaths never end a match.
+A loop that waits for a condition needs a bound (and an assert after it): a
+test still running after 120 s is named and stops the run. A probe script run with
 `-s` must not use project `class_name`s as types.
 
 ### Manual Testing Checklist

@@ -60,12 +60,6 @@ func _free(nodes: Array) -> void:
 	await wait_frames(1)
 
 
-## Evolve to `stage` (gain_xp checks one threshold per call).
-func _evolve(m: MonsterBase, stage: int) -> void:
-	while m.get_stage() < stage:
-		m.gain_xp(1000.0)
-
-
 ## Steps the axe frame by frame until it is back (at most `max_steps`);
 ## returns the steps taken.
 func _fly(axe: ThrownAxe, caster: MonsterBase, max_steps: int = 300) -> int:
@@ -159,7 +153,7 @@ func test_stage_numbers() -> void:
 		[3, 1500.0, 74.0, 18.0, 90.0, 18.0, 5.0, 22.0, 160.0, 12.0, 999999],
 	]
 	for row: Array in rows:
-		_evolve(g, int(row[0]))
+		evolve_to(g, int(row[0]))
 		var tag := "stage %d" % row[0]
 		assert_eq(g.get_max_health(), row[1], tag + " HP")
 		assert_eq(g.get_health(), row[1], tag + ": evolving heals to full")
@@ -178,7 +172,7 @@ func test_armour_cracks_at_stage_3() -> void:
 	var g := await _gorrak()
 	var v := await _hero(Vector2(3000, 0))
 	for row: Array in [[1, 85.0], [2, 90.0], [3, 100.0]]:
-		_evolve(g, int(row[0]))
+		evolve_to(g, int(row[0]))
 		var hp: float = g.get_health()
 		EventBus.deal_damage(v, g, 100.0)
 		assert_near(hp - g.get_health(), row[1], 0.0001, "stage %d takes %d of 100" % row)
@@ -350,8 +344,10 @@ func test_f3_line_shows_the_monster_id_and_the_axe() -> void:
 	axe.execute(g, null, 10.0)
 	axe.tick_active(g, STEP)
 	assert_true(g.debug_meta_line().ends_with(" | axe! flying out"), g.debug_meta_line())
-	while axe.is_flying() and not axe.is_returning():
+	var steps := 0
+	while axe.is_flying() and not axe.is_returning() and steps < 120:
 		axe.tick_active(g, STEP)
+		steps += 1
 	assert_true(g.debug_meta_line().ends_with(" | axe! flying back"), g.debug_meta_line())
 	_fly(axe, g)
 	assert_true(g.debug_meta_line().ends_with(" | axe in hand"), g.debug_meta_line())
@@ -462,7 +458,7 @@ func test_tree_nodes_act_on_his_copies() -> void:
 	var hp: float = g.get_health()
 	EventBus.deal_damage(v, g, 100.0)
 	assert_near(hp - g.get_health(), 100.0 * 0.95 * 0.85, 0.001, "Mud Armour on top of the Stage 1 armour")
-	_evolve(g, 3)
+	evolve_to(g, 3)
 	assert_near(chop.cone_angle, 90.0 + 10.0, 0.001, "Wide Arc at Stage 3")
 	assert_near(axe.damage, 18.0 * 1.2, 0.001, "Honed Tusks at Stage 3")
 	assert_near(stomp.slam_radius, 160.0 * 1.15, 0.001, "Earthshaker at Stage 3")

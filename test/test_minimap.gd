@@ -119,6 +119,42 @@ func _assert_pixel(img: Image, mm: Minimap, world_pos: Vector2, want: Color, wha
 	assert_true(off <= PIXEL_EPS, "%s: pixel %s is #%s, expected #%s" % [what, at, got.to_html(false), want.to_html(false)])
 
 
+## What _draw() draws (dots()): headless nothing is rendered, so this is the
+## runner's check of the dots; the rendered test above checks the pixels in a
+## window. The played side's own dots always show at their map positions in
+## their colours, the other side's only inside a vision radius.
+func test_dots_show_what_the_played_side_may_see() -> void:
+	var mm := (load(SCENE) as PackedScene).instantiate() as Minimap
+	add_child(mm)
+	mm.size = Vector2(160, 128)
+	mm.set_world_bounds(Vector2.ZERO, Vector2(7500, 6000))
+	var vlad := await spawn_frozen(VLAD, Vector2(1000, 1000))
+	var grount := await spawn_frozen(GROUNT, Vector2(4000, 3000))
+	var vlad_dot := [mm.world_to_map(vlad.global_position), 3.0, mm._hero_color]
+	play_side(0)
+	assert_eq(_dots(mm), [vlad_dot], "heroes side: Vlad's dot; the monster is out of his sight")
+	grount.global_position = Vector2(1150, 1000)  # inside Vlad's 250 px vision
+	assert_eq(_dots(mm), [vlad_dot, [mm.world_to_map(grount.global_position), 4.0, mm._monster_color]],
+			"the monster's dot once a hero sees it")
+	play_side(1)
+	grount.global_position = Vector2(4000, 3000)
+	var grount_dot := [mm.world_to_map(grount.global_position), 4.0, mm._monster_color]
+	assert_eq(_dots(mm), [grount_dot], "monster side: its own dot; Vlad is out of its sight")
+	vlad.global_position = Vector2(3800, 3000)  # inside the monster's vision
+	assert_eq(_dots(mm), [[mm.world_to_map(vlad.global_position), 3.0, mm._hero_color], grount_dot],
+			"a hero's dot once the monster sees him")
+	vlad.queue_free()
+	grount.queue_free()
+	mm.queue_free()
+
+
+func _dots(mm: Minimap) -> Array:
+	var out := []
+	for dot in mm.dots():
+		out.append([dot.position, dot.radius, dot.color])
+	return out
+
+
 func test_fairness_rules() -> void:
 	var mm := (load(SCENE) as PackedScene).instantiate() as Minimap
 	add_child(mm)

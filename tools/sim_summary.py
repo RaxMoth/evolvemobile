@@ -9,6 +9,11 @@ from before Opponent Threat as threat 0), so an OUT= file of MONSTER=all
 THREAT=all summarizes the same way sim.sh printed it. Hero deaths are
 attributed to the monster by each row's "monster_name" (the spawned monster
 node's name, the "by" of the deaths it caused).
+
+Exit 1 when a group has fewer rows than expected_runs_per_monster (a match
+crashed or never reported), or when a row contradicts itself: a Monster win
+before the time cap with a hero still alive (the result was written before
+the deciding death was counted).
 """
 import json, statistics, sys
 from collections import Counter
@@ -19,6 +24,18 @@ DEFAULT_MONSTER = ("grount", "Grount")
 def med(xs): return f"{statistics.median(xs):.0f}s" if xs else "-"
 def q(xs, k):
     xs = sorted(xs); return f"{xs[int(k * (len(xs) - 1))]:.0f}s" if xs else "-"
+
+
+def check(rows, expected):
+    """Problems of one group, as lines: missing rows, rows that contradict themselves."""
+    problems = []
+    if expected and len(rows) < expected:
+        problems.append(f"only {len(rows)} of {expected} matches reported a result")
+    for r in rows:
+        if (r["reason"] == "end" and r["winner"] == "Monster" and r["game_clock"] < 599.0
+                and r.get("heroes_alive", 0) != 0):
+            problems.append(f"seed {r['seed']}: a Monster win at {r['game_clock']}s with heroes_alive {r['heroes_alive']}")
+    return problems
 
 
 def summarize(rows, expected):
@@ -84,7 +101,12 @@ for line in open(path):
         groups.setdefault(key, []).append(row)
 if not groups:
     print("no results (did the sim crash? run one seed by hand)"); sys.exit(1)
+status = 0
 for i, rows in enumerate(groups.values()):
     if i:
         print()
     summarize(rows, expected)
+    for problem in check(rows, expected):
+        print(f"  PROBLEM: {problem}", file=sys.stderr)
+        status = 1
+sys.exit(status)

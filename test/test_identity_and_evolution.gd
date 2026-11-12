@@ -48,6 +48,20 @@ func test_evolution_is_announced_on_the_event_bus() -> void:
 	grount.queue_free()
 
 
+## A monster evolves when its XP reaches the next stage's threshold, not a
+## point before (a fresh save: no XP or threshold node applies).
+func test_evolution_waits_for_the_full_threshold() -> void:
+	var grount := (await spawn_frozen(GROUNT, Vector2(3000, 0))) as MonsterBase
+	for stage in [2, 3]:
+		var threshold := grount.get_evolution_threshold()
+		assert_true(threshold > 1 and threshold < 999999, "a threshold for stage %d (%d)" % [stage, threshold])
+		grount.gain_xp(threshold - 1 - grount.current_xp)
+		assert_eq(grount.get_stage(), stage - 1, "one XP short of the stage %d threshold" % stage)
+		grount.gain_xp(1.0)
+		assert_eq(grount.get_stage(), stage, "evolved at exactly %d XP" % threshold)
+	grount.queue_free()
+
+
 ## Back-to-back evolutions: the second flash replaces the first and both end at
 ## WHITE. The old sprite flash restored the tint it captured, which was
 ## mid-flash here, and the Grount stayed tinted; the rig's flash (on screen)

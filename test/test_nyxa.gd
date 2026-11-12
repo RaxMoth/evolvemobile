@@ -47,12 +47,6 @@ func _free(nodes: Array) -> void:
 	await wait_frames(1)
 
 
-## Evolve to `stage` (gain_xp checks one threshold per call).
-func _evolve(m: MonsterBase, stage: int) -> void:
-	while m.get_stage() < stage:
-		m.gain_xp(1000.0)
-
-
 # ---------- the scene ----------
 
 func test_scene_wires_her_kit() -> void:
@@ -115,7 +109,7 @@ func test_stage_numbers() -> void:
 	]
 	assert_eq(n.get_evolution_threshold(), 150)
 	for row: Array in rows:
-		_evolve(n, int(row[0]))
+		evolve_to(n, int(row[0]))
 		var tag := "stage %d" % row[0]
 		assert_eq(n.get_max_health(), row[1], tag + " HP")
 		assert_eq(n.get_health(), row[1], tag + ": evolving heals to full")
@@ -140,7 +134,7 @@ func test_swarm_cannot_be_cast_before_stage_2() -> void:
 	var v := await _hero(Vector2(60, 0))
 	assert_false(n._cast("ability_3", n.ability_3, v), "locked at Stage 1")
 	assert_false((n.ability_3 as NightSwarm).is_active())
-	_evolve(n, 2)
+	evolve_to(n, 2)
 	assert_true(n._cast("ability_3", n.ability_3, v), "open at Stage 2")
 	assert_true((n.ability_3 as NightSwarm).is_active())
 	assert_eq(n.get_ability_cooldown("ability_3"), 18.0)
@@ -157,7 +151,7 @@ func test_swarm_bites_every_tick_and_heals_her() -> void:
 	var n := await _nyxa()
 	var near := await _hero(Vector2(60, 0))
 	var far := await _hero(Vector2(300, 0))
-	_evolve(n, 2)
+	evolve_to(n, 2)
 	var swarm := n.ability_3 as NightSwarm
 	var bites: Dictionary[Node, int] = {near: 0, far: 0}
 	var landed: Array[float] = [0.0]
@@ -190,7 +184,7 @@ func test_swarm_bites_every_tick_and_heals_her() -> void:
 func test_swarm_follows_her() -> void:
 	var n := await _nyxa()
 	var v := await _hero(Vector2(400, 0))
-	_evolve(n, 2)
+	evolve_to(n, 2)
 	var swarm := n.ability_3 as NightSwarm
 	var hp: float = v.get_health()
 	swarm.execute(n, null, 4.0)
@@ -204,7 +198,7 @@ func test_swarm_follows_her() -> void:
 
 func test_swarm_ends_when_she_dies() -> void:
 	var n := await _nyxa()
-	_evolve(n, 2)
+	evolve_to(n, 2)
 	var swarm := n.ability_3 as NightSwarm
 	swarm.execute(n, null, 4.0)
 	assert_true(swarm.is_active())
@@ -221,7 +215,7 @@ func test_swarm_counts_the_heroes_around_her() -> void:
 	var n := await _nyxa()
 	var near := await _hero(Vector2(80, 0))
 	var target := await _hero(Vector2(0, 300))
-	_evolve(n, 2)
+	evolve_to(n, 2)
 	n.target = target.get_node(^"Body")
 	n.target_entity = target
 	assert_eq(n.ability_3.get_cast_center(n, target), n.global_position)
@@ -236,7 +230,7 @@ func test_f3_line_shows_the_monster_id_and_the_swarm() -> void:
 	var line := n.debug_meta_line()
 	assert_true(line.contains("[nyxa] S1 "), line)
 	assert_true(line.ends_with(" | swarm off"), line)
-	_evolve(n, 2)
+	evolve_to(n, 2)
 	var swarm := n.ability_3 as NightSwarm
 	swarm.execute(n, null, 4.0)
 	swarm.tick_active(n, 0.5)
@@ -260,7 +254,7 @@ func test_vfx_swarm_bats_follow_her_and_end() -> void:
 	var vfx := AbilityVfx.new()
 	add_child(vfx)
 	var n := await _nyxa(Vector2(100, 100))
-	_evolve(n, 3)
+	evolve_to(n, 3)
 	var swarm := n.ability_3 as NightSwarm
 	assert_eq(swarm.fx.cue, &"swarm", "her recipe plays the swarm")
 	assert_true(n._cast("ability_3", swarm, null), "cast (no hero needed)")
@@ -337,14 +331,14 @@ func test_tree_nodes_act_on_her_copies() -> void:
 	for id: StringName in [&"ny_swarm", &"ny_swarmdur", &"ny_cone", &"ny_leech"]:
 		PersistedData.set_skill_rank(TREE, id, 1)
 	var n := await _nyxa()
-	_evolve(n, 2)
+	evolve_to(n, 2)
 	var swarm := n.ability_3 as NightSwarm
 	var screech := n.ability_1 as BullFrontCleave
 	assert_near(swarm.area_of_effect, 110.0 * 1.15, 0.001, "Thicker Swarm at Stage 2")
 	assert_near(swarm.duration, 3.5 * 1.3, 0.001, "Endless Night")
 	assert_near(screech.cone_angle, 60.0 + 8.0, 0.001, "Wide Shriek at Stage 2")
 	assert_near(screech.lifesteal_pct, 0.3, 0.001, "Thirst")
-	_evolve(n, 3)
+	evolve_to(n, 3)
 	assert_near(swarm.area_of_effect, 140.0 * 1.15, 0.001, "and at Stage 3")
 	var shared := load(NYXA_SWARM) as NightSwarm
 	assert_eq([shared.area_of_effect, shared.duration], [110.0, 3.5], "the shared .tres is untouched")

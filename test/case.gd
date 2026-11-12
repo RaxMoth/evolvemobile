@@ -58,6 +58,17 @@ func wait_seconds(sec: float) -> void:
 	await get_tree().create_timer(sec).timeout
 
 
+## Feeds `monster` (a MonsterBase) XP until it reaches `stage`; gain_xp checks
+## one threshold per call. Bounded: an evolution that never comes fails the
+## test instead of spinning forever.
+func evolve_to(monster: Node, stage: int) -> void:
+	for i in 10:
+		if int(monster.call("get_stage")) >= stage:
+			break
+		monster.call("gain_xp", 1000.0)
+	assert_true(int(monster.call("get_stage")) >= stage, "%s reached stage %d" % [monster.name, stage])
+
+
 ## Name of the active atomic state of an EntityBase's chart ("Idle", "Dead", …).
 func active_state_of(entity: Node) -> String:
 	var chart: Node = entity.get_node_or_null("%StateChart")

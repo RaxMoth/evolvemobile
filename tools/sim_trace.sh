@@ -19,10 +19,12 @@
 # change re-records them in the same commit. The hashes depend on the engine
 # build and the CPU: re-record after an engine upgrade or on another machine.
 #
-# Runs every seed x side as one full match (tools/sim_match.gd ... trace), all in
-# parallel (one monster after the other), each on its own temp copy with a fresh
-# user:// (override.cfg), never on the real project directory. stdout gets only
-# the trace lines, prefixed with "<seed> <side>", in argument order:
+# Runs every monster x seed x side as one full match (tools/sim_match.gd ...
+# trace), JOBS at a time (default 2; JOBS=6 runs a monster's six default
+# matches at once on a machine with the memory for it), each worker on its own
+# temp copy with a fresh user:// (override.cfg) for every match, never on the
+# real project directory. stdout gets only the trace lines, prefixed with
+# "<seed> <side>", in argument order whatever JOBS is:
 #   <seed> <side> SIM_TRACE <frame> <hash>                      every 60 frames
 #   <seed> <side> SIM_TRACE_END <frame> <reason> <winner> <hash>
 # The same tree gives byte-identical output from the first line (frame 60) on,
@@ -32,12 +34,25 @@
 # and GameUtils branches on map_get_iteration_id(); with them on, two runs of one
 # seed diverged from frame 180. Exit 1 if a run hit a SCRIPT ERROR or did not
 # finish, or (with BASELINE / BASELINE_DIR) if the trace differs; exit 2 on an
-# unknown MONSTER id.
+# unknown MONSTER id, a side other than heroes or monster, or a bad JOBS. A
+# kill (TERM, INT, HUP) stops the workers and their matches and deletes the
+# copies (tools/tool_env.zsh).
 setopt NULL_GLOB
-GODOT="${GODOT:-/Applications/Godot.app/Contents/MacOS/Godot}"
 SEEDS=(${=${1:-1 2 3}}); SIDES=(${=${2:-heroes monster}}); CAP="${3:-660}"
+JOBS="${JOBS:-2}"
 SRC="$(cd "$(dirname "$0")/.." && pwd)"
+source "$SRC/tools/tool_env.zsh"
 source "$SRC/tools/monster_env.zsh"
+if [[ ! "$JOBS" =~ '^[1-9][0-9]*$' ]]; then
+  echo "JOBS=$JOBS: the number of matches at a time, 1 or more" >&2
+  exit 2
+fi
+for side in $SIDES; do
+  if [[ "$side" != (heroes|monster) ]]; then
+    echo "side $side: heroes or monster" >&2
+    exit 2
+  fi
+done
 if [ -z "$MONSTER" ] && [ -n "$BASELINE_DIR$RECORD_DIR" ]; then
   echo "BASELINE_DIR / RECORD_DIR need MONSTER=<id> or MONSTER=all" >&2
   exit 2
@@ -46,38 +61,49 @@ if [ -n "$RECORD_DIR" ] && [ "$SEEDS $SIDES $CAP" != "1 2 3 heroes monster 660" 
   echo "RECORD_DIR records the default seeds, sides and cap only (the baselines' arguments)" >&2
   exit 2
 fi
-TMP="$(mktemp -d)"
+tool_tmp
 USER_DIRS="$HOME/Library/Application Support/evolvemobile_trace_$$"
-trap 'rm -rf "$TMP" "$USER_DIRS"_*' EXIT
 rsync -a --exclude .git --exclude .DS_Store "$SRC/" "$TMP/base/"
-"$GODOT" --headless --import --path "$TMP/base" > "$TMP/import.log" 2>&1
-# The roster lookup runs on base with its own user dir; every run copy below
+run_godot "$TMP/import.log" --headless --import --path "$TMP/base"
+# The roster lookup runs on base with its own user dir; every worker copy below
 # replaces this override.cfg with its own.
 printf '[application]\nconfig/use_custom_user_dir=true\nconfig/custom_user_dir_name="evolvemobile_trace_%s_list"\n' "$$" > "$TMP/base/override.cfg"
+tool_clean "${USER_DIRS}_list"
 resolve_monsters "$TMP/base" || exit 2
-# One copy per seed x side, reused by every monster with a fresh user:// each time.
-run=0
-for s in $SEEDS; do
-  for side in $SIDES; do
-    run=$((run + 1))
-    dir="$TMP/run_${s}_$side"
-    cp -R "$TMP/base" "$dir"
-    printf '[application]\nconfig/use_custom_user_dir=true\nconfig/custom_user_dir_name="evolvemobile_trace_%s_%d"\n\n[navigation]\nworld/map_use_async_iterations=false\nworld/region_use_async_iterations=false\n' "$$" "$run" > "$dir/override.cfg"
+# Every match, monster-major in argument order; worker w plays the matches
+# w+1, w+1+JOBS, ... on its own copy, with a fresh user:// for each.
+RUN_M=(); RUN_S=(); RUN_SIDE=()
+for m in "${MONSTERS[@]}"; do
+  for s in $SEEDS; do
+    for side in $SIDES; do
+      RUN_M+=("$m"); RUN_S+=("$s"); RUN_SIDE+=("$side")
+    done
   done
 done
+(( JOBS > ${#RUN_S} )) && JOBS=${#RUN_S}
+for ((w = 0; w < JOBS; w++)); do
+  cp -R "$TMP/base" "$TMP/w$w"
+  printf '[application]\nconfig/use_custom_user_dir=true\nconfig/custom_user_dir_name="evolvemobile_trace_%s_%d"\n\n[navigation]\nworld/map_use_async_iterations=false\nworld/region_use_async_iterations=false\n' "$$" "$w" > "$TMP/w$w/override.cfg"
+  tool_clean "${USER_DIRS}_$w"
+done
+for ((w = 0; w < JOBS; w++)); do
+  (
+    tool_worker
+    for ((i = w + 1; i <= ${#RUN_S}; i += JOBS)); do
+      m="${RUN_M[i]}"
+      rm -rf "${USER_DIRS}_$w"
+      run_godot "$TMP/${m:-default}_${RUN_S[i]}_${RUN_SIDE[i]}.log" --headless --fixed-fps 60 --max-fps 0 \
+        --path "$TMP/w$w" -s res://tools/sim_match.gd -- "${RUN_S[i]}" "${RUN_SIDE[i]}" "$CAP" trace \
+        ${RIGS_AWAKE:+rigs_awake} ${m:+monster=$m}
+    done
+  ) &
+  TOOL_PIDS+=($!)
+done
+wait
+TOOL_PIDS=()
 STATUS=0
 for m in "${MONSTERS[@]}"; do
   tag="${m:-default}"
-  run=0
-  for s in $SEEDS; do
-    for side in $SIDES; do
-      run=$((run + 1))
-      rm -rf "${USER_DIRS}_$run"
-      "$GODOT" --headless --fixed-fps 60 --max-fps 0 --path "$TMP/run_${s}_$side" \
-        -s res://tools/sim_match.gd -- "$s" "$side" "$CAP" trace ${RIGS_AWAKE:+rigs_awake} ${m:+monster=$m} > "$TMP/${tag}_${s}_$side.log" 2>&1 &
-    done
-  done
-  wait
   : > "$TMP/trace_$tag.txt"
   for s in $SEEDS; do
     for side in $SIDES; do

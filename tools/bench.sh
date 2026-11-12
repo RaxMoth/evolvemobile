@@ -35,46 +35,69 @@
 # device has to fit into one frame at that speed.
 #
 # Works on a temp copy with its own user:// (override.cfg), never on the real
-# project directory. An unknown MONSTER id fails (exit 2).
+# project directory. An unknown MONSTER id fails (exit 2). A run without a
+# result or with a SCRIPT ERROR fails the bench (exit 1; the run and its first
+# error lines on stderr) and is left out of the medians; `runs: m/n` counts
+# the runs measured of those asked for. A kill (TERM, INT, HUP) stops the
+# running match and deletes the copy (tools/tool_env.zsh).
 setopt NULL_GLOB
-GODOT="${GODOT:-/Applications/Godot.app/Contents/MacOS/Godot}"
 RUNS="${1:-5}"; MULT="${2:-2}"; FRAMES="${3:-1800}"; WARMUP="${4:-600}"; ONSCREEN="${5:-0}"; RIGS="${6:-0}"; SPEED="${7:-0}"
 SRC="$(cd "$(dirname "$0")/.." && pwd)"
+source "$SRC/tools/tool_env.zsh"
 source "$SRC/tools/monster_env.zsh"
-TMP="$(mktemp -d)"
-trap 'rm -rf "$TMP" "$HOME/Library/Application Support/evolvemobile_bench_$$"' EXIT
+tool_tmp
+tool_clean "$HOME/Library/Application Support/evolvemobile_bench_$$"
 rsync -a --exclude .git --exclude .DS_Store "$SRC/" "$TMP/proj/"
 printf '[application]\nconfig/use_custom_user_dir=true\nconfig/custom_user_dir_name="evolvemobile_bench_%d"\n' "$$" > "$TMP/proj/override.cfg"
-"$GODOT" --headless --import --path "$TMP/proj" > "$TMP/import.log" 2>&1
+run_godot "$TMP/import.log" --headless --import --path "$TMP/proj"
 resolve_monsters "$TMP/proj" || exit 2
+# CHILDREN_CPU_S = the CPU seconds (user + system) of this shell's finished
+# children, from zsh's `times` ("0m1.23s 0m0.45s" on its second line; run in
+# this shell, not in a $(...) subshell, which has children of its own). Read
+# around one run_godot: Godot stays this shell's own child, so a kill reaches
+# it (/usr/bin/time would stand in between and leave it running).
+children_cpu_s() {
+  times > "$TMP/times.txt"
+  CHILDREN_CPU_S="$(awk 'NR == 2 { split($1, u, /[ms]/); split($2, s, /[ms]/); print u[1] * 60 + u[2] + s[1] * 60 + s[2] }' "$TMP/times.txt")"
+}
 STATUS=0
 first=1
 for m in "${MONSTERS[@]}"; do
   res="$TMP/results_${m:-default}.jsonl"
   : > "$res"
   for ((r = 1; r <= RUNS; r++)); do
-    /usr/bin/time -p "$GODOT" --headless --fixed-fps 60 --max-fps 0 --path "$TMP/proj" \
-      -s res://tools/bench_match.gd -- "$r" "$WARMUP" "$FRAMES" "$MULT" "$ONSCREEN" "$RIGS" "$SPEED" ${m:+monster=$m} > "$TMP/run_$r.log" 2> "$TMP/time_$r.log"
-    line="$(grep "^BENCH_RESULT " "$TMP/run_$r.log" | sed 's/^BENCH_RESULT //')"
-    if [ -z "$line" ]; then echo "${m:+$m }run $r produced no result:"; grep -E "SCRIPT ERROR|ERROR" "$TMP/run_$r.log" | head -5; continue; fi
-    cpu="$(awk '/^user/ {u=$2} /^sys/ {s=$2} END {print u + s}' "$TMP/time_$r.log")"
-    echo "$line" | python3 -c "import json,sys; d=json.load(sys.stdin); d['cpu_s']=float(sys.argv[1]); print(json.dumps(d))" "$cpu" >> "$res"
+    log="$TMP/run_$r.log"
+    children_cpu_s
+    cpu_before=$CHILDREN_CPU_S
+    run_godot "$log" --headless --fixed-fps 60 --max-fps 0 --path "$TMP/proj" \
+      -s res://tools/bench_match.gd -- "$r" "$WARMUP" "$FRAMES" "$MULT" "$ONSCREEN" "$RIGS" "$SPEED" ${m:+monster=$m}
+    children_cpu_s
+    cpu=$(( CHILDREN_CPU_S - cpu_before ))
+    line="$(sed -n 's/^BENCH_RESULT //p' "$log")"
+    if [ -z "$line" ] || grep -q "SCRIPT ERROR" "$log"; then
+      echo "${m:+$m }run $r failed ($(grep -c "SCRIPT ERROR" "$log") script errors$([ -z "$line" ] && echo ", no result")):" >&2
+      { grep -m 5 -A 2 "SCRIPT ERROR" "$log" || tail -5 "$log"; } >&2
+      STATUS=1
+      continue
+    fi
+    echo "$line" | python3 -c "import json,sys; d=json.load(sys.stdin); d['cpu_s']=round(float(sys.argv[1]), 2); print(json.dumps(d))" "$cpu" >> "$res"
   done
   cat "$res" >> "$TMP/results.jsonl"
   (( first )) || echo
   first=0
-  python3 - "$res" "$FRAMES" <<'PY' || STATUS=1
+  python3 - "$res" "$FRAMES" "$RUNS" <<'PY' || STATUS=1
 import json, statistics, sys
 rows = [json.loads(l) for l in open(sys.argv[1]) if l.strip()]
 window = int(sys.argv[2])
+asked = int(sys.argv[3])
 if not rows:
     print("no results"); sys.exit(1)
 measured = [r for r in rows if r["frames"] > 0]
-print(f"runs: {len(measured)}/{len(rows)}  monster: {rows[0].get('monster', 'grount')}  frames/run: {window}"
+print(f"runs: {len(measured)}/{asked}  monster: {rows[0].get('monster', 'grount')}  frames/run: {window}"
       f"  multiplier: {rows[0]['multiplier']}  onscreen: {rows[0].get('onscreen', 0)}  rigs_awake: {rows[0].get('rigs_awake', 0)}"
       f"  time_scale: {rows[0].get('time_scale', 1.0)}")
 for k in ("frame_ms_mean", "frame_ms_p50", "frame_ms_p95", "frame_ms_p99", "frame_ms_max",
-          "process_peak_ms", "physics_peak_ms", "cpu_s", "peak_mobs", "peak_nodes", "peak_collision_pairs",
+          "frame_peak_ms", "cpu_s", "peak_mobs", "peak_nodes", "peak_collision_pairs",
           "rigs_awake_mean"):
     vals = [r[k] for r in measured if k in r]
     if not vals:

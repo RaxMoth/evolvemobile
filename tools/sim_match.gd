@@ -29,12 +29,22 @@ extends SceneTree
 ## every TRACE_EVERY frames (`SIM_TRACE <frame> <hash>`) and once at the end
 ## (`SIM_TRACE_END <frame> <reason> <winner> <hash>`). tools/sim_trace.sh
 ## compares those lines between two trees to prove a refactor changed nothing.
+##
+## The side is "heroes" or "monster"; anything else exits 2 (a typo would
+## play the heroes under the typed label).
+##
+## The result is written at the end of the frame the match ended in (see
+## _finish): GameManager ends the match from inside the deciding
+## entity_died, before this script's own handlers of that death and of the
+## damage that caused it have run.
 
 const WORLD := "res://Scenes/World/World.tscn"
 const FPS := 60.0
 const TRACE_EVERY := 60
 ## EntityRegistry lists hashed by the trace, walked in list order.
 const TRACE_LISTS: Array[String] = ["hero_side", "monsters", "mobs"]
+## The played sides (GameManager.chosen_side 0 and 1).
+const SIDES: Array[String] = ["heroes", "monster"]
 
 var _seed: int = 1
 var _side: String = "heroes"
@@ -69,6 +79,10 @@ func _initialize() -> void:
 		_seed = int(args[0])
 	if args.size() > 1:
 		_side = String(args[1])
+	if _side not in SIDES:
+		push_error("sim_match.gd: the side is heroes or monster, not '%s'" % _side)
+		quit(2)
+		return
 	if args.size() > 2:
 		_cap_s = float(args[2])
 	if args.size() > 3:
@@ -225,13 +239,22 @@ func _finish(reason: String, winner: String) -> void:
 	if _done:
 		return
 	_done = true
+	if _trace:
+		var tail := "%s %s" % [reason, winner]
+		print("SIM_TRACE_END %d %s %d" % [_frames, tail, _trace_hash(tail)])
+	# GameManager ends the match from inside the deciding entity_died, before
+	# this script's _on_entity_died (the last hero's death, the monster's
+	# killer) and the damage_applied of the killing blow have run: report at
+	# the end of this frame, when they have.
+	_report.call_deferred(reason, winner, _t())
+
+
+func _report(reason: String, winner: String, t: float) -> void:
 	var m := _monster()
 	if _monster_killer == "" and m and not m.call("is_alive"):
-		# GameManager ends the match from the same entity_died emission, often
-		# before our handler runs: fall back to the monster's last attacker.
+		# No entity_died for the monster reached us: its last attacker.
 		_monster_killer = _faction(m.get("last_attacker"))
 	var gm := root.get_node("GameManager")
-	var reg := root.get_node("EntityRegistry")
 	var out := {
 		"seed": _seed,
 		"side": _side,
@@ -241,12 +264,13 @@ func _finish(reason: String, winner: String) -> void:
 		"power": int(root.get_node("MetaSkillManager").call("power_ranks", gm.get("chosen_side"), gm.get("selected_monster_id"))),
 		"reason": reason,
 		"winner": winner,
-		"t": snappedf(_t(), 0.1),
+		"t": snappedf(t, 0.1),
 		"game_clock": snappedf(float(gm.call("get_match_elapsed")), 0.1),
 		"monster_stage": int(gm.get("monster_stage_reached")),
 		"monster_hp_pct": snappedf(float(m.call("get_health")) / maxf(1.0, float(m.call("get_max_health"))), 0.01) if m else 0.0,
 		"monster_xp": snappedf(float(m.get("current_xp")), 1.0) if m else -1.0,
-		"heroes_alive": (reg.get("heroes") as Array).size(),
+		# GameManager's count: a dead hero stays in EntityRegistry until freed.
+		"heroes_alive": int(gm.get("heroes_alive")),
 		"hero_deaths": _hero_deaths,
 		"evolutions": _monster_stage_times,
 		"first_contact": snappedf(_first_contact_s, 0.1),
@@ -260,9 +284,6 @@ func _finish(reason: String, winner: String) -> void:
 		"monster_dmg_taken": _monster_dmg_taken,
 		"monster_killer": _monster_killer,
 	}
-	if _trace:
-		var tail := "%s %s" % [reason, winner]
-		print("SIM_TRACE_END %d %s %d" % [_frames, tail, _trace_hash(tail)])
 	print("SIM_RESULT " + JSON.stringify(out))
 	quit()
 
