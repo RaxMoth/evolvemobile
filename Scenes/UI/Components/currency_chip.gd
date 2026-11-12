@@ -3,8 +3,10 @@ extends PanelContainer
 
 ## One currency in a top bar: its icon and the amount ("1,840"), live from
 ## PersistedData. When it changes (rewards, purchases) the amount counts to
-## the new value over COUNT_TIME (down after a purchase) and pops. The icon
-## follows `currency` (Assets/UI/Icons/Currency/currency_<id>.svg).
+## the new value over COUNT_TIME (down after a purchase) and pops when it
+## lands: while it counts, a wider number re-sorts the chip's row, which
+## would put the label's scale back to 1 mid-pop. The icon follows `currency`
+## (Assets/UI/Icons/Currency/currency_<id>.svg).
 
 const ICON_PATH := "res://Assets/UI/Icons/Currency/currency_%s.svg"
 const POP_SCALE := Vector2(1.25, 1.25)
@@ -26,6 +28,7 @@ const COUNT_TIME := 0.4
 ## The amount on the label (between the old and the new one while counting).
 var _shown: int = 0
 var _count: Tween = null
+var _pop: Tween = null
 
 @onready var _icon: TextureRect = %Icon
 @onready var _amount: Label = %Amount
@@ -70,10 +73,18 @@ func _on_currency_changed(changed: StringName, new_amount: int) -> void:
 		_count.kill()
 	_count = create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	_count.tween_method(_count_step, float(_shown), float(new_amount), COUNT_TIME)
+	_count.tween_callback(_pop_amount)
+
+
+## The pop once the count has landed (the text no longer changes, so the row
+## does not sort again); around the label's centre.
+func _pop_amount() -> void:
+	if _pop:
+		_pop.kill()
 	_amount.pivot_offset = _amount.size * 0.5
-	var t := create_tween().set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	t.tween_property(_amount, ^"scale", POP_SCALE, 0.08)
-	t.tween_property(_amount, ^"scale", Vector2.ONE, 0.18)
+	_pop = create_tween().set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	_pop.tween_property(_amount, ^"scale", POP_SCALE, 0.08)
+	_pop.tween_property(_amount, ^"scale", Vector2.ONE, 0.18)
 
 
 ## The currency's icon (null for an unknown id).

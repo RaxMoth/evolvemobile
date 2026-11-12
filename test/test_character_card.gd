@@ -357,6 +357,38 @@ func test_stage_character_idles_per_instance_and_cheers() -> void:
 	assert_near(hop.position.y, 0.0, 0.5, "and lands")
 
 
+## Review components-10: the phase is applied once, not as a rest inside
+## every cycle. Sampled over three periods, the rig is at its rest height for
+## a frame or two per cycle only (where the bob turns), and a restart keeps
+## the phase.
+func test_stage_character_bobs_without_a_rest_and_keeps_its_phase() -> void:
+	var sc := STAGE_CHARACTER.instantiate() as StageCharacter
+	sc.name = "StagePhase"
+	sc.character = _irelia()
+	add_child(sc)
+	await wait_frames(2)
+	assert_true(sc.phase >= 0.0 and sc.phase <= sc.period, "a phase within one period (%.2f of %.2f)" % [sc.phase, sc.period])
+	var rig := _node(sc, "Rig") as Control
+	sc.start_idle()
+	var first := rig.position.y
+	sc.start_idle()
+	assert_near(rig.position.y, first, 0.001, "a restart starts at the same point of the bob")
+	var rest_y := sc._rest_y
+	var at_rest := 0
+	var longest := 0
+	var run := 0
+	for frame in int(sc.period * 3.0 * 60.0):
+		await wait_frames(1)
+		if absf(rig.position.y - rest_y) < 0.01:
+			at_rest += 1
+			run += 1
+			longest = maxi(longest, run)
+		else:
+			run = 0
+	assert_true(longest <= 6, "never at rest for long (longest %d frames)" % longest)
+	assert_true(at_rest <= 18, "%d frames at rest over three periods" % at_rest)
+
+
 func test_stage_character_period_is_seeded_by_name_and_path() -> void:
 	var first := STAGE_CHARACTER.instantiate() as StageCharacter
 	first.name = "Seeded"
@@ -439,3 +471,32 @@ func test_currency_chips_and_top_bar() -> void:
 	bar.left_pressed.connect(func() -> void: pressed.append(true))
 	(_node(bar, "Left") as Button).pressed.emit()
 	assert_eq(pressed.size(), 1, "left_pressed")
+
+
+## Review components-7: the chip pops when its count lands. While the number
+## counts, a wider text re-sorts the chip's row, which puts the label's scale
+## back to 1, so a pop that ran beside the count was cut to a frame or two for
+## four-digit amounts. Sampled at the start of each frame (the drawn scale).
+func test_currency_chip_pops_for_any_amount() -> void:
+	if not require_isolated():
+		return
+	var bar := TOP_BAR.instantiate() as TopBar
+	add_child(bar)
+	var gold := bar.chip(PersistedData.GOLD)
+	var amount := _node(gold, "Amount") as Control
+	for change: int in [347, 1500, -40, 2500]:
+		var before := PersistedData.get_currency(PersistedData.GOLD)
+		if change > 0:
+			PersistedData.add_currency(PersistedData.GOLD, change)
+		else:
+			assert_true(PersistedData.spend_currency(PersistedData.GOLD, -change), "a purchase")
+		var popped := 0
+		var peak := 0.0
+		for frame in int((CurrencyChip.COUNT_TIME + 0.4) * 60.0):
+			await wait_frames(1)
+			if amount.scale.x > 1.01:
+				popped += 1
+			peak = maxf(peak, amount.scale.x)
+		assert_true(popped >= 8 and peak > 1.2, "%d -> %d: the pop is drawn for %d frames, peak %.2f" % [before, before + change, popped, peak])
+		assert_near(amount.scale.x, 1.0, 0.001, "and settles")
+		assert_eq(gold.shown_amount(), before + change, "the count lands on the saved amount")

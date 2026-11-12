@@ -9,9 +9,10 @@ extends Button
 ## monster") under the lock when it can be bought.
 ##
 ## Individuality: each instance bobs with its own period (bob_period x
-## 0.85-1.2) and phase, drawn from a PRIVATE RandomNumberGenerator seeded by
-## hash(name) ^ hash(path), so the same stage looks the same every launch and
-## the global RNG (gameplay) is never touched.
+## 0.85-1.2) and phase (0..period, applied once: the loop itself has no rest),
+## drawn from a PRIVATE RandomNumberGenerator seeded by hash(name) ^
+## hash(path), so the same stage looks the same every launch and the global
+## RNG (gameplay) is never touched.
 ##
 ## Two layers so the idle and the cheer never fight over a property: the idle
 ## squashes and bobs %Rig, cheer() hops %Hop (its parent).
@@ -52,6 +53,8 @@ const FALLEN_SQUASH := Vector2(1.0, 0.94)
 
 ## The idle period this instance drew (seconds).
 var period: float = 0.0
+## How far into its first bob this instance starts (seconds, 0..period).
+var phase: float = 0.0
 ## True while set_fallen(true) holds (celebrate() does nothing then).
 var fallen: bool = false
 
@@ -72,6 +75,7 @@ var _rest_y := 0.0
 func _ready() -> void:
 	_rng.seed = hash(name) ^ hash(get_path())
 	period = bob_period * _rng.randf_range(0.85, 1.2)
+	phase = _rng.randf_range(0.0, period)
 	_rig.stage = stage
 	_rig.flip = flip
 	refresh()
@@ -97,20 +101,24 @@ func refresh() -> void:
 	_rule.visible = state == CharacterProgress.UnlockState.GATED and not _rule.text.is_empty()
 
 
-## The idle loop: after a random share of one period, squash and rise, then
-## settle, forever. Restarting keeps the instance's period and phase.
+## The idle loop: squash and rise, then settle, forever, starting `phase`
+## seconds into the cycle. Restarting keeps the instance's period and phase.
 func start_idle() -> void:
 	if _idle:
 		_idle.kill()
+		_rig.scale = Vector2.ONE
+		_rig.position.y = _rest_y
 	_on_rig_resized()
 	_rest_y = _rig.position.y
 	var half := period * 0.5
 	_idle = create_tween().set_loops()
-	_idle.tween_interval(_rng.randf_range(0.0, period))
 	_idle.tween_property(_rig, ^"scale", SQUASH, half).set_trans(Tween.TRANS_SINE)
 	_idle.parallel().tween_property(_rig, ^"position:y", _rest_y - bob_px, half).set_trans(Tween.TRANS_SINE)
 	_idle.tween_property(_rig, ^"scale", Vector2.ONE, half).set_trans(Tween.TRANS_SINE)
 	_idle.parallel().tween_property(_rig, ^"position:y", _rest_y, half).set_trans(Tween.TRANS_SINE)
+	# The phase once, outside the loop (an interval inside it would rest in
+	# every cycle).
+	_idle.custom_step(phase)
 
 
 ## The side was chosen: one hop with a bounce landing after `delay` seconds,

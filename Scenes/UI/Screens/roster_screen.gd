@@ -56,7 +56,6 @@ var _filter_buttons: Dictionary[StringName, Button] = {}
 @onready var _count: Label = %Count
 @onready var _grid: GridContainer = %Grid
 @onready var _grid_margin: MarginContainer = %Margin
-@onready var _empty: Label = %Empty
 @onready var _nav: NavBar = %NavBar
 
 
@@ -140,19 +139,17 @@ func refresh() -> void:
 	_count.text = "%d/%d" % [owned, _cards.size()]
 
 
-## Shows the characters of one role (ALL: everyone and the rumour card).
+## Shows the characters of one role (ALL: everyone and the rumour card). A
+## role without a member has no button (shown_filters), so a filter never
+## shows an empty grid.
 func set_filter(key: StringName) -> void:
 	active_filter = key if _filter_buttons.has(key) else ALL
 	if _filter_buttons.has(active_filter):
 		_filter_buttons[active_filter].set_pressed_no_signal(true)
-	var shown := 0
 	for card in _cards:
 		card.visible = active_filter == ALL or card.character.role_filter == active_filter
-		if card.visible:
-			shown += 1
 	if _rumour != null:
 		_rumour.visible = active_filter == ALL
-	_empty.visible = shown == 0 and active_filter != ALL
 
 
 ## The shown cards drop in one after another (fade in, frame grows).

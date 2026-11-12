@@ -100,8 +100,17 @@ func test_monster_grid() -> void:
 	for key in keys:
 		if key != RosterScreen.ALL:
 			screen.set_filter(key)
-			assert_false((screen.get_node("%Empty") as CanvasItem).visible, "%s has a member" % key)
+			assert_true(_shown_cards(screen) > 0, "%s has a member" % key)
+	assert_true(screen.get_node_or_null("%Empty") == null, "no 'Nobody in this role yet' line: it could never show")
 	screen.queue_free()
+
+
+func _shown_cards(screen: RosterScreen) -> int:
+	var n := 0
+	for card in screen.cards():
+		if card.visible:
+			n += 1
+	return n
 
 
 func test_filters_show_one_role() -> void:
@@ -111,7 +120,7 @@ func test_filters_show_one_role() -> void:
 	for card in screen.cards():
 		assert_eq(card.visible, card.character.role_filter == &"tank", "%s under tank" % card.character.get_display_name())
 	assert_false(screen.rumour_card().visible, "the rumour only shows under all")
-	assert_false((screen.get_node("%Empty") as CanvasItem).visible)
+	assert_true(_shown_cards(screen) > 0)
 	(screen.get_node("%Filters/Filter_all") as BaseButton).pressed.emit()
 	assert_eq(screen.active_filter, RosterScreen.ALL, "a filter button applies its role")
 	for card in screen.cards():
@@ -123,12 +132,12 @@ func test_filters_show_one_role() -> void:
 	var lair := _screen(MONSTER)
 	lair.open()
 	lair.set_filter(&"stalker")
-	assert_false((lair.get_node("%Empty") as CanvasItem).visible, "Nyxa stalks")
+	assert_eq(_shown_cards(lair), 1, "Nyxa stalks")
 	for card in lair.cards():
 		assert_eq(card.visible, card.character.character_id() == &"nyxa", "%s under stalker" % card.character.get_display_name())
 	lair.set_filter(&"swarm")
 	assert_eq(lair.active_filter, RosterScreen.ALL, "a role without a member is no filter")
-	assert_false((lair.get_node("%Empty") as CanvasItem).visible)
+	assert_eq(_shown_cards(lair), lair.cards().size(), "so everyone shows")
 	lair.queue_free()
 
 

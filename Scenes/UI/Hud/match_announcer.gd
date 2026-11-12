@@ -29,7 +29,9 @@ signal announced(text: String, queued: bool)
 ## at 12 s one match showed 51 toasts, 26 of them Monster Taunt.
 @export_range(0.0, 300.0, 0.5) var ultimate_repeat_guard: float = 60.0
 
-## Ultimate toast text -> match time it was last announced.
+## Caster and ability ("<caster instance id>:<untranslated ability name>")
+## -> match time its ultimate was last announced. Not the shown line: after a
+## language switch the line changes, the cast does not.
 var _last_ultimate: Dictionary[String, float] = {}
 
 
@@ -114,10 +116,10 @@ func _on_ability_cast(caster: Node, ability: AbilityBase, _target: Node) -> void
 		return
 	if not is_instance_valid(caster) or not player_sees(caster):
 		return
-	var text := ultimate_text(display_name_of(caster), ability)
+	var key := "%d:%s" % [caster.get_instance_id(), ability.ability_name]
 	var now := GameManager.get_match_elapsed()
-	var last: float = _last_ultimate.get(text, -INF)
+	var last: float = _last_ultimate.get(key, -INF)
 	if now - last < ultimate_repeat_guard:
 		return
-	_last_ultimate[text] = now
-	announced.emit(text, false)
+	_last_ultimate[key] = now
+	announced.emit(ultimate_text(display_name_of(caster), ability), false)

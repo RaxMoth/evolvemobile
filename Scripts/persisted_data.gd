@@ -91,6 +91,12 @@ const SECTION_CODEX := "codex"
 const SECTION_SETTINGS := "settings"
 ## Codex kinds (keys of [codex]).
 const CODEX_MONSTERS: StringName = &"monsters"
+## Keys of an earlier layout that nothing reads any more ([section, key]): a
+## loaded save drops them and is saved again (a save from a newer build keeps
+## them). [settings] codex_seen_monsters was the Codex's seen count before it
+## moved to [codex] monsters_seen; it is not carried over, as a count that
+## outlived a Reset Progress would hide new pages.
+const RETIRED_KEYS := [["settings", "codex_seen_monsters"]]
 
 var _config: ConfigFile = ConfigFile.new()
 var _loaded: bool = false
@@ -142,6 +148,8 @@ func load_data() -> void:
 			# version on the next save.
 			push_warning("PersistedData: save is from a newer build (v%d, this build writes v%d)." % [from_version, CURRENT_SAVE_VERSION])
 			_backup_save("v%d" % from_version)
+		if from_version <= CURRENT_SAVE_VERSION and _drop_retired_keys():
+			save_data()
 	_loaded = true
 	# Push saved audio volumes onto the buses now that settings are available.
 	AudioSettings.apply_saved()
@@ -197,6 +205,18 @@ func _seed_defaults() -> void:
 	_config.set_value(SECTION_META, "total_matches", 0)
 	_config.set_value(SECTION_META, "save_version", CURRENT_SAVE_VERSION)
 	_config.set_value(SECTION_META, "created_unix", int(Time.get_unix_time_from_system()))
+
+
+## Removes RETIRED_KEYS from the loaded config; true when there was one.
+func _drop_retired_keys() -> bool:
+	var dropped := false
+	for entry: Array in RETIRED_KEYS:
+		var section: String = entry[0]
+		var key: String = entry[1]
+		if _config.has_section_key(section, key):
+			_config.erase_section_key(section, key)
+			dropped = true
+	return dropped
 
 
 ## Version stamp of the loaded file. A file without the key is a v1 save

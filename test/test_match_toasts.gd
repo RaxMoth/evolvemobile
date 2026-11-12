@@ -62,10 +62,14 @@ func test_toast_queue_shows_one_at_a_time() -> void:
 	tween.custom_step(MatchHud.TOAST_POP)
 	assert_near(toast.scale.x, 1.0, 0.001, "full size after the pop")
 	assert_near(toast.modulate.a, 1.0, 0.001, "opaque")
-	tween.custom_step(MatchHud.TOAST_HOLD + MatchHud.TOAST_FADE_OUT * 0.5)
+	tween.custom_step(MatchHud.TOAST_HOLD + 0.01)
+	assert_eq(hud.current_toast(), "A", "the game-time hold is over")
+	assert_near(toast.modulate.a, 1.0, 0.001, "but the real-time floor still holds it")
+	hud._toast_floor.custom_step(MatchHud.TOAST_MIN_REAL_HOLD + 0.01)
+	hud._toast_tween.custom_step(MatchHud.TOAST_FADE_OUT * 0.5)
 	assert_eq(hud.current_toast(), "A", "still A while it fades")
 	assert_true(toast.modulate.a < 1.0, "fading out")
-	tween.custom_step(MatchHud.TOAST_FADE_OUT)
+	hud._toast_tween.custom_step(MatchHud.TOAST_FADE_OUT)
 	assert_eq(hud.current_toast(), "C", "the next toast follows")
 	assert_true(toast.visible and label.text == "C")
 	assert_near(toast.scale.x, MatchHud.TOAST_POP_FROM, 0.001, "and pops in again")
@@ -76,6 +80,34 @@ func test_toast_queue_shows_one_at_a_time() -> void:
 	assert_false(toast.visible, "the ribbon hides")
 	hud.show_toast("ult", false)
 	assert_eq(hud.current_toast(), "ult", "an unqueued toast shows when nothing else is up")
+	_flush(hud)
+	hud.queue_free()
+	await wait_frames(1)
+
+
+## Review components-2 (the same trap as the LEVEL UP! pill): the toast sat
+## straight in the ToastBar, whose layout (the toast shown, its text set) put
+## its scale back to 1 before the first frame: the pop never showed. In its
+## PopSlot it is drawn small first. Sampled at the start of each frame.
+func test_the_toast_pops() -> void:
+	var hud := (load(HUD) as PackedScene).instantiate() as MatchHud
+	add_child(hud)
+	await wait_frames(3)
+	var toast := hud.get_node(^"%Toast") as Control
+	assert_true(toast.get_parent() is PopSlot, "in a PopSlot")
+	hud.show_toast("GROUNT EVOLVED · STAGE II")
+	var drawn: Array[float] = []
+	for frame in 20:
+		await wait_frames(1)
+		drawn.append(toast.scale.x)
+	assert_true(drawn[0] < 0.9 and drawn[0] < drawn[3], "drawn small first, then growing (%s)" % str(drawn.slice(0, 6)))
+	assert_near(drawn[-1], 1.0, 0.001, "full size once it popped")
+	hud.show_toast("A MUCH LONGER LINE THAN THE FIRST ONE, WAITING")
+	_flush(hud)
+	hud.show_toast("A MUCH LONGER LINE THAN THE FIRST ONE")
+	await wait_frames(2)
+	var slot := toast.get_parent() as Control
+	assert_true(slot.size.x >= toast.get_combined_minimum_size().x - 0.5, "the slot grows with a longer line (%s)" % str(slot.size))
 	_flush(hud)
 	hud.queue_free()
 	await wait_frames(1)
@@ -141,6 +173,12 @@ func test_announcer_feeds_the_hud_from_match_events() -> void:
 	announcer.ultimate_repeat_guard = 1000.0
 	EventBus.notify_ability_cast(caster, ult, null)
 	assert_eq(hud.current_toast(), "", "the repeat guard holds it back")
+	# Review locale-1: the guard is the caster and the ability, not the shown
+	# line, so a language switch inside it does not let the cast toast again.
+	TranslationServer.set_locale("de")
+	EventBus.notify_ability_cast(caster, ult, null)
+	assert_eq(hud.current_toast(), "", "the guard holds in German too")
+	TranslationServer.set_locale("en")
 	EventBus.notify_ability_cast(caster, system.active_ability, null)
 	assert_eq(hud.current_toast(), "", "actives are no news")
 	announcer.ultimate_repeat_guard = 0.0
@@ -293,11 +331,14 @@ func test_level_badge_pop_restarts() -> void:
 
 
 ## Runs the toast line to its end (each toast's tween to completion).
+## Runs every toast to its end: the toast's tween and its real-time floor.
 func _flush(hud: MatchHud) -> void:
-	for i in range(MatchHud.TOAST_MAX_PENDING + 2):
+	for i in range((MatchHud.TOAST_MAX_PENDING + 2) * 3):
 		if hud._toast_tween == null:
 			return
-		hud._toast_tween.custom_step(10.0)
+		for t: Tween in [hud._toast_tween, hud._toast_floor]:
+			if t != null and t.is_valid():
+				t.custom_step(10.0)
 
 
 func _kill(hero: HeroBase) -> void:

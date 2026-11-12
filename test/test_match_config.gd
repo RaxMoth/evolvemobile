@@ -90,6 +90,43 @@ func test_screen_opens_on_the_saved_strategy() -> void:
 	screen.queue_free()
 
 
+## Review components-1 / menus-11: the three dials are touch targets of at
+## least 48 px, the project's bar (the settings sheet's sliders are 48 px);
+## they were 36.
+func test_the_dials_are_48_px_touch_targets() -> void:
+	var screen := _hero_screen()
+	await wait_frames(2)
+	for row_name: String in ["Aggression", "Farming", "Exploration"]:
+		var slider := _row(screen, row_name).slider()
+		assert_true(slider.is_visible_in_tree(), row_name)
+		assert_true(slider.size.y >= 48.0, "%s's slider is %.0f px tall" % [row_name, slider.size.y])
+	screen.queue_free()
+
+
+## Review components-9: the heading arrow has its own band at the top of the
+## glyph; on Spread the top dot used to cover it whole. For every formation
+## at the real tile size: no dot's ink reaches the arrow, every dot stays
+## inside the glyph.
+func test_the_formation_arrow_stays_clear_of_the_dots() -> void:
+	var screen := _hero_screen()
+	await wait_frames(2)
+	for tile_name: String in ["Tight", "Spread", "Line"]:
+		var glyph := _tile(screen, tile_name).get_node("%Glyph") as FormationGlyph
+		var glyph_size := glyph.size
+		var arrow := FormationGlyph.arrow_points(glyph_size)
+		var dots := FormationGlyph.dot_centres(glyph_size, glyph.formation)
+		var reach := glyph.dot_radius + FormationGlyph.RIM
+		assert_eq(dots.size(), 4, tile_name)
+		assert_true(arrow[0].y >= 0.0, "%s: the arrow starts inside the glyph" % tile_name)
+		for d in dots:
+			assert_true(d.y - reach >= arrow[1].y, "%s: a dot's ink (top %.1f) stays below the arrow (base %.1f)" % [tile_name, d.y - reach, arrow[1].y])
+			for p in arrow:
+				assert_true(p.distance_to(d) > reach, "%s: arrow corner %s clear of the dot at %s" % [tile_name, str(p), str(d)])
+			assert_true(Rect2(Vector2.ZERO, glyph_size).grow(0.5).encloses(Rect2(d - Vector2(reach, reach), Vector2(reach, reach) * 2.0)),
+					"%s: the dot at %s inside the %s glyph" % [tile_name, str(d), str(glyph_size)])
+	screen.queue_free()
+
+
 func test_screen_emits_and_persists_the_choice() -> void:
 	if not require_isolated():
 		return

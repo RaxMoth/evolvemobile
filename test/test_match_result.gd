@@ -234,6 +234,43 @@ func test_chips_count_up_and_bars_pop_level_up() -> void:
 		assert_eq((section as CanvasItem).modulate.a, 1.0, "%s faded in" % section.name)
 
 
+## Review components-2: the LEVEL UP! pill and the ribbon really pop. They
+## used to sit straight in a container, whose layout (the pill shown, the
+## level text changed) put their scale back to 1 before a frame was drawn: the
+## tweens ran 1 -> 1. Sampled at the start of each frame, the value the frame
+## before was drawn with.
+func test_the_level_up_pill_and_the_ribbon_pop() -> void:
+	if not require_isolated():
+		return
+	var r := _result(HEROES, WIN, 23)
+	PersistedData.add_hero_xp(&"irelia", 40 + r.xp)
+	var screen := _screen(r)
+	var ribbon := screen.get_node(^"%Ribbon") as Control
+	var irelia := screen.xp_rows()[0]
+	var slot := irelia.get_node(^"%LevelUp") as Control
+	var pill := irelia.get_node(^"%Pill") as Control
+	assert_true(ribbon.get_parent() is PopSlot and slot is PopSlot, "both pop inside a PopSlot")
+	var ribbon_drawn: Array[float] = []
+	var pill_drawn: Array[float] = []
+	for frame in int(INTRO_DONE * 60.0):
+		await wait_frames(1)
+		if ribbon.modulate.a > 0.0:
+			ribbon_drawn.append(ribbon.scale.x)
+		if slot.visible:
+			pill_drawn.append(pill.scale.x)
+	assert_true(irelia.levelled_up, "Irelia crossed a level")
+	assert_true(ribbon_drawn.size() > 10 and ribbon_drawn.min() < 0.9, "the ribbon is drawn small first (%s)" % str(ribbon_drawn.slice(0, 6)))
+	assert_eq(ribbon_drawn[-1], 1.0, "and settles at full size")
+	assert_true(pill_drawn.size() > 10, "the pill shows (%d frames)" % pill_drawn.size())
+	if pill_drawn.size() > 3:
+		assert_true(pill_drawn[0] < 0.9 and pill_drawn[1] < pill_drawn[3], "the pill grows from LEVEL_UP_FROM (%s)" % str(pill_drawn.slice(0, 6)))
+		assert_true(pill_drawn.max() > 1.0, "with its TRANS_BACK overshoot")
+		assert_eq(pill_drawn[-1], 1.0, "and settles at full size")
+	var foot := slot.get_parent() as Control
+	assert_true(slot.size.x >= pill.get_combined_minimum_size().x and slot.size.y > 0.0, "the slot takes the pill's size")
+	assert_true(slot.get_rect().end.x <= foot.size.x + 0.5, "inside the row")
+
+
 func test_upgrades_ready_opens_that_sides_roster() -> void:
 	if not require_isolated():
 		return

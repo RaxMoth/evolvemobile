@@ -126,6 +126,7 @@ var _started := false
 @onready var _monster_role: Label = %MonsterRole
 @onready var _quarry_card: CharacterCard = %QuarryCard
 @onready var _new_banner: Control = %NewBanner
+@onready var _new_banner_pill: Control = %NewBannerPill
 @onready var _quarry_name: Label = %QuarryName
 @onready var _quarry_tagline: Label = %QuarryTagline
 @onready var _quarry_moves: HBoxContainer = %QuarryMoves
@@ -297,10 +298,10 @@ func _show_quarry(def: CharacterDef) -> void:
 	var fresh := GameManager.is_new_quarry(def.character_id())
 	_new_banner.visible = fresh
 	if fresh:
-		# Sized by its text even before the first layout.
-		_new_banner.pivot_offset = _new_banner.get_combined_minimum_size() * 0.5
-		_new_banner.scale = BANNER_POP_FROM
-		create_tween().tween_property(_new_banner, ^"scale", Vector2.ONE, 0.35) \
+		# The pill pops inside its PopSlot (pivot: its centre), where the
+		# column's layout cannot reset the scale.
+		_new_banner_pill.scale = BANNER_POP_FROM
+		create_tween().tween_property(_new_banner_pill, ^"scale", Vector2.ONE, 0.35) \
 				.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 

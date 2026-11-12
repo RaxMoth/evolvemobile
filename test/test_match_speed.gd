@@ -163,9 +163,10 @@ func test_the_speed_button_switches_the_match_speed() -> void:
 	var pause := hud.get_node(^"%Pause") as Button
 	assert_true(GameManager.is_match_active())
 	assert_near(Engine.time_scale, _base(), 0.0001, "the match starts at the base speed")
-	assert_true(speed.icon == hud.speed_normal_icon and speed.icon != null, "one arrow at the normal speed")
-	assert_true(speed.icon != pause.icon, "which is not the pause icon")
-	assert_eq(speed.theme_type_variation, &"ButtonRound")
+	assert_true(speed.icon != null and speed.icon.resource_path.ends_with("ui_fast_forward.svg"), "two arrows")
+	assert_true(speed.icon != pause.icon and speed.icon != hud.play_icon, "not the pause or play icon")
+	assert_eq(speed.theme_type_variation, &"ButtonRound", "on the grey button at the normal speed")
+	var icon := speed.icon
 	assert_true(speed.size.x >= 44.0 and speed.size.y >= 44.0, "a touch target (%s)" % str(speed.size))
 	var gap := speed.position.x - (pause.position.x + pause.size.x)
 	assert_true(gap >= 4.0 and gap <= 12.0 and is_equal_approx(speed.position.y, pause.position.y),
@@ -179,8 +180,8 @@ func test_the_speed_button_switches_the_match_speed() -> void:
 	speed.pressed.emit()
 	assert_true(GameManager.match_fast, "a press switches to fast")
 	assert_near(Engine.time_scale, _fast(), 0.0001, "the match runs at base x factor at once")
-	assert_true(speed.icon == hud.speed_fast_icon and speed.icon != hud.speed_normal_icon, "two arrows")
-	assert_eq(speed.theme_type_variation, &"ButtonRoundPrimary", "on the amber button")
+	assert_true(speed.icon == icon, "the same two arrows")
+	assert_eq(speed.theme_type_variation, &"ButtonRoundPrimary", "on the amber button: lit")
 	assert_eq(PersistedData.get_setting(GameManager.SETTING_MATCH_FAST, false), true, "the choice is in the save")
 
 	# The pause menu runs at normal speed and gives the match its speed back.
@@ -196,7 +197,7 @@ func test_the_speed_button_switches_the_match_speed() -> void:
 	speed.pressed.emit()
 	assert_false(GameManager.match_fast, "a second press goes back")
 	assert_near(Engine.time_scale, _base(), 0.0001)
-	assert_true(speed.icon == hud.speed_normal_icon and speed.theme_type_variation == &"ButtonRound")
+	assert_true(speed.icon == icon and speed.theme_type_variation == &"ButtonRound")
 	assert_eq(PersistedData.get_setting(GameManager.SETTING_MATCH_FAST, true), false, "saved too")
 
 	# Leaving the World (a scene change) restores 1; the choice stays.
@@ -207,7 +208,7 @@ func test_the_speed_button_switches_the_match_speed() -> void:
 	assert_true(GameManager.match_fast, "the choice is kept for the next match")
 	var next := (load(HUD) as PackedScene).instantiate() as MatchHud
 	add_child(next)
-	assert_true((next.get_node(^"%Speed") as Button).icon == next.speed_fast_icon, "the next match's button shows it")
+	assert_eq((next.get_node(^"%Speed") as Button).theme_type_variation, &"ButtonRoundPrimary", "the next match's button shows it")
 	await wait_frames(3)  # the HUD binds two frames after _ready
 	AudioManager.stop_music()  # World started the match music
 
@@ -248,6 +249,44 @@ func test_a_toast_stays_readable_at_the_fast_speed() -> void:
 			full += 1
 	assert_near(full / 60.0, (MatchHud.TOAST_HOLD + MatchHud.TOAST_POP - MatchHud.TOAST_FADE_IN) / _base(), 0.06,
 		"the usual hold in game time at the base speed")
+
+
+## Review flow-3: the real-time floor holds whenever the speed changes. A
+## toast that starts at the base speed and is sped up the frame it reaches
+## full alpha still stays fully visible TOAST_MIN_REAL_HOLD real seconds (it
+## gave 1.00 s when the floor was fixed as game time at the start).
+func test_a_toast_keeps_its_floor_when_the_speed_changes() -> void:
+	GameManager.speed_scaling = true
+	GameManager.set_match_fast(false, false)
+	GameManager.start_new_match()
+	var hud := (load(HUD) as PackedScene).instantiate() as MatchHud
+	add_child(hud)
+	await wait_frames(3)
+	assert_near(Engine.time_scale, _base(), 0.0001)
+	var toast := hud.get_node(^"%Toast") as Control
+	hud.show_toast("VLAD HAS FALLEN")
+	var full := 0
+	var frames := 0
+	while hud.current_toast() != "" and frames < 900:
+		await wait_frames(1)
+		frames += 1
+		if toast.visible and toast.modulate.a > 0.999:
+			if full == 0:
+				GameManager.set_match_fast(true, false)
+			full += 1
+	assert_near(Engine.time_scale, _fast(), 0.0001, "sped up mid-toast")
+	assert_eq(hud.current_toast(), "", "the toast ends")
+	assert_true(full / 60.0 >= MatchHud.TOAST_MIN_REAL_HOLD - 0.02,
+		"fully visible for %.2f real seconds after the speed-up" % (full / 60.0))
+	# Paused, neither hold runs: the toast waits for the resume.
+	hud.show_toast("GROUNT EVOLVED · STAGE II")
+	await wait_frames(30)
+	get_tree().paused = true
+	await wait_frames(150)
+	assert_eq(hud.current_toast(), "GROUNT EVOLVED · STAGE II", "a pause holds the toast")
+	get_tree().paused = false
+	hud.queue_free()
+	await wait_frames(1)
 
 
 func test_the_speed_strings_are_translated() -> void:

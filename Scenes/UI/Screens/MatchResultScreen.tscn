@@ -17,6 +17,7 @@
 [ext_resource type="Texture2D" uid="uid://copfu63v7j3qw" path="res://Assets/UI/Icons/UI/ui_back.svg" id="15_back"]
 [ext_resource type="Texture2D" uid="uid://ylcevyvuqtlq" path="res://Assets/UI/Icons/UI/ui_play.svg" id="16_play"]
 [ext_resource type="Script" uid="uid://ch852csopgwyn" path="res://Scenes/UI/Components/tap_guard.gd" id="17_tap_guard"]
+[ext_resource type="Script" uid="uid://lrcuuu07nr6wo" path="res://Scenes/UI/Components/pop_slot.gd" id="18_pop_slot"]
 
 [node name="MatchResultScreen" type="CanvasLayer"]
 process_mode = 3
@@ -59,15 +60,26 @@ layout_mode = 2
 mouse_filter = 2
 theme_override_constants/separation = 10
 
-[node name="Ribbon" type="PanelContainer" parent="Root/Margin/Column"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(600, 108)
+[node name="RibbonSlot" type="Control" parent="Root/Margin/Column"]
 layout_mode = 2
 size_flags_horizontal = 4
 mouse_filter = 2
-theme_type_variation = &"BannerVictory"
+script = ExtResource("18_pop_slot")
 
-[node name="Outcome" type="Label" parent="Root/Margin/Column/Ribbon"]
+[node name="Ribbon" type="PanelContainer" parent="Root/Margin/Column/RibbonSlot"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(600, 108)
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_type_variation = &"BannerVictory"
+pivot_offset_ratio = Vector2(0.5, 0.5)
+
+[node name="Outcome" type="Label" parent="Root/Margin/Column/RibbonSlot/Ribbon"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_type_variation = &"BannerTitle"

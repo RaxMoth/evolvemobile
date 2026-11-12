@@ -23,6 +23,7 @@
 [ext_resource type="Texture2D" uid="uid://dys3gnhljaaxn" path="res://Assets/UI/Icons/UI/ui_skull.svg" id="22_skull"]
 [ext_resource type="Texture2D" uid="uid://bgk5hk8b80cvs" path="res://Assets/UI/Icons/Nav/nav_monsters.svg" id="23_horns"]
 [ext_resource type="Script" uid="uid://ch852csopgwyn" path="res://Scenes/UI/Components/tap_guard.gd" id="24_tap_guard"]
+[ext_resource type="Script" uid="uid://lrcuuu07nr6wo" path="res://Scenes/UI/Components/pop_slot.gd" id="25_pop_slot"]
 
 [node name="PreRoundScreen" type="Control"]
 layout_mode = 3
@@ -94,14 +95,26 @@ layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 8
 
-[node name="NewBanner" type="PanelContainer" parent="Scroll/Body/Column/Quarry/QuarryInfo"]
+[node name="NewBanner" type="Control" parent="Scroll/Body/Column/Quarry/QuarryInfo"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 0
 mouse_filter = 2
-theme_type_variation = &"PillReady"
+script = ExtResource("25_pop_slot")
 
-[node name="Label" type="Label" parent="Scroll/Body/Column/Quarry/QuarryInfo/NewBanner"]
+[node name="NewBannerPill" type="PanelContainer" parent="Scroll/Body/Column/Quarry/QuarryInfo/NewBanner"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_type_variation = &"PillReady"
+pivot_offset_ratio = Vector2(0.5, 0.5)
+
+[node name="Label" type="Label" parent="Scroll/Body/Column/Quarry/QuarryInfo/NewBanner/NewBannerPill"]
 layout_mode = 2
 theme_type_variation = &"PillText"
 theme_override_font_sizes/font_size = 20

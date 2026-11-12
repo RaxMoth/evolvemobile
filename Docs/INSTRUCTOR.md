@@ -576,9 +576,11 @@ EntityBase gets the same `Hud` node scene-side (`TedsPet.tscn`), wired to its no
   result screen, a scene change and the menus. Never set `Engine.time_scale` anywhere else, and
   never pause without the tree's `paused` flag (that flag is what puts the scale back).
 - **Everything in a match is game time**: use `delta`, tweens and `create_timer` and it speeds up
-  with the match. Only what a player must read may ask for real time: scale the duration by
-  `Engine.time_scale` (the toast hold, `MatchHud.TOAST_MIN_REAL_HOLD`) instead of leaving game
-  time.
+  with the match. Only what a player must read may ask for real time, and then with a clock of
+  its own: a tween with `set_ignore_time_scale()` beside the game-time one (the toast's floor,
+  `MatchHud.TOAST_MIN_REAL_HOLD`; a node-bound tween still stops while the tree is paused). A
+  duration scaled once by `Engine.time_scale` breaks when the speed button is pressed while it
+  runs (the toast's first floor did, fix batch R5).
 - **Match timers are pausable**: `get_tree().create_timer(t)` defaults to `process_always = true`
   and keeps counting while the pause menu or the result screen has paused the tree. Anything that
   belongs to the match passes `false` (`create_timer(t, false)`: the cage, the taunt, mines, the
@@ -605,6 +607,9 @@ EntityBase gets the same `Hud` node scene-side (`TedsPet.tscn`), wired to its no
   settings sheet, the match HUD under the pause menu's settings), write the line again on
   `NOTIFICATION_TRANSLATION_CHANGED` (`MenuRoot`, `MatchHud`, `MonsterHudPanel`). A screen that
   re-reads everything on open needs nothing.
+- **Never key a cache or a guard by a translated line**: after a switch the same thing has
+  another key (the ultimate toast's repeat guard let every cast toast again; it is keyed by the
+  caster's instance id and the untranslated ability name now). Translate only what is shown.
 - **`UxTreeModel` is a snapshot in the current language**: `from_ranked_manager` translates the
   tree's title, blurb, branch and node names; `MetaSkillNode.effect_text` translates the
   description and then fills "{v}" in from the data. Rebuild the model after a switch.
@@ -693,6 +698,19 @@ sprite.rotation = randf() * TAU
 var _rng := RandomNumberGenerator.new()
 sprite.rotation = _rng.randf() * TAU
 ```
+
+### ❌ Don't: Scale a Container's Own Child
+
+A container lays its children out whenever one changes size or visibility and
+puts their `scale` back to 1 before the frame is drawn, so a pop tween on such
+a child never shows (the LEVEL UP! pill, the result ribbon, NEW QUARRY and the
+match toast ran 1 -> 1 until fix batch R5). Wrap the content in a `PopSlot`
+(`Scenes/UI/Components/pop_slot.gd`: a plain Control that takes its content's
+minimum size; the content fills it by its anchors, with `pivot_offset_ratio`
+0.5) and scale the content, or scale a part that no container lays out (a
+card's frame, an ability slot's `Body`). A label whose text changes every
+frame inside a container re-sorts it every frame: pop it after the text has
+settled (`CurrencyChip` pops when its count lands).
 
 ### ❌ Don't: Premature Optimization
 

@@ -28,6 +28,8 @@ const LEVEL_8_XP := 2800
 
 var _viewport: SubViewport = null
 var _locale := ""
+## A line that is only a number and a short unit ("2 s", "15 %").
+var _orphan := RegEx.create_from_string("^[-+]?[0-9.,]+ ?[^ ]{0,2}$")
 
 
 func before_each() -> void:
@@ -148,6 +150,13 @@ func _check_sheets(screen: CharacterDetail, tag: String, keeps_height: bool) -> 
 		for path: String in ["%NodeName", "%NodeMeta", "%EffectNow", "%EffectNext", "%CapstoneNote", "%Reason"]:
 			var label := screen.get_node(path) as Label
 			assert_eq(_cut(label), "", "%s: %s shows '%s' in full" % [where, path, label.atr(label.text)])
+		# F4's leftover: a wrapped effect line never leaves a number and its
+		# unit alone on the last line (Last Stand's "2 s").
+		for path: String in ["%EffectNow", "%EffectNext"]:
+			var effect := screen.get_node(path) as Label
+			if effect.is_visible_in_tree() and effect.get_line_count() > 1:
+				var lines := _wrapped_lines(effect)
+				assert_false(_orphan.search(lines[-1]) != null, "%s: %s does not end on '%s' alone" % [where, path, lines[-1]])
 		assert_eq(_cut_button(upgrade, cost.size.x + 16.0 if cost.visible else 0.0), "", "%s: UPGRADE fits '%s'" % [where, upgrade.atr(upgrade.text)])
 		assert_eq(_cut_button(screen.get_node("%Equip") as Button), "", "%s: EQUIP fits" % where)
 		var sheet_rect := sheet.get_global_rect()
@@ -266,6 +275,62 @@ func test_node_names_wrap_and_clear_the_ring_and_the_arches() -> void:
 					assert_true(arch_top >= name_bottom, "%s: the arch of %s (%.0f) clears the name of %s (%.0f)" % [tag, n.id, arch_top, above.id, name_bottom])
 	for long_name: String in ["Marching Order", "Stunning Charge", "Sharpened Snares", "Disorienting Dive"]:
 		assert_true(wrapped.has(long_name), "'%s' (cut with dots before) wraps onto two lines" % long_name)
+
+
+## Review menus-1 (F4's leftover): a selected node's name steps below its
+## ring, takes its second line and grows with the selection's scale. Under the
+## last tier the view keeps room for it, so it ends above the sheet (a selected
+## German two-line capstone name ran 14 px behind it), and a selected node
+## draws above the others (a two-line name in the tier above a capstone ran
+## under its arch). Every node of every tree, selected in turn, in English and
+## German.
+func test_a_selected_name_clears_the_sheet_and_the_arches() -> void:
+	if not require_isolated():
+		return
+	_level_everyone()
+	var screen := _detail()
+	await wait_frames(1)
+	var sheet := screen.get_node("%Sheet") as Control
+	var two_line_capstones := PackedStringArray()
+	for locale: String in ["en", "de"]:
+		TranslationServer.set_locale(locale)
+		for entry in _trees():
+			var tag := "%s, %s" % [locale, _open(screen, entry)]
+			await wait_frames(2)
+			var view := screen.tree_view()
+			var sheet_top := sheet.get_global_rect().position.y
+			for n in screen.model.nodes:
+				view.select(n.id)
+				await wait_seconds(0.15)  # the selection's scale tween (0.12 s)
+				var b := view.button(n.id)
+				var label := b.get_node("%NameLabel") as Label
+				# The label's box is two lines tall: its bottom is where a second
+				# line ends.
+				var bottom := (label.get_global_transform() * label.size).y
+				assert_true(bottom <= sheet_top + 0.5, "%s: selected '%s' ends at %.1f, above the sheet (%.1f)" % [tag, label.text, bottom, sheet_top])
+				assert_true(b.z_index > 0, "%s: selected %s draws above the other nodes" % [tag, n.id])
+				if n.capstone and label.get_line_count() == 2:
+					two_line_capstones.append(label.atr(label.text))
+			view.select(&"")
+			for b in view.buttons():
+				assert_eq(b.z_index, 0, "%s: %s back in line once deselected" % [tag, b.node_id])
+	for cap_name: String in ["Mitreißende Provokation", "Vampirische Wiedergeburt"]:
+		assert_true(two_line_capstones.has(cap_name), "'%s' (behind the sheet before) is among them (%s)" % [cap_name, str(two_line_capstones)])
+
+
+## The lines a wrapping label breaks its text into (at spaces, as it does).
+func _wrapped_lines(label: Label) -> PackedStringArray:
+	var lines := PackedStringArray()
+	var current := ""
+	for word in label.atr(label.text).split(" "):
+		var candidate := word if current.is_empty() else current + " " + word
+		if not current.is_empty() and _text_width(label, candidate) > label.size.x:
+			lines.append(current)
+			current = word
+		else:
+			current = candidate
+	lines.append(current)
+	return lines
 
 
 ## Width of one wrapped line of a label, measured with its own font.
@@ -401,6 +466,12 @@ func test_overview_numbers_are_what_a_hero_spawns_with() -> void:
 		var rows := CharacterDetail.stat_rows(def)
 		assert_eq(_row(rows, "Health")[3], "+%d" % roundi(live.get_max_health() - base.base_max_health), "%s: the Health tile" % id)
 		assert_eq(_row(rows, "Move speed")[3], "+%d" % roundi(live.get_move_speed() - base.base_move_speed), "%s: the Move speed tile" % id)
+		# Review menus-2: Damage and Range against the spawn too (a dropped
+		# range node passed before).
+		assert_eq(_row(rows, "Damage")[3], CharacterDetail._bonus(base.base_attack_damage, live.get_attack_damage()), "%s: the Damage tile" % id)
+		assert_eq(_row(rows, "Range")[3], CharacterDetail._bonus(base.base_attack_range, live.get_attack_range()), "%s: the Range tile" % id)
+		if id in [&"river", &"ted"]:
+			assert_true(String(_row(rows, "Range")[3]).begins_with("+"), "%s's range nodes show (%s)" % [id, _row(rows, "Range")[3]])
 		var abilities := hero.get_node("AbilitySystem") as AbilitySystem
 		var rate := live.get_attack_speed_multiplier() / abilities.basic_attack.cooldown
 		assert_eq(_row(rows, "Attack speed")[3], "+%.2f" % snappedf(rate - 1.0 / def.ability_slots()[1].cooldown, 0.01), "%s: the Attack speed tile" % id)
@@ -442,6 +513,13 @@ func test_overview_numbers_are_what_a_monster_spawns_with() -> void:
 		assert_eq(_row(rows, "Stage II")[3], "-%d" % (stats.stage_2_xp - m._get_next_evolution_threshold()), "%s: the Stage II tile" % id)
 		assert_eq(_row(rows, "Move speed")[3], "+%d" % roundi(m._get_move_speed() - stats.stage_1_speed), "%s: the Move speed tile" % id)
 		assert_true(String(_row(rows, "Damage")[3]).begins_with("+"), "%s: the Damage tile grows (%s)" % [id, _row(rows, "Damage")[3]])
+		# Review menus-2: the exact bonus of one Stage I hit of the spawned
+		# monster over the stock one (a tile built at another stage passed).
+		var stock := def.ability_slots()[1].duplicate() as AbilityBase
+		stock.apply_stage_stats(1)
+		var stock_hit := MonsterBase.build_ability_damage(stats, stock, 1, {})
+		assert_eq(_row(rows, "Damage")[1], CharacterDetail._number(stock_hit), "%s: the Damage tile's base is the stock hit" % id)
+		assert_eq(_row(rows, "Damage")[3], CharacterDetail._bonus(stock_hit, m.effective_ability_damage(m.ability_1)), "%s: the Damage tile is the spawn's hit" % id)
 		# Stage II: the threshold to Stage III; then Stage III itself.
 		m.gain_xp(float(m._get_next_evolution_threshold()))
 		assert_eq(m.current_stage, 2)

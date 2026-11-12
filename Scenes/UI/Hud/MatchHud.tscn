@@ -11,14 +11,13 @@
 [ext_resource type="Script" uid="uid://24c2ujjro1p7" path="res://Scenes/UI/Hud/match_announcer.gd" id="9_announcer"]
 [ext_resource type="PackedScene" uid="uid://cpa0semenu4x7" path="res://Scenes/UI/Hud/PauseMenu.tscn" id="10_pause_menu"]
 [ext_resource type="Texture2D" uid="uid://bqg0kfxrusxib" path="res://Assets/UI/Icons/UI/ui_fast_forward.svg" id="11_fast"]
+[ext_resource type="Script" uid="uid://lrcuuu07nr6wo" path="res://Scenes/UI/Components/pop_slot.gd" id="12_pop_slot"]
 
 [node name="MatchHud" type="CanvasLayer"]
 layer = 5
 script = ExtResource("1_script")
 pause_icon = ExtResource("4_pause")
 play_icon = ExtResource("5_play")
-speed_normal_icon = ExtResource("5_play")
-speed_fast_icon = ExtResource("11_fast")
 
 [node name="Root" type="Control" parent="."]
 layout_mode = 3
@@ -60,7 +59,7 @@ offset_bottom = 70.0
 tooltip_text = "Match speed"
 focus_mode = 0
 theme_type_variation = &"ButtonRound"
-icon = ExtResource("5_play")
+icon = ExtResource("11_fast")
 icon_alignment = 1
 
 [node name="ClockChip" type="PanelContainer" parent="Root/Top"]
@@ -313,16 +312,26 @@ offset_bottom = 326.0
 grow_horizontal = 2
 mouse_filter = 2
 
-[node name="Toast" type="PanelContainer" parent="Root/ToastBar"]
+[node name="ToastSlot" type="Control" parent="Root/ToastBar"]
+layout_mode = 2
+mouse_filter = 2
+script = ExtResource("12_pop_slot")
+
+[node name="Toast" type="PanelContainer" parent="Root/ToastBar/ToastSlot"]
 unique_name_in_owner = true
 visible = false
 custom_minimum_size = Vector2(320, 76)
-layout_mode = 2
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
 mouse_filter = 2
 theme_type_variation = &"BannerMonster"
 pivot_offset_ratio = Vector2(0.5, 0.5)
 
-[node name="ToastText" type="Label" parent="Root/ToastBar/Toast"]
+[node name="ToastText" type="Label" parent="Root/ToastBar/ToastSlot/Toast"]
 unique_name_in_owner = true
 auto_translate_mode = 2
 layout_mode = 2

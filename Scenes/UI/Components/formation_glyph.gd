@@ -4,8 +4,10 @@ extends Control
 ## A formation drawn as a picture (the pre-round's FormationTiles): four dots
 ## in the heroes' signature colours (UiPalette tokens), each with an ink rim
 ## and a soft highlight, placed as MatchConfig.Formation spaces the squad, under
-## an amber arrow pointing where the squad walks. Procedural (_draw): no
-## texture, and every colour comes from the palette.
+## an amber arrow pointing where the squad walks. The arrow has its own band
+## (ARROW_BAND) along the top edge and the dots their field below it, so no
+## formation's top dot hides the arrow. Procedural (_draw): no texture, and
+## every colour comes from the palette.
 
 ## Unit offsets of the four dots from the centre, per MatchConfig.Formation:
 ## Tight, Spread, Line.
@@ -18,6 +20,12 @@ const OFFSETS := [
 const HIGHLIGHT_ALPHA := 0.35
 ## Ink rim around each dot, in px.
 const RIM := 3.0
+## The heading arrow: its size (base width, height) and the band it takes at
+## the top of the glyph (arrow plus a gap), above the dots' field.
+const ARROW_SIZE := Vector2(16.0, 12.0)
+const ARROW_BAND := 16.0
+## How far the dots spread across the field, in units of its half size.
+const SPREAD := 1.6
 
 @export var formation: MatchConfig.Formation = MatchConfig.Formation.SPREAD:
 	set(v):
@@ -36,15 +44,31 @@ const RIM := 3.0
 
 func _draw() -> void:
 	var palette := UiPalette.get_default()
-	var centre := size * 0.5
-	var half := minf(size.x, size.y) * 0.5
-	var tip := centre + Vector2(0.0, -half * 0.95)
-	draw_colored_polygon(PackedVector2Array([tip, tip + Vector2(-8.0, 12.0), tip + Vector2(8.0, 12.0)]), palette.amber)
-	var offsets: Array = OFFSETS[clampi(int(formation), 0, OFFSETS.size() - 1)]
+	draw_colored_polygon(arrow_points(size), palette.amber)
+	var dots := dot_centres(size, formation)
 	var highlight := Color(palette.text, HIGHLIGHT_ALPHA)
-	for i in offsets.size():
-		var p := centre + (offsets[i] as Vector2) * half * 1.6
+	for i in dots.size():
 		var token: StringName = dot_tokens[i] if i < dot_tokens.size() else &"hero"
-		draw_circle(p, dot_radius + RIM, palette.ink)
-		draw_circle(p, dot_radius, palette.color(token))
-		draw_circle(p + Vector2(-2.5, -2.5), dot_radius * 0.35, highlight)
+		draw_circle(dots[i], dot_radius + RIM, palette.ink)
+		draw_circle(dots[i], dot_radius, palette.color(token))
+		draw_circle(dots[i] + Vector2(-2.5, -2.5), dot_radius * 0.35, highlight)
+
+
+## The heading arrow's corners (tip first) in a glyph of `glyph_size`:
+## centred at the top, inside ARROW_BAND.
+static func arrow_points(glyph_size: Vector2) -> PackedVector2Array:
+	var tip := Vector2(glyph_size.x * 0.5, (ARROW_BAND - ARROW_SIZE.y) * 0.5)
+	var half_w := ARROW_SIZE.x * 0.5
+	return PackedVector2Array([tip, tip + Vector2(-half_w, ARROW_SIZE.y), tip + Vector2(half_w, ARROW_SIZE.y)])
+
+
+## The four dot centres of `f` in a glyph of `glyph_size`: spread over the
+## field under the arrow's band.
+static func dot_centres(glyph_size: Vector2, f: MatchConfig.Formation) -> PackedVector2Array:
+	var field := Vector2(glyph_size.x, maxf(glyph_size.y - ARROW_BAND, 0.0))
+	var centre := Vector2(field.x * 0.5, ARROW_BAND + field.y * 0.5)
+	var half := minf(field.x, field.y) * 0.5
+	var out := PackedVector2Array()
+	for offset: Vector2 in OFFSETS[clampi(int(f), 0, OFFSETS.size() - 1)]:
+		out.append(centre + offset * half * SPREAD)
+	return out

@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" uid="uid://b22hhfouhh4l3" path="res://Scenes/UI/Components/xp_row.gd" id="1_script"]
 [ext_resource type="Texture2D" uid="uid://dys3gnhljaaxn" path="res://Assets/UI/Icons/UI/ui_skull.svg" id="2_skull"]
+[ext_resource type="Script" uid="uid://lrcuuu07nr6wo" path="res://Scenes/UI/Components/pop_slot.gd" id="3_pop_slot"]
 
 [node name="XpRow" type="PanelContainer"]
 custom_minimum_size = Vector2(0, 92)
@@ -105,14 +106,26 @@ size_flags_horizontal = 3
 theme_type_variation = &"PillText"
 text = "Lv.1"
 
-[node name="LevelUp" type="PanelContainer" parent="Row/Column/Foot"]
+[node name="LevelUp" type="Control" parent="Row/Column/Foot"]
 unique_name_in_owner = true
 visible = false
 layout_mode = 2
 mouse_filter = 2
-theme_type_variation = &"PillReady"
+script = ExtResource("3_pop_slot")
 
-[node name="Text" type="Label" parent="Row/Column/Foot/LevelUp"]
+[node name="Pill" type="PanelContainer" parent="Row/Column/Foot/LevelUp"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_type_variation = &"PillReady"
+pivot_offset_ratio = Vector2(0.5, 0.5)
+
+[node name="Text" type="Label" parent="Row/Column/Foot/LevelUp/Pill"]
 layout_mode = 2
 theme_type_variation = &"PillText"
 text = "LEVEL UP!"

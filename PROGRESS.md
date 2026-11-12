@@ -112,8 +112,9 @@ anything (see "Verification gate").
       pop overlaps briefly by design.
 - [ ] **Monster instincts** — PreRoundScreen's Lurker / Ambusher / Ravager tiles are built and hidden
       (`show_instincts = false`); balance three `MonsterStrategy` presets per monster (sim), then show.
-- [ ] **Pre-round scroll** — the heroes-side pre-round is about 1,500 px tall; on a 720x1280 phone
-      STRATEGY / FORMATION need a scroll (START HUNT is pinned).
+- [ ] **Pre-round scroll** — the heroes-side pre-round is about 1,700 px tall (R5's 48 px dials and
+      144 px formation tiles added 52); on a 720x1280 phone STRATEGY / FORMATION need a scroll
+      (START HUNT is pinned).
 - [ ] **German copy review** (user step) — F6 wrote the German of all content (314 new rows in
       `Assets/Locale/strings.csv`; README "Localization" has the term table). Read it in the game
       (Settings, Language, Deutsch) and change what does not sound right: edit the `de` column,
@@ -315,11 +316,12 @@ Look and feel:
   sims 60. Same rules, not the same match step for step; fast on a 30 fps phone is 12.5 steps
   per game second (the scheduler caps a step at 0.5 s). The alternative, several logic steps
   per frame, needs the entity logic moved off `_process`.
-- **The speed button's look** (F3): one arrow on the grey round button at the normal speed, two
-  arrows on the amber one on fast, no number, so it stays true whatever the base is. Next to the
-  pause icon the single arrow can read as "play". Option: always two arrows, lit while fast.
-  The choice is saved (`match_fast`) and holds for the next launch. Option: every match starts
-  at the normal speed.
+- **The speed button's look** (F3, changed in R5): two arrows always, on the grey round button at
+  the normal speed and on the amber one (lit) on fast, no number, so it stays true whatever the
+  base is. The single arrow it showed at the normal speed was the pause button's own play icon
+  and read as "play"; in R5's render the grey and the amber two-arrow buttons tell the two
+  states apart at a glance. Option: back to one arrow at the normal speed. The choice is saved
+  (`match_fast`) and holds for the next launch. Option: every match starts at the normal speed.
 - **A decided match plays at normal speed** (F3): the scale goes back to 1 at the deciding death,
   so the death beat (0.95 s) and the result screen are real time, as are the pause menu and
   every menu.
@@ -400,7 +402,21 @@ Look and feel:
   edges under Nyxa and Gorrak.
 - **Numbers in German** keep the English format ("0.5 s", "2,200"); see Backlog.
 - **A toast that is on screen when the language is switched** (the pause menu's settings) keeps
-  its language until it fades; everything else on screen follows at once.
+  its language until it fades; everything else on screen follows at once. Its repeat guard no
+  longer depends on the language (R5).
+- **Safe area** (R5): on a phone with a notch or a home indicator the whole menu (MenuRoot) and
+  the whole match HUD (`Root`) move inside the display's safe area; the menu's bands show the
+  clear colour, the match's the world (the pause menu's scrim stops at the safe area too).
+  Option: keep the screens edge to edge and only push the bars in (each screen's body would need
+  the same inset). Not seen on a device: no export preset exists yet.
+- **Last Stand's text** (R5): "Once per match a lethal hit leaves Irelia at 1 HP and makes her
+  invulnerable for 2 s" (it wrapped with "2 s" alone on the second line); the German row is
+  unchanged. A sheet test now fails on any effect line that ends on a number and its unit alone.
+- **The formation tile is 144 px tall** (R5, was 128): the heading arrow has its own band above
+  the dots, which keep their spacing. Option: keep 128 and pull the Spread dots closer.
+- **The old Codex count is dropped, not moved** (R5): a save's `[settings] codex_seen_monsters`
+  is removed on load; the Codex dot lights once more for pages such a save had seen (a count
+  carried over could outlive a Reset Progress and hide new pages).
 - **Fallen hero on the result screen**: tint 0.62 / 0.58 / 0.58 plus a colour drain instead of the
   UX spec's 0.42 / 0.39 / 0.39.
 - **Heroes-side pre-round** needs a scroll on 720x1280 (Backlog).
@@ -453,7 +469,7 @@ Tools (T1):
 ## Verification gate
 
 Every change passes `tools/lint.sh` (errors=0; every GDScript warning is an error there) and
-`tools/run_tests.sh` (exit 0; 727 tests: 726 passed, 1 skipped headless, the run exits with nothing
+`tools/run_tests.sh` (exit 0; 741 tests: 740 passed, 1 skipped headless, the run exits with nothing
 leaked). A change that must not alter gameplay also keeps the determinism trace byte-identical:
 `MONSTER=all BASELINE_DIR=tools/baselines tools/sim_trace.sh > <new trace>` (exit 0): seeds 1-3 ×
 heroes/monster × every monster as full matches, `JOBS=2` at a time by default (no per-seed split
@@ -592,6 +608,76 @@ Match speed (F3, `tools/bench.sh 3 2 900 300 0 <rigs_awake> <speed>`, back to ba
       uses `GameManager.killer_side`; the sim could use the same rule. Low priority.
 
 ## Changelog
+### 2026-11-12 — fix batch R5: components and HUD leftovers (pops, dials, safe area, toasts, speed button)
+Seventh batch of the second fix run: review findings components-1, -2, -3, -6, -7, -9, -10,
+menus-11 and hud-7, the second review's flow-3, locale-1, menus-1, menus-2 and menus-3, and the
+leftovers of F3, F4 and F5. Presentational: the determinism traces stay byte-identical.
+
+- **Pops that never showed** (components-2): the LEVEL UP! pill, the result ribbon, NEW QUARRY
+  and (same trap, found on the way) the match toast sat straight in a container, which put their
+  scale back to 1 in the frame they were shown: every pop ran 1 -> 1. New `PopSlot`
+  (`Scenes/UI/Components/pop_slot.gd`): a plain Control that takes its content's minimum size;
+  the content fills it by its anchors, pops around its centre (`pivot_offset_ratio`) and keeps
+  its scale. XpRow pops `%Pill` inside `%LevelUp`, the result screen `%Ribbon` inside
+  `RibbonSlot`, the pre-round `%NewBannerPill` inside `%NewBanner`, the HUD `%Toast` inside
+  `ToastSlot`. The lobby's HUNT pop and the HUD level badge sit in plain Controls and were fine.
+- **Currency chips** (components-7): the pop ran beside the count, and from 1,000 up a wider
+  number re-sorted the row every frame (2 of 30 frames popped for 1,847 -> 4,347). The chip pops
+  when the count lands.
+- **Formation arrow** (components-9): Spread's top dot covered the arrow whole, Tight's a third.
+  The arrow has its own 16 px band (`ARROW_BAND`), the dots their field below it
+  (`arrow_points` / `dot_centres`, static, tested at the real tile size); `FormationTile` is
+  144 px tall (was 128) so the dots keep their spacing.
+- **Stage characters** (components-10): the random phase was an interval inside the looping
+  idle, so every cycle rested up to a period. The phase is drawn once (`phase`) and applied with
+  `custom_step` outside the loop; a restart resets the rig first and keeps the phase.
+- **Dials** (components-1, menus-11): the strategy sliders are 48 px tall (were 36).
+- **Safe area** (components-3): `SafeArea` maps `DisplayServer.get_display_safe_area()` into the
+  viewport (only on a mobile build; `simulated` for tests); MenuRoot and the HUD's `Root` fit
+  inside it at `_ready` and on a resize. Not seen on a device (no export preset yet).
+- **Toast floor** (flow-3): the 1.2 real-second floor was fixed as game time when the toast
+  started, so a toast sped up mid-hold was readable for 1.00 s. A real-time tween
+  (`set_ignore_time_scale`) runs beside the game-time hold from the end of the pop; the fade
+  starts when both are over, and a pause holds both.
+- **Ultimate toast guard** (locale-1): keyed by the caster's instance id and the untranslated
+  ability name, not the shown line, so a language switch inside the 60 s guard no longer lets
+  the cast toast again. hud-7 itself was fixed by F6 (a26336e, tests in both directions); the
+  on-screen toast keeping its language stays a decision.
+- **Speed button** (F3's open question): two arrows always, grey at the normal speed, amber
+  (lit) on fast; the single arrow was the pause button's own play icon. The render shows the
+  two states apart at a glance; `speed_normal_icon` / `speed_fast_icon` are gone (the scene's
+  icon).
+- **Skill tree names** (menus-1; components-6 was fixed by F4, 78877ef): a selected node draws
+  above the others (`z_index` 1), so its two-line name is never under a capstone's arch, and the
+  view keeps `SkillNodeButton.selected_name_overhang(CAP_TILE)` (29 px) under the last tier, so
+  a selected German two-line capstone name ends at 838.9 instead of 859.9, above the sheet (846).
+- **Last Stand** (F4's leftover): "…leaves Irelia at 1 HP and makes her invulnerable for 2 s"
+  wraps "…makes her / invulnerable for 2 s"; the sheet walk fails on any effect line that ends on
+  a number and its unit alone. Translations rebuilt (`tools/build_locale.sh`).
+- **F5's leftovers**: the roster's unreachable "Nobody in this role yet" label and its CSV row
+  are gone; `PersistedData.RETIRED_KEYS` drops `[settings] codex_seen_monsters` on load and saves.
+- **Stale shader message**: "Cannot load shader: res://Scenes/UI/HeroContainer/
+  ability_cooldown.gdshader" comes from the user's editor cache only
+  (`.godot/editor/editor_layout.cfg`, a shader tab left open; `.godot` is ignored); nothing in the
+  repo refers to it. Closing that tab in the editor ends it.
+- **Tests that measure** (menus-2, menus-3): the spawn comparisons check the Damage tile of every
+  monster and the Damage and Range tiles of every hero against the spawn (River's +150 and
+  Ted's +25 range); the tall-lobby test lays the lobby out at 720x1560 and 720x1680 and compares
+  the cave's top with the stage's.
+- Render (muted, scratch drivers on a copy, 30 fps): the result screen's ribbon is drawn at
+  about 0.7 of its width at 0.13 s and full at 0.23 s; Irelia's LEVEL UP! pill shows small at
+  1.03 s, overshoots and settles; NEW QUARRY grows over its first frames; the toast is drawn
+  small and faint first; the formation row shows all three arrows clear of the dots; the Speed
+  button shows two arrows on grey, then on amber after the press.
+- Gate: `tools/lint.sh` errors=0; `tools/run_tests.sh` 740 passed, 0 failed, 1 skipped (the
+  windowed minimap test), nothing leaked at exit; 14 new tests, 9 extended (the toast queue test
+  steps the real-time floor too). With the fixes reverted on a copy (APIs kept where the tests
+  need them), the chip, floor, dial, selected-name, retired-key, cave and spawn tests fail (the
+  chip popped 0-6 frames, the floor gave 1.00 s, the dials 36 px, the names ended at 859.9 px);
+  the pop tests use the new slots and were checked by render. `MONSTER=all
+  BASELINE_DIR=tools/baselines tools/sim_trace.sh`: identical (1,998 / 3,428 / 2,846 lines).
+  `tools/bench.sh 2 2 900 300`, parent then this tree back to back (load 4.6): frame mean
+  1.808 / 1.763 ms, p99 4.367 / 4.620 ms (+6 %, inside the runs' 3.46-5.28 ms spread).
 ### 2026-11-12 — fix batch R4: VFX and rig polish (numbers, wards, stun stars, the fox, rigs, stage heads)
 Sixth batch of the second fix run: review findings vfx-5, vfx-6, vfx-7, rig-1 to rig-7, gaps-2,
 and the second review's fight-2 and fight-3 (the fox's HP bar, now required). Presentational:

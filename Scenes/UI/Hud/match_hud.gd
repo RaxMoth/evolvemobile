@@ -10,8 +10,9 @@ extends CanvasLayer
 ##     button (ui_cancel; MatchHud replays the OS back request through
 ##     BackButton, and the result screen or the menu itself take it first);
 ##   - Speed: switches the match between its normal and its fast speed
-##     (GameManager.set_match_fast, kept for the next matches). One arrow on
-##     the grey round button is normal, two arrows on the amber one fast;
+##     (GameManager.set_match_fast, kept for the next matches). Two arrows
+##     always: on the grey round button at the normal speed, on the amber
+##     (lit) one at the fast speed;
 ##   - the clock, GameManager.get_match_elapsed(), in game seconds: it runs
 ##     with the match speed;
 ##   - the enemy tracker: heroes side, the monster's head (of the stage it
@@ -21,15 +22,18 @@ extends CanvasLayer
 ##   - the kills chip: the played side's mob kills
 ##     (GameManager.played_side_kills(), the result screen's tally);
 ##   - Follow: follow_requested (MainCam.recenter, wired in MainCam.tscn).
-## Under it, MinimapFrame holds the match's Minimap (its own frame hidden);
-## a tap on the map selects the nearest hero (Minimap.hero_picked ->
-## select_hero, wired in this scene).
+## Root keeps inside the display's safe area (SafeArea.fit, at _ready and on
+## a viewport resize): every part of the HUD stays clear of a notch or a home
+## indicator. Under the top bar, MinimapFrame holds the match's Minimap (its
+## own frame hidden); a tap on the map selects the nearest hero
+## (Minimap.hero_picked -> select_hero, wired in this scene).
 ## Bottom: heroes side, one HeroHudCard per hero (the "Hero" group's HeroBase
 ## nodes, in tree order); monster side, the MonsterHudPanel.
 ## Event toasts (show_toast): the crimson BannerMonster ribbon at y 250
-## (Root/ToastBar) pops in, holds and fades; toasts queue, at most one shows.
-## They run on game time like the match, but hold at least
-## TOAST_MIN_REAL_HOLD real seconds at any speed.
+## (Root/ToastBar, in a PopSlot so the bar's layout cannot reset its pop)
+## pops in, holds and fades; toasts queue, at most one shows. They run on game
+## time like the match, but hold at least TOAST_MIN_REAL_HOLD real seconds,
+## whenever the speed changes.
 ## The scene's Announcer (MatchAnnouncer) feeds it: monster evolved, hero
 ## fell, ultimate cast (Announcer.announced -> show_toast, wired in this scene).
 ##
@@ -64,7 +68,9 @@ const TOAST_FADE_IN := 0.15
 const TOAST_HOLD := 2.2
 const TOAST_FADE_OUT := 0.3
 ## Real seconds a toast holds at least: the hold is game time, so a fast
-## match (Engine.time_scale) gets a longer one, enough to read the line.
+## match (Engine.time_scale) would be shorter. A real-time tween runs beside
+## the game-time hold from the end of the pop, and the fade starts when both
+## are over, even if the speed changes while the toast is up.
 const TOAST_MIN_REAL_HOLD := 1.2
 ## Toasts waiting behind the visible one; when full, the oldest waiting one
 ## gives way to the newest.
@@ -72,10 +78,6 @@ const TOAST_MAX_PENDING := 3
 
 @export var pause_icon: Texture2D
 @export var play_icon: Texture2D
-## The Speed button's icon at the normal speed (one arrow) and at the fast
-## one (two arrows).
-@export var speed_normal_icon: Texture2D
-@export var speed_fast_icon: Texture2D
 
 ## One card per hero, in roster (tree) order; empty on the monster side.
 var cards: Array[HeroHudCard] = []
@@ -98,7 +100,12 @@ var _tracked_down: Array[bool] = []
 var _toast_shown: String = ""
 var _toast_queue: Array[String] = []
 var _toast_tween: Tween = null
+## The real-time floor's tween (set_ignore_time_scale) and how many holds the
+## toast on screen still waits for (the game-time hold and that floor).
+var _toast_floor: Tween = null
+var _toast_holds: int = 0
 
+@onready var _root: Control = $Root
 @onready var _hero_cards: HBoxContainer = %HeroCards
 @onready var _monster_panel: MonsterHudPanel = %MonsterPanel
 @onready var _enemy_monster: Control = %EnemyMonster
@@ -127,6 +134,9 @@ func _ready() -> void:
 	_hero_chip.visible = false
 	_toast.visible = false
 	_show_speed()
+	# The whole HUD inside the display's safe area (notch, home indicator).
+	_fit_safe_area()
+	get_viewport().size_changed.connect(_fit_safe_area)
 	set_process(false)
 	# Two frames so the entities finish their own _ready (which awaits
 	# physics frames) before the HUD reads their stats.
@@ -184,6 +194,10 @@ func _open_hud_tutorial() -> void:
 ## The pause menu (PauseMenu.tscn, a Root child).
 func pause_menu() -> PauseMenu:
 	return _pause_menu
+
+
+func _fit_safe_area() -> void:
+	SafeArea.fit(_root)
 
 
 ## The Android back button in a match: ui_cancel for the result screen, the
@@ -289,7 +303,7 @@ static func _head_of(character_id: StringName, stage: int = 1) -> Texture2D:
 # ============================================
 
 ## Shows `text` on the toast ribbon: it pops in (0.7 -> 1, TRANS_BACK, 0.3 s),
-## holds 2.2 s (game time; at least TOAST_MIN_REAL_HOLD real seconds) and
+## holds 2.2 s (game time) and at least TOAST_MIN_REAL_HOLD real seconds, and
 ## fades out in 0.3 s, then the next waiting toast shows. At
 ## most one toast is visible. While one is up, `queued` true waits in line
 ## (TOAST_MAX_PENDING; a full line drops its oldest) and `queued` false is
@@ -322,11 +336,33 @@ func _play_toast(text: String) -> void:
 	_toast.visible = true
 	_toast.scale = Vector2.ONE * TOAST_POP_FROM
 	_toast.modulate.a = 0.0
+	_toast_holds = 2
 	_toast_tween = create_tween()
 	_toast_tween.tween_property(_toast, ^"modulate:a", 1.0, TOAST_FADE_IN)
 	_toast_tween.parallel().tween_property(_toast, ^"scale", Vector2.ONE, TOAST_POP) \
 			.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	_toast_tween.tween_interval(maxf(TOAST_HOLD, TOAST_MIN_REAL_HOLD * Engine.time_scale))
+	_toast_tween.tween_callback(_start_toast_floor)
+	_toast_tween.tween_interval(TOAST_HOLD)
+	_toast_tween.tween_callback(_end_toast_hold)
+
+
+## The real-time floor from the end of the pop: a tween that ignores the time
+## scale; bound to the HUD, it stops while the tree is paused, as the toast's
+## own tween does.
+func _start_toast_floor() -> void:
+	if _toast_floor:
+		_toast_floor.kill()
+	_toast_floor = create_tween().set_ignore_time_scale()
+	_toast_floor.tween_interval(TOAST_MIN_REAL_HOLD)
+	_toast_floor.tween_callback(_end_toast_hold)
+
+
+## One of the two holds is over; after the second the toast fades out.
+func _end_toast_hold() -> void:
+	_toast_holds -= 1
+	if _toast_holds > 0:
+		return
+	_toast_tween = create_tween()
 	_toast_tween.tween_property(_toast, ^"modulate:a", 0.0, TOAST_FADE_OUT)
 	_toast_tween.finished.connect(_on_toast_finished)
 
@@ -427,12 +463,11 @@ func _on_speed_pressed() -> void:
 	_show_speed()
 
 
-## The Speed button shows the setting: one arrow on the grey round button at
-## the normal speed, two arrows on the amber one at the fast speed.
+## The Speed button shows the setting: its two arrows (the scene's icon) on
+## the grey round button at the normal speed, on the amber one (lit) at the
+## fast speed. One arrow alone read as "play" next to the pause icon.
 func _show_speed() -> void:
-	var fast := GameManager.match_fast
-	_speed.icon = speed_fast_icon if fast else speed_normal_icon
-	_speed.theme_type_variation = &"ButtonRoundPrimary" if fast else &"ButtonRound"
+	_speed.theme_type_variation = &"ButtonRoundPrimary" if GameManager.match_fast else &"ButtonRound"
 
 
 func _on_follow_pressed() -> void:

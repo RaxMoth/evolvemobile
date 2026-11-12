@@ -115,7 +115,6 @@ Need %s more,Need %s more,Noch %s nötig
 Maxed,Maxed,Maximal
 Needs %s,Needs %s,Benötigt: %s
 or,or,oder
-Nobody in this role yet,Nobody in this role yet,Noch niemand in dieser Rolle
 STAGE %s,STAGE %s,STUFE %s
 VULNERABLE,VULNERABLE,VERWUNDBAR
 DANGEROUS,DANGEROUS,GEFÄHRLICH
@@ -557,7 +556,7 @@ Ted keeps {v} pets,Ted keeps {v} pets,Ted hat {v} Gefährten
 Trap Cage cooldown -{v}%,Trap Cage cooldown -{v}%,Fallenkäfig: -{v}% Abklingzeit
 Trap Cage lasts +{v}%,Trap Cage lasts +{v}%,Fallenkäfig hält +{v}% länger
 Enemies inside the cage take {v} damage per second,Enemies inside the cage take {v} damage per second,Gegner im Käfig erleiden {v} Schaden pro Sekunde
-"Once per match a lethal hit leaves Irelia at 1 HP, invulnerable for 2 s","Once per match a lethal hit leaves Irelia at 1 HP, invulnerable for 2 s",Einmal pro Partie überlebt Irelia einen tödlichen Treffer mit 1 LP und ist 2 s lang unverwundbar
+"Once per match a lethal hit leaves Irelia at 1 HP and makes her invulnerable for 2 s","Once per match a lethal hit leaves Irelia at 1 HP and makes her invulnerable for 2 s",Einmal pro Partie überlebt Irelia einen tödlichen Treffer mit 1 LP und ist 2 s lang unverwundbar
 Regeneration heals {v}x as much,Regeneration heals {v}x as much,Regeneration heilt {v}x so viel
 Divine Shield cooldown -{v}%,Divine Shield cooldown -{v}%,Göttlicher Schild: -{v}% Abklingzeit
 Divine Shield absorbs +{v}%,Divine Shield absorbs +{v}%,Göttlicher Schild: +{v}% Absorption

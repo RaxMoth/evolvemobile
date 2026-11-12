@@ -93,6 +93,10 @@ var _starting := false
 
 func _ready() -> void:
 	get_tree().paused = false
+	# Inside the display's safe area (notch, home indicator): every screen,
+	# its top bar and nav bar, and the sheets over them.
+	_fit_safe_area()
+	get_viewport().size_changed.connect(_fit_safe_area)
 	# Load the match while the player looks at the menu (first visit only:
 	# GameManager keeps the loaded scene for the session).
 	GameManager.request_world_load()
@@ -112,6 +116,10 @@ func _ready() -> void:
 	PersistedData.monster_owned.connect(_on_monster_owned)
 	if not TutorialOverlay.has_been_seen():
 		get_tree().create_timer(TUTORIAL_DELAY).timeout.connect(_auto_open_tutorial)
+
+
+func _fit_safe_area() -> void:
+	SafeArea.fit(self)
 
 
 ## The Android back button: ui_cancel for whatever is open; on the bare lobby

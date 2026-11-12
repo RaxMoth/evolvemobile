@@ -16,8 +16,10 @@ extends Control
 ##     once both ends are owned, moss once the parent is, locked_line before.
 ## Without named branches each row is centred on its own. The rows share the
 ## height (min_row_h..max_row_h), a tier of capstones and everything below it
-## sits arch_room lower so the arches stay clear of the names above them, and
-## the graph is centred vertically; it lays itself out again on resize.
+## sits arch_room lower so the arches stay clear of the names above them, the
+## last tier keeps room under it for a selected node's two-line name
+## (SkillNodeButton.selected_name_overhang), and the graph is centred
+## vertically; it lays itself out again on resize.
 ##
 ## Tapping a node selects it (white ring, small lift) and reports
 ## node_selected; the character detail shows it in its bottom sheet. build()
@@ -303,8 +305,11 @@ func _layout() -> void:
 		if n.capstone and (_arch_tier == 0 or n.tier < _arch_tier):
 			_arch_tier = n.tier
 	var arch := arch_room if _arch_tier > 0 else 0.0
-	_row_h = clampf((size.y - head - arch) / model.tiers, min_row_h, max_row_h)
-	var top := maxf((size.y - head - arch - _row_h * model.tiers) * 0.5, 0.0)
+	# Under the last tier: room for a selected node's two-line name, as far as
+	# it hangs below the node's bottom (a capstone's, the larger tile).
+	var tail := SkillNodeButton.selected_name_overhang(SkillNodeButton.CAP_TILE)
+	_row_h = clampf((size.y - head - arch - tail) / model.tiers, min_row_h, max_row_h)
+	var top := maxf((size.y - head - arch - tail - _row_h * model.tiers) * 0.5, 0.0)
 	_rows_top = top + head
 	for b in _plaques.size():
 		var plaque := _plaques[b]

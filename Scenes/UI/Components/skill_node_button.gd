@@ -139,6 +139,15 @@ func tile_size() -> float:
 	return _tile.size.x
 
 
+## How far the name of a selected node with a `tile` px tile can reach below
+## the node's unselected bottom (tile + NAME_H): it steps RING_OUT down, takes
+## its second line and grows with SELECTED_SCALE around the tile's centre.
+## SkillTreeView keeps this much room under the last tier.
+static func selected_name_overhang(tile: float) -> float:
+	var reach := tile * 0.5 + 1.0 + RING_OUT + NAME_LINES_H
+	return reach * SELECTED_SCALE.y - (tile * 0.5 + NAME_H)
+
+
 ## Gives the name `width` px, centred under the tile (the view: wide for a node
 ## alone in its cell).
 func set_name_width(width: float) -> void:
@@ -147,8 +156,12 @@ func set_name_width(width: float) -> void:
 
 
 ## The white selection ring and a small lift; the name steps below the ring.
+## A selected node draws above the other nodes (z_index 1): its name, two
+## lines and scaled, can reach the arch of a capstone below it, which would
+## otherwise draw over it.
 func set_selected(on: bool) -> void:
 	_select.visible = on
+	z_index = 1 if on else 0
 	_place_name()
 	_tween_scale(SELECTED_SCALE if on else Vector2.ONE, 0.12, Tween.TRANS_QUAD)
 

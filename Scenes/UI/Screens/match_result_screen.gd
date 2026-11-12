@@ -261,7 +261,8 @@ func _fill_xp(defs: Array[CharacterDef], monster_side: bool) -> void:
 
 
 func _intro() -> void:
-	_ribbon.pivot_offset = _ribbon.get_combined_minimum_size() * 0.5
+	# %Ribbon sits in a PopSlot (its centre is the pivot): the Column's layout
+	# never resets its scale.
 	_ribbon.scale = RIBBON_FROM
 	_ribbon.modulate.a = 0.0
 	var t := create_tween().set_parallel()

@@ -245,7 +245,7 @@ static func irelia() -> Array:
 		_n(&"i2_hp", "Unbreakable", "+{v}% max HP", 2, 0, [1.12, 1.16, 1.20], "T2x3", "stat", "max_health", true, "", [&"i1_hp"]),
 		_n(&"ir_armor", "Plated", "-{v}% damage taken", 2, 0, [0.95, 0.91, 0.88], "T2x3", "stat", "damage_taken_mult", true, "", [&"i1_hp"], false, "hero stat key damage_taken_mult (shared with hb_armor)"),
 		_n(&"i3_hp", "Bulwark", "+{v}% max HP", 3, 0, [1.20, 1.25, 1.30], "T3x3", "stat", "max_health", true, "", [&"i2_hp", &"ir_armor"]),
-		_n(&"ir_laststand", "Last Stand", "Once per match a lethal hit leaves Irelia at 1 HP, invulnerable for 2 s", 4, 0, [1.0], "CAP", "flag", "last_stand", false, "Regeneration", [&"i3_hp"], true, "IreliaPassiveRegeneration: last_stand flag; HeroBase._receive_damage asks the passive before dying"),
+		_n(&"ir_laststand", "Last Stand", "Once per match a lethal hit leaves Irelia at 1 HP and makes her invulnerable for 2 s", 4, 0, [1.0], "CAP", "flag", "last_stand", false, "Regeneration", [&"i3_hp"], true, "IreliaPassiveRegeneration: last_stand flag; HeroBase._receive_damage asks the passive before dying"),
 		# Oathkeeper
 		_n(&"ir_regen", "Second Breath", "Regeneration heals {v}x as much", 1, 1, [1.5, 2.0, 2.5], "T1x3", "ability", "heal_amount", true, "Regeneration"),
 		_n(&"i2_rallycd", "Shield Cadence", "Divine Shield cooldown -{v}%", 2, 1, [0.80, 0.72, 0.65], "T2x3", "ability", "cooldown", true, "Divine Shield", [&"ir_regen"]),

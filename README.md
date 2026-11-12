@@ -140,7 +140,9 @@ waiting, and the player can double that with the HUD's speed button.
   before a phone's slower CPU and the drawing), so the button has two
   settings.
 - **Staying readable**: a toast holds 2.2 game seconds but never less than
-  1.2 real seconds (`MatchHud.TOAST_MIN_REAL_HOLD`); the first-match tips
+  1.2 real seconds (`MatchHud.TOAST_MIN_REAL_HOLD`, a real-time tween beside
+  the game-time hold, so the floor holds when Speed is tapped while a toast
+  is up); the first-match tips
   wait for a tap. Telegraphs and damage numbers are game time and get
   shorter with the speed (a 0.8 s damage number shows for 0.67 s at the
   base speed and 0.33 s on fast).
@@ -1377,7 +1379,10 @@ grade (they are not redrawn).
 of both sides, a `MainCam` child (`MainCam.hud`, wired in `MainCam.tscn`). It
 replaced HeroContainer / HeroPanel and the FPS label (F3 keeps the frame
 timings). Presentation only: it reads the entities and GameManager and never
-writes gameplay state, so `tools/sim_trace.sh` stays byte-identical.
+writes gameplay state, so `tools/sim_trace.sh` stays byte-identical. Its
+`Root` keeps inside the display's safe area (`SafeArea.fit`, see "Menu Root
+and Lobby"), so the top bar and the bottom cards are clear of a notch or a
+home indicator on a phone.
 
 - **Top bar** (80 px), refreshed at 4 Hz, each label written only when it
   changes:
@@ -1401,9 +1406,10 @@ writes gameplay state, so `tools/sim_trace.sh` stays byte-identical.
     - Speed (`%Speed`, 62x64 like Pause, right of it; `pressed` wired in
       MatchHud.tscn): switches the match between its normal and its fast
       speed (`GameManager.set_match_fast`, see Match Speed). It shows the
-      setting, not a number: one arrow (`ui_play`) on the grey `ButtonRound`
-      at the normal speed, two arrows (`ui_fast_forward`) on the amber
-      `ButtonRoundPrimary` on fast. Tooltip "Match speed".
+      setting, not a number: two arrows (`ui_fast_forward`) always, on the
+      grey `ButtonRound` at the normal speed and on the amber (lit)
+      `ButtonRoundPrimary` on fast (one arrow alone read as "play" next to
+      the pause icon). Tooltip "Match speed".
     - The first match plays the tutorial's HUD chapter 1.5 s of running
       match after the HUD binds (TutorialOverlay `CHAPTER_HUD`, setting
       `tutorial_hud_seen`): the cooldown slots, then the pause and speed
@@ -1518,10 +1524,13 @@ writes gameplay state, so `tools/sim_trace.sh` stays byte-identical.
       and the mobs this monster killed.
 - **Event toasts** (both sides): `MatchHud.show_toast(text, queued = true)`
   drops the crimson `BannerMonster` ribbon (`BannerTitle` text) at y 250,
-  centred (`Root/ToastBar`): it pops in 0.7 → 1 (TRANS_BACK, 0.3 s) while
-  fading in, holds 2.2 s and fades out in 0.3 s (game time, like the match;
-  the hold is never under 1.2 real seconds, `TOAST_MIN_REAL_HOLD`, so a fast
-  match's toast can still be read). At most one toast is
+  centred (`Root/ToastBar`, the toast in a `PopSlot` so the bar's layout
+  cannot reset its scale): it pops in 0.7 → 1 (TRANS_BACK, 0.3 s) while
+  fading in, holds 2.2 s and fades out in 0.3 s (game time, like the match).
+  From the end of the pop a real-time tween (`set_ignore_time_scale`) runs
+  `TOAST_MIN_REAL_HOLD` (1.2 s) beside the hold, and the fade starts when
+  both are over, so a fast match's toast can still be read, also when the
+  speed changes while it is up; a pause holds both. At most one toast is
   visible; the others wait in line (up to 3, a full line drops its oldest), a
   text already showing or waiting is not added twice, and `queued` false drops
   the toast when another one is up. The scene's `Announcer`
@@ -1541,7 +1550,9 @@ writes gameplay state, so `tools/sim_trace.sh` stays byte-identical.
       or heroes far from the monster player never give themselves away. The
       same caster's ultimate shows at most once per `ultimate_repeat_guard`
       (60 s of match time: heroes cast theirs on cooldown, Trap Cage every
-      5 s; at 12 s one match showed 51 toasts). A cast that is not seen
+      5 s; at 12 s one match showed 51 toasts), keyed by the caster and the
+      untranslated ability name, not the shown line, so a language switch
+      inside the guard does not let it toast again. A cast that is not seen
       starts no guard; one dropped because another toast is up does.
   Names are the roster's `CharacterDef` display names, upper-cased; each kind
   has an `announce_*` export.
@@ -2102,6 +2113,7 @@ each case below, opens the lobby and starts a match on it):
 | `save_version` from a newer build | Backed up as `save.cfg.v<N>.bak`, then played on what this build knows; unknown sections stay in the file |
 | Truncated file that no longer parses | Kept as `save.cfg.corrupt.bak`; a fresh save starts (a finished `save.cfg.tmp` is recovered first) |
 | Empty file | A fresh save |
+| A key of an earlier layout nothing reads (`PersistedData.RETIRED_KEYS`: `[settings] codex_seen_monsters`, the Codex's seen count before it moved to `[codex] monsters_seen`) | Dropped on load and the file saved again (not carried over: a count that outlived a Reset Progress would hide new pages); a save from a newer build keeps it |
 
 ### Shared Monster Framework (MonsterBase, MonsterStats, AbilityBase)
 
@@ -2312,9 +2324,12 @@ code connections are to autoloads (`PersistedData.currency_changed`).
   card) sleeps too and wakes when it shows again. Its taps go to the parent.
 - **`StageCharacter.tscn`**: a tappable RigView standing on a menu stage with a
   squash-and-bob idle on top of the rig's breathing and `cheer(delay)` (a hop
-  with a bounce landing). Period (`bob_period` x 0.85-1.2) and phase come from
-  a private RandomNumberGenerator seeded by `hash(name) ^ hash(path)`, so a
-  stage looks the same every launch and the global RNG is never touched.
+  with a bounce landing). Period (`bob_period` x 0.85-1.2) and phase (0 to
+  one period) come from a private RandomNumberGenerator seeded by
+  `hash(name) ^ hash(path)`, so a stage looks the same every launch and the
+  global RNG is never touched. The phase is applied once
+  (`Tween.custom_step` on the loop), so the bob never rests between cycles,
+  and a restart keeps it.
   Locked characters stand as a silhouette under a padlock with their price
   chip and, while unmet, the unlock rule under it (`%LockInfo`).
   `character_pressed(character)`. For the match result: `celebrate(delay)`
@@ -2364,7 +2379,9 @@ code connections are to autoloads (`PersistedData.currency_changed`).
 - **`CurrencyChip.tscn`**: currency icon and amount ("1,840",
   `format_amount`), live from `PersistedData.currency_changed`: the amount
   counts to the new value over 0.4 s (down after a purchase, `shown_amount()`)
-  and pops; `preview_amount` pins a sample.
+  and pops when it lands (a pop beside the count was cut short: a wider
+  number re-sorts the chip's row, which resets the label's scale);
+  `preview_amount` pins a sample.
 - **`NavBar.tscn`**: Heroes | Growth | HUNT | Codex | Monsters. Carved
   `NavPlaque` plaques (`NavTab.tscn`) and the mossy-stone `NavArch`
   (`NavArch.tscn`, the lobby), toggle buttons in one ButtonGroup per bar.
@@ -2388,8 +2405,17 @@ code connections are to autoloads (`PersistedData.currency_changed`).
   head portrait in a ring of its signature colour (a monster's of the
   `stage` it reached), the name, "+N XP", an
   `XpBar` that `play(delay)` fills from `total_before` to `total_before + gain`
-  over 0.9 s on the level curve, "Lv.N" and the LEVEL UP! pill (`PillReady`)
-  popping when the fill crosses a level; `fallen` greys the head under a skull.
+  over 0.9 s on the level curve, "Lv.N" and the LEVEL UP! pill (`PillReady`,
+  `%Pill` in the `PopSlot` `%LevelUp`) popping when the fill crosses a level;
+  `fallen` greys the head under a skull.
+- **`PopSlot`** (`pop_slot.gd`): a plain Control around content that pops
+  (the LEVEL UP! pill, the result ribbon, the NEW QUARRY banner, the match
+  toast). A container sorts its children whenever one changes size or
+  visibility and puts their scale back to 1 before the frame is drawn, so a
+  pop on a container's own child never shows. In the slot the content is laid
+  out by its anchors (full rect) and keeps its scale; the slot takes the
+  content's minimum size, and the content pops around its centre
+  (`pivot_offset_ratio` 0.5 in the scenes).
 - **`AbilityTile.tscn`**: one ability (kind caption, its
   `get_display_icon()` as the HUD shows it, its name on up to two lines:
   "Emergency Supply Drop", "Monster-Provokation"), a toggle button; the
@@ -2403,7 +2429,9 @@ code connections are to autoloads (`PersistedData.currency_changed`).
   row's gap: "Stunning / Charge"), the red "+" (`BadgeReady`, pulsing) while
   its next rank can be bought and afforded, a check on the tree's equipped
   capstone, the white `SelectRing` (a selected node's name steps down by the
-  ring's 7 px, `RING_OUT`, so the ring never touches it) and `pop()`
+  ring's 7 px, `RING_OUT`, so the ring never touches it; a selected node draws
+  above the others, `z_index` 1, so its two-line name is never under the arch
+  of a capstone below) and `pop()`
   (purchase juice, 1.25 → 1 with TRANS_BACK). The
   tile wears its branch colour (`UiPalette.branch_color`): a dark fill of it
   with a rim in the branch colour once owned, darker while open, gold
@@ -2424,13 +2452,17 @@ code connections are to autoloads (`PersistedData.currency_changed`).
   `vlad` red / `teal` / `hero` amber, monsters `monster` crimson /
   `monster_purple` / `moss`. Without named branches every row is centred;
   rows share the height (118-150 px), the capstones' tier sits `arch_room`
-  (12 px) lower so the arches stay clear of the names above them, and the
-  graph is centred vertically, re-laid out on resize. `build(model)` keeps the selection; `select(id)`
+  (12 px) lower so the arches stay clear of the names above them, the last
+  tier keeps room under it for a selected node's two-line name
+  (`SkillNodeButton.selected_name_overhang`, 29 px: a selected German
+  two-line capstone name used to end behind the sheet), and the graph is
+  centred vertically, re-laid out on resize. `build(model)` keeps the selection; `select(id)`
   reports `node_selected`; `pop(id)` after a purchase pops the node and fades
   its vines from their old colour to the new one over 0.45 s.
 - **`StrategyRow.tscn`** (`StrategyRow`): one pre-round dial in a
   `PanelInset`: icon, name (`Counter`), the value in `AmberLabel` ("50%"), the
-  themed HSlider (step 0.05) and the plain words at both ends (`HintLabel`).
+  themed HSlider (step 0.05, 48 px tall: the touch target, as the settings
+  sliders) and the plain words at both ends (`HintLabel`).
   `value_changed(value)` re-emits the slider; setting `value` moves it
   without a report.
 - **`ChoiceTile`** (`choice_tile.gd`; `FormationTile.tscn`,
@@ -2445,7 +2477,10 @@ code connections are to autoloads (`PersistedData.currency_changed`).
 - **`FormationGlyph`** (`formation_glyph.gd`): a formation drawn in `_draw`:
   four dots in the heroes' signature tokens (`dot_tokens`), ink rims and a
   highlight, spaced as `MatchConfig.Formation` spaces the squad (Tight,
-  Spread, Line), under an amber heading arrow.
+  Spread, Line), under an amber heading arrow. The arrow has its own 16 px
+  band at the top (`ARROW_BAND`) and the dots their field below it
+  (`arrow_points` / `dot_centres`), so Spread's top dot no longer covers it;
+  the `FormationTile` is 144 px tall for it (the dots keep their spacing).
 - **`ThreatBox.tscn`** (`ThreatBox`): the Opponent Threat in words in a
   `PanelInset` with the threat icon: "Threat T" (`AmberLabel`) and "+10%
   rewards" per level (`NextLabel`, hidden at 0), the AI side's build at T
@@ -2472,6 +2507,23 @@ and the match result's LOBBY returns to it. The old `MainMenu.tscn`,
 `PreRoundSetup`, `MetaSkillScreen` and `MatchResult` were deleted in 8.3
 (`test_menu_root` checks they stay gone).
 
+- **Safe area** (`SafeArea`, `Scenes/UI/Components/safe_area.gd`): the game
+  draws edge to edge (stretch aspect `expand`), so a notch, a camera island or
+  a home indicator would sit over the top bar and the nav bar. `SafeArea` is
+  the one place that reads `DisplayServer.get_display_safe_area()` and maps it
+  into the viewport (`from_display`: the safe rect against the window rect,
+  scaled by the viewport's height over the window's; x = top, y = bottom
+  inset). MenuRoot fits itself inside it (`SafeArea.fit`: its top and bottom
+  offsets) at `_ready` and on the viewport's `size_changed`, so every screen,
+  its top bar and nav bar, and the sheets over them stay clear; the bands
+  outside show the clear colour. The MatchHud does the same with its `Root`
+  (the top bar, the minimap, the toast, the hero cards and the monster panel;
+  the world still draws behind the bands). Only a phone (`OS.has_feature
+  ("mobile")`) reports insets: a desktop's safe area is the screen minus the
+  menu bar and the dock and says nothing about the window, so the editor,
+  the tests and the sims lay out as before. `SafeArea.simulated` feeds a fake
+  inset (`test/test_safe_area.gd`). Not checked on a device yet (no export
+  preset exists).
 - **`MenuRoot`** (`menu_root.gd`): every meta screen is a hidden child of
   `%Screens`, and every screen signal is connected in `MenuRoot.tscn`. The
   script only moves between screens and holds the hooks a scene connection
@@ -2731,7 +2783,7 @@ tracks and asks for one start.
       its AI build's ranks out of its threat-4 build, whatever the Monster
       side owns (it read "Lv.2" and "3/12", like the player's own Lv 8
       Grount). Beside it the
-      NEW QUARRY pill (`PillReady`, pops in) while `is_new_quarry`, the name,
+      NEW QUARRY pill (`PillReady`, pops in from 0.6 inside its `PopSlot`) while `is_new_quarry`, the name,
       the tagline, the icons of its three moves (`NodeTile`), the `ThreatBox`
       (threat, reward bonus, AI build, the monster's counterplay tip) and
       CHANGE (`ButtonCopper`; a tap on the card does the same).
@@ -2871,7 +2923,9 @@ shows nothing. A timeout has no beat.
   nothing. `changes_scene = false` (tests, render probes) keeps only the
   signals (`lobby_requested`, `play_again_requested`, `upgrades_requested`).
   Back (`ui_cancel`: Escape, the Android back button) is LOBBY.
-- **Intro**: the scrim fades in, the ribbon pops (0.4 → 1, TRANS_BACK) at
+- **Intro**: the scrim fades in, the ribbon pops (0.4 → 1, TRANS_BACK; it
+  sits in a `PopSlot`, as the XP rows' LEVEL UP! pill does, so the column's
+  layout cannot reset the scale: until fix batch R5 neither pop showed) at
   0.1 s, the sections fade in from 0.3 s (staggered 0.08 s), the chips count
   from 0.6 s and the XP bars fill from 0.9 s; all settled by about 1.9 s.
   Until the buttons, the last section, have faded in (1.11 s) and the grace
@@ -3375,7 +3429,8 @@ res://
 │     ├─ Components/ (menu kit: CharacterCard, StageCharacter, TopBar,
 │     │               CurrencyChip, NavBar, NavTab, NavArch, PressFeedback,
 │     │               StatTile, AbilityTile, SkillNodeButton, SkillTreeView,
-│     │               UnlockSheet, RewardChip, XpRow, TapGuard, ConfirmButton)
+│     │               UnlockSheet, RewardChip, XpRow, TapGuard, ConfirmButton,
+│     │               PopSlot, SafeArea)
 │     ├─ Widgets/ (rig_view.gd: RigView, a puppet rig inside a Control)
 │     └─ Theme/
 │        ├─ ui_theme.tres (generated project Theme, gui/theme/custom)
@@ -4068,7 +4123,7 @@ changelog with numbers); this section is the summary.
 - [x] Performance pass: faction collision layers, EntityRegistry, TickScheduler
       AI LOD, HpBar2D, mob pooling, rig sleep and budget
 - [x] Headless tools: `tools/lint.sh` (warnings are errors), `tools/run_tests.sh`
-      (727 tests), `tools/sim.sh`, `tools/sim_trace.sh`, `tools/bench.sh`,
+      (741 tests), `tools/sim.sh`, `tools/sim_trace.sh`, `tools/bench.sh`,
       `tools/selftest.sh`, and the art, rig, skill-tree and navigation builders
 
 ---

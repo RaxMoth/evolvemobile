@@ -450,9 +450,25 @@ func test_the_cave_runs_on_above_the_lair() -> void:
 	assert_true(stage.clip_contents, "a 16:9 screen clips it away")
 	assert_eq(Vector2(top.texture.get_size()), Vector2(720, 420))
 	assert_near(top.offset_bottom - top.offset_top, 420.0, 0.01, "at the design scale")
-	# 1280 + 420: every phone up to 21:9 (720 x 1680) is filled.
-	assert_true(1280.0 + (top.offset_bottom - top.offset_top) >= 1680.0)
 	lobby.free()
+	# Review menus-3: measured, not assumed. Laid out on a 19.5:9 and a 21:9
+	# phone (720 x 1560, 720 x 1680), the cave's top edge is at or above the
+	# lair stage's, so no plain band shows above it.
+	for height: float in [1560.0, 1680.0]:
+		var holder := Control.new()
+		holder.size = Vector2(720, height)
+		add_child(holder)
+		var tall := LOBBY.instantiate() as LobbyScreen
+		holder.add_child(tall)
+		tall.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		await wait_frames(1)
+		var tall_stage := tall.get_node("%MonsterStage") as Control
+		var cave := tall_stage.get_node("BackdropTop") as Control
+		var stage_top := tall_stage.get_global_rect().position.y
+		assert_true(cave.get_global_rect().position.y <= stage_top + 0.5,
+				"720 x %d: the cave starts at %.0f, the stage at %.0f" % [height, cave.get_global_rect().position.y, stage_top])
+		holder.queue_free()
+		await wait_frames(1)
 
 
 # ---------------------------------------------------------------- codex ----

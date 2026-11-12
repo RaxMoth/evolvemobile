@@ -245,6 +245,28 @@ func test_pre_round_shows_the_quarry() -> void:
 	assert_eq(MatchConfig.new().quarry_id, &"", "a new config leaves the pick to GameManager")
 
 
+## Review components-2: NEW QUARRY pops (it used to sit straight in the
+## column, whose layout reset its scale before the first frame was drawn).
+## Sampled at the start of each frame: the scale that frame was drawn with.
+func test_the_new_quarry_banner_pops() -> void:
+	if not require_isolated():
+		return
+	_play_matches(3)
+	GameManager.lock_quarry(&"nyxa")
+	var screen := _pre_round()
+	var slot := screen.get_node("%NewBanner") as Control
+	var pill := screen.get_node("%NewBannerPill") as Control
+	assert_true(slot is PopSlot and slot.visible, "the banner shows, in a PopSlot")
+	var drawn: Array[float] = []
+	for frame in 30:
+		await wait_frames(1)
+		drawn.append(pill.scale.x)
+	assert_true(drawn[0] < 0.9 and drawn[1] < drawn[4], "drawn small first, then growing (%s)" % str(drawn.slice(0, 6)))
+	assert_eq(drawn[-1], 1.0, "and at full size once it settled")
+	assert_true(slot.size.x >= pill.get_combined_minimum_size().x - 0.5, "the slot takes the pill's size (%s)" % str(slot.size))
+	screen.queue_free()
+
+
 ## CHANGE: the pool's monsters to pick (the lock), the rest as silhouettes with
 ## the hunts still to play, and Random.
 func test_pre_round_change_sheet() -> void:

@@ -5,8 +5,9 @@ extends PanelContainer
 ## portrait in a ring of its signature colour, the name, "+N XP" and an XpBar
 ## that play() fills from the pre-match total to the new one on the level curve
 ## (PersistedData.level_progress, the "Lv.N" of the cards). Crossing a level on
-## the way pops the red LEVEL UP! pill. A fallen hero keeps its XP but reads
-## greyed (UiPalette.FALLEN_MODULATE) under a skull.
+## the way pops the red LEVEL UP! pill (%Pill, in a PopSlot so the Foot row's
+## layout cannot reset its scale). A fallen hero keeps its XP but reads greyed
+## (UiPalette.FALLEN_MODULATE) under a skull.
 
 ## Seconds the bar takes to fill.
 const FILL_TIME := 0.9
@@ -48,6 +49,7 @@ var level: int = 1
 var levelled_up: bool = false
 
 var _fill: Tween = null
+var _pop: Tween = null
 
 @onready var _portrait: Panel = %Portrait
 @onready var _head: TextureRect = %Head
@@ -57,6 +59,7 @@ var _fill: Tween = null
 @onready var _bar: ProgressBar = %Bar
 @onready var _level: Label = %Level
 @onready var _level_up: Control = %LevelUp
+@onready var _pill: Control = %Pill
 
 
 func _ready() -> void:
@@ -116,7 +119,8 @@ func _show_total(total: float) -> void:
 func _pop_level_up() -> void:
 	levelled_up = true
 	_level_up.visible = true
-	_level_up.pivot_offset = _level_up.size * 0.5
-	_level_up.scale = LEVEL_UP_FROM
-	create_tween().tween_property(_level_up, ^"scale", Vector2.ONE, 0.3) \
-			.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	if _pop:
+		_pop.kill()
+	_pill.scale = LEVEL_UP_FROM
+	_pop = create_tween()
+	_pop.tween_property(_pill, ^"scale", Vector2.ONE, 0.3).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)

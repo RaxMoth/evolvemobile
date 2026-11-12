@@ -304,6 +304,29 @@ func test_a_save_from_a_newer_build_is_backed_up_and_played() -> void:
 	await _play_on_it()
 
 
+## F5's leftover: the Codex's seen count moved from [settings]
+## codex_seen_monsters to [codex] monsters_seen. A save that still has the old
+## key drops it on load and is saved without it; the count is not carried
+## over (one that outlived a Reset Progress would hide new pages).
+func test_a_retired_key_is_dropped_on_load() -> void:
+	if not require_isolated():
+		return
+	var cfg := ConfigFile.new()
+	cfg.set_value("meta", "save_version", PersistedData.CURRENT_SAVE_VERSION)
+	cfg.set_value("currency", "gold", 70)
+	cfg.set_value("settings", "codex_seen_monsters", 3)
+	cfg.set_value("settings", "music_volume", 0.4)
+	cfg.save(SAVE)
+	_launch()
+	assert_eq(PersistedData.get_currency(PersistedData.GOLD), 70, "the rest is read as it was")
+	assert_eq(PersistedData.get_codex_seen(PersistedData.CODEX_MONSTERS), 0, "the old count is not read")
+	var on_disk := ConfigFile.new()
+	assert_eq(on_disk.load(SAVE), OK)
+	assert_false(on_disk.has_section_key("settings", "codex_seen_monsters"), "the file no longer has the old key")
+	assert_near(float(on_disk.get_value("settings", "music_volume", 0.0)), 0.4, 0.0001, "the other settings stay")
+	assert_false(FileAccess.file_exists(SAVE + ".v%d.bak" % PersistedData.CURRENT_SAVE_VERSION), "no migration backup for it")
+
+
 func test_a_truncated_save_is_kept_aside_and_a_fresh_one_starts() -> void:
 	if not require_isolated():
 		return

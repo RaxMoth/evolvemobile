@@ -81,19 +81,6 @@ theme_override_constants/h_separation = 16
 theme_override_constants/v_separation = 16
 columns = 4
 
-[node name="Empty" type="Label" parent="."]
-unique_name_in_owner = true
-visible = false
-layout_mode = 1
-anchors_preset = 10
-anchor_right = 1.0
-offset_top = 200.0
-offset_bottom = 240.0
-grow_horizontal = 2
-theme_type_variation = &"BodyDim"
-text = "Nobody in this role yet"
-horizontal_alignment = 1
-
 [node name="TopBar" parent="." instance=ExtResource("4_top_bar")]
 unique_name_in_owner = true
 layout_mode = 1
