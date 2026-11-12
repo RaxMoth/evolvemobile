@@ -91,10 +91,6 @@ anything (see "Verification gate").
       whole-overhaul review (`885e86a..HEAD`) before the push was planned.
 - [ ] **Decisions for the user** and **Placeholder copy** below (user step): each entry names the
       default that ships.
-- [ ] **Bug: Gorrak counts his own warband** — `MonsterBase._pick_camp` (a camp's `spawned_mobs`)
-      and `_count_slam_targets` (`EntityRegistry.mobs`) count mobs with `ally_monster == self`; with
-      Call of the Herd he can walk to a camp he cannot farm for up to 20 s. Gameplay fix: re-record
-      `tools/baselines` only if a default (no capstone) trace changes; it should not.
 - [ ] **Parity table at 48 seeds** — `MONSTER=all THREAT=all tools/sim.sh 48 heroes 8` and
       `... 48 monster 8`; at 24 seeds 9 of 30 cells are outside 35-65 % (Gorrak T3/T4 62-75 % both
       sides, Nyxa T2/T3 heroes side 67 / 71 %, Grount T2/T3 monster side 33 / 33 %).
@@ -102,6 +98,10 @@ anything (see "Verification gate").
       retuned `ai_build_order` (only the axe damage moved the result in 6.8).
 - [ ] **AI build size** (decision first): 3T character + 2T base entries keep the AI behind a player
       at the threshold (a P = 6T save wins 71-100 % as heroes at T4). Candidate: 3T + 3T.
+- [ ] **Fight sides at walls** (G1) — a hero walks round its target to its side along the circle
+      it stands on; a wall on that circle stops it where it is (it fights from there, as before).
+      In a render where Grount stood against a wall the melee heroes stayed behind him. A detour
+      (the other way round, or a smaller circle) needs care not to ping-pong at a wall's end.
 - [ ] **Death moves** — the death beat (F2) is procedural (a hop, the fall backwards, a fade); an
       authored `death` move per body plan (humanoid, quadruped, flyer) could replace it.
 - [ ] **The fox's HP bar** is a plain HpBar2D outside the `EntityHud` stack (F2): give TedsPet a
@@ -162,9 +162,28 @@ Gameplay:
 - **Knockback** does not exist (`knockback_force` on Ram Dash is unused).
 - **Nyxa's timeouts** (17-18 of 48 matches) are accepted as her trait.
 - **Monster instincts** are hidden; every monster plays its Ambusher (default) strategy.
-- **River's supply crate** fades in mid-air when every hero within its 60 px pickup radius was
-  already healed during its 0.5 s fall; a **Land Mine** placed on an enemy inside its 100 px radius
-  detonates at once (no arming delay). Intended or not?
+- **Supply Drop** (G1): the crate heals only once it has landed (0.5 s), only hurt heroes use it,
+  and it fades once it has healed someone and nobody hurt is left on it (else after 20 s). River
+  drops it only when a hero within its 60 px pickup radius of her (herself included) misses at
+  least the kit's heal, so in practice mostly for herself: allies fight 200-300 px from her.
+  Options: drop it on the most hurt ally within a range, or let the heroes walk to a kit.
+- **Land Mine** (G1): an enemy already inside the 100 px trigger sets it off at once. Kept as the
+  README's rule ("explosion when an enemy steps on it"): Vlad places it next to his target, so it
+  is a point-blank burst every 8 s, and the balance was measured with it. Option: an arming delay
+  (0.5-1 s) that makes it a trap; that weakens Vlad.
+- **Ultimates in reach** (G1): every hero ultimate fires only when it reaches the pre-round
+  dial's enemies inside its own area, or one enemy while an ally is below the panic HP. A lone
+  monster counts as one, so at the neutral dial (3) Irelia taunts it and Vlad bombs it only in a
+  panic, as before. Trap Cage's throw range is its `ability_range`, 200 px (was an unused 100).
+- **Fight sides** (G1): Irelia holds the front of her target (90 degrees), Vlad its right (20),
+  Ted its left (160); River strafes as before. Set per hero scene (`fight_side_deg`).
+- **Monster ability 2 in a fight** (G1): Ram Dash, Shadow Swoop and the Tusk Axe are cast at the
+  fought hero as the fight's opener and then every 15 s (`MonsterStrategy.fight_ability_2_interval`,
+  per monster; Ambush and Hunt, the axe in every strategy), not only as the Approach gap closer.
+  Cast on every cooldown (5 s at Stage 3) the burst decided the fights: 25 / 17 / 4 % hero wins
+  (Grount / Nyxa / Gorrak, heroes side, 24 seeds) against 58 / 67 / 67 % without it. The interval
+  keeps the cooldowns, the texts and the README tables as they were; the HUD slot then shows the
+  ability ready for a while between casts. Option: longer cooldowns in the data instead.
 - **Match rewards pay the played side's kills** (8.2), and the HUD's kills chip shows them.
 
 Look and feel:
@@ -396,6 +415,13 @@ Threat 0, fresh save, 48 seeds (`MONSTER=<id> tools/sim.sh 48 <side> 6`), hero w
 | **Grount** (6.3, `f6b6454`) | **46 %** | **48 %** | 4 / 3 | 322 / 323 s | Trap Cage fix alone: 33 %; plus Stage 3 damage × 0.9 |
 | **Nyxa** (6.4, `84b0760`) | **54 %** | **52 %** | 18 / 17 | 371 / 371 s | wins mostly by timeout: accepted |
 | **Gorrak** (6.5, `15fc5dc`) | **42 %** | **52 %** | 5 / 5 | 346 / 347 s | Stage 3 HP 1500 instead of the design's 1600 (38 % / 50 %) |
+| Grount (G1, 24 seeds) | 33 % | 33 % | 1 / 1 | 327 / 327 s | combat AI fixes; ability 2 in fights every 15 s |
+| Nyxa (G1, 24 seeds) | 33 % | 33 % | 8 / 7 | 376 / 369 s | 7 matches of 24 without contact on each side |
+| Gorrak (G1, 24 seeds) | 38 % | 50 % | 3 / 2 | 349 / 350 s | |
+
+G1 (`MONSTER=all tools/sim.sh 24 <side> 2`): every monster is inside 30-70 %, Grount and Nyxa
+below the 40-60 % target; the final balance batch retunes. Without ability 2 in fights the heroes
+side was 58 / 67 / 67 %, with it on every cooldown 25 / 17 / 4 % (see the changelog).
 
 This closes "Balance retune after `74e2bff`" (heroes 29 % then).
 
@@ -475,7 +501,8 @@ Match speed (F3, `tools/bench.sh 3 2 900 300 0 <rigs_awake> <speed>`, back to ba
       takes `onscreen=1` (marks the mobs inside the MainCam rect) and `rigs_awake=1` (animates
       every rig). Open: F3 numbers on a device, also at pinch zoom 0.5.
 - [ ] Generated resources have no `uid` header (Backlog).
-- [ ] `MonsterBase._pick_camp` / `_count_slam_targets` count warband mobs (Backlog, bug).
+- [x] `MonsterBase._pick_camp` / `_count_slam_targets` counted Gorrak's warband mobs — fixed in
+      G1 (`_count_huntable`, `GameUtils.can_entity_target`).
 - [x] Content strings are English-only data — closed by F6 (German for all content).
 - [ ] `strings.csv` keeps 35 unused rows of the old menus; numbers are not localized (Backlog).
 - [ ] A headless MenuRoot run reports 3 leaked RefCounted (Godot's threaded-load tokens).
@@ -485,6 +512,66 @@ Match speed (F3, `tools/bench.sh 3 2 900 300 0 <rigs_awake> <speed>`, back to ba
       uses `GameManager.killer_side`; the sim could use the same rule. Low priority.
 
 ## Changelog
+### 2026-11-12 — fix batch G1: combat AI (stale targets, ultimates in reach, ability 2, warband, stand-off)
+Second batch of the second fix run: the walkthrough's combat items and the review findings
+heroes-1, monsters-1, heroes-3, heroes-4, heroes-8 and monsters-5. Gameplay: the traces change
+(every item below changes what the AI does), so `tools/baselines` is re-recorded.
+
+- **Stale targets** (heroes-1, monsters-1): a killed mob's node goes back to the pool and the next
+  camp anywhere gets it; every entity that had fought it found its old target alive again. Idle
+  heroes then fired ultimates at it across the map (29 of 66 ultimates in the reviewer's seed),
+  Trap Cage caged Grount there, and the monster and the call for help skipped such entities. Now
+  `life_id` lives on `EntityBase`, the target pair has one writer (`_set_target_pair`, also used
+  by `_broadcast_aggro`) that records the target's life, `is_target_valid()` compares it, and
+  Approach / Fight clear a lost target (`_drop_lost_target`).
+- **Ultimates in reach** (walkthrough, heroes-3): `HeroBase._should_auto_use_ultimate` asks the
+  ultimate what a cast would reach now (`AbilityBase.count_reached`, around its own centre:
+  Blood Bomb around Vlad, Monster Taunt the monsters within 200 px of Irelia, Trap Cage on a
+  target at most its 200 px throw range away, which `execute` also enforces) and fires at the
+  dial's enemy count, or at one enemy in a panic; nothing in reach, no cast. River's Supply Drop
+  waits for a hero within its 60 px who misses at least its heal, and needs no target. In the
+  144 sim matches no hero ultimate went off at a target more than 400 px away (`hero_ults_far`,
+  a new field of `sim_match.gd`'s result, with per-ability cast counts `ability_casts`).
+- **Supply Drop** (heroes-4): the kit's trigger was sized before its radius was set (50 px
+  against the 60 px ring), its whole Area2D slid down the 100 px fall path, and River's own
+  pickup mid-air faded it before it landed (alpha never above 0.16). Now everything is set before
+  `add_child`, only the crate sprite falls, monitoring is off until it lands (0.5 s), full-HP
+  heroes do not use it up, and it fades once nobody hurt is left on it (else after 20 s). A bug,
+  by the README's own rule. **Land Mine** (heroes-8): an enemy already inside sets it off at once;
+  that is the README's rule, so it stays (Decisions). Its properties are now also set before
+  `add_child`, and a mine whose Vlad died during its fuse no longer passes the freed node
+  (a SCRIPT ERROR in 4 of the first sims).
+- **Monsters' ability 2** (walkthrough): Ram Dash, Shadow Swoop and the Tusk Axe were used only
+  as a gap closer from Approach (or an escape). A fight now casts it at the fought hero as its
+  opener and then every 15 s (`MonsterStrategy.fight_ability_2_interval`; the axe in every
+  strategy). On every cooldown it decided the fights (heroes side 25 / 17 / 4 % against 58 / 67 /
+  67 % without), hence the interval. Casts per match: 3.0 / 2.2 / 2.8 (1.4 / 1.0 / 1.0).
+- **Warband** (monsters-5, PROGRESS bug): Gorrak's `_pick_camp` and `_count_slam_targets` counted
+  his own Call of the Herd warband; both count only mobs `GameUtils.can_entity_target` lets him
+  hit (`_count_huntable`).
+- **Stand-off and fight sides** (walkthrough "heroes stack ... inside the big monster's sprite",
+  F2's note on heroes hidden behind Grount): ranges to an evolved monster are measured from the
+  edge of his grown body (`EntityBase.range_to` / `reach_bonus`: the Body circle x (scale - 1),
+  15.5 px for Grount at Stage III), in the Fight gate and in the heroes', the fox's and the mobs'
+  hit checks. Between swings Irelia, Vlad and Ted walk round their target to their own side
+  (`HeroBase.hold_fight_side`, `fight_side_deg` 90 / 20 / 160 on the hero scenes: in front,
+  right, left), along the circle at their distance. The four hero spawns in `World.tscn` are 80
+  px apart (two pairs stood 38 and 53 px apart).
+- Also: `BullRamDash._dash_update` stops when its caster left the tree (a test that ended
+  mid-dash raised a SCRIPT ERROR). Existing cage tests throw across their test beds with a
+  larger `ability_range` on Ted's copy.
+- **Balance** (`MONSTER=all tools/sim.sh 24 <side> 2`, hero wins heroes side / monster side):
+  Grount 33 / 33 %, Nyxa 33 / 33 %, Gorrak 38 / 50 % (see Balance). Inside 30-70 %, below the
+  40-60 % target for Grount and Nyxa: left to the final balance batch.
+- Render (muted, a scratch driver: Grount forced to Stage III on open ground, the heroes coming
+  at him from the north): Irelia stands in front of him, Vlad on his right, Ted and the fox on
+  his left, all drawn in front of his body. Where he stood against a wall the melee heroes stayed
+  behind him (Backlog "Fight sides at walls").
+- Tests: `test/test_combat_ai.gd` (14: a pooled mob's reuse, each ultimate's reach, the kit's
+  landing and full-HP rule, ability 2 in a fight and its strategy, the warband in the slam count
+  and the camp choice, the edge range, the fight sides in a live Stage III fight, the spawns).
+  The ones the parent's code can run fail there (see the batch report).
+
 ### 2026-11-12 — fix batch T1: tools and gate that cannot pass by accident
 First batch of the second fix run (review findings tools-1 to tools-12, the review's test-strength
 gap, F4's warnings note). Presentational: the determinism traces of all three monsters are

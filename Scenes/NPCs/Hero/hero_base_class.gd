@@ -3,16 +3,28 @@ class_name HeroBase
 
 @export_group("Ultimate Auto-Cast")
 @export var auto_use_ultimate: bool = true
-## Don't auto-fire the ult unless at least this many enemies are within
-## auto_ult_radius. Prevents Vlad from nuking a single bat with Blood Bomb.
+## Don't auto-fire the ult unless it reaches at least this many enemies
+## (AbilityBase.count_reached: inside the ultimate's own area, from where it is
+## cast). Prevents Vlad from nuking a single bat with Blood Bomb.
 ## Not an export: _apply_match_config sets it from MatchConfig in _ready.
 var auto_ult_min_enemies: int = 3
-@export var auto_ult_radius: float = 200.0
-## OR: auto-fire if any ally is below this HP fraction (panic ult).
+## OR: auto-fire if any ally is below this HP fraction (panic ult), when the
+## ultimate reaches at least one enemy.
 ## Not an export: _apply_match_config sets it from MatchConfig in _ready.
 var auto_ult_panic_hp_pct: float = 0.25
 ## How often to evaluate the auto-ult conditions. 4 Hz is plenty.
 @export var auto_ult_check_interval: float = 0.25
+
+@export_group("Fight Side")
+## Hold a side around the target in a fight (EntityBase._hold_fight_side):
+## between swings this hero walks around its target to fight_side_deg. Off =
+## the role's default (River strafes).
+@export var hold_fight_side: bool = false
+## The side's direction from the target in degrees: 0 = east, 90 = south (in
+## front of the target as drawn), 180 = west. Each hero scene sets its own, so
+## the team spreads around one target and stays in front of or beside an
+## evolved monster's body rather than behind it.
+@export_range(-180.0, 180.0) var fight_side_deg: float = 90.0
 
 @export_group("Active Auto-Cast")
 ## Heroes are AI-controlled: without this the active ability (Irelia's shield,
@@ -145,20 +157,27 @@ func _apply_match_config(cfg: MatchConfig) -> void:
 	priority_mob = int(cfg.priority_mob())
 
 
+## Fire the ultimate when it is worth it: it reaches auto_ult_min_enemies
+## enemies inside its own area (AbilityBase.count_reached: Blood Bomb around
+## Vlad, Monster Taunt the monster within Irelia's taunt range, Trap Cage
+## within Ted's throw range), or it reaches one and an ally is below the panic
+## HP. Nothing in reach, no cast: it used to count the enemies around the
+## target wherever that stood. River overrides it (Supply Drop heals).
 func _should_auto_use_ultimate() -> bool:
-	"""Smarter ult auto-cast: fire when worth it, not just because it's ready.
-	Subclasses (River, Ted) can override for healer/support semantics."""
-	# Panic case: any ally critically low → fire even on a single enemy.
-	var team := TeamRegistry.get_team(TeamRegistry.HEROES)
-	if team and team.find_lowest_hp_ally(auto_ult_panic_hp_pct, self) != null:
-		return true
-	# Otherwise: need enough enemies clustered to be worth the cooldown.
-	if not is_target_valid():
+	if not is_target_valid() or ability_system == null or ability_system.ultimate_ability == null:
 		return false
-	# Cached registry list, squared distances, stops counting at the threshold.
-	var nearby_enemies := EntityRegistry.count_within(
-		EntityRegistry.enemies, target_entity.global_position, auto_ult_radius, auto_ult_min_enemies)
-	return nearby_enemies >= auto_ult_min_enemies
+	var reached: int = ability_system.ultimate_ability.count_reached(self, target_entity as Node2D, auto_ult_min_enemies)
+	if reached >= auto_ult_min_enemies:
+		return true
+	if reached <= 0:
+		return false
+	var team := TeamRegistry.get_team(TeamRegistry.HEROES)
+	return team != null and team.find_lowest_hp_ally(auto_ult_panic_hp_pct, self) != null
+
+## The side this hero holds around its target (fight_side_deg), or none.
+func _fight_side() -> Vector2:
+	return Vector2.from_angle(deg_to_rad(fight_side_deg)) if hold_fight_side else Vector2.ZERO
+
 ## This hero's goal from HeroExplorationController (formation slot or detour).
 var exploration_target: Vector2 = Vector2.ZERO
 var use_exploration_target: bool = false

@@ -320,7 +320,7 @@ func _on_idle_state_processing(delta: float):
 
 func _on_fight_state_processing(delta: float):
     if not is_target_valid():
-        state_chart.send_event(CombatEvents.TARGET_LOST)
+        _drop_lost_target(CombatEvents.TARGET_LOST)   # clear_target() + send_event
 
 // ❌ WRONG - Manual state flags next to the chart
 var is_idle = true
@@ -401,12 +401,29 @@ signal ability_used(ability: AbilityBase)
 
 1. An enemy `Body` enters an entity's `DetectionArea` (172 px by default).
 2. Smart targeting scores candidates (priority + distance + threat + low-HP focus).
-3. Chart: Idle → Approach (navigate) → Fight.
+3. Chart: Idle → Approach (navigate) → Fight. The target pair is written in
+   one place (`_set_target_pair`), which records the target's `life_id`;
+   `is_target_valid()` compares it, and Approach / Fight clear a lost target
+   (`_drop_lost_target`). A pooled mob that died and came back in another
+   camp is nobody's old target.
 4. In Fight: attack ready and in range → stand and attack; on cooldown →
-   reposition by combat role (strafe at the preferred distance).
+   reposition by combat role (strafe at the preferred distance; a hero with
+   a fight side, `HeroBase.hold_fight_side`, walks round the target to its
+   own side instead: `EntityBase._hold_fight_side`). Every range TO an
+   entity is `range_to(target)`: centre distance less its `reach_bonus()`
+   (0, or what an evolved monster's body grew by), so melee attackers stand
+   at the edge of a Stage III body. The basic attacks' hit checks subtract
+   the same bonus.
 5. Damage goes `EventBus.deal_damage` → `damage_requested` (shields absorb) →
    the target's `_receive_damage` → `_on_damage_taken` → `damage_applied`
    (threat, VFX, audio). `AbilityBase.deal()` wraps it and applies lifesteal.
+6. Hero ultimates (`HeroBase._should_auto_use_ultimate`, 4 Hz) ask the
+   ultimate what a cast would reach (`AbilityBase.count_reached`: its own
+   centre and radius) and fire at the pre-round dial's enemy count, or at one
+   while an ally is below the panic HP. River's Supply Drop counts the hurt
+   heroes on its spot instead. Monsters: `MonsterBase._choose_and_use_ability_combo`
+   (slam, then ability 2 once `MonsterStrategy.fight_ability_2_interval` has
+   passed since its last cast, then the cleave).
 
 ### Hero stat scaling
 
@@ -472,8 +489,10 @@ runs draw nothing, so no mob is ever "on screen" there (`tools/bench.sh` has `on
 Dead and despawned mobs are parked **out of the tree** (so `_exit_tree` unregisters them from
 TeamRegistry / EntityRegistry / TickScheduler) and reused. `MobBase.prepare_for_pool` scrubs
 per-life state, `reset_for_spawn` + `on_spawned` restore it, `CombatEvents.RESET` drives the chart
-Dead → Idle. `life_id` increments per life — anything that holds a mob reference across frames
-(trap cage, taunt, warband) must compare it before acting. The pool is pre-warmed during load.
+Dead → Idle. `life_id` (on `EntityBase`, stepped by MobBase) increments per life: anything that
+holds a mob reference across frames must compare it before acting. The target pair does
+(`_set_target_pair` records it, `is_target_valid` compares it), and so does the trap cage; Ted's
+fox drops a target that left its leash around Ted. The pool is pre-warmed during load.
 
 ### 4. Faction Collision Layers (`project.godot` `[layer_names]`, `GameUtils.LAYER_* / MASK_*`)
 

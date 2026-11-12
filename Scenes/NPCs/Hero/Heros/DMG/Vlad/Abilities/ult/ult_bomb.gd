@@ -7,3 +7,13 @@ func execute(caster: Node2D, _target: Node2D = null, _override_damage: float = -
 			area_of_effect, GameUtils.MASK_HERO_TARGETS, false, caster):
 		if entity.is_in_group("Enemy"):
 			EventBus.deal_damage(caster, entity, damage, self)
+
+
+## The blast goes off around Vlad, whatever his target (the auto-cast counts
+## the enemies there: AbilityBase.count_reached).
+func get_cast_center(caster: Node2D, _target: Node2D) -> Vector2:
+	return caster.global_position
+
+
+func get_reach() -> float:
+	return area_of_effect

@@ -101,6 +101,14 @@ var faction: GameUtils.Faction = GameUtils.Faction.NONE
 var target: Node2D = null
 var target_entity: Node = null
 var last_attacker: Node2D = null
+## Incremented per life of a pooled node (MobBase: when SpawnManager parks it
+## and when it comes back); 0 for everything that is never pooled. A holder of
+## this entity (a target pair, a trap cage) compares it before acting, so a
+## reused node is never taken for the one it held.
+var life_id: int = 0
+## target_entity's life_id when it became my target (_set_target_pair): a
+## pooled mob that died and came back elsewhere is no longer my target.
+var _target_life_id: int = 0
 
 # Movement & positioning
 var strafe_direction: int = 1
@@ -117,6 +125,10 @@ var _idle_goal: Vector2 = Vector2.ZERO
 
 # Smart targeting
 var _target_reeval_timer: float = 0.0
+
+## Fight sides (_hold_fight_side): within this angle (radians) of the side's
+## direction the entity stands.
+const FIGHT_SIDE_TOLERANCE: float = 0.15
 
 # Phase A polish
 var _personal_distance_offset: float = 0.0  ## Picked once in _ready: ± distance_jitter
@@ -444,13 +456,39 @@ func _get_keep_distance() -> float:
 
 func is_target_valid() -> bool:
 	"""Target area + entity exist, the entity is in the tree (not parked in the
-	spawn pool) and alive."""
+	spawn pool), alive, and still in the life it was targeted in (a pooled mob
+	that died and was reused by another camp is not my target any more)."""
 	return is_instance_valid(target) and is_instance_valid(target_entity) \
-		and target_entity.is_inside_tree() and EntityRegistry.is_entity_alive(target_entity)
+		and target_entity.is_inside_tree() and EntityRegistry.is_entity_alive(target_entity) \
+		and life_of(target_entity) == _target_life_id
 
+## The life_id of `node` (0 for anything that is not an entity: Ted's fox).
+static func life_of(node: Node) -> int:
+	var e := node as EntityBase
+	return e.life_id if e != null else 0
+
+## Range distance to the current target (range_to); INF without one.
 func distance_to_target() -> float:
-	"""Get distance to current target"""
-	return target.global_position.distance_to(global_position) if is_target_valid() else INF
+	return range_to(target_entity) if is_target_valid() else INF
+
+## How much further than a standard body (the Body circle of NPCBaseClass.tscn)
+## this entity's edge lies from its feet, in world px: 0 for heroes and mobs;
+## MonsterBase returns what its stage scale and Titan Form grew it by. Every
+## range TO this entity is measured from that edge (range_to: the Fight gate,
+## the basic attacks' hit checks), so melee attackers stand at the edge of an
+## evolved monster instead of inside its body.
+func reach_bonus() -> float:
+	return 0.0
+
+## reach_bonus() of `node` when it is an entity, else 0 (Ted's fox).
+static func reach_bonus_of(node: Node) -> float:
+	var e := node as EntityBase
+	return e.reach_bonus() if e != null else 0.0
+
+## Distance for a range check from me to `node`: centre to centre, less its
+## reach_bonus (the edge of an evolved monster).
+func range_to(node: Node2D) -> float:
+	return global_position.distance_to(node.global_position) - reach_bonus_of(node)
 
 # ============================================
 # SECTION 8: TARGETING SYSTEM
@@ -459,17 +497,29 @@ func distance_to_target() -> float:
 ## Aim at `entity`: `target` is its "Body" Area2D, `target_entity` its root.
 ## The only way other systems (taunts, peels, resets) should retarget.
 func set_target(entity: Node2D) -> void:
-	target = entity.get_node_or_null(^"Body") as Area2D
-	target_entity = entity
+	_set_target_pair(entity.get_node_or_null(^"Body") as Area2D, entity)
 
 ## Aim at the entity that owns `area` (a detection hit).
 func set_target_area(area: Area2D) -> void:
+	_set_target_pair(area, area.get_owner())
+
+## The one writer of the target pair: also records the entity's life.
+func _set_target_pair(area: Area2D, entity: Node) -> void:
 	target = area
-	target_entity = area.get_owner()
+	target_entity = entity
+	_target_life_id = life_of(entity)
 
 func clear_target() -> void:
 	target = null
 	target_entity = null
+	_target_life_id = 0
+
+## The target is gone (dead, parked or reused): forget it, so nothing can take
+## it up again, and leave the state (`event`: ENEMY_EXITED from Approach,
+## TARGET_LOST from Fight).
+func _drop_lost_target(event: StringName) -> void:
+	clear_target()
+	state_chart.send_event(event)
 
 ## Find the best target area among all valid targets in detection area.
 ## Returns the Area2D node (not the entity).
@@ -652,8 +702,7 @@ func _broadcast_aggro(spotted: Node) -> void:
 			continue
 		if not GameUtils.can_entity_target(a, spotted):
 			continue
-		a.target = spotted_area
-		a.target_entity = spotted
+		a._set_target_pair(spotted_area, spotted)
 		if a.state_chart:
 			a.state_chart.send_event(CombatEvents.ENEMY_ENTERED)
 
@@ -957,10 +1006,10 @@ func _on_approach_state_entered() -> void:
 ## Process Approach state - chase target and periodically re-evaluate
 func _on_approach_state_processing(delta: float) -> void:
 	if not is_target_valid():
-		state_chart.send_event(CombatEvents.ENEMY_EXITED)
+		_drop_lost_target(CombatEvents.ENEMY_EXITED)
 		return
 
-	if target.global_position.distance_to(global_position) <= maxf(attack_range, keep_distance):
+	if range_to(target_entity) <= maxf(attack_range, keep_distance):
 		state_chart.send_event(CombatEvents.ENEMY_FIGHT)
 		return
 
@@ -991,15 +1040,16 @@ func _on_fight_state_entered() -> void:
 	_target_reeval_timer = target_reeval_interval_fight
 
 	if not is_target_valid():
-		state_chart.send_event(CombatEvents.TARGET_LOST)
+		_drop_lost_target(CombatEvents.TARGET_LOST)
 
-## Process Fight state - combat and periodic re-evaluation
+## Process Fight state - combat and periodic re-evaluation. Distances are
+## range_to: from the edge of an evolved monster.
 func _on_fight_state_processing(delta: float) -> void:
 	if not is_target_valid():
-		state_chart.send_event(CombatEvents.TARGET_LOST)
+		_drop_lost_target(CombatEvents.TARGET_LOST)
 		return
 
-	var distance: float = target.global_position.distance_to(global_position)
+	var distance: float = range_to(target_entity)
 
 	if distance > max_distance:
 		state_chart.send_event(CombatEvents.RE_APPROACH)
@@ -1041,11 +1091,13 @@ func _reposition_for_attack(delta: float, distance: float, dir: Vector2) -> void
 			_ranged_reposition(delta, distance, dir)
 
 func _melee_reposition(delta: float, distance: float) -> void:
-	"""Melee repositioning: get close"""
+	"""Melee repositioning: get close, then walk to my fight side"""
 	if distance > attack_range:
 		_move_toward_target(move_speed, delta)
 	elif distance < min_distance:
 		_move_away_from_target(move_speed * 0.5, delta)
+	else:
+		_hold_fight_side(delta)
 
 func _ranged_reposition(delta: float, distance: float, dir: Vector2) -> void:
 	"""Ranged repositioning: maintain distance"""
@@ -1054,8 +1106,38 @@ func _ranged_reposition(delta: float, distance: float, dir: Vector2) -> void:
 		_kite_away_from_target(move_speed, delta)
 	elif distance > pref + 30.0:
 		_move_toward_target(move_speed * 0.7, delta)
+	elif _hold_fight_side(delta):
+		pass
 	elif strafe_enabled:
 		_strafe_around_target(delta, dir)
+
+## Fight: the direction from the target to the side this entity holds around
+## it, or Vector2.ZERO to stay wherever it got into range (mobs, the monster,
+## River). HeroBase returns its scene's fight side.
+func _fight_side() -> Vector2:
+	return Vector2.ZERO
+
+## Between swings, inside the attack band: walk around the target to my fight
+## side (_fight_side) at strafe_speed, along the circle at the distance I
+## already have (each step ends on it, so the walk never spirals in), so
+## allies on one target spread out instead of sharing a spot, and stay in front
+## of or beside a big body instead of behind it. false = I hold no side (the
+## caller strafes or stands).
+func _hold_fight_side(delta: float) -> bool:
+	var side: Vector2 = _fight_side()
+	if side == Vector2.ZERO:
+		return false
+	var centre: Vector2 = target.global_position
+	var from_target: Vector2 = global_position - centre
+	var turn: float = GameUtils.wrapped_angle_delta(from_target.angle(), side.angle())
+	if absf(turn) <= FIGHT_SIDE_TOLERANCE:
+		return true  # on my side: stand and swing
+	var bonus: float = reach_bonus_of(target_entity)
+	var ring: float = clampf(from_target.length(), min_distance + bonus, attack_range + bonus)
+	var step: float = strafe_speed * delta / maxf(ring, 1.0)
+	var aim: float = from_target.angle() + clampf(turn, -step, step)
+	move_toward_point(centre + Vector2.from_angle(aim) * ring, strafe_speed, delta)
+	return true
 
 func _on_fight_logic(_delta: float) -> void:
 	"""Override in child classes to add custom fight logic"""

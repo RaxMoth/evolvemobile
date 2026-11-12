@@ -148,6 +148,17 @@ func get_cast_center(_caster: Node2D, target: Node2D) -> Vector2:
 	return target.global_position
 
 
+## Hero AI (HeroBase's auto-ultimate): how many things a cast at `target`
+## would reach right now, counted up to `cap`; 0 = it would do nothing, so it
+## is not cast. Default: the living enemies within get_reach() of
+## get_cast_center(caster, target). The hero ultimates override the centre and
+## reach (Blood Bomb: around Vlad) or what counts (Monster Taunt, Supply Drop).
+func count_reached(caster: Node2D, target: Node2D, cap: int) -> int:
+	if target == null or not is_instance_valid(target):
+		return 0
+	return EntityRegistry.count_within(EntityRegistry.enemies, get_cast_center(caster, target), get_reach(), cap)
+
+
 ## Called every frame by the owning MonsterBase for an ability that keeps
 ## acting after execute() (an aura that bites, a thrown weapon in flight): one
 ## step of `delta` seconds, no timers or tweens. Default: nothing.

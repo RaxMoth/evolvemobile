@@ -45,6 +45,31 @@ func execute(caster: Node2D, _target: Node2D = null, _override_damage: float = -
 	if rally_radius > 0.0:
 		_rally_heroes(caster)
 
+## Hero AI (HeroBase's auto-ultimate): what a taunt would take now, as
+## execute picks it: the monsters within ability_range of Irelia that it can
+## taunt, else the mobs there; counted up to `cap`. A target elsewhere does
+## not matter: the taunt goes off around her.
+func count_reached(caster: Node2D, _target: Node2D, cap: int) -> int:
+	var monsters: int = 0
+	for monster in EntityRegistry.monsters:
+		if _taunts(monster, caster):
+			monsters += 1
+	if monsters > 0:
+		return mini(monsters, cap)
+	var mobs: int = 0
+	for mob in EntityRegistry.mobs:
+		if _taunts(mob, caster):
+			mobs += 1
+			if mobs >= cap:
+				break
+	return mobs
+
+
+## A living enemy within the taunt's range that it can take (not Unstoppable).
+func _taunts(enemy: Node2D, caster: Node2D) -> bool:
+	return is_instance_valid(enemy) and EntityRegistry.is_entity_alive(enemy) and not _is_cc_immune(enemy) \
+			and caster.global_position.distance_squared_to(enemy.global_position) <= ability_range * ability_range
+
 ## Gorrak's Unstoppable (MonsterBase.is_cc_immune): the taunt skips him, in
 ## both passes (a monster is in the "Enemy" group too).
 func _is_cc_immune(enemy: Node) -> bool:

@@ -89,8 +89,10 @@ func _explode() -> void:
 	for entity in GameUtils.entities_in_circle(get_world_2d(), global_position, detection_radius,
 			GameUtils.MASK_HERO_TARGETS, false, placer):
 		if entity.is_in_group("Enemy"):
-			# The mine acts as the source — owner_entity is the placer for attribution
-			EventBus.deal_damage(owner_entity, entity, damage, null)
+			# The placer is the source for attribution (null once Vlad died
+			# during the fuse: the freed node was passed and raised a SCRIPT
+			# ERROR in the sims).
+			EventBus.deal_damage(placer, entity, damage, null)
 	
 	# Destroy mine
 	await get_tree().create_timer(0.2).timeout

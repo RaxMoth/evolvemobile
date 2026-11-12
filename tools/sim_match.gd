@@ -69,6 +69,13 @@ var _mob_kills_by_heroes: int = 0
 var _hero_damage: Dictionary = {}      # hero name -> damage dealt
 var _hero_state_s: Dictionary = {}     # hero name -> {state: seconds}
 var _hero_attack_casts: Dictionary = {} # hero name -> basic attacks executed
+## "<caster>:<ability>" -> casts of every ability that is no hero basic attack
+## (the monsters' three, the heroes' actives and ultimates).
+var _ability_casts: Dictionary = {}
+## Hero ultimates cast at a target more than ULT_FAR px away (0 since the
+## auto-cast counts what the ultimate reaches; heroes-1 / heroes-3).
+var _hero_ults_far: int = 0
+const ULT_FAR: float = 400.0
 var _monster_dmg_taken: Dictionary = {"heroes": 0.0, "mobs": 0.0, "other": 0.0}
 var _monster_killer: String = ""
 
@@ -221,10 +228,19 @@ func _on_entity_died(entity: Object, killer: Object) -> void:
 		})
 
 
-func _on_ability_cast(caster: Object, ability: Object, _target: Object) -> void:
-	if _is(caster, "HeroBase") and ability != null and int(ability.get("ability_type")) == 2:
-		var n := String((caster as Node).name)
+func _on_ability_cast(caster: Object, ability: Object, target: Object) -> void:
+	if ability == null or not (caster is Node):
+		return
+	var n := String((caster as Node).name)
+	var kind: int = int(ability.get("ability_type"))
+	if _is(caster, "HeroBase") and kind == 2:
 		_hero_attack_casts[n] = int(_hero_attack_casts.get(n, 0)) + 1
+		return
+	var key := "%s:%s" % [n, String(ability.get("ability_name"))]
+	_ability_casts[key] = int(_ability_casts.get(key, 0)) + 1
+	if _is(caster, "HeroBase") and kind == 3 and is_instance_valid(target) and target is Node2D \
+			and (caster as Node2D).global_position.distance_to((target as Node2D).global_position) > ULT_FAR:
+		_hero_ults_far += 1
 
 
 func _on_monster_evolved(_m: Object, stage: int) -> void:
@@ -281,6 +297,8 @@ func _report(reason: String, winner: String, t: float) -> void:
 		"hero_damage": _hero_damage,
 		"hero_states": _hero_state_s,
 		"hero_basic_casts": _hero_attack_casts,
+		"ability_casts": _ability_casts,
+		"hero_ults_far": _hero_ults_far,
 		"monster_dmg_taken": _monster_dmg_taken,
 		"monster_killer": _monster_killer,
 	}

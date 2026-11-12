@@ -481,6 +481,7 @@ func test_spiked_cage_hurts_the_enemies_inside() -> void:
 	var vlad := await _hero(VLAD, Vector2(2040, 0))
 	var ult := _abilities(ted).ultimate_ability as TedUltimateTrapCage
 	assert_eq(ult.cage_dps, 6.0)
+	ult.ability_range = 3000.0  # Ted's own copy: a throw across the test bed
 	var spikes: Array[DamagePacket] = []
 	var listener := func(p: DamagePacket) -> void:
 		if p.ability == ult:

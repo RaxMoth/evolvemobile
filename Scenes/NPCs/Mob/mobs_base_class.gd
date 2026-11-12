@@ -50,9 +50,8 @@ var pool_key: String = ""            ## scene resource_path; "" = never pooled, 
 var spawn_manager: SpawnManager = null
 var is_parked: bool = false          ## true while out of the tree in the pool
 var _spawn_scale: Vector2 = Vector2.ONE
-## Incremented per life. Outside holders (trap cage, taunt) compare it before
-## acting so a reused node never inherits an old effect.
-var life_id: int = 0
+# life_id (EntityBase) counts this node's lives: prepare_for_pool and
+# on_spawned each step it, so every holder of the old life lets go.
 
 # ============================================
 # STATE TRACKING - Instead of get_active_state()
@@ -232,8 +231,8 @@ func _perform_basic_attack() -> void:
 		attacking = false
 		return
 
-	var distance := global_position.distance_to(target_entity.global_position)
-	if distance <= base_attack_range:
+	# From the edge of an evolved monster (EntityBase.range_to).
+	if range_to(target_entity as Node2D) <= base_attack_range:
 		announce_cast(null, target_entity)
 		EventBus.deal_damage(self, target_entity, base_attack_damage)
 

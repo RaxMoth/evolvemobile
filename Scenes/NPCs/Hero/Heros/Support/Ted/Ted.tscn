@@ -12,6 +12,8 @@
 
 [node name="Ted" instance=ExtResource("1_base")]
 script = ExtResource("2_script")
+hold_fight_side = true
+fight_side_deg = 160.0
 xp_value = 100.0
 
 [node name="HeroStats" parent="." index="0"]

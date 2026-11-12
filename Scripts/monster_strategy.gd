@@ -73,6 +73,16 @@ extends Resource
 ## false: ability 2 is not a movement skill (Gorrak's thrown Tusk Axe) and is
 ## never cast away from the heroes as an escape.
 @export var escape_with_ability_2: bool = true
+## In a fight, ability 2 (Ram Dash, Shadow Swoop, the Tusk Axe) is cast at the
+## fought hero within its reach when it is ready and at least this many
+## seconds passed since its last cast (the gap closer and the escape count):
+## the fight's opener comes free, then it returns every interval, not on every
+## cooldown. On every cooldown (5 s at Stage 3) the burst decided the fights:
+## 25 / 17 / 4 % hero wins against Grount / Nyxa / Gorrak (heroes side, 24
+## seeds) against 58 / 67 / 67 % without it. In AMBUSH and HUNT, and in every
+## strategy when it is no escape (escape_with_ability_2 false). 0 = never in
+## a fight (gap closer and escape only).
+@export var fight_ability_2_interval: float = 15.0
 
 
 func max_mob_health_for_stage(stage: int) -> float:

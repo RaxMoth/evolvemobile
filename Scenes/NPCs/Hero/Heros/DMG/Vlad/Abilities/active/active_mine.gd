@@ -30,12 +30,13 @@ func mine_offset(index: int) -> Vector2:
 	return Vector2.UP.rotated(TAU * index / mine_count) * radius
 
 
+## Everything Mine._ready reads is set before add_child: it sizes its trigger
+## from detection_radius (the scene's 100 used to win, latent while the Land
+## Mine's range is 100 too). An enemy already inside the trigger sets it off at
+## once: the README's "explosion when an enemy steps on it" with Vlad standing
+## next to his target.
 func _place_mine(caster: Node2D, at: Vector2) -> void:
 	var mine = mine_scene.instantiate()
-	caster.get_parent().add_child(mine)
-	mine.global_position = at
-
-	# Set mine properties
 	if "damage" in mine:
 		mine.damage = damage
 	if "detection_radius" in mine:
@@ -44,5 +45,9 @@ func _place_mine(caster: Node2D, at: Vector2) -> void:
 		mine.owner_entity = caster
 	if "source_ability" in mine:
 		mine.source_ability = self
+	var parent: Node = caster.get_parent()
+	var parent_2d := parent as Node2D
+	mine.position = parent_2d.to_local(at) if parent_2d else at
+	parent.add_child(mine)
 	# Presentation: the arming ring and dust (AbilityVfx).
 	EventBus.notify_ability_event(mine, self, FxEvents.MINE_ARMED, at, ability_range)

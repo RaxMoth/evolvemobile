@@ -105,7 +105,8 @@ func execute(caster: Node2D, target: Node2D = null, override_damage: float = -1.
 	caster.get_tree().create_timer(0.0, false).timeout.connect(_dash_update.bind(caster))
 
 func _dash_update(caster: Node2D) -> void:
-	if not is_dashing or not is_instance_valid(caster):
+	# A caster freed or taken out of the tree mid-dash (a test ending) stops it.
+	if not is_dashing or not is_instance_valid(caster) or not caster.is_inside_tree():
 		is_dashing = false
 		return
 	

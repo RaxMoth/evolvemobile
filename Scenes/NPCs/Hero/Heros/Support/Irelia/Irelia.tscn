@@ -12,6 +12,7 @@
 
 [node name="Irelia" instance=ExtResource("1_rak2b")]
 script = ExtResource("2_8w040")
+hold_fight_side = true
 xp_value = 100.0
 taunt_strength = 2.5
 

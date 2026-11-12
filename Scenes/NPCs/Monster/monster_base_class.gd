@@ -73,6 +73,9 @@ var _had_heroes_near: bool = false
 ## the strategy): we flee from them instead of farming next to them.
 var _mob_threats: Array[Node2D] = []
 var _cast_lock: float = 0.0
+## Seconds until a fight may cast ability 2 again
+## (MonsterStrategy.fight_ability_2_interval, restarted by every cast of it).
+var _ability_2_rest: float = 0.0
 var _resting: bool = false
 ## Seconds since the last damage packet (rest regeneration waits regen_delay).
 var _since_damage: float = 0.0
@@ -131,6 +134,8 @@ var _meta_cc_immune: bool = false
 ## mirrors the chart.
 @onready var _scattered_state: StateChartState = get_node_or_null(^"StateChart/CompoundState/Scattered") as StateChartState
 @onready var _body_area: Area2D = %Body
+## The Body circle's radius before any scaling: a standard body (reach_bonus).
+@onready var _body_radius: float = _unscaled_body_radius()
 
 var ability_cooldowns := {
 	"ability_1": 0.0,
@@ -162,6 +167,7 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	_cast_lock = maxf(_cast_lock - delta, 0.0)
+	_ability_2_rest = maxf(_ability_2_rest - delta, 0.0)
 	for key in ability_cooldowns.keys():
 		if ability_cooldowns[key] > 0.0:
 			ability_cooldowns[key] -= delta
@@ -266,7 +272,7 @@ func _set_stage_scale(s: Vector2) -> void:
 func _is_attack_ready() -> bool:
 	if not _strategy_enabled():
 		return ability_cooldowns.get("ability_1", 0.0) <= 0.0
-	return not _is_busy() and (is_ability_ready("ability_1") or _slam_ready())
+	return not _is_busy() and (is_ability_ready("ability_1") or _slam_ready() or _ability_2_fight_ready())
 
 
 # ============================================
@@ -280,6 +286,22 @@ func _get_attack_range() -> float:
 	if not monster_stats:
 		return 0.0
 	return monster_stats.base_attack_range * _meta_range_mult + get_range_bonus()
+
+## What the stage scale (and Titan Form) grew the body by beyond a standard
+## one: the Body circle at the live root scale, less its unscaled radius
+## (Grount at Stage III, x1.5: 15.5 px). Ranges to the monster are measured
+## from that edge (EntityBase.range_to), so heroes and mobs stand around his
+## body instead of inside it; it follows the evolution tween.
+func reach_bonus() -> float:
+	return _body_radius * maxf(absf(scale.x) - 1.0, 0.0)
+
+func _unscaled_body_radius() -> float:
+	if _body_area == null:
+		return 0.0
+	var shape := _body_area.get_node_or_null(^"CollisionShape2D") as CollisionShape2D
+	if shape == null or not (shape.shape is CircleShape2D):
+		return 0.0
+	return (shape.shape as CircleShape2D).radius
 
 ## The aggro circle is a child of the root, so it scales with the monster. With
 ## Titan Form its world radius follows the live root scale up to the stage's
@@ -813,6 +835,8 @@ func _cast(ability_name: String, ability: AbilityBase, cast_target: Node2D) -> b
 	_cooldown_totals[ability_name] = cooldown
 	if strategy_profile:
 		_cast_lock = strategy_profile.cast_lock_time
+		if ability_name == "ability_2":
+			_ability_2_rest = strategy_profile.fight_ability_2_interval
 	EventBus.notify_ability_cast(self, ability, cast_target)
 	return true
 
@@ -1002,7 +1026,7 @@ func _pick_camp() -> MobSpawnArea:
 	for camp in mgr.get_active_spawns():
 		if not is_instance_valid(camp):
 			continue
-		var available: int = camp.spawned_mobs.size() + camp.virtual_count
+		var available: int = camp.virtual_count + _count_huntable(camp.spawned_mobs)
 		if available <= 0:
 			continue
 		if _camp_mob_health(camp) > p.max_mob_health_for_stage(current_stage):
@@ -1017,6 +1041,16 @@ func _pick_camp() -> MobSpawnArea:
 			best = camp
 	_camp_goal = best
 	return best
+
+
+## Mobs of `mobs` this monster may hit: its own warband (Gorrak's Call of the
+## Herd) spares it and is spared by every ability, so it is no prey.
+func _count_huntable(mobs: Array) -> int:
+	var n: int = 0
+	for mob: Node in mobs:
+		if is_instance_valid(mob) and GameUtils.can_entity_target(self, mob):
+			n += 1
+	return n
 
 
 ## Stay put once clear of every camp with mobs left; otherwise step away from
@@ -1140,9 +1174,32 @@ func _choose_and_use_ability_combo() -> void:
 	if _slam_ready() and _count_slam_targets() >= strategy_profile.slam_min_targets:
 		if _cast("ability_3", ability_3, target_entity):
 			return
+	if _ability_2_fight_ready():
+		_aim_at_target()
+		if _cast("ability_2", ability_2, target_entity):
+			return
 	if is_ability_ready("ability_1"):
 		_aim_at_target()
 		_cast("ability_1", ability_1, target_entity)
+
+
+## Fight: ability 2 at the target when it is ready, the target is in its reach
+## and fight_ability_2_interval passed since its last cast (MonsterStrategy):
+## Ram Dash rams the hero, Shadow Swoop swoops through, the Tusk Axe is thrown.
+## A hero (or any target with dash_on_mobs), in AMBUSH or HUNT; in FARM and
+## RETREAT a movement skill stays the escape (escape_with_ability_2), a thrown
+## axe is used there too.
+func _ability_2_fight_ready() -> bool:
+	var p := strategy_profile
+	if p.fight_ability_2_interval <= 0.0 or _ability_2_rest > 0.0 or ability_2 == null or not is_ability_ready("ability_2"):
+		return false
+	if not ability_2.is_unlocked_at(current_stage) or not ability_2.can_use(self):
+		return false
+	if p.escape_with_ability_2 and strategy != Strategy.AMBUSH and strategy != Strategy.HUNT:
+		return false
+	if not is_target_valid() or not (target_entity.is_in_group("Hero") or p.dash_on_mobs):
+		return false
+	return distance_to_target() <= ability_2.get_reach()
 
 
 func _count_slam_targets() -> int:
@@ -1152,7 +1209,13 @@ func _count_slam_targets() -> int:
 	var center: Vector2 = ability_3.get_cast_center(self, target_entity)
 	var n: int = EntityRegistry.count_within(EntityRegistry.hero_side, center, reach)
 	if strategy != Strategy.HUNT:
-		n += EntityRegistry.count_within(EntityRegistry.mobs, center, reach)
+		# Living mobs in reach, less his own warband (the slam spares it).
+		var r_sq: float = reach * reach
+		for mob in EntityRegistry.mobs:
+			if is_instance_valid(mob) and EntityRegistry.is_entity_alive(mob) \
+					and center.distance_squared_to(mob.global_position) <= r_sq \
+					and GameUtils.can_entity_target(self, mob):
+				n += 1
 	return n
 
 

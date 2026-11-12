@@ -264,7 +264,9 @@ func test_capstone_moments_reach_the_vfx() -> void:
 	var ted := await spawn_frozen(TED, Vector2(100, 700))
 	(irelia.get_node(^"AbilitySystem") as AbilitySystem).ultimate_ability.execute(irelia)
 	assert_eq(_count(recorded, FxEvents.CC_SHRUGGED), 1, "the taunt")
-	(ted.get_node(^"AbilitySystem") as AbilitySystem).ultimate_ability.execute(ted, gk)
+	var cage_ult: AbilityBase = (ted.get_node(^"AbilitySystem") as AbilitySystem).ultimate_ability
+	cage_ult.ability_range = 1000.0  # Ted's own copy: the throw reaches Gorrak 600 px away
+	cage_ult.execute(ted, gk)
 	assert_eq(_count(recorded, FxEvents.CC_SHRUGGED), 2, "and the cage")
 	assert_eq(_ability(recorded, FxEvents.CC_SHRUGGED), gk.passive_ability, "in his passive's colours")
 	_stop(recorded)

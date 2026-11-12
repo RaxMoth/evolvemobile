@@ -9,7 +9,6 @@
 [node name="Hero" groups=["Hero"] instance=ExtResource("1_py7br")]
 script = ExtResource("2_385or")
 auto_use_ultimate = true
-auto_ult_radius = 200.0
 auto_ult_check_interval = 0.25
 alert_allies_radius = 500.0
 pursue_out_of_sight_radius = 600.0

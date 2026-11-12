@@ -270,7 +270,12 @@ cooldown.
     - Sniper Mode: 12 dmg at 300 range / 1.1s
     - Healer Mode: 9 heal at 150 range / 1.4s
 - **Ultimate**: Emergency Supply Drop (a MediKit that heals every hero who
-  walks over it 30 HP once, then vanishes; 25 s cooldown)
+  walks over it 30 HP once, then vanishes; 25 s cooldown). The crate falls for
+  0.5 s onto River's feet and heals only once it has landed, every hurt hero
+  whose body touches its 60 px ring; a hero at full HP does not use it up. It
+  fades once it has healed someone and no hero on it still needs it, else
+  after 20 s. River drops it when a hero within those 60 px (herself
+  included) misses at least the kit's heal
 - **Scaling**: +5 HP, +1.8 dmg per level
 - The design's first kit (Snare Trap, Arrow Barrage) never shipped; trap and
   barrage slows stay an open idea (PROGRESS backlog).
@@ -284,7 +289,9 @@ cooldown.
 - **Passive**: Bloodlust (below 30% HP his damage and attack speed rise as HP
   falls: a linear ramp from nothing at 30% to +50% dmg and +100% attack speed
   at 0 HP)
-- **Active**: Land Mine (18 dmg explosion when an enemy steps on it; 8 s cooldown)
+- **Active**: Land Mine (18 dmg explosion when an enemy steps on it; 8 s cooldown).
+  Vlad places it under himself next to his target, so an enemy already on it
+  sets it off at once: in practice a point-blank burst every 8 s
 - **Basic Attack**: Blood Strike, 10 dmg at 50 range / 1.0s
 - **Ultimate**: Blood Bomb (50 dmg, 150 AoE; 20 s cooldown)
 - **Scaling**: +6 HP, +1.7 dmg per level
@@ -299,7 +306,9 @@ cooldown.
 - **Passive**: Loyal Companion (the fox fights beside him and respawns after 10s)
 - **Active**: Rally Cry (Ted and his pet +50% attack speed for 5s; 10 s cooldown)
 - **Basic Attack**: Claw Swipe, 9 dmg at 55 range / 1.2s
-- **Ultimate**: Trap Cage (150 radius, traps enemies for 6s; 5 s cooldown)
+- **Ultimate**: Trap Cage (150 radius, traps enemies for 6s; 5 s cooldown),
+  thrown on the target up to 200 px away (`ability_range`; further out it
+  lands 200 px toward it)
 - **Scaling**: +5 HP, +1.6 dmg per level
 - **Combined DPS** (Ted + Pet): ~15.0 DPS
 - **Capstones** (one equipped): War Cry (Rally Cry also hastes heroes within
@@ -313,7 +322,8 @@ cooldown.
 - **Active**: Divine Shield (18 HP shield to all heroes, 7s duration; 13 s cooldown)
 - **Basic Attack**: Shield Bash, 5 dmg at 120 range / 1.5s (+40 threat on the
   struck enemy, so packs turn to her)
-- **Ultimate**: Monster Taunt (Forces monster to attack Irelia for 5s; 15 s cooldown)
+- **Ultimate**: Monster Taunt (Forces monster to attack Irelia for 5s; 15 s cooldown),
+  every monster within 200 px of her (else every mob there)
 - **Scaling**: +8 HP, +1.2 dmg per level
 - **Capstones** (one equipped): Last Stand (survive a lethal hit once at 1 HP,
   2 s invulnerable), Guardian Angel (Divine Shield breaks stuns), Rallying
@@ -337,13 +347,15 @@ Three monsters ship, each a scene that inherits `monster_base_class.tscn`
 plus its stats, strategy and ability `.tres` (see "Shared Monster Framework"
 and "Character Roster"). Hero wins at threat 0 are `MONSTER=<id> tools/sim.sh
 48 heroes 6` / `... 48 monster 6` (fresh save, reproducible since 6.2); the
-target is 40-60 % per monster on both sides.
+target is 40-60 % per monster on both sides. The columns repeat the latest
+measurement: fix batch G1's 24 seeds per side (see Measured Balance; Grount
+and Nyxa are below the target until the final balance batch).
 
 | Monster | Role | Owned / unlock | Heroes meet it after | HP (S1 / S2 / S3) | Evolves at (total XP) | Hero wins, heroes side / monster side | Timeouts (H / M) |
 | ------- | ---- | -------------- | -------------------- | ----------------- | --------------------- | ------------------------------------ | ---------------- |
-| **Grount**, the Bull | brute: cone cleave, ram dash, leaping slam | from the start | 0 hunts | 800 / 1400 / 2200 | 150 / 300 | 46 % / 48 % | 4 / 3 |
-| **Nyxa**, the Dusk Matriarch | stalker: lifesteal skirmisher, bat aura | 2,500 Leaves once a monster is Lv 3 | 3 hunts | 600 / 950 / 1250 | 150 / 400 | 54 % / 52 % | 18 / 17 |
-| **Gorrak**, the Boar King | brute: armoured, returning axe, stunning stomp | 3,000 Leaves once a monster is Lv 3 | 6 hunts | 1100 / 1450 / 1500 | 150 / 500 | 42 % / 52 % | 5 / 5 |
+| **Grount**, the Bull | brute: cone cleave, ram dash, leaping slam | from the start | 0 hunts | 800 / 1400 / 2200 | 150 / 300 | 33 % / 33 % | 1 / 1 |
+| **Nyxa**, the Dusk Matriarch | stalker: lifesteal skirmisher, bat aura | 2,500 Leaves once a monster is Lv 3 | 3 hunts | 600 / 950 / 1250 | 150 / 400 | 33 % / 33 % | 8 / 7 |
+| **Gorrak**, the Boar King | brute: armoured, returning axe, stunning stomp | 3,000 Leaves once a monster is Lv 3 | 6 hunts | 1100 / 1450 / 1500 | 150 / 500 | 38 % / 50 % | 3 / 2 |
 
 - Every monster heals to full on evolving (`heal_to_full_on_evolution`).
   Each has a per-stage table for every ability, so `stage_N_damage_multiplier`
@@ -355,7 +367,8 @@ target is 40-60 % per monster on both sides.
   24 seeds): Grount Titan Form 0 %, Rampage 29 %, Trample 33 % hero wins;
   Nyxa and Gorrak 0 % with every capstone ("Monster capstones and behaviour
   nodes").
-- Nyxa's wins are mostly timeouts (she evades): accepted as her trait.
+- Nyxa's wins are mostly timeouts (she evades): accepted as her trait (G1:
+  7 of 24 matches per side without contact).
 - Codex, roster and pre-round show each monster's stage names, tip and moves
   from its `CharacterDef` (`Assets/Characters/<id>/<id>_def.tres`).
 
@@ -689,6 +702,7 @@ fresh saves, threat 0; the balance at each Opponent Threat level is under
 | ------ | ----------- | ------------ | ---------------- | -------------- | -------------------- |
 | before 6.3 (`16aed14`) | 19 % | 25 % | 4 / 4 | 324 s / 325 s | 409 s / 389 s |
 | 6.3: Trap Cage fixed + Stage 3 damage × 0.9 | **46 %** | **48 %** | 4 / 3 | 322 s / 323 s | 400 s / 408 s |
+| G1: combat AI fixes (24 seeds) | 33 % | 33 % | 1 / 1 | 327 s / 327 s | 390 s / 390 s |
 
 - 6.3 changed two things. Ted's Trap Cage now traps what it lands on (it
   trapped almost nothing; see "Hero capstones and behaviour nodes"), which
@@ -709,6 +723,7 @@ fresh saves, threat 0; the balance at each Opponent Threat level is under
 | Nyxa | Heroes side | Monster side | Timeouts (H / M) | Median Stage 3 | Median first contact |
 | ---- | ----------- | ------------ | ---------------- | -------------- | -------------------- |
 | 6.4: gamedesign config v9 (24 seeds in the design: 46 %, 8 timeouts) | **54 %** | **52 %** | 18 / 17 | 371 s / 371 s | 417 s / 417 s |
+| G1: combat AI fixes (24 seeds) | 33 % | 33 % | 8 / 7 | 376 s / 369 s | 428 s / 428 s |
 
 - Nyxa's wins are almost all timeouts: in 17 of 48 matches the heroes never
   meet her (she farms Bats away from them and swoops off). When they meet
@@ -719,6 +734,19 @@ fresh saves, threat 0; the balance at each Opponent Threat level is under
 | ------ | ----------- | ------------ | ---------------- | -------------- | -------------------- |
 | gamedesign config v6, Stage 3 HP 1600 (24 seeds in the design: 42 %) | 38 % | 50 % | 5 / 5 | 346 s / 347 s | 448 s / 456 s |
 | 6.5: Stage 3 HP 1600 → 1500 | **42 %** | **52 %** | 5 / 5 | 346 s / 347 s | 448 s / 456 s |
+| G1: combat AI fixes (24 seeds) | 38 % | 50 % | 3 / 2 | 349 s / 350 s | 442 s / 442 s |
+
+- G1 (fix batch, `MONSTER=all tools/sim.sh 24 <side> 2`) changed both sides at once: ultimates
+  only in reach and never at a reused pooled mob, the Supply Drop landing before it heals,
+  stand-off and fight sides, and the monsters' ability 2 in fights (opener, then every 15 s).
+  Without that last rule the heroes side came out at 58 / 67 / 67 % (Grount / Nyxa / Gorrak);
+  with ability 2 on every cooldown (5 s at Stage 3) at 25 / 17 / 4 %: the burst kills the melee
+  heroes early in the Stage 3 fight (their time in Fight fell from about 40 to 20 s). The
+  15 s interval (`MonsterStrategy.fight_ability_2_interval`) gives the table above, with Ram
+  Dash, Shadow Swoop and the Tusk Axe cast 3.0 / 2.2 / 2.8 times a match (1.4 / 1.0 / 1.0
+  before). No hero ultimate went off at a target more than 400 px away in the 144 matches
+  (`hero_ults_far`). Grount and Nyxa sit at 33 %, inside the batch's 30-70 % band and below the
+  40-60 % target: the final balance batch retunes.
 
 - The design tuned him against the old Grount framework (17 % for Grount
   then). Against today's heroes (Trap Cage traps, 6.3) config v6 came out
@@ -1788,7 +1816,10 @@ built.
 - **Ambush** (Stage 2): engages only a hero with at most one ally within 300 px, or one below 30% HP
 - **Hunt** (Stage 3): seeks the nearest hero anywhere on the map
 - **Combos**: one cast per 0.25 s lock; Ram Dash as a gap closer only when Front Cleave is ready on
-  landing; Ground Slam only when it hits 2+ targets; dashes and slam leaps stop at walls
+  landing, and in a fight at the hero he fights when it is ready and 15 s passed since its last
+  cast (`fight_ability_2_interval`: the fight's opener, then every 15 s; Ambush and Hunt, as
+  farming or retreating it stays his escape); Ground Slam only when it hits 2+ targets (his own
+  warband never counts); dashes and slam leaps stop at walls
 - Irelia's taunt overrides all of the above
 - **Nyxa** (`Scenes/NPCs/Monster/Nyxa/nyxa_strategy.tres`, the same layer with her numbers):
   aware of heroes within 450 px, cornered within 60; farms Bats only until Stage 3
@@ -1796,13 +1827,17 @@ built.
   rests below 50% HP up to 85% at 0.7%/s; retreats (Stage ≤ 2) below 40% HP with 2+ heroes
   close and swoops away from a hero within 140 px; ambushes (Stage 2) only a hero alone
   within 280 px; Shadow Swoop gap-closes from 120 px when Sonic Screech is ready within
-  0.8 s; Night Swarm whenever it bites at least one target around her
+  0.8 s and, in a fight (Ambush, Hunt), swoops through the hero as the opener and then every
+  15 s; Night Swarm whenever it bites at least one target around her
 - **Gorrak** (`Scenes/NPCs/Monster/Gorrak/gorrak_strategy.tres`): aware of heroes within
   350 px, cornered within 90; farms like Grount (60 / 150 / 1000); rests below 40% HP up to
   75% at 0.8%/s; retreats (Stage ≤ 2) only below 25% HP with 3+ heroes close, and never
   throws the axe as an escape (`escape_with_ability_2` false); throws the Tusk Axe from
-  Approach at a hero 110–260 px away whenever it is ready (`dash_cleave_window` 99);
-  Warcry Stomp when it hits 2+ targets around him
+  Approach at a hero 110–260 px away whenever it is ready (`dash_cleave_window` 99), and in
+  a fight at the hero he fights as the opener and then every 15 s (in every strategy: it is
+  no escape);
+  Warcry Stomp when it hits 2+ targets around him. His Call of the Herd warband is no prey:
+  neither the stomp's target count nor the camp choice counts it
 
 **Planned Improvements**:
 
@@ -1814,10 +1849,37 @@ built.
 
 - Basic attack when in range (the Fight gate: `min_distance <= distance <=
   attack range`); between swings an entity strafes at its preferred distance
+- **Stand-off**: ranges to an evolved monster are measured from the edge of
+  his grown body (`EntityBase.range_to`: centre distance less
+  `reach_bonus()`, the Body circle's 31 px x (stage scale - 1), Titan Form
+  included; 15.5 px for Grount at Stage III). The Fight gate, the heroes',
+  the fox's and the mobs' hit checks all use it, so melee attackers stop at his
+  edge instead of inside his sprite. Heroes and mobs are standard bodies (0)
+- **Fight sides**: between swings Vlad, Ted and Irelia walk round their target
+  to their own side (`HeroBase.hold_fight_side` / `fight_side_deg`, set on
+  each hero scene: Irelia 90 = in front, Vlad 20 and Ted 160 = beside it,
+  slightly in front), along the circle at the distance they have, at strafe
+  speed. They no longer stack on one spot, and against a big monster they
+  stay in front of or beside his body, never behind it (y-sort would hide
+  them). A wall on the circle stops the walk: the hero fights from where it
+  stands, as before. River strafes as before
 - Heroes use their active at 4 Hz once fighting (River swaps weapons by her
   allies' HP, Irelia shields a hurt ally) and their ultimate by the pre-round
   dials (`MatchConfig`: enemies in reach, panic HP); a hero in a fight calls
   teammates within 500 px
+- **Ultimates in reach**: an ultimate fires when it reaches the dial's
+  enemies inside its own area (`AbilityBase.count_reached`: Blood Bomb within
+  150 px of Vlad, Monster Taunt the monsters within 200 px of Irelia (else the
+  mobs there), Trap Cage the enemies within 150 px of a target at most 200 px
+  from Ted), or reaches one while an ally is below the panic HP; nothing in
+  reach, no cast. River's Supply Drop waits for a hero within its 60 px who
+  misses at least its heal (see River)
+- **Targets have lives**: the target pair records the target's `life_id`
+  (`EntityBase._set_target_pair`), `is_target_valid()` compares it, and
+  Approach and Fight clear a lost target. A killed mob's node that the pool
+  hands to another camp is nobody's target any more; it used to come back as
+  the old target of every hero that had fought it (Idle heroes fired their
+  ultimates at it across the map, Trap Cage caged the monster there)
 - Monsters: the strategy layer's combos (see Monster AI)
 - Targeting: priority, distance, threat (`TeamBlackboard`), low-HP focus;
   Irelia's Shield Bash adds 40 threat, her taunt overrides
@@ -1825,8 +1887,9 @@ built.
 **Planned**:
 
 - **Combo System**: Chain abilities (e.g., Irelia taunt → Vlad ult) — monster combos ship (see above)
-- **Positioning**: Tanks front, squishies back — ships for exploration (formation); in-fight
-  positioning still follows each hero's preferred distance
+- **Positioning**: Tanks front, squishies back — ships for exploration (formation); in a
+  fight each hero holds its own side of the target (Fight sides above: the tank in front,
+  the melee beside it), at its own preferred distance
 - **Focus Fire**: heroes weigh low-HP enemies (`low_hp_focus_weight`) — ships
 - **Cooldown Management**: Save ults for critical moments
 
@@ -1962,11 +2025,23 @@ one new ability script. Every default is Grount's old behaviour:
     "slam only when it hits `slam_min_targets`" counts targets around it.
     Default: the target. `BullGroundSlam`: the leap's landing point (the
     target, at most `leap_distance` away; `leap_distance` 0 = in place).
+  - `count_reached(caster, target, cap)`: the hero AI's auto-ultimate asks an
+    ultimate how many things a cast would reach now (default: the enemies
+    within `get_reach()` of `get_cast_center`). Blood Bomb is centred on
+    Vlad, Trap Cage lands at most `ability_range` (its throw) from Ted,
+    Monster Taunt counts the monsters around Irelia, the Supply Drop the hurt
+    heroes on its spot.
 - **`MonsterBase`**: `heal_self(amount)` (lifesteal; capped at max HP, never a
   dead monster), the stats-driven reach and Fight leave distance, the stage's
-  damage-taken multiplier, and `_try_escape_dash` honours
-  `MonsterStrategy.escape_with_ability_2` (true; false = ability 2 is no
-  movement skill, Gorrak's thrown axe, and is never cast away as an escape).
+  damage-taken multiplier, `reach_bonus()` (how far his grown body's edge
+  lies beyond a standard one; ranges to him count from there), and
+  `_try_escape_dash` honours `MonsterStrategy.escape_with_ability_2` (true;
+  false = ability 2 is no movement skill, Gorrak's thrown axe, and is never
+  cast away as an escape). `MonsterStrategy.fight_ability_2_interval` (15 s;
+  0 = off) casts ability 2 in a fight at the fought hero in its reach when it
+  is ready and that long passed since its last cast (the gap closer and the
+  escape count): in Ambush and Hunt, and in every strategy when it is no
+  escape. On every cooldown (5 s at Stage 3) the burst decided the fights.
 - **Grount's kit as the shared toolkit**: `BullFrontCleave` keeps a tree's
   `cone_angle` modifier on top of each stage's angle (Nyxa "Wide Shriek",
   Gorrak "Wide Arc"); `BullGroundSlam.stun_duration` (0 = off) stuns every
@@ -2991,7 +3066,7 @@ No tool can pass by accident, and none leaks when it is stopped:
   (a script error aborts the function it is in, so the test's later checks
   never ran: a `Logger` in `test/run_tests.gd` catches it and fails the test
   that was running). A skipped test (`skip()`) counts as skipped, not passed:
-  `== 658 passed, 0 failed, 1 skipped ==` (the rendered minimap test). A run
+  `== 672 passed, 0 failed, 1 skipped ==` (the rendered minimap test). A run
   outside the isolated `user://` (the runner started by hand on a copy) skips
   the save tests, prints `NOT ISOLATED` and exits 1. A test still running
   after 120 s is named (`TIMEOUT <file>::<test>`) and the run is killed: a
@@ -3008,7 +3083,10 @@ No tool can pass by accident, and none leaks when it is stopped:
   balance. Seeded auto-play matches in parallel, then one summary per monster
   (`tools/sim_summary.py`): win rates, match length, first contact, evolution
   timing, and hero deaths by the monster (the row's `monster_name`, the spawned
-  node's name) or by mob. `OUT=<file>` keeps the raw JSON lines (every monster's;
+  node's name) or by mob. Each result line also counts the casts of every
+  ability by caster (`ability_casts`, `"Grount:Ram Dash": 9`; the heroes'
+  basic attacks apart in `hero_basic_casts`) and the hero ultimates cast at a
+  target more than 400 px away (`hero_ults_far`). `OUT=<file>` keeps the raw JSON lines (every monster's;
   `sim_summary.py <file>` summarizes them the same way), `SAVE=<save.cfg>`
   starts every match from that save (its power ranks set the threat; the
   summary prints it). `THREAT=<0-4>` (or a list, `THREAT="0 2 4"`, or
@@ -3933,14 +4011,9 @@ changelog with numbers); this section is the summary.
 `PROGRESS.md` ("Tech Debt / Improvements", "Decisions for the user") is the
 full list. The ones a reader of this spec should know:
 
-**Bugs**:
-
-- [ ] Gorrak's camp choice and slam count still count his own warband mobs
-      (`MonsterBase._pick_camp`, `_count_slam_targets`): with Call of the Herd
-      he can walk to a camp he cannot farm for up to 20 s
-- [ ] River's supply crate fades in mid-air when every hero in its pickup
-      radius was healed during the fall; a Land Mine placed on an enemy
-      detonates at once (no arming delay). Intended or not: open
+**Bugs**: none open. The last two (Gorrak's warband counted as prey, the
+Supply Drop healing during its fall) were fixed in G1; the Land Mine going off
+at once on an enemy already inside it is the README's rule (see Vlad).
 
 **Performance**:
 

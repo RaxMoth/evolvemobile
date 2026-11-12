@@ -912,17 +912,17 @@ unique_name_in_owner = true
 y_sort_enabled = true
 
 [node name="Irelia" parent="Heros" instance=ExtResource("6_p7pgw")]
-position = Vector2(130, 188)
+position = Vector2(143, 186)
 
 [node name="River" parent="Heros" instance=ExtResource("5_hveh7")]
-position = Vector2(119, 99)
+position = Vector2(143, 96)
 heal_threshold_pct = 0.95
 
 [node name="Vlad" parent="Heros" instance=ExtResource("2_xf6vi")]
-position = Vector2(93, 199)
+position = Vector2(63, 186)
 
 [node name="Ted" parent="Heros" instance=ExtResource("8_kuxid")]
-position = Vector2(70, 78)
+position = Vector2(63, 96)
 
 [node name="MonsterSlot" type="Node2D" parent="."]
 y_sort_enabled = true

@@ -75,7 +75,8 @@ func _execute_sniper(caster: Node2D, target: Node2D) -> void:
 	if not is_instance_valid(target) or not is_instance_valid(caster):
 		return
 
-	var distance = caster.global_position.distance_to(target.global_position)
+	# From the edge of an evolved monster (EntityBase.range_to).
+	var distance: float = caster.global_position.distance_to(target.global_position) - EntityBase.reach_bonus_of(target)
 	if distance <= effective_range(caster):
 		# Apply damage with modifier
 		var damage_mult: float = 1.0

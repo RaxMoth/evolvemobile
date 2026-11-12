@@ -512,6 +512,7 @@ func test_titan_fight_holds_and_the_cleave_reaches_its_range() -> void:
 	assert_near(reach, 80.0 * 1.1 * 1.1 + 20.0, 0.001)
 	assert_true(reach > g.monster_stats.fight_leave_distance, "the case that bounced between Approach and Fight")
 	var v := await _hero(Vector2(reach - 1.0, 0))
+	g.ability_cooldowns["ability_2"] = 99.0  # a fight casts Ram Dash first; this is about the cleave
 	g._update_strategy()  # picks the hero up from its own detection area
 	assert_true(g.target_entity == v, "acquired the hero")
 	for i in range(6):

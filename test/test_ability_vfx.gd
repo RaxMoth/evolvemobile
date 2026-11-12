@@ -188,6 +188,7 @@ func test_vlad_and_ted_emit_their_moments_and_the_cage_tints_the_rig() -> void:
 		assert_false(mine.visible, "the mine itself goes out of sight")
 	var cage_ability: AbilityBase = (ted.get_node("AbilitySystem") as AbilitySystem).ultimate_ability
 	cage_ability.duration = 0.8  # Ted's own copy: the cage opens within the test
+	cage_ability.ability_range = 1000.0  # and its throw reaches the Hog 460 px away
 	cage_ability.execute(ted, hog)
 	assert_eq(_count(events, FxEvents.CAGE_CLOSED), 1, "the cage closes")
 	assert_true(vfx.stakes_front.live + vfx.stakes_back.live >= AbilityVfx.STAKES_MIN, "stakes around it")

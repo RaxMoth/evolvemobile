@@ -396,7 +396,9 @@ func _taunted(e: Node) -> bool:
 ## The TrapCage Ted's Trap Cage dropped on `target` (a child of the test).
 func _drop_cage(ted: Node2D, target: Node2D) -> TrapCage:
 	var before: Array[Node] = get_children()
-	(ted.get_node(^"AbilitySystem") as AbilitySystem).ultimate_ability.execute(ted, target)
+	var ult: AbilityBase = (ted.get_node(^"AbilitySystem") as AbilitySystem).ultimate_ability
+	ult.ability_range = 5000.0  # Ted's own copy: a throw across the test bed (200 px in the data)
+	ult.execute(ted, target)
 	for n in get_children():
 		if n is TrapCage and not before.has(n):
 			return n as TrapCage

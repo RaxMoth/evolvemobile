@@ -146,7 +146,8 @@ func _attack_target(delta: float) -> void:
 		current_target = null
 		return
 	
-	var distance = global_position.distance_to(current_target.global_position)
+	# From the edge of an evolved monster (EntityBase.range_to).
+	var distance: float = global_position.distance_to(current_target.global_position) - EntityBase.reach_bonus_of(current_target)
 	
 	if distance > attack_range:
 		# FIXED: Use navigation to path around obstacles

@@ -67,6 +67,22 @@ func _want_heal_mode() -> bool:
 	return false
 
 
+## Emergency Supply Drop: only when the kit would heal someone, a hero within
+## its pickup radius of her (herself included) who misses at least its heal
+## (RiverUltimateMediKit.count_reached). It used to go off on the enemy count
+## around her target, with everyone at full HP.
+func _should_auto_use_ultimate() -> bool:
+	var kit: AbilityBase = ability_system.ultimate_ability if ability_system else null
+	return kit != null and kit.count_reached(self, null, 1) >= 1
+
+
+## The kit needs no target: she may drop it between fights.
+func use_ultimate() -> bool:
+	if not ability_system or not is_ultimate_ready():
+		return false
+	return ability_system.use_ultimate(target_entity as Node2D if is_target_valid() else null)
+
+
 ## Adaptive passive: the speed boost after taking damage.
 func _get_move_speed() -> float:
 	var base_speed := super._get_move_speed()

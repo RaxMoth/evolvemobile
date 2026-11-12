@@ -80,6 +80,7 @@ func test_trap_cage_traps_the_enemies_around_its_target() -> void:
 	var vlad := await spawn_frozen(VLAD, Vector2(2000, 60))
 	var ult: AbilityBase = (ted.get_node("AbilitySystem") as AbilitySystem).ultimate_ability
 	assert_eq(ult.area_of_effect, 150.0, "Ted's copy carries the cage radius")
+	ult.ability_range = 3000.0  # Ted's own copy: a throw across the test bed (200 px in the data)
 	var before: Array[Node] = get_children()
 	ult.execute(ted, grount)
 	var cage := _new_cage(self, before)
@@ -118,6 +119,7 @@ func test_trap_cage_outlives_a_target_freed_inside_it() -> void:
 	var grount := await spawn_frozen(GROUNT, Vector2(2000, 0))
 	var hog := await spawn_frozen(HOG, Vector2(2080, 0))
 	var ult: AbilityBase = (ted.get_node("AbilitySystem") as AbilitySystem).ultimate_ability
+	ult.ability_range = 3000.0  # Ted's own copy: a throw across the test bed
 	var before: Array[Node] = get_children()
 	ult.execute(ted, grount)
 	var cage := _new_cage(self, before)
@@ -158,6 +160,7 @@ func test_trap_cage_lands_on_the_target_under_a_moved_parent() -> void:
 	get_tree().root.get_node(^"TickScheduler").unregister(ted)
 	var hog := await spawn_frozen(HOG, Vector2(2000, 0))
 	var ult: AbilityBase = (ted.get_node("AbilitySystem") as AbilitySystem).ultimate_ability
+	ult.ability_range = 5000.0  # Ted's own copy: a throw across the test bed
 	var before: Array[Node] = holder.get_children()
 	ult.execute(ted, hog)
 	var cage := _new_cage(holder, before)
