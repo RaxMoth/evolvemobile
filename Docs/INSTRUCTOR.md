@@ -95,7 +95,7 @@ Max's priorities in order of importance:
 - Victory through smart preparation, not quick reflexes
 
 ### Asymmetric Power Curves
-- **Heroes**: start strong (~39 DPS combined), grow slowly (80 XP per level)
+- **Heroes**: start strong (~39 DPS combined), grow slowly (100 XP per level)
 - **Monster**: starts weak (Grount Stage 1: 800 HP), evolves twice (Stage 3: 2200 HP)
 - **Balance target**: 40-60 % hero wins per monster on both sides (48 seeds, `tools/sim.sh`)
 
@@ -589,7 +589,10 @@ EntityBase gets the same `Hud` node scene-side (`TedsPet.tscn`), wired to its no
   always-processing timer.
 - **Headless runs are not scaled** (`GameManager.speed_scaling` is false without a display): the
   sims and the trace keep 60 steps per game second. A test that needs the speed sets
-  `speed_scaling` and restores it (`test/test_match_speed.gd`).
+  `speed_scaling` and restores it (`test/test_match_speed.gd`). `tools/sim.sh`'s `SPEED`, `FPS`
+  and `LOD=off` play a match at a device's step instead (README "Headless Tools"); keep game
+  logic step-size independent (`timer -= delta`, steps clamped to the distance left) so those
+  sims agree with the 60 Hz ones.
 - **Walking speeds are data** (fix batch P1 raised all of them by 20 %): `HeroStats`
   (`base_move_speed`, `speed_per_level`, `strafe_speed`), `MonsterStats` (`stage_N_speed`), the
   mob scenes (`base_move_speed`, `strafe_speed`) and `TedsPet.move_speed`, each with its rig's
@@ -906,6 +909,7 @@ tools/run_tests.sh [name]   # the headless suite, or the files whose name contai
 BASELINE=<file> tools/sim_trace.sh > new.txt    # determinism: byte-identical for a non-gameplay change
                                                 # (JOBS=2 matches at a time by default)
 MONSTER=all tools/sim.sh 48 heroes 6            # balance per monster (also: monster side, THREAT=, SAVE=)
+SPEED=2 FPS=30 tools/sim.sh 12 heroes 2         # the same game at a device's step (SPEED, FPS, LOD=off)
 tools/bench.sh 5 2 900 300                      # performance in the stress config
 tools/bake_nav.sh · tools/build_rigs.sh · tools/build_skill_trees.sh   # regenerate, copy back
 tools/build_locale.sh [--check]                 # strings.csv → the two .translation files

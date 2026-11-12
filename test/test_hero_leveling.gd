@@ -1,7 +1,7 @@
 extends TestCase
 
 ## README "Hero Leveling (In-Round)": shared mob XP within 800 px (100% → 50% by
-## distance), ~80 XP per level, level growth reaches ability damage; the
+## distance), XP_PER_LEVEL (100) per level, level growth reaches ability damage; the
 ## monster's kill XP (xp_value) never goes to heroes.
 
 const VLAD := "res://Scenes/NPCs/Hero/Heros/DMG/Vlad/Vlad.tscn"
@@ -34,7 +34,7 @@ func test_level_up_raises_hp_and_ability_damage() -> void:
 	var dmg1: float = abilities.get_damage_multiplier()
 	var levels := [0]
 	stats.leveled_up.connect(func(_l: int) -> void: levels[0] += 1)
-	vlad.gain_xp(170.0)  # 2 levels (80 each) + 10 left over
+	vlad.gain_xp(2.0 * HeroStatsComponent.XP_PER_LEVEL + 10.0)  # 2 levels + 10 left over
 	assert_eq(stats.level, 3)
 	assert_eq(levels[0], 2)
 	assert_near(stats.current_xp, 10.0, 0.01)

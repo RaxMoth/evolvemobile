@@ -23,6 +23,24 @@ func test_strategy_follows_stage() -> void:
 	g.queue_free()
 
 
+func test_a_hunt_walks_past_mobs_unless_they_go_for_it() -> void:
+	# A Stage 3 Nyxa stopped at every camp on her way to the heroes and spent
+	# half of her last 100 s on mobs (seed 1, no contact in 600 s).
+	var g := await spawn_frozen(GROUNT, Vector2(0, 0))
+	var bat := await spawn_frozen(BAT, Vector2(80, 0))
+	var v := await spawn_frozen(VLAD, Vector2(900, 0))
+	bat.target_entity = null
+	evolve_to(g, 3)
+	g._update_strategy()
+	assert_eq(g.strategy, MonsterBase.Strategy.HUNT)
+	assert_true(g._score_target(bat) < 0.0, "a Bat that leaves it alone is walked past")
+	assert_true(g._score_target(v) > 0.0, "the hero is the prey")
+	bat.target_entity = g
+	assert_true(g._score_target(bat) > 0.0, "a Bat that bites is fought back")
+	for n in [g, bat, v]:
+		n.queue_free()
+
+
 func test_hurt_early_monster_retreats_but_stage_3_hunts() -> void:
 	var g := await spawn_frozen(GROUNT, Vector2(0, 0))
 	var a := await spawn_frozen(VLAD, Vector2(200, 0))
@@ -265,6 +283,36 @@ func test_stage_1_farms_bats_and_leaves_hogs_alone() -> void:
 	g._update_strategy()
 	assert_true(g._score_target(hog) > 0.0, "stage 2 farms hogs")
 	for n in [g, bat, hog, mgr]:
+		n.queue_free()
+
+
+func test_a_camp_behind_mobs_it_cannot_beat_waits_while_she_farms_elsewhere() -> void:
+	# Nyxa walked to her Bat camp, a Hog camp on the way came at her, she fled,
+	# the Hogs went home, she turned back to the same camp, and so on for the
+	# rest of the match (seeds 1, 3, 15: 450 s, never Stage 3, no contact).
+	var g := await spawn_frozen(GROUNT, Vector2(0, 0))
+	var hog := await spawn_frozen(HOG, Vector2(-60, 0))
+	hog.target_entity = null
+	var mgr := SpawnManager.new()
+	mgr.auto_activate_on_ready = false
+	mgr.add_to_group(&"SpawnManager")
+	add_child(mgr)
+	var near := _camp(mgr, BAT, Vector2(-1500, 0))
+	var far := _camp(mgr, BAT, Vector2(3000, 0))
+	g._update_strategy()
+	assert_eq(g._pick_camp(), near, "the nearer Bat camp first")
+	hog.target_entity = g
+	g._camp_goal = near
+	g._update_strategy()
+	assert_eq(g._mob_threats.size(), 1, "a Hog on the way is on it")
+	hog.target_entity = null
+	g._update_strategy()
+	assert_true(g._mob_threats.is_empty(), "the Hog went home")
+	assert_eq(g._pick_camp(), far, "the camp behind the Hogs waits: the other one")
+	g._strategy_clock += g.strategy_profile.barred_camp_time + 0.1
+	g._camp_goal = null
+	assert_eq(g._pick_camp(), near, "after barred_camp_time it may try that camp again")
+	for n in [g, hog, mgr]:
 		n.queue_free()
 
 

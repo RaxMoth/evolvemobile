@@ -84,6 +84,12 @@ var _resting: bool = false
 ## Seconds since the last damage packet (rest regeneration waits regen_delay).
 var _since_damage: float = 0.0
 var _camp_goal: MobSpawnArea = null
+## Camps _pick_camp skips until the strategy clock passes the value: the camp
+## goal of a walk that mobs it cannot beat came at (MonsterStrategy
+## barred_camp_time).
+var _barred_camps: Dictionary[MobSpawnArea, float] = {}
+## Game seconds of strategy ticks (_pre_tick): the clock of _barred_camps.
+var _strategy_clock: float = 0.0
 ## The running stage scale tween (_update_stage_scale), killed by the next one.
 var _stage_tween: Tween
 
@@ -852,7 +858,10 @@ func _cast(ability_name: String, ability: AbilityBase, cast_target: Node2D) -> b
 		return false
 	ability.execute(self, cast_target, effective_ability_damage(ability))
 	# Primal Rhythm (monster_cooldown_mult) shortens every cast's cooldown.
-	var cooldown: float = ability.cooldown * _meta_cooldown_mult
+	# Less the overshoot of the frame its last cooldown ended in (_process
+	# leaves it below zero, at most one frame): casts keep their pace at any
+	# step size (README "Watched match against the sims").
+	var cooldown: float = ability.cooldown * _meta_cooldown_mult + minf(float(ability_cooldowns.get(ability_name, 0.0)), 0.0)
 	ability_cooldowns[ability_name] = cooldown
 	_cooldown_totals[ability_name] = cooldown
 	if strategy_profile:
@@ -890,6 +899,7 @@ func _pre_tick(delta: float) -> void:
 	if not _strategy_enabled() or not is_alive():
 		return
 	_since_damage += delta
+	_strategy_clock += delta
 	_update_rest(delta)
 	_strategy_timer -= delta
 	if _strategy_timer <= 0.0:
@@ -904,6 +914,11 @@ func _update_strategy() -> void:
 	var heroes_close: bool = _heroes_near > 0
 	var was_threatened: bool = not _mob_threats.is_empty()
 	_mob_threats = _find_mob_threats(next)
+	if not was_threatened and not _mob_threats.is_empty() and _camp_goal != null:
+		# Mobs it cannot beat came at it on the way: that camp lies behind them.
+		# Walking on to it, fleeing, turning back to it shuttled Nyxa at a Hog
+		# camp for the rest of the match (seeds 1, 3 and 15: 450 s).
+		_barred_camps[_camp_goal] = _strategy_clock + p.barred_camp_time
 	if next != strategy or heroes_close != _had_heroes_near or was_threatened != not _mob_threats.is_empty():
 		strategy = next
 		_camp_goal = null
@@ -958,6 +973,11 @@ func _score_target(target_node: Node2D) -> float:
 		return 10000.0 if target_node == taunter else -1000.0
 	var is_hero: bool = target_node.is_in_group("Hero")
 	if _resting and not is_hero and not _is_attacking_me(target_node):
+		return -1000.0
+	if strategy == Strategy.HUNT and not is_hero and not _is_attacking_me(target_node):
+		# A hunt walks past camps: it stopped at every one on the way, so a
+		# Stage 3 Nyxa spent half her last 100 s on mobs and never reached
+		# the heroes (seed 1). Mobs that go for it are still fought.
 		return -1000.0
 	if not is_hero and not _mob_threats.is_empty():
 		return -1000.0  # a mob we cannot beat is on us: leave, don't farm beside it
@@ -1037,7 +1057,8 @@ func _get_smart_idle_destination() -> Vector2:
 
 
 ## Best world-eligible camp with mobs left and no hero close to it: more mobs
-## and less distance score higher; the current goal is sticky.
+## and less distance score higher; the current goal is sticky. A barred camp
+## (see _update_strategy) waits out its time.
 func _pick_camp() -> MobSpawnArea:
 	var mgr := EntityRegistry.singleton(&"SpawnManager") as SpawnManager
 	if mgr == null:
@@ -1054,6 +1075,8 @@ func _pick_camp() -> MobSpawnArea:
 		if _camp_mob_health(camp) > p.max_mob_health_for_stage(current_stage):
 			continue
 		if EntityRegistry.count_within(EntityRegistry.heroes, camp.global_position, p.camp_hero_avoid_radius, 1) > 0:
+			continue
+		if float(_barred_camps.get(camp, -INF)) > _strategy_clock:
 			continue
 		var score: float = available * 100.0 - global_position.distance_to(camp.global_position)
 		if camp == _camp_goal:

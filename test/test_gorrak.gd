@@ -137,8 +137,8 @@ func test_motion_full_speed_is_his_stage_1_speed() -> void:
 
 # ---------- stages ----------
 
-## HP 1100/1450/1500 at 150 and 500 XP (Stage 3: the design's 1600 retuned to
-## 1500 for 6.5's balance), speed 67.2/76.8/88.8 (56/64/74 before P1's +20 %);
+## HP 1100/1450/1700 at 150 and 500 XP (Stage 3: the design's 1600, 1500 for
+## 6.5's balance, 1700 for G2's), speed 67.2/76.8/88.8 (56/64/74 before P1's +20 %);
 ## Cleaver Chop 14/18/18 in a 70/80/90 degree cone, Tusk Axe 10/14/18 every
 ## 7/6/5 s, Warcry Stomp 12/18/22 within 100/130/160 px every 18/15/12 s.
 func test_stage_numbers() -> void:
@@ -149,7 +149,7 @@ func test_stage_numbers() -> void:
 	var rows: Array[Array] = [
 		[1, 1100.0, 67.2, 14.0, 70.0, 10.0, 7.0, 12.0, 100.0, 18.0, 150],
 		[2, 1450.0, 76.8, 18.0, 80.0, 14.0, 6.0, 18.0, 130.0, 15.0, 500],
-		[3, 1500.0, 88.8, 18.0, 90.0, 18.0, 5.0, 22.0, 160.0, 12.0, 999999],
+		[3, 1700.0, 88.8, 18.0, 90.0, 18.0, 5.0, 22.0, 160.0, 12.0, 999999],
 	]
 	for row: Array in rows:
 		evolve_to(g, int(row[0]))

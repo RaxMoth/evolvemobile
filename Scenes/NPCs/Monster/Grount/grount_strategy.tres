@@ -4,3 +4,4 @@
 
 [resource]
 script = ExtResource("1_strategy")
+hero_awareness_radius = 600.0

@@ -227,13 +227,20 @@ const MAX_REACH_CHECKS: int = 8
 ## the map's sealed one-tile islands — and the leader (with the whole group
 ## behind it) stood at the wall facing it for half a minute. Unreachable
 ## candidates are remembered so later samples around them are skipped too.
+## A sample whose closest walkable point is ground the group stands on or
+## reached lately is no waypoint either: past the map's walkable edge the fog
+## stays unexplored for good, every sample out there snapped back onto the
+## group's own spot, the group "reached" it at once and stood there for the
+## rest of the match (Nyxa seed 15: 490 s at the east edge).
 func _first_reachable(positions: Array) -> Vector2:
 	var world: World2D = get_viewport().world_2d if get_viewport() else null
 	var from: Vector2 = _formation_leader.global_position if is_instance_valid(_formation_leader) else _calculate_group_center()
+	var center: Vector2 = _calculate_group_center()
 	var checks: int = 0
 	for p: Vector2 in positions:
 		var on_mesh: Vector2 = _snap_to_nav(p)
-		if _is_abandoned(on_mesh):
+		if _is_abandoned(on_mesh) or _is_recently_explored(on_mesh) \
+				or on_mesh.distance_to(center) < waypoint_reached_distance:
 			continue
 		if GameUtils.nav_path_reaches(world, from, on_mesh):
 			return on_mesh

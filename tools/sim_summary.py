@@ -59,6 +59,9 @@ def summarize(rows, expected):
     power = sorted(r.get("power", 0) for r in rows)
     print(f"runs: {len(rows)}/{expected or len(rows)}   side: {rows[0]['side']}   monster: {monster_id} ({monster_name})"
           f"   threat: {threat} (played side's power ranks {power[0]}" + (f"-{power[-1]})" if power[-1] != power[0] else ")"))
+    step, lod = rows[0].get("step_hz", 60.0), rows[0].get("lod", True)
+    if step != 60.0 or not lod:
+        print(f"step: {step:g} game steps per second (sims: 60), mob AI LOD {'on' if lod else 'off'}")
     print(f"winner: heroes {pct(heroes)}  monster {pct(monster)} (of which timeout {timeouts})  undecided(cap) {capped}")
     print(f"match length: median {med(lengths)}  p10 {q(lengths, .1)}  p90 {q(lengths, .9)}")
     print(f"first hero<->monster contact: median {med(contact)}  ({len(contact)} runs)")

@@ -298,3 +298,50 @@ func test_the_speed_strings_are_translated() -> void:
 			var text := String(step[key])
 			assert_true(TranslationServer.translate(text) != text, "German for \"%s\"" % text.left(30))
 	TranslationServer.set_locale(before)
+
+
+# ---------- step size (fix batch G2, README "Watched match against the sims") ----------
+
+const VLAD := "res://Scenes/NPCs/Hero/Heros/DMG/Vlad/Vlad.tscn"
+const GROUNT := "res://Scenes/NPCs/Monster/Grount/Grount.tscn"
+## The sims' step and a phone's on fast at 30 fps (2.4 / 30 game seconds).
+const STEPS: Array[float] = [1.0 / 60.0, 0.08]
+
+
+## Mean game seconds between the casts of `cast` over `seconds`, stepping
+## `tick` (a cooldown update, then a cast as soon as one is ready) by `step`.
+func _mean_interval(step: float, seconds: float, tick: Callable, cast: Callable) -> float:
+	var times: Array[float] = []
+	var t := 0.0
+	while t < seconds:
+		tick.call(step)
+		t += step
+		if cast.call():
+			times.append(t)
+	if times.size() < 2:
+		return INF
+	return (times[times.size() - 1] - times[0]) / float(times.size() - 1)
+
+
+## A cooldown that ended inside a frame left its overshoot unused, so a swing
+## came on the first frame after it: 1.04 s instead of 1.0 for Vlad at 0.08 s
+## a step (about 4 % fewer hits), 2.56 s instead of 2.5 for Grount's cleave.
+## The overshoot (at most one frame) now counts toward the next cooldown.
+func test_attacks_keep_their_pace_at_any_step() -> void:
+	var vlad := await spawn_frozen(VLAD, Vector2(0, 0))
+	var asys: AbilitySystem = (vlad as HeroBase).ability_system
+	asys.set_process(false)  # stepped by hand below
+	var basic := AbilityBase.AbilityType.BASIC_ATTACK
+	var g := await spawn_frozen(GROUNT, Vector2(2000, 0))  # far: the cleave hits nobody
+	g.set_process(false)
+	for step: float in STEPS:
+		asys.cooldowns[basic] = 0.0
+		var hero := _mean_interval(step, 60.0, func(dt: float) -> void: asys._process(dt),
+				func() -> bool: return not asys.is_on_cooldown(basic) and asys.use_basic_attack(null))
+		assert_near(hero, asys.basic_attack.cooldown, 0.01, "Vlad swings every %.2f s at a %.3f s step" % [asys.basic_attack.cooldown, step])
+		g.ability_cooldowns["ability_1"] = 0.0
+		var cleave := _mean_interval(step, 120.0, func(dt: float) -> void: g._process(dt),
+				func() -> bool: return g.is_ability_ready("ability_1") and g._cast("ability_1", g.ability_1, vlad))
+		assert_near(cleave, g.ability_1.cooldown, 0.02, "Grount cleaves every %.2f s at a %.3f s step" % [g.ability_1.cooldown, step])
+	for n in [vlad, g]:
+		n.queue_free()

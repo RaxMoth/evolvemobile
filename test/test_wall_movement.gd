@@ -73,6 +73,36 @@ func test_exploration_skips_a_waypoint_on_an_unreachable_island() -> void:
 	await wait_physics_frames(6)
 
 
+func test_exploration_never_picks_the_ground_the_group_stands_on() -> void:
+	# Past the map's walkable edge the fog stays unexplored for good. Samples
+	# out there snapped back onto the group's own spot, the group "reached"
+	# that waypoint at once and stood at the east edge for 490 s (Nyxa seed 15).
+	var region := NavigationRegion2D.new()
+	var poly := NavigationPolygon.new()
+	poly.agent_radius = 0.0
+	var src := NavigationMeshSourceGeometryData2D.new()
+	src.add_traversable_outline(PackedVector2Array([Vector2(0, 0), Vector2(1000, 0), Vector2(1000, 1000), Vector2(0, 1000)]))
+	NavigationServer2D.bake_from_source_geometry_data(poly, src)
+	region.navigation_polygon = poly
+	add_child(region)
+	await wait_physics_frames(6)
+	var vlad := await spawn_frozen(VLAD, Vector2(960, 500))
+	var ctrl := (load(CTRL) as PackedScene).instantiate() as HeroExplorationController
+	add_child(ctrl)
+	await wait_frames(2)
+	ctrl.set_process(false)
+	var past_edge := Vector2(1400, 500)  # snaps to (1000, 500), 40 px from the group
+	var inland := Vector2(500, 500)
+	assert_eq(ctrl._first_reachable([past_edge, inland]), inland, "a sample that snaps onto the group is no waypoint")
+	assert_false(ctrl._is_abandoned(Vector2(1000, 500)), "and not marked unreachable: it is reachable")
+	ctrl.explored_targets.append(Vector2(500, 500))
+	var beside := Vector2(300, 500)
+	assert_eq(ctrl._first_reachable([Vector2(560, 520), beside]), beside, "nor a point the group reached lately")
+	for n in [vlad, ctrl, region]:
+		n.queue_free()
+	await wait_physics_frames(6)
+
+
 func test_a_hero_jittering_in_a_corner_gets_a_detour_formation_keeps() -> void:
 	var vlad := await spawn_frozen(VLAD, Vector2(0, 0))
 	var ctrl := (load(CTRL) as PackedScene).instantiate() as HeroExplorationController

@@ -597,7 +597,7 @@ func test_a_damage_drop_comes_with_its_cooldown() -> void:
 				assert_true(ability.description.contains(want), "%s names its Stage %d damage (%s)" % [ability.ability_name, stage, ability.description])
 				var every := "every %s s" % _seconds(ability.cooldown_per_stage[stage - 1])
 				assert_true(ability.description.contains(every), "%s says '%s' (%s)" % [ability.ability_name, every, ability.description])
-	for expected: String in ["Front Cleave", "Ground Slam", "Sonic Screech"]:
+	for expected: String in ["Front Cleave", "Ground Slam"]:
 		assert_true(checked.has(expected), "%s drops at a later stage" % expected)
 
 

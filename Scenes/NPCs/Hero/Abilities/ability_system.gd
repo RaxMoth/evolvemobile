@@ -57,10 +57,11 @@ func _process(delta: float) -> void:
 		var reduction: float = delta
 		if ability_type == AbilityBase.AbilityType.BASIC_ATTACK:
 			reduction *= get_attack_speed_multiplier()
-		remaining -= reduction
-		if remaining < 0.0:
-			remaining = 0.0
-		cooldowns[ability_type] = remaining
+		# The frame that ends a cooldown leaves its overshoot (at most one
+		# frame's reduction) below zero; the next cast credits it, so attacks
+		# keep their pace at any step size (README "Watched match against the
+		# sims"). Readers treat anything <= 0 as ready.
+		cooldowns[ability_type] = remaining - reduction
 
 	# After the cooldowns, so the attack speed read above is the passive's
 	# value from before this frame's update.
@@ -82,7 +83,9 @@ func _use_ability(ability: AbilityBase, ability_type: AbilityBase.AbilityType, t
 
 	if not is_on_cooldown(ability_type) and ability.can_use(owner_entity):
 		ability.execute(owner_entity, target)
-		var cooldown: float = ability.cooldown * _cooldown_multiplier(ability_type)
+		# Less the overshoot of the frame its last cooldown ended in (<= 0):
+		# a cast never waits a frame longer than its cooldown on average.
+		var cooldown: float = ability.cooldown * _cooldown_multiplier(ability_type) + minf(cooldowns[ability_type], 0.0)
 		cooldowns[ability_type] = cooldown
 		_cooldown_totals[ability_type] = cooldown
 		ability_used.emit(ability)

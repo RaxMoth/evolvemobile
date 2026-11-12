@@ -10,7 +10,7 @@ signal leveled_up(new_level: int)
 var level: int = 1
 ## In-round XP toward the next level (README: ~80 XP per level).
 var current_xp: float = 0.0
-const XP_PER_LEVEL: float = 80.0
+const XP_PER_LEVEL: float = 100.0
 const MAX_LEVEL: int = 10
 
 var current_stats := {

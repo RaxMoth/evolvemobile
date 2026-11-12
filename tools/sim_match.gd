@@ -8,6 +8,7 @@ extends SceneTree
 ##
 ##   godot --headless --fixed-fps 60 --max-fps 0 --path <copy> \
 ##         -s res://tools/sim_match.gd -- <seed> [heroes|monster] [cap_seconds] [trace] [rigs_awake] [monster=<id>] [threat=<0-4>]
+##         [speed=<0-2>] [fps=<n>] [lod=off]
 ##
 ## "monster=<id>" picks the roster monster (GameManager.select_monster, not
 ## persisted); without it the roster default plays, so old command lines replay
@@ -24,6 +25,17 @@ extends SceneTree
 ## "rigs_awake" makes every CharacterRig animate as if on screen (headless, no
 ## notifier ever fires): presentation must never feed gameplay, so the trace
 ## stays byte-identical (tools/sim_trace.sh RIGS_AWAKE=1).
+##
+## Step size (the fidelity check: a watched match steps coarser than a sim).
+## By default every frame is 1/60 game second and the mobs tick at the
+## TickScheduler's 20/10/3 Hz, as no mob is ever on screen headless.
+## "speed=<1|2>" plays the match at its base or fast speed
+## (GameManager.speed_scaling, set_match_fast: Engine.time_scale 1.2 or 2.4),
+## so a frame covers time_scale / fps game seconds as on a device; "fps=<n>"
+## must be the --fixed-fps the run was started with (tools/sim.sh FPS passes
+## both); "lod=off" ticks every mob every frame (TickScheduler.lod_enabled),
+## as a device ticks the mobs on screen. Times in the result are game seconds
+## either way ("step_hz": game steps per second, "lod").
 ##
 ## With "trace" it also prints a determinism fingerprint of the match state
 ## every TRACE_EVERY frames (`SIM_TRACE <frame> <hash>`) and once at the end
@@ -54,12 +66,24 @@ var _trace: bool = false
 var _monster_id: String = ""
 ## Threat from "threat=<N>" (the parity check); -1 = the rule on the save.
 var _threat: int = -1
+## "speed=<N>" (0 = game time), "fps=<n>" (the run's --fixed-fps) and
+## "lod=off": the step-size check. _game_s counts game seconds when a frame
+## is not 1/60 game second (_scaled_step).
+var _speed: int = 0
+var _fps: float = FPS
+var _lod: bool = true
+var _scaled_step: bool = false
+var _game_s: float = 0.0
+## _game_s at the last hero-state sample.
+var _sampled_s: float = 0.0
 ## Node name of the spawned monster: the "by" of the hero deaths it caused.
 var _monster_name: String = ""
 var _frames: int = 0
 var _done: bool = false
 
 var _first_contact_s: float = -1.0
+## Each hero's level when the first hero-monster damage landed.
+var _hero_levels_contact: Dictionary = {}
 var _hero_dmg_to_monster: float = 0.0
 var _monster_dmg_to_heroes: float = 0.0
 var _hero_deaths: Array = []
@@ -102,6 +126,13 @@ func _initialize() -> void:
 			_monster_id = arg.trim_prefix("monster=")
 		elif arg.begins_with("threat="):
 			_threat = int(arg.trim_prefix("threat="))
+		elif arg.begins_with("speed="):
+			_speed = clampi(int(arg.trim_prefix("speed=")), 0, 2)
+		elif arg.begins_with("fps="):
+			_fps = maxf(1.0, float(arg.trim_prefix("fps=")))
+		elif arg == "lod=off":
+			_lod = false
+	_scaled_step = _speed > 0 or _fps != FPS
 	if args.has("rigs_awake"):
 		# By path: a -s script must not name project classes.
 		load("res://Scripts/Rig/character_rig.gd").set("force_awake", true)
@@ -118,6 +149,12 @@ func _start() -> void:
 		gm.call("select_monster", StringName(_monster_id), false)
 	if _threat >= 0:
 		_start_parity_check()
+	if _speed > 0:
+		# As tools/bench_match.gd: the time scale a player watches at.
+		gm.set("speed_scaling", true)
+		gm.call("set_match_fast", _speed > 1, false)
+	if not _lod:
+		root.get_node("TickScheduler").set("lod_enabled", false)
 	gm.connect("match_ended", _on_match_ended)
 	var bus := root.get_node("EventBus")
 	bus.connect("damage_applied", _on_damage_applied)
@@ -149,18 +186,26 @@ func _start_parity_check() -> void:
 
 
 func _t() -> float:
-	return _frames / FPS
+	return _game_s if _scaled_step else _frames / FPS
 
 
 func _tick() -> void:
 	_frames += 1
-	if _frames % 6 == 0:  # sample hero states at 10 Hz
+	if _scaled_step:
+		# This frame's game seconds (Engine.time_scale is the match's scale
+		# while it runs, 1 before and after).
+		_game_s += Engine.time_scale / _fps
+	if _frames % 6 == 0:  # sample hero states every 6 frames (10 Hz at 60 fps game time)
+		var span: float = 0.1
+		if _scaled_step:
+			span = _game_s - _sampled_s
+			_sampled_s = _game_s
 		for h in root.get_node("EntityRegistry").get("heroes"):
 			if is_instance_valid(h):
 				var n := String((h as Node).name)
 				var st := _state_of(h as Node)
 				var d: Dictionary = _hero_state_s.get_or_add(n, {})
-				d[st] = float(d.get(st, 0.0)) + 0.1
+				d[st] = float(d.get(st, 0.0)) + span
 	if _trace and not _done and _frames % TRACE_EVERY == 0:
 		print("SIM_TRACE %d %d" % [_frames, _trace_hash("")])
 	if not _done and _t() >= _cap_s:
@@ -186,6 +231,7 @@ func _on_damage_applied(packet: Object) -> void:
 	if (src_hero and dst_mon) or (src_mon and dst_hero):
 		if _first_contact_s < 0.0:
 			_first_contact_s = _t()
+			_hero_levels_contact = _hero_levels()
 	if src_hero and dst_mon:
 		_hero_dmg_to_monster += amount
 	elif src_mon and dst_hero:
@@ -301,6 +347,8 @@ func _report(reason: String, winner: String, t: float) -> void:
 		"hero_deaths": _hero_deaths,
 		"evolutions": _monster_stage_times,
 		"first_contact": snappedf(_first_contact_s, 0.1),
+		"hero_levels_contact": _hero_levels_contact,
+		"hero_levels_end": _hero_levels(),
 		"hero_dmg_to_monster": roundi(_hero_dmg_to_monster),
 		"monster_dmg_to_heroes": roundi(_monster_dmg_to_heroes),
 		"mob_kills_monster": _mob_kills_by_monster,
@@ -314,9 +362,20 @@ func _report(reason: String, winner: String, t: float) -> void:
 		"staff_heal_hp": roundi(_staff_heal_hp),
 		"monster_dmg_taken": _monster_dmg_taken,
 		"monster_killer": _monster_killer,
+		"step_hz": snappedf(_fps / (float(gm.call("match_speed")) if _speed > 0 else 1.0), 0.1),
+		"lod": _lod,
 	}
 	print("SIM_RESULT " + JSON.stringify(out))
 	quit()
+
+
+## Hero name -> level (HeroStats) of the heroes alive now.
+func _hero_levels() -> Dictionary:
+	var out := {}
+	for h in root.get_node("EntityRegistry").get("heroes"):
+		if is_instance_valid(h):
+			out[String((h as Node).name)] = int((h as Node).get_node("HeroStats").get("level"))
+	return out
 
 
 func _state_of(entity: Node) -> String:

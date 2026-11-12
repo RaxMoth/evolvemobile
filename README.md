@@ -124,7 +124,10 @@ The goal was 25-35 % less real time per round, "slightly" faster: the pair
 matches, the low end of the goal. The faster walk also
 moves the match itself: more matches end early, with the monster found at
 Stage 1 (46 of 144 end at Stage 1, was 38; Grount first meets the heroes at
-309 game s, was 392), see Measured Balance.
+309 game s, was 392), see Measured Balance. After fix batch G2 (contact for
+every monster and the final retune; 288 matches at 48 seeds per side) the
+median match is 404 game s, **337 s real** at the normal setting (168 s on
+fast), and the median first contact 363 game s (303 real).
 
 - **One number sets the time scale**: `MATCH_BASE_SPEED`. While a match runs,
   `Engine.time_scale` is `GameManager.match_speed()` (the base, times the
@@ -158,7 +161,10 @@ Stage 1 (46 of 144 end at Stage 1, was 38; Grount first meets the heroes at
   hero moves 2 px a frame at the base speed and 4 px on fast at 60 fps (8 px
   on fast at 30 fps), a Bat 14 px and a Stage III Nyxa 12 px on fast at
   30 fps, still inside every melee fighter's 20 px or wider band between
-  `min_distance` and the attack range.
+  `min_distance` and the attack range. A cooldown that ends inside a frame
+  credits its overshoot to the next cast (fix batch G2), so heroes and
+  monsters attack at their pace at any step; the sims at a device's steps are
+  under "Contact and the Final Retune" ("Watched match against the sims").
 - **Cost**: a frame costs more at speed, because everything that is paced in
   game time comes more often per frame (the mobs' 20 / 10 / 3 Hz AI ticks
   first of all). Stress bench on the development Mac
@@ -381,9 +387,12 @@ cooldown.
 ### Hero Leveling (In-Round)
 
 - **XP Sources**: Bat (6 XP), Hog (15 XP) (`hero_xp_value` on the mob scene)
-- **XP Required**: 80 XP per level (`HeroStatsComponent.XP_PER_LEVEL`), up to
+- **XP Required**: 100 XP per level (`HeroStatsComponent.XP_PER_LEVEL`), up to
   level 10; the max-HP gain of a level is healed, and the per-level damage
-  reaches every ability (`get_damage_scale`)
+  reaches every ability (`get_damage_scale`). It was 80 until fix batch G2:
+  once the exploring group stopped parking at the map's edge (Hero Exploration
+  AI) it cleared about a fifth more camps and met a Stage 3 monster at level 5
+  on average; at 100 it is level 3.5-4 again, the Encounter Scenarios' "3-4"
 - **XP Radius**: every living hero within 800 px of the dying mob gets it
   (100% close by, falling to 50% at the edge)
 - **Scaling**: Slow growth favors early aggression
@@ -397,28 +406,31 @@ plus its stats, strategy and ability `.tres` (see "Shared Monster Framework"
 and "Character Roster"). Hero wins at threat 0 are `MONSTER=<id> tools/sim.sh
 48 heroes 6` / `... 48 monster 6` (fresh save, reproducible since 6.2); the
 target is 40-60 % per monster on both sides. The columns repeat the latest
-measurement: fix batch P1's 24 seeds per side (everybody walks 20 % faster;
-see Measured Balance and Match Speed); all three are inside the target, the
-final balance batch measures them again with 48 seeds.
+measurement: fix batch G2's 48 seeds per side, after the contact fixes and
+the final retune (see Measured Balance and "Contact and the Final Retune").
+Gorrak is inside the target; Grount (38 %) and Nyxa (62 %) are 2 points
+outside it, within one standard error of 48 seeds (7 points).
 
 | Monster | Role | Owned / unlock | Heroes meet it after | HP (S1 / S2 / S3) | Evolves at (total XP) | Hero wins, heroes side / monster side | Timeouts (H / M) |
 | ------- | ---- | -------------- | -------------------- | ----------------- | --------------------- | ------------------------------------ | ---------------- |
-| **Grount**, the Bull | brute: cone cleave, ram dash, leaping slam | from the start | 0 hunts | 800 / 1400 / 2200 | 150 / 300 | 58 % / 54 % | 2 / 2 |
-| **Nyxa**, the Dusk Matriarch | stalker: lifesteal skirmisher, bat aura | 2,500 Leaves once a monster is Lv 3 | 3 hunts | 600 / 950 / 1250 | 150 / 400 | 58 % / 58 % | 6 / 6 |
-| **Gorrak**, the Boar King | brute: armoured, returning axe, stunning stomp | 3,000 Leaves once a monster is Lv 3 | 6 hunts | 1100 / 1450 / 1500 | 150 / 500 | 46 % / 42 % | 3 / 3 |
+| **Grount**, the Bull | brute: cone cleave, ram dash, leaping slam | from the start | 0 hunts | 800 / 1400 / 2200 | 150 / 300 | 38 % / 38 % | 1 / 1 |
+| **Nyxa**, the Dusk Matriarch | stalker: lifesteal skirmisher, bat aura | 2,500 Leaves once a monster is Lv 3 | 3 hunts | 600 / 950 / 1250 | 150 / 400 | 62 % / 62 % | 3 / 3 |
+| **Gorrak**, the Boar King | brute: armoured, returning axe, stunning stomp | 3,000 Leaves once a monster is Lv 3 | 6 hunts | 1100 / 1450 / 1700 | 150 / 500 | 44 % / 42 % | 0 / 0 |
 
 - Every monster heals to full on evolving (`heal_to_full_on_evolution`).
   Each has a per-stage table for every ability, so `stage_N_damage_multiplier`
   only matters for an untabled ability.
 - At Opponent Threat 1-4 (the AI monster's build grows with the player's
-  ranks) 21 of the 30 parity cells are inside 35-65 % (table under "Opponent
-  Threat"); Gorrak at threat 3-4 (62-75 %) is the weak spot.
+  ranks) 14 of the 24 parity cells are inside 35-65 % since fix batch G2
+  (table under "Opponent Threat"): every monster wins at threat 4 (8-17 %
+  hero wins, the capstones) and Grount from threat 2 on (12-25 %).
 - Capstone sanity (a fully ranked monster, one capstone, against fresh heroes,
   24 seeds): Grount Titan Form 0 %, Rampage 29 %, Trample 33 % hero wins;
   Nyxa and Gorrak 0 % with every capstone ("Monster capstones and behaviour
   nodes").
-- Nyxa's wins are mostly timeouts (she evades): accepted as her trait (P1:
-  6 of 24 matches per side without contact; G1: 7).
+- Nyxa's wins are no longer timeouts (fix batch G2: 6 of 96 matches without
+  contact, was 6 of 24 per side at P1): the heroes find her and she wins her
+  fights instead.
 - Codex, roster and pre-round show each monster's stage names, tip and moves
   from its `CharacterDef` (`Assets/Characters/<id>/<id>_def.tres`).
 
@@ -510,8 +522,8 @@ landing; the combo casts it only when it hits 2+ targets.
 
 - Option 1: 19 Bats (152 XP) → Stage 2, then 6 Hogs (150 XP) → Stage 3
 - Option 2: 6 Hogs (150 XP) → Stage 2, then 6 Hogs (150 XP) → Stage 3
-- **Time Required**: median 322 s (about 5.4 min) to Stage 3 in the sim
-  (Measured Balance); Stage 1 farms Bats only, Hogs from Stage 2
+- **Time Required**: median 310 game s (about 5.2 min) to Stage 3 in the sim
+  (Measured Balance, fix batch G2); Stage 1 farms Bats only, Hogs from Stage 2
 
 ---
 
@@ -540,7 +552,8 @@ and leaves Fight past 150 px. Every ability has a
 per-stage table, so the stage damage multiplier never applies to her.
 
 - **Sonic Screech** (ability 1, `BullFrontCleave`): a 110 px cone of
-  50 / 60 / 70°, 8 / 10 / 8 damage every 2.0 / 1.8 / 1.5 s, lifesteal 20%.
+  50 / 60 / 70°, 8 / 10 / 12 damage every 2.0 / 1.8 / 1.5 s, lifesteal 20%
+  (Stage 3 was 8 until fix batch G2: see Measured Balance).
 - **Shadow Swoop** (ability 2, `BullRamDash`): 260 px at 700 px/s with
   `dash_stop_short` -60, so she ends 60 px behind the target; 12 / 16 / 22
   damage every 9 / 7 / 5 s, lifesteal 30%. Also her escape (`escape_dash_radius` 140).
@@ -559,7 +572,10 @@ per-stage table, so the stage damage multiplier never applies to her.
   lone-hero ambushes).
 - **Counterplay** (her def's tip): she swoops onto lone heroes; keep the pack
   within 300 px and burst her before Stage 3.
-- About a third of her wins are timeouts: she evades. Accepted as her trait.
+- She no longer wins by never being found (fix batch G2: the heroes stopped
+  parking at the map's edge and she stopped stalling at a Hog camp), so her
+  Stage 3 screech hits harder (12, was 8) and she wins her fights instead of
+  the clock; see Measured Balance.
 
 ---
 
@@ -570,13 +586,13 @@ stomp that stuns the pack. He never flees with his axe. His scene
 `Scenes/NPCs/Monster/Gorrak/Gorrak.tscn` inherits `monster_base_class.tscn`
 with the boar-king rig (`gorrak_body`, HUMANOID: he stands upright); his numbers are the
 gamedesign's final config (v6), except Stage 3 HP, retuned 1600 → 1500 in 6.5
-(see Balance). Not owned by default: 3,000 Leaves once any owned monster is
+and 1500 → 1700 in fix batch G2 (see Measured Balance). Not owned by default: 3,000 Leaves once any owned monster is
 Lv.3 (bought on the unlock sheet, see Opponent Choice and Monster Unlocks),
 and the Heroes side meets him after 6 hunts (`opponent_after_matches`).
 
 | Attribute        | Stage 1 (Tusker) | Stage 2 (Warlord)   | Stage 3 (Boar King)  |
 | ---------------- | ---------------- | ------------------- | -------------------- |
-| **HP**           | 1100             | 1450 (heals to full) | 1500 (heals to full) |
+| **HP**           | 1100             | 1450 (heals to full) | 1700 (heals to full) |
 | **Damage taken** | × 0.85           | × 0.90              | × 1.00               |
 | **Speed**        | 67.2             | 76.8                | 88.8                 |
 | **Scale**        | 1.0              | 1.15                | 1.3                  |
@@ -758,6 +774,7 @@ fresh saves, threat 0; the balance at each Opponent Threat level is under
 | G1: combat AI fixes (24 seeds) | 33 % | 33 % | 1 / 1 | 327 s / 327 s | 390 s / 390 s |
 | before P1 (`c60fa2f`, after R1-R5; 24 seeds) | 50 % | 50 % | 1 / 1 | 331 s / 331 s | 392 s / 392 s |
 | P1: everybody walks 20 % faster (24 seeds) | 58 % | 54 % | 2 / 2 | 296 s / 296 s | 309 s / 309 s |
+| G2: contact for every monster, XP 100, awareness 600 (48 seeds) | **38 %** | **38 %** | 1 / 1 | 310 s / 310 s | 324 s / 321 s |
 
 - 6.3 changed two things. Ted's Trap Cage now traps what it lands on (it
   trapped almost nothing; see "Hero capstones and behaviour nodes"), which
@@ -781,11 +798,13 @@ fresh saves, threat 0; the balance at each Opponent Threat level is under
 | G1: combat AI fixes (24 seeds) | 33 % | 33 % | 8 / 7 | 376 s / 369 s | 428 s / 428 s |
 | before P1 (`c60fa2f`, after R1-R5; 24 seeds) | 46 % | 46 % | 8 / 7 | 376 s / 376 s | 428 s / 428 s |
 | P1: everybody walks 20 % faster (24 seeds) | 58 % | 58 % | 6 / 6 | 342 s / 341 s | 382 s / 386 s |
+| G2: contact for every monster, XP 100, screech 12 at Stage 3 (48 seeds) | **62 %** | **62 %** | 3 / 3 | 360 s / 360 s | 369 s / 369 s |
 
-- Nyxa's wins are almost all timeouts: in 17 of 48 matches the heroes never
-  meet her (she farms Bats away from them and swoops off). When they meet
-  her at Stage 1 (7 of 48) the heroes win all; at Stage 3 (24 of 48) they
-  win 75–79 %. Accepted as her trait: she evades.
+- Until G2 Nyxa's wins were almost all timeouts: in 17 of 48 matches the
+  heroes never met her (6.4), 6 of 24 per side at P1. Two bugs did it, not
+  her evasion (see "Contact and the Final Retune"); since G2 they meet her in
+  90 of 96 matches, and at Stage 3 (60 of 96) they win 60 % (75–79 % before:
+  she was a pushover once found).
 
 | Gorrak | Heroes side | Monster side | Timeouts (H / M) | Median Stage 3 | Median first contact |
 | ------ | ----------- | ------------ | ---------------- | -------------- | -------------------- |
@@ -794,6 +813,7 @@ fresh saves, threat 0; the balance at each Opponent Threat level is under
 | G1: combat AI fixes (24 seeds) | 38 % | 50 % | 3 / 2 | 349 s / 350 s | 442 s / 442 s |
 | before P1 (`c60fa2f`, after R1-R5; 24 seeds) | 50 % | 58 % | 3 / 2 | 349 s / 350 s | 442 s / 442 s |
 | P1: everybody walks 20 % faster (24 seeds) | 46 % | 42 % | 3 / 3 | 304 s / 313 s | 393 s / 396 s |
+| G2: contact for every monster, XP 100, Stage 3 HP 1700 (48 seeds) | **44 %** | **42 %** | 0 / 0 | 330 s / 330 s | 379 s / 379 s |
 
 - G1 (fix batch, `MONSTER=all tools/sim.sh 24 <side> 2`) changed both sides at once: ultimates
   only in reach and never at a reused pooled mob, the Supply Drop landing before it heals,
@@ -823,6 +843,130 @@ fresh saves, threat 0; the balance at each Opponent Threat level is under
   Stage 1 in 6 of 48 matches (the heroes win 4) and at Stage 3 in 37–38,
   where the heroes win 42 % (heroes side) and 57 % (monster side). The 4–5
   matches without a contact are timeouts.
+
+### Contact and the Final Retune (fix batch G2, headless sim)
+
+**Why matches ended without a contact.** Probes of the P1 seeds without a
+contact (a state line every 10 game seconds) showed two bugs meeting in every
+one of them: the hero group parked at the map's east edge from about 110 s on
+(Hero Exploration AI: "No waypoint underfoot") and the monster shuttled at a
+Hog camp in front of its Bat camp (Monster AI: "Barred camps"), so Nyxa never
+reached Stage 3 and never hunted. A hunting monster also stopped at every camp
+on its way (Monster AI: "Hunt"). With the three fixes the heroes met Nyxa in
+23 of 24 matches (P1: 18), Grount and Gorrak in all of them.
+
+**Why the balance moved.** Roaming heroes clear about a fifth more camps than
+parked ones: they met a Stage 3 monster at level 5 and won 71-88 % of the
+matches (heroes side, 24 seeds; the "fixes" rows). The retune, heroes side, 24
+seeds a row, every row with the three fixes and, unless noted, 100 hero XP per
+level (`HeroStatsComponent.XP_PER_LEVEL`, was 80):
+
+| Monster | Variant | Hero wins |
+|---|---|---|
+| all | P1 (the parent) | 58 / 58 / 46 % (Grount / Nyxa / Gorrak; Nyxa 6 matches without contact) |
+| all | the exploration and camp fixes, XP 80 | 79 / 83 / 79 % (Nyxa 3 without contact) |
+| all | + the hunt walks past camps, XP 80 | 71 / 88 / 58 % (Nyxa 1) |
+| Grount | Stage 2 at 120 XP / Stage 3 HP 2700 / both | 67 / 54 / 42 % |
+| Grount | awareness 600 + Stage 3 HP 2700 / 2450 | 38 / 42 % |
+| Grount | **awareness 600** (`hero_awareness_radius`, was 400) | **46 %** |
+| Nyxa | Stage 3 HP 1700 at XP 80 / 1700 / 2000 | 75 / 62 / 38 % |
+| Nyxa | Stage 3 HP 1700 with the screech at 10 / 14 | 46 / 29 % |
+| Nyxa | **Sonic Screech 12 at Stage 3** (was 8), HP 1250 | **54 %** |
+| Gorrak | Stage 3 HP 1500 / 1800 | 67 / 42 % |
+| Gorrak | **Stage 3 HP 1700** | **54 %** |
+
+The shipped set is the smallest that put every monster into 40-60 %: one
+global number and one per monster. Grount's Stage I was the problem (the
+heroes caught him in half the matches and won every such fight); noticing them
+at 600 px lets him slip away (8 of 24), so no stat of his moved. Nyxa keeps her
+glass-cannon HP and her screech no longer drops at Stage 3. The 48-seed table
+of the shipped tree is in Measured Balance above (the "G2" rows) and below.
+
+**The shipped tree at threat 0** (`MONSTER=all tools/sim.sh 48 <side> 2`, 96
+matches per monster; real seconds at the normal setting = game seconds / 1.2;
+Steel and Leaves are `MatchRewards.compute` on each row, the played side's):
+
+| Monster | Hero wins, heroes / monster side | Without contact (of 96) | Median match, game / real s | Median first contact, game / real s | Reach Stage 2 / 3 | First contact at Stage 1 / 2 / 3 (hero wins) | Median Steel / Leaves |
+|---|---|---|---|---|---|---|---|
+| Grount | 38 % / 38 % | 2 | 373 / 311 | 323 / 269 | 83 / 79 % | 16 (16) / 6 (4) / 72 (16) | 792 / 750 |
+| Nyxa | 62 % / 62 % | 6 | 404 / 337 | 369 / 307 | 79 / 71 % | 20 (20) / 10 (4) / 60 (36) | 915 / 998 |
+| Gorrak | 44 % / 42 % | 0 | 413 / 344 | 379 / 316 | 85 / 77 % | 22 (14) / 4 (2) / 70 (25) | 890 / 975 |
+
+- **Contact**: 8 of 288 matches end without one (3 %; P1: 22 of 144, 15 %),
+  at most 6 % for any monster. The rest are a Nyxa or a Grount that never
+  reached Stage 3 (slow Bat farming, no hunt).
+- **Pace**: the median match is 404 game seconds (337 real at the normal
+  setting; P1 422 / 351), the median first contact 363 / 303 (P1 384 / 320).
+  Most matches are decided at Stage 3 (202 of 288 first contacts), where the
+  heroes win 22 % against Grount, 60 % against Nyxa and 36 % against Gorrak;
+  a Stage I monster that is caught loses (50 of 58).
+- **Outside the target**: Grount 38 % and Nyxa 62 %, 2 points each, within one
+  standard error of 48 seeds (7 points); the 24-seed runs of the same numbers
+  gave 46 % and 54 %. The step-size change below (credited cooldown
+  overshoot) landed between the two measurements.
+
+#### Watched match against the sims
+
+The sims step the entity logic 60 times per game second, and an off-screen
+mob ticks at the TickScheduler's 20 / 10 / 3 Hz. A watched match steps once
+per drawn frame: 50 times per game second at the base speed and 60 fps, 25 on
+fast, 12.5 on fast on a 30 fps phone, and the mobs on screen tick every frame.
+`tools/sim.sh` plays those steps headless (`SPEED`, `FPS`, `LOD=off`, see
+Headless Tools); 12 seeds per side and monster, 72 matches a row, threat 0.
+
+**Found and fixed: attack timers rounded up to the step.** A cooldown that
+ended inside a frame threw its overshoot away, so a swing came on the first
+frame after it: at 1/12.5 Vlad's 1.0 s attack took 1.04 s and Grount's 2.5 s
+cleave 2.56 s. `AbilitySystem` and `MonsterBase._cast` now credit the overshoot
+(at most one frame) to the next cast (`test_match_speed`: the same pace at
+1/60 and at 0.08 s a step). Measured before the fix (hero basic attacks per
+second in Fight; hero wins):
+
+| Step (game s) | Hero wins Grount / Nyxa / Gorrak / all | Median match / first contact (game s) | No contact | Hero attacks per Fight second |
+|---|---|---|---|---|
+| 1/60 (the sims) | 58 / 62 / 50 / 57 % | 378 / 331 | 4 | 0.969 |
+| 1/50 (base, 60 fps) | 42 / 46 / 71 / 53 % | 367 / 322 | 0 | 0.939 |
+| 1/25 (fast, 60 fps) | 42 / 58 / 50 / 50 % | 363 / 328 | 0 | 0.946 |
+| 1/12.5 (fast, 30 fps) | 54 / 75 / 33 / 54 % | 355 / 232 | 2 | 0.924 |
+| 1/60, mob LOD off | 75 / 58 / 58 / 64 % | 376 / 324 | 2 | 0.977 |
+
+and after it, the shipped tree:
+
+| Step (game s) | Hero wins Grount / Nyxa / Gorrak / all | Median match / first contact (game s) | No contact | Hero attacks per Fight second |
+|---|---|---|---|---|
+| 1/60 (the sims) | 50 / 58 / 25 / 44 % | 367 / 322 | 6 | 0.985 |
+| 1/50 (base, 60 fps) | 42 / 58 / 58 / 53 % | 374 / 329 | 0 | 0.955 |
+| 1/25 (fast, 60 fps) | 67 / 54 / 58 / 60 % | 380 / 341 | 0 | 0.985 |
+| 1/12.5 (fast, 30 fps) | 75 / 83 / 38 / 65 % | 397 / 356 | 0 | 0.955 |
+| 1/60, mob LOD off | 50 / 50 / 50 / 50 % | 369 / 335 | 2 | 0.984 |
+
+Twelve seeds per side cannot resolve an 8-point move: the fix alone (credit
+at most one frame, a change of under 1 % at 1/60) moved the 1/60 row by 13
+points, and the per-monster cells swing 15-25 points between neighbouring
+steps in both directions. The overshoot fix flattened the hero attack rate at
+1/25 (0.985, as at 1/60). The 30 fps fast case, checked at 24 seeds per side
+against the same seeds of the 48-seed threat-0 run:
+
+| Step (game s) | Hero wins Grount / Nyxa / Gorrak / all | Median match / first contact (game s) | No contact | Hero attacks per Fight second |
+|---|---|---|---|---|
+| 1/60, seeds 1-24 | 42 / 58 / 38 / 46 % | 395 / 354 | 6 | 0.987 |
+| 1/12.5, seeds 1-24 | 79 / 62 / 35 / 59 % | 410 / 362 | 2 | 0.944 |
+
+- **Grount at fast on a 30 fps phone is a real step effect**: the heroes win
+  79 % against 42 % at 1/60 (48 matches each); in the 24 heroes-side matches
+  Grount deals about 10 % less damage to the heroes (median 670 against 751)
+  and kills 32 heroes instead of 55; Nyxa (62 / 58 %)
+  and Gorrak (35 / 38 %) do not move. Not isolated in G2. His own mechanics
+  are the suspects: the leaping slam and the 40 px-per-step dash (Nyxa's
+  swoop and Gorrak's stomp share their scripts but not the leap), and the
+  cone query of his cleave, which reads the physics state of the last physics
+  step while the bodies moved in this frame's process (8 px a frame for a
+  hero at 1/12.5, under 3 px at 1/60). Backlog "Grount at fast on 30 fps".
+- **Mob LOD off** (every mob ticks every frame, as on screen) and the 60 fps
+  steps (1/50, 1/25) stay inside the noise of 12 seeds.
+- Hero basic attacks per second in a fight still lose 3 % at 1/12.5 after the
+  fix (0.955 against 0.985): a swing also waits for the hero to stand inside
+  its band, which a coarse step reaches later.
 
 ---
 
@@ -1920,7 +2064,13 @@ built.
 - **Formation**: Diamond pattern, 100px spread, assigned by `HeroStats.formation_rank` — the tank
   (Irelia) leads and paces the group, melee flank, the healer trails; slots turn with the direction
   of travel, and the next hero takes the lead if the leader dies
-- **Goal Selection**: Target unexplored fog areas
+- **Goal Selection**: Target unexplored fog areas; each sample is snapped onto the
+  navigation mesh and must be reachable (`HeroExplorationController._first_reachable`)
+- **No waypoint underfoot** (fix batch G2): a sample whose walkable point lies within
+  `waypoint_reached_distance` (100 px) of the group's centre, or within 200 px of a waypoint the
+  group reached lately, is skipped. Past the map's walkable edge the fog stays unexplored for good;
+  every sample out there snapped back onto the group's own spot, the group "reached" it at once and
+  stood at the east edge for the rest of the match (in every match without a contact before G2)
 - **Memory**: Remember last 5 explored positions (avoid backtracking)
 - **Stuck Detection**: Auto-unstuck after 5s stationary
 
@@ -1939,15 +2089,22 @@ built.
 - **Spawn**: a random reachable point of Zone 3 (x 3500–5500) at match start
   (`world.gd monster_spawn_zone`; isolated nav islands are rejected), once
   the navigation map answers (see Spawn System)
-- **Farm** (Stage 1): avoids heroes (moves away from any hero within 400 px, fights back only when
-  cornered within 70 px), paths to the camp with the most mobs and no hero within 500 px; only
+- **Farm** (Stage 1): avoids heroes (moves away from any hero within 600 px, fights back only when
+  cornered within 70 px; `hero_awareness_radius`, 400 until fix batch G2: the exploring heroes
+  then caught the slow Stage I bull in half the matches), paths to the camp with the most mobs and no hero within 500 px; only
   camps whose mobs it can beat at its stage (`farm_max_mob_health`: Bats at Stage 1, Hogs from
   Stage 2); camps activate around the monster too
+- **Barred camps** (fix batch G2): when mobs above its farming gate come at it on the way to a
+  camp, that camp is skipped for `barred_camp_time` (60 s) and it farms elsewhere. Before, it fled,
+  the mobs went home, it turned back to the same camp and met them again: Nyxa shuttled at a Hog
+  camp between her and her Bat camp for up to 450 s and never reached Stage 3
 - **Rest**: below 45% HP it stops taking mob fights, keeps 450 px from camps and regenerates
   0.6% max HP/s after 4 s without damage, until 80% HP
 - **Retreat**: Stage ≤ 2, below 30% HP with 2+ heroes close → flee, escape-dash a hero that closes in
 - **Ambush** (Stage 2): engages only a hero with at most one ally within 300 px, or one below 30% HP
-- **Hunt** (Stage 3): seeks the nearest hero anywhere on the map
+- **Hunt** (Stage 3): seeks the nearest hero anywhere on the map and walks past mobs that leave it
+  alone (fix batch G2; it fights back the ones that go for it). Before, it stopped at every camp
+  on the way: a Stage 3 Nyxa spent half her last 100 s on mobs and never reached the heroes
 - **Combos**: one cast per 0.25 s lock; Ram Dash as a gap closer only when Front Cleave is ready on
   landing, and in a fight at the hero he fights when it is ready and 15 s passed since its last
   cast (`fight_ability_2_interval`: the fight's opener, then every 15 s; Ambush and Hunt, as
@@ -2082,7 +2239,7 @@ abilities, and no script of their own.
 - base_stats: HeroStats (resource)
 - current_stats: Dictionary (max_health, current_health, move_speed, ...)
 - stat_modifiers: Dictionary (the skill trees' additive / multiplicative rows)
-- level: int (1..MAX_LEVEL 10), current_xp: float, XP_PER_LEVEL 80
+- level: int (1..MAX_LEVEL 10), current_xp: float, XP_PER_LEVEL 100
 
 Methods:
 - add_xp(amount) / level_up()            # HeroBase.gain_xp feeds add_xp
@@ -3260,11 +3417,12 @@ No tool can pass by accident, and none leaks when it is stopped:
   `user://` dirs (zsh alone skips the clean-up on TERM). SIGKILL cannot be
   caught.
 - **`tools/selftest.sh`** checks both with a fake Godot (about 10 s, no real
-  Godot runs): 23 checks of lint, tests, sim, trace and bench, among them a
+  Godot runs): 24 checks of lint, tests, sim, trace and bench, among them a
   crash before the end marker, a planted `SCRIPT ERROR`, a seed without a
-  result, a bad side, a missing `SAVE`, `JOBS=0`, and a `TERM` mid-run after
-  which no match, copy or `user://` dir may be left. Run it after changing a
-  tool. The parent's tools fail 14 of the 23.
+  result, a bad side, a missing `SAVE`, `JOBS=0`, a sim step setting out of
+  range (G2), and a `TERM` mid-run after which no match, copy or `user://`
+  dir may be left. Run it after changing a tool. The tools before T1 fail 14
+  of the 23 checks T1 wrote.
 
 - `tools/lint.sh`: loads every script, scene and resource and checks the scene
   wiring; prints `LINT DONE ... warnings_as_errors=41` and `errors=0`, and
@@ -3321,7 +3479,8 @@ No tool can pass by accident, and none leaks when it is stopped:
   ability by caster (`ability_casts`, `"Grount:Ram Dash": 9`; the heroes'
   basic attacks apart in `hero_basic_casts`) and the hero ultimates cast at a
   target more than 400 px away (`hero_ults_far`), and River's staff heals
-  (`staff_heals`, the HP they gave in `staff_heal_hp`). `OUT=<file>` keeps the raw JSON lines (every monster's;
+  (`staff_heals`, the HP they gave in `staff_heal_hp`), and each hero's level at
+  the first contact and at the end (`hero_levels_contact`, `hero_levels_end`). `OUT=<file>` keeps the raw JSON lines (every monster's;
   `sim_summary.py <file>` summarizes them the same way), `SAVE=<save.cfg>`
   starts every match from that save (its power ranks set the threat; the
   summary prints it). `THREAT=<0-4>` (or a list, `THREAT="0 2 4"`, or
@@ -3347,6 +3506,16 @@ No tool can pass by accident, and none leaks when it is stopped:
   before the time cap with a hero alive (`sim_summary.py`). Each result is
   written at the end of the frame the match ended in, after the deciding
   death and its killing blow were counted (`heroes_alive` 0 on a wipe).
+  **Step size** (the fidelity check, fix batch G2): by default every frame is
+  1/60 game second and the mobs tick at the TickScheduler's 20 / 10 / 3 Hz (no
+  mob is ever on screen headless). `SPEED=1` plays the match's base speed and
+  `SPEED=2` its fast setting (`Engine.time_scale` 1.2 / 2.4, so a frame is
+  1/50 or 1/25 game second at 60 fps), `FPS=<n>` the frame rate (`FPS=30
+  SPEED=2`: 1/12.5, fast on a 30 fps phone), `LOD=off` ticks every mob every
+  frame, as a device ticks the mobs on screen. Times stay game seconds; each
+  row has `step_hz` and `lod`, and the summary prints them. A bad value exits
+  2. What it measured is under "Contact and the Final Retune" ("Watched match
+  against the sims").
 - `tools/sim_trace.sh [seeds="1 2 3"] [sides="heroes monster"] [cap_seconds=660]`:
   the determinism trace (a state hash every 60 frames and at the end), byte
   for byte the same for the same tree. `BASELINE=<file>` diffs the output with
@@ -3825,6 +3994,28 @@ way round).
   21 of the 30 cells are inside 35-65 %, the other 9 within 10 points of it
   (24 seeds: one standard error is about 10 points). Gorrak at threats 3-4
   is the weak spot: the heroes' tier-3 nodes and capstones outgrow his tree.
+
+  **Fix batch G2** (the shipped tree: contact for every monster, hero XP 100
+  per level and the G2 numbers; `MONSTER=all THREAT="1 2 3 4" tools/sim.sh 24
+  <side> 2`, threat 0 at 48 seeds; heroes side / monster side):
+
+  | threat | Grount | Nyxa | Gorrak |
+  |---|---|---|---|
+  | 0 | 38 % / 38 % | 62 % / 62 % | 44 % / 42 % |
+  | 1 | 46 % / 46 % | 50 % / 50 % | 42 % / 38 % |
+  | 2 | 12 % / 12 % | 54 % / 54 % | 54 % / 50 % |
+  | 3 | 25 % / 25 % | 62 % / 62 % | 38 % / 38 % |
+  | 4 | 17 % / 17 % | 8 % / 8 % | 17 % / 17 % |
+
+  14 of the 24 cells at threats 1-4 are inside 35-65 %. The turn since 6.8:
+  the monster now wins at threat 4 (every capstone in its AI build, Titan
+  Form, Brood Mother, Whirlwind, against heroes who level slower since G2's
+  XP change) and Grount from threat 2 on (his order's second entry is
+  Stampede, +5 % speed: with his 600 px awareness the heroes catch him at Stage I
+  in 2-4 of 24 matches instead of 8, and his Stage 3 wins). Gorrak at threats
+  3-4 is no longer the weak spot. Not retuned in G2 (a structural choice,
+  Backlog "AI build size"): candidates are 2T monster character entries (the
+  capstone leaves the threat-4 build), or Stampede later in Grount's order.
 - **A player at the threshold** (a real save, `SAVE=`: the first 12
   `ai_build_order` entries of the base tree and of each played character
   tree, P 24, threat 4 by the rule) owns 24 ranks to the AI's 20 and wins
@@ -4173,7 +4364,7 @@ changelog with numbers); this section is the summary.
 - [x] Performance pass: faction collision layers, EntityRegistry, TickScheduler
       AI LOD, HpBar2D, mob pooling, rig sleep and budget
 - [x] Headless tools: `tools/lint.sh` (warnings are errors), `tools/run_tests.sh`
-      (741 tests), `tools/sim.sh`, `tools/sim_trace.sh`, `tools/bench.sh`,
+      (748 tests), `tools/sim.sh`, `tools/sim_trace.sh`, `tools/bench.sh`,
       `tools/selftest.sh`, and the art, rig, skill-tree and navigation builders
 
 ---
@@ -4186,9 +4377,9 @@ changelog with numbers); this section is the summary.
       phone with F3, Compatibility vs Mobile renderer
 - [ ] **User review of the open design decisions and placeholder copy**
       (PROGRESS: "Decisions for the user", "Placeholder copy")
-- [ ] **Balance at Opponent Threat 3-4**: Gorrak's tree (heroes win 62-75 %),
-      the AI build size against a player at the threshold, the 48-seed
-      confirmation of the parity table
+- [ ] **Balance at Opponent Threat 2-4**: since fix batch G2 the AI monster
+      wins at threat 4 (hero wins 8-17 %) and Grount from threat 2 on; the AI
+      build size (2T monster entries?) and the 48-seed parity table
 - [ ] **Real audio assets**: drop `.ogg` / `.wav` files into `Assets/Audio/`
       (keys in its README)
 
@@ -4396,9 +4587,9 @@ the monster 8 XP, a Hog 25, a hero 100.
 
 | Monster | Stage 2 at | Stage 3 at | Stage 1 → 2 | Stage 2 → 3 | Median Stage 3 (sim) |
 | ------- | ---------- | ---------- | ----------- | ----------- | -------------------- |
-| Grount  | 150 XP     | 300 XP     | 19 Bats (152 XP) | 6 Hogs (150 XP) | 322 s |
-| Nyxa    | 150 XP     | 400 XP     | 19 Bats (152 XP) | 32 Bats (256 XP): she farms Bats only until Stage 3 | 371 s |
-| Gorrak  | 150 XP     | 500 XP     | 19 Bats (152 XP) | 14 Hogs (350 XP) | 346 s |
+| Grount  | 150 XP     | 300 XP     | 19 Bats (152 XP) | 6 Hogs (150 XP) | 310 s (G2) |
+| Nyxa    | 150 XP     | 400 XP     | 19 Bats (152 XP) | 32 Bats (256 XP): she farms Bats only until Stage 3 | 360 s (G2) |
+| Gorrak  | 150 XP     | 500 XP     | 19 Bats (152 XP) | 14 Hogs (350 XP) | 330 s (G2) |
 
 - Stage 1 farms Bats only (`farm_max_mob_health` 60); Grount and Gorrak add
   Hogs from Stage 2 (150), Nyxa from Stage 3.

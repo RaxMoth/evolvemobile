@@ -92,13 +92,29 @@ anything (see "Verification gate").
 - [ ] **Decisions for the user** and **Placeholder copy** below (user step): each entry names the
       default that ships. The user accepted the list as it stood on 2026-11-11; the open list holds
       what came after.
-- [ ] **Parity table at 48 seeds** — `MONSTER=all THREAT=all tools/sim.sh 48 heroes 8` and
-      `... 48 monster 8`; at 24 seeds 9 of 30 cells are outside 35-65 % (Gorrak T3/T4 62-75 % both
-      sides, Nyxa T2/T3 heroes side 67 / 71 %, Grount T2/T3 monster side 33 / 33 %).
-- [ ] **Gorrak at threat 3-4** — his tree has no big tier-3 stat node; needs tree content or a
-      retuned `ai_build_order` (only the axe damage moved the result in 6.8).
+- [ ] **Parity table at 48 seeds** — `MONSTER=all THREAT="1 2 3 4" tools/sim.sh 48 <side> 2` once
+      the threat 2-4 retune below is in (G2 measured 24 seeds: 14 of 24 cells inside 35-65 %).
+- [ ] **Threat 2-4 after G2** — the shipped tree (`MONSTER=all THREAT="1 2 3 4" tools/sim.sh 24
+      <side> 2`) has 14 of 24 cells inside 35-65 %: every AI monster wins at threat 4 (hero wins 17 /
+      8 / 17 %, Grount / Nyxa / Gorrak: the capstones in the threat-4 build against heroes who level
+      slower since G2) and Grount from threat 2 on (12 / 25 % at T2 / T3: Stampede, +speed, is his
+      order's second entry and his 600 px awareness keeps him from being caught at Stage I).
+      Gorrak at 3-4 (62-75 % in 6.8) is no longer the weak spot (38 / 17 %). Candidates: 2T monster
+      character entries (no capstone at threat 4), Stampede later in Grount's order. Needs the AI
+      build size decision below.
 - [ ] **AI build size** (decision first): 3T character + 2T base entries keep the AI behind a player
       at the threshold (a P = 6T save wins 71-100 % as heroes at T4). Candidate: 3T + 3T.
+- [ ] **Grount at fast on 30 fps** (G2) — at 1/12.5 game s a step (the speed button's fast setting
+      on a 30 fps phone; `SPEED=2 FPS=30 MONSTER=grount tools/sim.sh 24 <side> 2`) the heroes win
+      79 % against Grount, 42 % at the sims' 1/60 (48 matches each); Nyxa and Gorrak do not move.
+      Suspects: his leaping slam, the 40 px-per-step Ram Dash, the cleave's cone query reading the
+      last physics step's positions. Find it, or sub-step the entity logic when a step exceeds
+      1/25 game s (README "Watched match against the sims").
+- [ ] **Mob swings per AI tick** (G2) — a mob starts each swing on its next AI tick after its
+      `AttackTimer` ran out, so off screen in the sims (20 Hz) it swings up to 0.05 s late and on
+      screen (every frame) up to a frame late: about 2 % fewer Bat and Hog hits in the sims than
+      on a device. Heroes and monsters credit their overshoot since G2; a mob would need its swing
+      cycle restarted from the timer, not from the tick.
 - [ ] **Fight sides at walls** (G1) — a hero walks round its target to its side along the circle
       it stands on; a wall on that circle stops it where it is (it fights from there, as before).
       In a render where Grount stood against a wall the melee heroes stayed behind him. A detour
@@ -133,8 +149,10 @@ anything (see "Verification gate").
       `world_navigation.tres` and the `tools/preview` scenes have no `uid` in their header (the
       user's editor may add them on first save: commit what it writes). Hand-written scenes have
       uids and a test enforces it for `Scenes/**/*.tscn`.
-- [ ] **Rigs-awake p99 on an idle machine** — `tools/bench.sh 3 2 1800 600 0 1` (7.4 measured 4.4 ms
-      against the parent's 3.4-4.7 ms range under load 4-9).
+- [ ] **Rigs-awake p99 on an idle machine** — `tools/bench.sh 3 2 1800 600 0 1 <speed>`: G2 measured
+      it at the base and the fast speed (Performance), but under load 4-8 (the user's other Godot
+      game and editors ran): p99 5-11 ms with a 4 ms spread between rounds. An idle run is still
+      open.
 - [ ] Device build (user step): Project → Export → Android + iOS presets (exclude `tools/*`), the
       stress config on a Pixel 5a-class phone with F3 (`SpawnManager` min/max_active_spawns = 39,
       enable_lazy_activation = false, stress_mob_multiplier = 2), Compatibility vs Mobile renderer
@@ -160,6 +178,39 @@ list holds what was added after that review, and entries a later batch changed (
 ### Open (added or changed after the review of 2026-11-11)
 
 Gameplay:
+- **Contact for every monster** (G2): the heroes no longer park at the map's walkable edge, a
+  monster skips for 60 s a camp that mobs it cannot beat stood in front of
+  (`MonsterStrategy.barred_camp_time`), and a hunting (Stage 3) monster walks past mobs that leave
+  it alone. Nyxa therefore no longer wins by never being found (her timeouts were "accepted as
+  her trait" before), and the balance had to be retuned (next entry). Options: a hide-and-seek
+  Nyxa on purpose (a longer awareness radius at Stage 3, so the clock is her weapon again), or a
+  hunt that still farms on the way.
+- **The G2 retune: four numbers** (the smallest set that brought all three monsters into
+  40-60 % at threat 0 once contact was guaranteed; final at 48 seeds per side: Grount 38 / 38 %,
+  Nyxa 62 / 62 %, Gorrak 44 / 42 %; README "Contact and the Final Retune" has every variant):
+  - **Hero XP per level 80 -> 100** (`HeroStatsComponent.XP_PER_LEVEL`): the exploring group
+    clears more camps than the parked one did and met a Stage 3 monster at level 5 on average
+    (the Encounter Scenarios table says 3-4); at 100 it is about 3.6-4. Option: keep 80 and buff
+    the monsters further.
+  - **Grount notices heroes at 600 px** (`grount_strategy.tres` `hero_awareness_radius`, was
+    400): the slowest Stage I farmer was caught at Stage I in half the matches (the heroes won
+    every one); he now slips away more often (8 of 24) and evolves. Options: Stage 2 at 120 XP
+    (tried: 42-67 % depending on the rest), or Stage 3 HP 2700 (tried: 54 %, but Grount then wins
+    almost every Stage 3 fight while losing every Stage I one).
+  - **Nyxa's Sonic Screech hits 12 at Stage 3** (was 8, below Stage 2's 10): her HP stays a glass
+    cannon's 1250. Tried: Stage 3 HP 1700 (62 %), 2000 (38 %), 1700 with the screech at 10
+    (46 %) or 14 (29 %).
+  - **Gorrak's Stage 3 HP 1500 -> 1700** (tried 1500: 58-67 %, 1800: 42 %; his armour is gone at
+    Stage 3, so 1500 was less effective HP than his Stage 2's 1450 x 1/0.9).
+  - **Left 2 points outside**: Grount 38 % and Nyxa 62 % at 48 seeds (24 seeds of the same numbers
+    gave 46 % and 54 %, before the cooldown-overshoot fix below). One standard error is 7 points,
+    so a nudge is a coin toss without 96 seeds per side. If the user wants them inside: Grount's
+    awareness 550 (more Stage I contacts, which the heroes win) and Nyxa's Stage 3 screech 13.
+- **A cooldown's overshoot counts** (G2): a cooldown that ends inside a frame credits the overshoot
+  (at most one frame) to the next cast, heroes (`AbilitySystem`) and monsters (`MonsterBase._cast`).
+  Before, attacks lost half a frame each, about 4 % of the hits of a 1 s attack on fast at 30 fps.
+  Mobs still start each swing on their next AI tick (20 Hz off screen in the sims, every frame on
+  screen), so they swing up to a tick later than their cooldown (Backlog).
 - **Faster rounds** (P1, the user's request of 2026-11-11: "each round should be slightly
   faster, so faster movement speed and ingame speed"): everybody walks 20 % faster than before,
   on top of F3's base speed 1.2 (unchanged, `GameManager.MATCH_BASE_SPEED`). Every walking
@@ -508,7 +559,7 @@ Look and feel:
 ## Verification gate
 
 Every change passes `tools/lint.sh` (errors=0; every GDScript warning is an error there) and
-`tools/run_tests.sh` (exit 0; 744 tests: 743 passed, 1 skipped headless, the run exits with nothing
+`tools/run_tests.sh` (exit 0; 748 tests: 747 passed, 1 skipped headless, the run exits with nothing
 leaked). A change that must not alter gameplay also keeps the determinism trace byte-identical:
 `MONSTER=all BASELINE_DIR=tools/baselines tools/sim_trace.sh > <new trace>` (exit 0): seeds 1-3 ×
 heroes/monster × every monster as full matches, `JOBS=2` at a time by default (no per-seed split
@@ -553,12 +604,28 @@ Threat 0, fresh save, 48 seeds (`MONSTER=<id> tools/sim.sh 48 <side> 6`), hero w
 | **Grount** (P1: walking +20 %, 24 seeds) | **58 %** | **54 %** | 2 / 2 | 296 / 296 s | first contact 309 s; 12 of 24 end at Stage 1 (was 7) |
 | **Nyxa** (P1, 24 seeds) | **58 %** | **58 %** | 6 / 6 | 342 / 341 s | first contact 382 / 386 s; 6 of 24 without contact |
 | **Gorrak** (P1, 24 seeds) | **46 %** | **42 %** | 3 / 3 | 304 / 313 s | first contact 393 / 396 s |
+| Grount (G2 fixes only, 24 seeds, heroes side) | 71 % | | 0 | 315 s | the heroes stopped parking at the map's edge |
+| Nyxa (G2 fixes only, 24 seeds, heroes side) | 88 % | | 2 | 357 s | 1 of 24 without contact (was 6) |
+| Gorrak (G2 fixes only, 24 seeds, heroes side) | 58 % | | 0 | 326 s | |
+| **Grount** (G2 final, 48 seeds) | **38 %** | **38 %** | 1 / 1 | 310 / 310 s | first contact 324 / 321 s; awareness 600, hero XP 100 per level |
+| **Nyxa** (G2 final, 48 seeds) | **62 %** | **62 %** | 3 / 3 | 360 / 360 s | first contact 369 s; screech 12 at Stage 3; 6 of 96 without contact |
+| **Gorrak** (G2 final, 48 seeds) | **44 %** | **42 %** | 0 / 0 | 330 / 330 s | first contact 379 s; Stage 3 HP 1700 |
 
 R1 (`MONSTER=all tools/sim.sh 12 <side> 2`, the parent `524536a` run the same way): River's staff
 healed for the first time (`staff_heals`: 207-225 heals in 12 matches against Grount or Gorrak
 at 1.4 s, 71-84 at 4 s). At the README's first 1.4 s per heal the heroes won 100 / 67 / 83 % (heroes side) and 100 / 67 / 83 %
 (monster side), hero deaths against Grount fell from 31 to 6 in 12 matches; every 2.8 s gave
 75 / 33 / 58 %, every 4 s (shipped) 67 / 50 / 50 % on both sides.
+
+G2 (`MONSTER=all tools/sim.sh 48 <side> 2` for the final rows, 24 seeds heroes side for the
+experiments; README "Contact and the Final Retune" has every variant tried): the no-contact
+matches were two bugs (the heroes parked at the map's edge, the monster shuttled at a Hog camp),
+not Nyxa's evasion; with them fixed and the hunt walking past camps the heroes won 71-88 %
+(roaming heroes level faster), so hero XP per level went 80 -> 100 and each monster got one
+number (Grount `hero_awareness_radius` 400 -> 600, Nyxa's Stage 3 screech 8 -> 12, Gorrak's
+Stage 3 HP 1500 -> 1700). 8 of 288 matches end without contact (P1: 22 of 144); the median match
+is 404 game s (337 real), first contact 363 (303). Grount 38 % and Nyxa 62 % are 2 points outside
+40-60 %, within one standard error of 48 seeds.
 
 P1 (`MONSTER=all tools/sim.sh 24 <side> 2`, the parent `c60fa2f` the same way): everybody walks
 20 % faster; every monster is inside 40-60 % on both sides, so nothing was retuned. Median match
@@ -572,6 +639,19 @@ below the 40-60 % target; the final balance batch retunes. Without ability 2 in 
 side was 58 / 67 / 67 %, with it on every cooldown 25 / 17 / 4 % (see the changelog).
 
 This closes "Balance retune after `74e2bff`" (heroes 29 % then).
+
+Opponent Threat parity after G2 (the shipped tree; `MONSTER=all THREAT="1 2 3 4" tools/sim.sh 24
+<side> 2`, threat 0 at 48 seeds; hero wins, heroes side / monster side):
+
+| threat | Grount | Nyxa | Gorrak |
+|---|---|---|---|
+| 0 | 38 % / 38 % | 62 % / 62 % | 44 % / 42 % |
+| 1 | 46 % / 46 % | 50 % / 50 % | 42 % / 38 % |
+| 2 | 12 % / 12 % | 54 % / 54 % | 54 % / 50 % |
+| 3 | 25 % / 25 % | 62 % / 62 % | 38 % / 38 % |
+| 4 | 17 % / 17 % | 8 % / 8 % | 17 % / 17 % |
+
+14 of the 24 cells at threats 1-4 are inside 35-65 % (Backlog "Threat 2-4 after G2").
 
 Opponent Threat parity (6.8, `MONSTER=all THREAT=all tools/sim.sh 24 <side> 8`, hero wins, heroes
 side / monster side):
@@ -624,6 +704,23 @@ Walking +20 % (P1, `tools/bench.sh <runs> 2 900 300 0 1 <speed>`, all rigs awake
 (2 runs) 3.386 -> 3.494 ms (+3 %), p99 5.56 -> 5.67 ms. Far inside the 16.7 ms frame, so fast
 stays at 2.4.
 
+G2 (`tools/bench.sh 3 2 1800 600 0 1 <speed>`, every rig awake, the parent `d89bc54` and G2 back
+to back, two rounds; frame mean / p99 in ms, medians of 3 runs; the machine was not idle: load 4.3-7.8
+with the user's other Godot game and editors running, so the rounds differ by up to 0.5 ms mean and
+4 ms p99):
+
+| Speed | Parent, round 1 / 2 | G2, round 1 / 2 |
+|---|---|---|
+| base (x1.2) | 2.79 / 2.60, p99 6.50 / 6.06 | 3.00 / 2.45, p99 9.24 / 5.19 |
+| fast (x2.4) | 4.26 / 3.76, p99 10.67 / 7.13 | 3.52 / 3.82, p99 5.37 / 6.97 |
+
+No regression beyond the noise (G2 changes no per-frame work: three rules on the AI's decision ticks
+and a cooldown subtraction). Against the 16.6 ms frame: about 2.5-3 ms mean and 5-9 ms p99 at the
+base speed, 3.5-4.3 ms and 5-11 ms on fast, headless (no drawing). A phone 4-5x slower than this Mac
+would spend 11-15 ms mean at the base speed and 14-21 ms on fast before drawing, and its p99 would
+be 20-50 ms: the base speed fits with little room for drawing, fast does not at 60 fps (it would run
+at 30-40 fps, which is the 1/12.5 case of "Grount at fast on 30 fps"). Device numbers stay open.
+
 - Total overhead of the overhaul against `885e86a`: about +0.03 ms with the rigs asleep and about
   +0.5 ms with all 232 awake (the limit was +0.6 ms).
 - A frame costs more at speed because the game-time paced work (the mobs' 20 / 10 / 3 Hz AI
@@ -666,6 +763,85 @@ stays at 2.4.
       uses `GameManager.killer_side`; the sim could use the same rule. Low priority.
 
 ## Changelog
+### 2026-11-12 — fix batch G2: final balance (contact for every monster, retune, threat table, watched-match fidelity, idle bench)
+Last gameplay batch of the second fix run: the walkthrough's TIME UP against Nyxa, the review's gap
+on sims against a watched match (and F3's note on step sizes), the threat table and the idle bench.
+Gameplay: the traces change (three AI rules, the cooldown overshoot and four tuned numbers), so
+`tools/baselines` is re-recorded.
+
+- **Why matches ended without a contact** (17 of 48 against Nyxa at 6.4, 6 of 24 per side at P1,
+  2-3 per side against Grount and Gorrak). Probes of the P1 seeds without contact (Nyxa 1, 3, 8,
+  13, 15, 18, Grount 5, Gorrak 17; a state line every 10 game s) found two bugs meeting in every
+  one of them; it was neither her evasion nor the heroes' camps:
+  - **The heroes parked** at the map's east edge (about 6720, 1090) from about 110 s to the end.
+    Past the walkable edge the fog stays unexplored for good; the forward samples out there
+    snapped back onto the group's own spot, the group "reached" that waypoint at once and asked
+    again, farming the one camp beside it every 40 s. `HeroExplorationController._first_reachable`
+    skips a walkable point within `waypoint_reached_distance` (100 px) of the group or 200 px of
+    a waypoint it reached lately.
+  - **The monster shuttled at a Hog camp** between it and the Bat camp it walked to: the Hogs
+    (above its farming gate) came at it, it fled, they went home, it turned back, every 4 s for
+    up to 450 s, so Nyxa never reached Stage 3 and never hunted. A camp goal that such mobs came
+    at it on the way to is barred for `MonsterStrategy.barred_camp_time` (60 s;
+    `MonsterBase._barred_camps` on its own strategy clock).
+  - **A hunting monster walks past mobs** that leave it alone (`_score_target` in HUNT): a Stage 3
+    Nyxa spent half of her last 100 s on camps on her way to the heroes.
+  With the three rules the heroes met every monster (Nyxa 23 of 24, heroes side) and won 71-88 %.
+- **Retune** (README "Contact and the Final Retune" lists every variant tried, 24 seeds each):
+  roaming heroes cleared about a fifth more camps and met a Stage 3 monster at level 5 (the
+  design's table says 3-4). Four numbers: hero XP per level 80 -> 100 (level about 3.8-4.1 at a
+  Stage 3 contact now); Grount notices heroes at 600 px (was 400: caught at Stage I in half the
+  matches, he lost every such fight); Nyxa's Sonic Screech 12 at Stage 3 (was 8, below Stage 2's
+  10; her HP stays 1250); Gorrak's Stage 3 HP 1700 (was 1500). Final, `MONSTER=all tools/sim.sh 48
+  <side> 2` (hero wins heroes / monster side): Grount 38 / 38 %, Nyxa 62 / 62 %, Gorrak 44 / 42 %.
+  8 of 288 matches end without contact (3 %; Nyxa 6 of 96); at Stage 3 the heroes win 22 / 60 /
+  36 % (Nyxa 75-79 % before: no pushover now); 83 / 79 / 85 % of the matches reach Stage 2 and
+  79 / 71 / 77 % Stage 3; median match 404 game s (337 real at the normal setting, P1 351), first
+  contact 363 (303). Grount and Nyxa are 2 points outside 40-60 % (one standard error of 48 seeds
+  is 7): left there (Decisions, with the next step).
+- **Threat table** (`MONSTER=all THREAT="1 2 3 4" tools/sim.sh 24 <side> 2`): 14 of 24 cells
+  inside 35-65 %; every AI monster wins at threat 4 (17 / 8 / 17 % hero wins) and Grount from
+  threat 2 on (12 / 25 % at T2 / T3); Gorrak at 3-4 is no longer the weak spot. Not retuned here
+  (Backlog "Threat 2-4 after G2", with the candidates; it needs the AI build size decision).
+- **Watched match against the sims** (`tools/sim.sh` `SPEED`, `FPS`, `LOD=off`; 12 seeds per side
+  and monster): the attack timers rounded up to the step (a cooldown's overshoot was thrown away:
+  Vlad's 1.0 s swing took 1.04 s at 1/12.5, Grount's 2.5 s cleave 2.56 s). `AbilitySystem` and
+  `MonsterBase._cast` now credit the overshoot (at most one frame) to the next cast.
+  Measured (12 seeds per side and monster, then 24 for fast at 30 fps; README "Watched match
+  against the sims" has the tables): the hero attack rate in fights is flat at 1/25 since the fix;
+  no 60 fps step and no mob LOD setting moves the hero wins beyond the noise of 72 matches (the
+  overshoot fix alone moved the 1/60 row by 13 points); fast on a 30 fps phone does: the heroes
+  beat Grount 79 % against 42 % at 1/60 (48 matches each), Nyxa and Gorrak unchanged. Not isolated
+  (Backlog "Grount at fast on 30 fps", with the suspects and the sub-step option).
+- **Performance** (`tools/bench.sh 3 2 1800 600 0 1 <speed>`, every rig awake, parent and G2 back
+  to back, two rounds; not idle: load 4.3-7.8): base speed 2.60-2.79 / 2.45-3.00 ms frame mean
+  (parent / G2), p99 6.1-6.5 / 5.2-9.2; fast 3.76-4.26 / 3.52-3.82 ms, p99 7.1-10.7 / 5.4-7.0. No
+  regression beyond the noise; inside the 16.6 ms frame headless, and a phone 4-5x slower would
+  spend 11-15 ms at the base speed and 14-21 ms on fast before drawing (Performance).
+- **Tools**: `tools/sim.sh` takes `SPEED`, `FPS` and `LOD=off` (`sim_match.gd` `speed=`, `fps=`,
+  `lod=off`; game seconds either way, `step_hz` and `lod` on every row, a step line in the
+  summary); every row also has `hero_levels_contact` and `hero_levels_end`; `tools/selftest.sh`
+  has a 24th check (a step setting out of range exits 2).
+- **Tests** (4 new; each fails on the parent): `test_wall_movement`
+  `test_exploration_never_picks_the_ground_the_group_stands_on`, `test_monster_strategy`
+  `test_a_camp_behind_mobs_it_cannot_beat_waits_while_she_farms_elsewhere` and
+  `test_a_hunt_walks_past_mobs_unless_they_go_for_it`, `test_match_speed`
+  `test_attacks_keep_their_pace_at_any_step` (1.04 / 2.56 s on the parent). Updated:
+  `test_hero_leveling` (XP per level from the constant), `test_nyxa` / `test_gorrak` stage rows,
+  `test_detail_fit_and_stats` (the screech no longer drops at Stage 3).
+- **Docs**: README Hero Exploration AI, Monster AI (Farm, Barred camps, Hunt), Hero Leveling,
+  Nyxa and Gorrak, the roster overview, Measured Balance, the new "Contact and the Final Retune"
+  (variants, the final table, the fidelity tables), Match Speed, Headless Tools (sim step,
+  selftest), Opponent Threat, Appendix A; INSTRUCTOR (sim step, XP); the screech text in
+  `strings.csv` (English and German) and both `.translation` files (`tools/build_locale.sh`).
+- **Verified**: `tools/lint.sh` errors=0; `tools/run_tests.sh` 747 passed, 0 failed, 1 skipped (the
+  rendered minimap test), nothing leaked; `tools/selftest.sh` all 24 checks; `tools/build_locale.sh
+  --check` up to date; traces re-recorded (`MONSTER=all RECORD_DIR=tools/baselines
+  tools/sim_trace.sh`: 1682 / 3186 / 2282 lines, were 1316 / 3226 / 2516) and checked identical
+  (`BASELINE_DIR`); the four new tests fail on the parent; muted render (heroes put on the old
+  parking spot at the east edge walked on west, 1455 px in 19 game s; the monster put at the Hog
+  camp farmed on).
+
 ### 2026-11-12 — fix batch P1: faster rounds (everybody walks 20 % faster, base speed 1.2, pace measured)
 Eighth batch of the second fix run: the user's request of 2026-11-11 ("each round should be
 slightly faster, so faster movement speed and ingame speed so it does not feel as waiting").

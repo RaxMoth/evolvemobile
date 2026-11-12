@@ -10,6 +10,7 @@
 #   THREAT=<0-4> tools/sim.sh ...                 # Opponent Threat parity check: both sides hold
 #                                                 # their AI build at that threat
 #   THREAT="0 2 4" | THREAT=all tools/sim.sh ...  # several threats (all = 0..4), one summary each
+#   SPEED=<0-2> FPS=<n> LOD=off tools/sim.sh ...  # the step-size check (see "Timing" below)
 #
 # Opponent Threat (README): the played side applies the save's trees, the AI
 # opponent the AI build at threat T = min(4, floor(P / 6)), P = the played
@@ -46,6 +47,15 @@
 # device the mobs inside the camera rect tick every frame (60 Hz). Heroes and
 # the monster tick every frame in both. tools/bench.sh's onscreen=1 measures
 # the device's cost.
+#
+# The step-size check plays what a device steps: SPEED=1 the match's base
+# speed and SPEED=2 its fast setting (Engine.time_scale 1.2 / 2.4, so a frame
+# covers time_scale / FPS game seconds: 1/50 and 1/25 at 60 fps), FPS=<n> the
+# frame rate (FPS=30 SPEED=2: 1/12.5, fast on a 30 fps phone), LOD=off ticks
+# every mob every frame (TickScheduler.lod_enabled false), as a device ticks
+# the mobs on screen. Defaults: SPEED=0 FPS=60 LOD=on, every frame 1/60 game
+# second (the numbers every table in the README was measured with). Times in
+# the results stay game seconds; each row has "step_hz" and "lod".
 setopt NULL_GLOB
 RUNS="${1:-24}"; SIDE="${2:-heroes}"; WORKERS="${3:-6}"; CAP="${4:-660}"
 SRC="$(cd "$(dirname "$0")/.." && pwd)"
@@ -55,6 +65,15 @@ if [[ "$SIDE" != (heroes|monster) ]]; then
   echo "side=$SIDE: heroes or monster" >&2
   exit 2
 fi
+SPEED="${SPEED:-0}"; FPS="${FPS:-60}"; LOD="${LOD:-on}"
+if [[ ! "$SPEED" =~ '^[0-2]$' ]] || [[ ! "$FPS" =~ '^[1-9][0-9]*$' ]] || [[ "$LOD" != (on|off) ]]; then
+  echo "SPEED=$SPEED FPS=$FPS LOD=$LOD: SPEED is 0-2, FPS a frame rate, LOD on or off" >&2
+  exit 2
+fi
+STEP_ARGS=()
+[ "$SPEED" != 0 ] && STEP_ARGS+=("speed=$SPEED")
+[ "$FPS" != 60 ] && STEP_ARGS+=("fps=$FPS")
+[ "$LOD" = off ] && STEP_ARGS+=("lod=off")
 if [ -n "$SAVE" ] && [ ! -f "$SAVE" ]; then
   echo "SAVE=$SAVE: no such file" >&2
   exit 2
@@ -102,8 +121,8 @@ for t in "${THREATS[@]}"; do
             mkdir -p "${USER_DIRS}_$w"
             cp "$SAVE" "${USER_DIRS}_$w/save.cfg"
           fi
-          run_godot "$res/seed_$s.log" --headless --fixed-fps 60 --max-fps 0 --path "$TMP/w$w" \
-            -s res://tools/sim_match.gd -- "$s" "$SIDE" "$CAP" ${m:+monster=$m} ${t:+threat=$t}
+          run_godot "$res/seed_$s.log" --headless --fixed-fps "$FPS" --max-fps 0 --path "$TMP/w$w" \
+            -s res://tools/sim_match.gd -- "$s" "$SIDE" "$CAP" ${m:+monster=$m} ${t:+threat=$t} "${STEP_ARGS[@]}"
         done
       ) &
       TOOL_PIDS+=($!)

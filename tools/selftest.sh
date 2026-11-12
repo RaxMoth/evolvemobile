@@ -142,6 +142,7 @@ expect "tests: the runner crashes" 139 "did not finish" env FAKE_MODE=crash "$T/
 expect "tests: clean" 0 "1 passed" env FAKE_MODE=ok "$T/run_tests.sh"
 expect "sim: a side that is not heroes or monster" 2 "heroes or monster" "$T/sim.sh" 2 monsters 1 60
 expect "sim: a SAVE file that is not there" 2 "no such file" env SAVE="$WORK/missing.cfg" "$T/sim.sh" 2 heroes 1 60
+expect "sim: a step setting out of range" 2 "SPEED is 0-2" env SPEED=3 "$T/sim.sh" 2 heroes 1 60
 expect "sim: a SCRIPT ERROR and a crashed seed" 1 "seed 2: failed .*no result" env FAKE_MODE=error "$T/sim.sh" 2 heroes 2 60
 expect "sim: clean" 0 "runs: 4/4" env FAKE_MODE=ok "$T/sim.sh" 4 heroes 2 60
 expect "trace: a side that is not heroes or monster" 2 "heroes or monster" "$T/sim_trace.sh" "1" "hero"

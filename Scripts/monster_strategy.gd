@@ -58,6 +58,11 @@ extends Resource
 ## Stage-1 Grount (Front Cleave 12 dmg / 4.5 s) lost ~350 HP to a 3-Hog camp
 ## without killing one.
 @export var farm_max_mob_health: Array[float] = [60.0, 150.0, 1000.0]
+## Game seconds a camp is skipped after mobs above the farming gate came at
+## the monster on its way there: the camp lies behind them. Without it she
+## walked on, fled, turned back and walked on again for the rest of the match
+## (Nyxa at a Hog camp between her and her Bat camp: 450 s, never Stage 3).
+@export var barred_camp_time: float = 60.0
 
 @export_group("Combos")
 ## Minimum gap between two casts (no Slam+Dash+Cleave on consecutive frames).
