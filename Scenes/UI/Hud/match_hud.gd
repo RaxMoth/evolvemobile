@@ -14,7 +14,8 @@ extends CanvasLayer
 ##     the grey round button is normal, two arrows on the amber one fast;
 ##   - the clock, GameManager.get_match_elapsed(), in game seconds: it runs
 ##     with the match speed;
-##   - the enemy tracker: heroes side, the monster's head, stage and HP;
+##   - the enemy tracker: heroes side, the monster's head (of the stage it
+##     reached), stage and HP;
 ##     monster side, a head and mini HP bar per hero (from the HeroChip
 ##     template in the scene), greyed when the hero falls;
 ##   - the kills chip: the played side's mob kills
@@ -154,7 +155,7 @@ func _bind() -> void:
 		if not cards.is_empty():
 			_set_active_card(cards[0])
 		if _monster != null:
-			_enemy_head.texture = _head_of(_monster_id(_monster))
+			_enemy_head.texture = _head_of(_monster_id(_monster), _monster.get_stage())
 	else:
 		for hero in heroes:
 			_add_tracked_hero(hero)
@@ -240,6 +241,7 @@ func _refresh_enemy_monster() -> void:
 		_shown_stage = stage
 		var last := CooldownSource.STAGE_NUMERALS.size() - 1
 		_enemy_stage.text = tr("STAGE %s") % CooldownSource.STAGE_NUMERALS[clampi(stage, 1, last)]
+		_enemy_head.texture = _head_of(_monster_id(_monster), clampi(stage, 1, last))
 	_enemy_hp.value = _monster.get_health() / maxf(1.0, _monster.get_max_health()) * 100.0
 
 
@@ -275,10 +277,11 @@ static func _monster_id(m: MonsterBase) -> StringName:
 	return StringName(String(m.name).to_lower())
 
 
-## The head portrait of a roster character (null when it has no def).
-static func _head_of(character_id: StringName) -> Texture2D:
+## The head portrait of a roster character at evolution stage `stage` (null
+## when it has no def).
+static func _head_of(character_id: StringName, stage: int = 1) -> Texture2D:
 	var def := GameManager.ROSTER.find(character_id)
-	return def.head_texture() if def != null else null
+	return def.head_texture(stage) if def != null else null
 
 
 # ============================================

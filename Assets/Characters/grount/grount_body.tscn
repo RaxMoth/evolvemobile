@@ -14,6 +14,7 @@ origin = Vector2(64.0, 150.0)
 bounds = Rect2(-46.0, -144.0, 111.0, 148.0)
 part_order = PackedStringArray("spikes_s2", "spikes_s3", "arm_b", "leg_b", "leg_f", "body", "cracks_s3", "horns_s1", "horns_s2", "horns_s3", "head", "eyes_s1", "eyes_s2", "eyes_s3", "arm_f", "chain_s3")
 stage_parts = {"spikes_s2": PackedInt32Array(2), "spikes_s3": PackedInt32Array(3), "cracks_s3": PackedInt32Array(3), "horns_s1": PackedInt32Array(1), "horns_s2": PackedInt32Array(2), "horns_s3": PackedInt32Array(3), "eyes_s1": PackedInt32Array(1), "eyes_s2": PackedInt32Array(2), "eyes_s3": PackedInt32Array(3), "chain_s3": PackedInt32Array(3)}
+stage_bounds = {1: Rect2(-46.0, -115.0, 104.0, 119.0), 2: Rect2(-46.0, -128.0, 107.0, 132.0), 3: Rect2(-46.0, -144.0, 111.0, 148.0)}
 proxies = {"body__back": "body"}
 
 [node name="body__back" type="Node2D" parent="."]

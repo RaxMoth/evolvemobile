@@ -9,7 +9,10 @@ extends TestCase
 ## mid_body() anchors line effects on the body, not the feet; the timed moves
 ## (7.4): a leap's landing marker stretches to the airtime its SLAM_LEAP
 ## reports, a dash's run loops while the dash goes on, only FULL rigs listen;
-## Gorrak's spin is never drawn edge on and Ground Slam settles without a snap.
+## Gorrak's spin is never drawn edge on, River's twirl never shows its
+## unwind, no key gap shorter than a frame can be sampled half-way, and Ground
+## Slam and the head channel settle without a snap; a dash in flight faces its
+## way (Echo Strike's return pass); Grount's anchors follow his stage.
 ## test_rig_pipeline covers the sampling and blending on the fixture.
 
 const ROOT := "res://Assets/Characters"
@@ -49,6 +52,9 @@ const DASH_RUNS: Dictionary[RigProfile.BodyPlan, StringName] = {
 ## Narrowest a turning body may be drawn (|x scale|): Gorrak's spin used to
 ## pass through 0 and showed a 2-3 px sliver.
 const MIN_TURN_SCALE := 0.4
+## The shortest frame a device draws (s): two keys closer than this can hide a
+## jump only as a step (transition 0), never as an interpolated sweep.
+const FRAME := 1.0 / 60.0
 const ROSTER := "res://Scenes/NPCs/roster.tres"
 
 
@@ -268,14 +274,49 @@ func test_spin_never_turns_edge_on() -> void:
 	assert_true(track >= 0, "the spin keys the body's scale")
 	var narrowest := INF
 	var mirrored := false
+	# Every 1/240 s, and at a quarter, half and three quarters of every key
+	# gap: the mirror flip sits in a 0.1 ms gap a 1/240 s step never samples.
+	var times := PackedFloat32Array()
 	var t := 0.0
 	while t <= anim.length:
-		var x: float = (anim.value_track_interpolate(track, t) as Vector2).x
+		times.append(t)
+		t += 1.0 / 240.0
+	for k in anim.track_get_key_count(track) - 1:
+		var t0 := anim.track_get_key_time(track, k)
+		var t1 := anim.track_get_key_time(track, k + 1)
+		for share: float in [0.25, 0.5, 0.75]:
+			times.append(lerpf(t0, t1, share))
+	for at in times:
+		var x: float = (anim.value_track_interpolate(track, at) as Vector2).x
 		narrowest = minf(narrowest, absf(x))
 		mirrored = mirrored or x < -0.9
-		t += 1.0 / 240.0
 	assert_true(narrowest >= MIN_TURN_SCALE, "never thinner than %.2f (%.2f)" % [MIN_TURN_SCALE, narrowest])
 	assert_true(mirrored, "it turns all the way round")
+
+
+## rig-6: two keys of a track closer than a frame hide a jump (the spin's
+## mirror flip, the twirl's full-turn unwind). A frame landing between them
+## drew the jump half done (Gorrak edge on, River's staff arm up to 180
+## degrees off) unless the first key is a step (transition 0: Godot holds
+## its value up to the next key).
+func test_sub_frame_key_gaps_are_steps() -> void:
+	for plan: RigProfile.BodyPlan in PLAN_FILES:
+		var lib := _library(plan)
+		for move in lib.get_animation_list():
+			var anim := lib.get_animation(move)
+			for tr_i in anim.get_track_count():
+				for k in anim.track_get_key_count(tr_i) - 1:
+					var gap := anim.track_get_key_time(tr_i, k + 1) - anim.track_get_key_time(tr_i, k)
+					if gap < FRAME:
+						assert_eq(anim.track_get_key_transition(tr_i, k), 0.0, "%s/%s track %d key %d: a %.4f s gap is a step" % [
+								PLAN_FILES[plan], move, tr_i, k, gap])
+	# River's twirl inside its 1 ms unwind: the staff arm at a whole turn.
+	var twirl := _library(RigProfile.BodyPlan.HUMANOID).get_animation(&"twirl")
+	var arm := twirl.find_track(^"%arm_f:rotation", Animation.TYPE_VALUE)
+	for at: float in [0.3, 0.3002, 0.3005, 0.3008]:
+		var r := float(twirl.value_track_interpolate(arm, at))
+		var off := absf(angle_difference(r, 0.0))
+		assert_true(off < 0.01, "twirl at %.4f s: the arm at a whole turn (%.3f rad off)" % [at, off])
 
 
 ## Ground Slam's move after its landing bounce (from 1.1 s) eases back to the
@@ -317,6 +358,130 @@ func test_slam_returns_to_rest_without_a_snap() -> void:
 	assert_true(worst_rot < 0.08, "the limbs settle (%.3f rad a frame)" % worst_rot)
 	grount.queue_free()
 	await wait_frames(1)
+
+
+## rig-3: a move's head channel blends over the head's rest angle and out
+## to it: on every frame the head is lerp(rest, the move's angle, weight),
+## and the frame that ends the move moves it by almost nothing. (The head was
+## the one limb the procedural layer never set back to rest: it lerped from
+## last frame's angle, froze in the blend-out and snapped at the hand-back,
+## 0.078 rad on Irelia's war cry.)
+func test_head_blends_out_to_rest() -> void:
+	var irelia := await spawn_frozen(IRELIA, Vector2(300, 300)) as EntityBase
+	var rig := irelia.get_node(^"Rig") as CharacterRig
+	rig.set_on_screen(true)
+	rig.play_move(&"war_cry")
+	assert_eq(rig.current_move(), &"war_cry", "the war cry plays")
+	rig.set_process(false)  # stepped by hand below
+	var head := rig.body.part(&"head")
+	var rest: float = rig._rest_rot[1]
+	var worst := 0.0
+	var last := head.rotation
+	var last_step := 0.0
+	for frame in 120:
+		var playing := rig.current_move() != &""
+		rig._process(1.0 / 60.0)
+		if playing and rig.current_move() == &"":
+			last_step = absf(head.rotation - last)
+		elif rig.current_move() != &"" and not is_nan(rig._move_rot[1]):
+			worst = maxf(worst, absf(head.rotation - lerpf(rest, rig._move_rot[1], rig._move_weight())))
+		last = head.rotation
+	assert_eq(rig.current_move(), &"", "over")
+	assert_true(worst < 0.001, "the head is lerp(rest, move, weight) on every frame (%.4f rad off)" % worst)
+	assert_true(last_step < 0.01, "the hand-back moves the head by almost nothing (%.4f rad)" % last_step)
+	assert_near(head.rotation, rest, 0.0001, "at rest after it")
+	irelia.queue_free()
+	await wait_frames(1)
+
+
+## rig-2: a dash in flight faces its way. With Echo Strike Nyxa's swoop flies
+## back through its target; the rig took its side from the facing carrier
+## alone, which the busy AI never turns during a dash, so she flew the whole
+## way back tail-first. The rig only reads the dash: the carrier is unchanged.
+func test_echo_strike_return_pass_faces_its_way() -> void:
+	var n := (await spawn_frozen(NYXA, Vector2(300, 300))) as MonsterBase
+	var v := await spawn_frozen(IRELIA, Vector2(480, 300))
+	var rig := n.get_node(^"Rig") as CharacterRig
+	rig.set_on_screen(true)
+	var swoop := n.ability_2 as BullRamDash
+	swoop.double_pass = true  # Echo Strike, on her own copy
+	n.sprite.rotation = 0.0
+	assert_true(n._cast("ability_2", swoop, v), "she swoops at Irelia on her right")
+	var outbound := 0
+	var back := 0
+	var back_mirrored := 0
+	var turned := false
+	for f in 90:
+		await wait_frames(1)
+		if not swoop.is_dashing:
+			if turned:
+				break
+			continue
+		if swoop.dash_direction.x > 0.25:
+			outbound += 1
+			assert_eq(rig._flip, 1.0, "frame %d: out to the right, facing right" % f)
+		elif swoop.dash_direction.x < -0.25:
+			back += 1
+			if turned:  # the turn frame itself may lag a frame
+				back_mirrored += 1 if rig._flip == -1.0 else 0
+			turned = true
+	assert_true(outbound > 0 and back > 2, "an outbound and a return pass (%d / %d frames)" % [outbound, back])
+	assert_eq(back_mirrored, back - 1, "the way back faces left")
+	await wait_seconds(CharacterRig.FACE_HOLD)
+	assert_false(swoop.is_dashing, "the dash ended")
+	assert_eq(rig._flip, 1.0, "after the dash the carrier decides again (still right)")
+	assert_near(n.sprite.rotation, 0.0, 0.0001, "the carrier is untouched by the rig")
+	n.queue_free()
+	v.queue_free()
+	await wait_frames(1)
+
+
+## rig-5: Grount's effect anchors follow his stage. The body box was the
+## union of all three stages (Stage III's horns), so at Stage I the status
+## marks floated 17 px above the calf and beams ended 9 px above his middle.
+## drawn_bounds() is the box of the parts drawn at the stage (measured on the
+## visible sprites), and head_top() / mid_body() are its top and middle.
+func test_grount_anchors_follow_his_stage() -> void:
+	var g := await spawn_frozen(GROUNT, Vector2(300, 300)) as MonsterBase
+	var rig := g.get_node(^"Rig") as CharacterRig
+	var k: float = rig.profile.world_scale * rig._size * g.scale.y
+	var tops: Array[float] = []
+	for stage in [1, 2, 3]:
+		rig.set_stage(stage)
+		rig.body.reset_pose()  # the parts at their generated pose
+		var drawn := _drawn_box(rig.body)
+		var box := rig.body.drawn_bounds()
+		assert_near(box.position.y, drawn.position.y, 1.0, "stage %d: the box's top is the visible parts' (%.1f vs %.1f)" % [
+				stage, box.position.y, drawn.position.y])
+		assert_near(box.end.y, drawn.end.y, 1.0, "stage %d: and its bottom" % stage)
+		var head_top := CharacterRig.head_top_of(g)
+		var mid := CharacterRig.mid_body_of(g)
+		assert_near(head_top.y - g.global_position.y, box.position.y * k, 0.01, "stage %d: head_top() is its top" % stage)
+		assert_near(mid.y - g.global_position.y, box.get_center().y * k, 0.01, "stage %d: mid_body() its middle" % stage)
+		tops.append(head_top.y)
+	assert_true(tops[0] > tops[1] and tops[1] > tops[2], "the top rises with the horns (%s)" % str(tops))
+	assert_true(tops[0] - tops[2] > 10.0, "the calf's top is well below the Alpha Bull's")
+	g.queue_free()
+	await wait_frames(1)
+
+
+## The box of the visible parts of `body` in art units around its origin (each
+## part's region at its transform under the body, in sheet px / sheet_scale).
+func _drawn_box(body: RigBody) -> Rect2:
+	var to_body := body.get_global_transform().affine_inverse()
+	var box := Rect2()
+	var first := true
+	for n in body.part_order:
+		var part := body.part(StringName(n)) as Sprite2D
+		if part == null or not part.is_visible_in_tree():
+			continue
+		var r := part.get_rect()
+		var xf := to_body * part.get_global_transform()
+		for corner: Vector2 in [r.position, Vector2(r.end.x, r.position.y), r.end, Vector2(r.position.x, r.end.y)]:
+			var at: Vector2 = xf * corner / body.sheet_scale
+			box = Rect2(at, Vector2.ZERO) if first else box.expand(at)
+			first = false
+	return box
 
 
 ## The airtime a leap reports (FxEvents.SLAM_LEAP, the frame before its cast)

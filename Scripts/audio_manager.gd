@@ -33,6 +33,8 @@ const POOL_SIZE: int = 10
 const SFX_MAX_DISTANCE: float = 1400.0
 const PLACEHOLDER_DB: float = -8.0
 const MIX_RATE: int = 22050
+## Seed of the placeholder tones' noise (_tone).
+const NOISE_SEED: int = 7919
 
 var _sfx: Dictionary = {}      # key -> AudioStream
 var _music: Dictionary = {}    # key -> AudioStream
@@ -267,12 +269,17 @@ func _placeholder_sfx(key: StringName) -> AudioStreamWAV:
 	return _tone(440.0, 440.0, 0.1, 0.3, 0.0)
 
 
-## Decaying sine sweep with optional noise blend — 16-bit mono.
+## Decaying sine sweep with optional noise blend — 16-bit mono. The noise
+## comes from a private RandomNumberGenerator with a fixed seed (the global one
+## drives gameplay and the determinism trace), so a placeholder sounds the same
+## on every launch.
 static func _tone(freq_start: float, freq_end: float, duration: float, volume: float, noise: float) -> AudioStreamWAV:
 	var n := int(duration * MIX_RATE)
 	var data := PackedByteArray()
 	data.resize(n * 2)
 	var phase := 0.0
+	var rng := RandomNumberGenerator.new()
+	rng.seed = NOISE_SEED
 	for i in n:
 		var t := float(i) / float(MIX_RATE)
 		var progress := t / duration
@@ -281,7 +288,7 @@ static func _tone(freq_start: float, freq_end: float, duration: float, volume: f
 		phase += TAU * f / float(MIX_RATE)
 		var sample := sin(phase)
 		if noise > 0.0:
-			sample = lerpf(sample, randf_range(-1.0, 1.0), noise)
+			sample = lerpf(sample, rng.randf_range(-1.0, 1.0), noise)
 		data.encode_s16(i * 2, int(clampf(sample * env * volume, -1.0, 1.0) * 32767.0))
 	return _wav(data, false)
 

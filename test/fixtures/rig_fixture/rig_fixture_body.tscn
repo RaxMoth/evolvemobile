@@ -14,6 +14,7 @@ origin = Vector2(64.0, 150.0)
 bounds = Rect2(-30.0, -120.0, 60.0, 124.0)
 part_order = PackedStringArray("cape", "arm_b", "leg_b", "leg_f", "body", "head", "crown", "arm_f")
 stage_parts = {"crown": PackedInt32Array(2, 3)}
+stage_bounds = {1: Rect2(-30.0, -108.0, 60.0, 112.0), 2: Rect2(-30.0, -120.0, 60.0, 124.0), 3: Rect2(-30.0, -120.0, 60.0, 124.0)}
 proxies = {"body__back": "body"}
 
 [node name="body__back" type="Node2D" parent="."]

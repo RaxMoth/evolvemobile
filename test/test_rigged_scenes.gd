@@ -171,8 +171,10 @@ func test_hp_bar_sits_above_the_head() -> void:
 		inst.free()
 	var pet := _instance(PET)
 	var pet_rig := _rig(pet)
-	var pet_bar := pet.get_node(^"HealthBar") as HpBar2D
-	var pet_bottom := pet_bar.position.y + pet_bar.bar_size.y
+	var pet_hud := pet.get_node(^"%Hud") as EntityHud
+	var pet_bar := pet.get_node(^"%HealthBar") as HpBar2D
+	assert_eq(pet_bar.get_parent(), pet_hud, "pet: the bar sits in its EntityHud")
+	var pet_bottom := pet_hud.position.y + pet_bar.position.y + pet_bar.bar_size.y
 	var pet_expected := -(roundf(pet_rig.body.art_height() * pet_rig.profile.world_scale) + HP_BAR_GAP)
 	assert_near(pet_bottom, pet_expected, 0.01, "pet: HP bar bottom")
 	assert_true(-pet_bottom > _max_top(pet_rig.body, pet_rig.profile), "pet: the bar clears the head")
@@ -533,6 +535,42 @@ func test_pet_rig_follows_the_pet() -> void:
 	ted.queue_free()
 	await wait_frames(1)
 	assert_eq(CharacterRig.awake_count(), awake_before, "a freed pet leaves the count")
+
+
+## rig-1: the fox turns to its victim when it bites one already in bite
+## range (the next mob of a camp, one that walked round it). It only turned
+## along its path, so it bit a mob beside it facing away. Presentation only:
+## the carrier is the pet's own hidden Sprite2D, which gameplay never reads.
+func test_pet_bites_facing_its_victim() -> void:
+	var ted := Node2D.new()
+	ted.position = Vector2(600, 300)
+	add_child(ted)
+	var pet := _instance(PET) as CharacterBody2D
+	pet.position = Vector2(600, 300)
+	pet.set("owner_entity", ted)
+	add_child(pet)
+	var rig := _rig(pet)
+	var facing := pet.get_node(^"Sprite2D") as Node2D
+	facing.rotation = 0.0
+	rig.set_on_screen(true)
+	var hog := await spawn_frozen(MOBS["hog"], Vector2(560, 300)) as EntityBase
+	for i in 30:
+		await wait_physics_frames(1)
+		if hog.get_health() < hog.get_max_health():
+			break
+	assert_true(pet.get("current_target") == hog, "the fox picked the Hog 40 px to its left")
+	assert_true(hog.get_health() < hog.get_max_health(), "and bit it without walking")
+	# The bite's own cast faces the Hog for FACE_HOLD; then the carrier decides.
+	await wait_seconds(CharacterRig.FACE_HOLD + 0.1)
+	assert_true(cos(facing.rotation) < 0.0, "the carrier turned to it (%.2f rad)" % facing.rotation)
+	assert_true(rig.body.scale.x < 0.0, "the body faces left, at its victim, between bites")
+	hog.global_position = Vector2(640, 300)  # round to its right, still in range
+	await wait_seconds(CharacterRig.FACE_HOLD + 0.1)
+	assert_true(cos(facing.rotation) > 0.0, "turned back to the right")
+	assert_true(rig.body.scale.x > 0.0, "and the body with it")
+	for n: Node in [pet, hog, ted]:
+		n.queue_free()
+	await wait_frames(1)
 
 
 ## Ted's real passive spawns the rigged pet beside him.

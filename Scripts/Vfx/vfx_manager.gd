@@ -34,10 +34,12 @@ extends Node2D
 ## hits outside the camera view are skipped, at most MAX_HITS_PER_FRAME hits
 ## per frame spawn sprites, hits on one target within MERGE_WINDOW add up in
 ## one number (heals in their own) and a target shows at most
-## NUMBERS_PER_TARGET numbers. A new number never starts on top of a live one,
-## whoever it belongs to: it takes the next free column beside it, then the
-## row above (stacked heroes hit by one area attack). Nothing is allocated per
-## frame. The F3 overlay shows the pools (debug_line()).
+## NUMBERS_PER_TARGET numbers. A new number never starts on top of a live one
+## that is not fading yet, whoever it belongs to: it takes the next free column
+## beside it, then the row above (stacked heroes hit by one area attack). The
+## columns, the rows and the rise are at least a glyph apart on screen at any
+## zoom (a number keeps its screen size). Nothing is allocated per frame. The
+## F3 overlay shows the pools (debug_line()).
 ##
 ## DETERMINISM (tools/sim_trace.sh stays byte-identical): it never writes
 ## gameplay state and draws every random number from its private `_rng`.
@@ -60,10 +62,11 @@ const NUMBER_LIFE: float = 0.8
 const NUMBER_POP: float = 0.12
 ## The columns (in column widths beside a number's own start) and the rows
 ## above it a new number tries, nearest first, until one is free of live
-## numbers younger than NUMBER_CROWD_AGE (older ones have risen and fade).
+## numbers that are not fading yet (fading ones have risen a row clear).
 const NUMBER_COLUMNS: Array[float] = [0.0, 1.0, -1.0, 2.0, -2.0]
 const NUMBER_ROWS: int = 3
-const NUMBER_CROWD_AGE: float = 0.5
+## Share of a number's life after which it fades out.
+const NUMBER_FADE_FROM: float = 0.7
 const SPARKS_PER_HIT: int = 2
 ## At most 6 puffs per effect (the Phase 7 toning-down rules).
 const PUFFS_PER_KILL: int = 4
@@ -83,9 +86,12 @@ const MAX_DIGITS: int = 9
 @export var number_px: float = 22.0
 ## On-screen glyph height (px) of a big hit's number.
 @export var number_px_big: float = 30.0
-## World px a number floats up over its life.
+## World px a number floats up over its life; zoomed out, at least one number
+## row on screen (number_px + 4), so the next number in its column starts
+## clear of it.
 @export var number_rise: float = 18.0
-## World px above the target's HP bar where a number starts.
+## World px above the target's HP bar where a number starts; zoomed out, at
+## least half a glyph and 1 px on screen, so the number never covers the bar.
 @export var number_lift: float = 6.0
 ## World px a target's second number starts right of its first, its third
 ## left of it, so numbers close together in time do not overlap: the least
@@ -332,12 +338,14 @@ func show_heal(target: Node2D, amount: float) -> void:
 
 
 ## Where a number on `target` starts: just above its HP bar (the entity's
-## Hud), else above its origin.
+## Hud, or Ted's fox's), else above its origin.
 func _number_anchor(target: Node2D) -> Vector2:
+	var lift: float = maxf(number_lift, (number_px * 0.5 + 1.0) / _view_zoom)
 	var entity := target as EntityBase
-	if entity != null and entity.hud != null:
-		return entity.hud.global_position + Vector2(0.0, -number_lift)
-	return target.global_position + Vector2(0.0, -28.0 - number_lift)
+	var hud: Node2D = entity.hud if entity != null else target.get_node_or_null(^"Hud") as Node2D
+	if hud != null:
+		return hud.global_position + Vector2(0.0, -lift)
+	return target.global_position + Vector2(0.0, -28.0 - lift)
 
 
 ## A hit within MERGE_WINDOW of the target's youngest number of its kind
@@ -377,14 +385,14 @@ func _add_number(target: Node2D, at: Vector2, amount: float, ours: bool, heal: b
 
 
 ## Where a new number starts: column `side` of its target's anchor `at` (0,
-## then right, then left), unless a live number of any target started there
-## less than NUMBER_CROWD_AGE ago; then the nearest free column beside it,
-## then the rows above. Characters standing on one spot used to get their
-## numbers on one point ("12 12 12" as one smear). With every spot taken it
-## keeps the target's own column. `slot` is the new number's own slot.
+## then right, then left), unless a live number of any target that is not
+## fading yet started there; then the nearest free column beside it, then the
+## rows above. Characters standing on one spot used to get their numbers on
+## one point ("12 12 12" as one smear). With every spot taken it keeps the
+## target's own column. `slot` is the new number's own slot.
 func _free_spot(at: Vector2, side: float, slot: int) -> Vector2:
-	var column: float = maxf(number_spread, 1.5 * number_px / _view_zoom)
-	var row: float = (number_px + 4.0) / _view_zoom
+	var column: float = number_column()
+	var row: float = number_row()
 	for r in NUMBER_ROWS:
 		for c: float in NUMBER_COLUMNS:
 			var spot := at + Vector2((side + c) * column, -float(r) * row)
@@ -393,15 +401,28 @@ func _free_spot(at: Vector2, side: float, slot: int) -> Vector2:
 	return at + Vector2(side * column, 0.0)
 
 
-## True when a live number younger than NUMBER_CROWD_AGE (not `slot`'s)
-## started within `dx` and `dy` (world px) of `spot`: nearer than the next
-## column or row, whatever the start's few px of jitter.
+## True when a live number that is not fading yet (not `slot`'s) started
+## within `dx` and `dy` (world px) of `spot`: nearer than the next column or
+## row, whatever the start's few px of jitter. A fading one has risen at least
+## a row (number_row) clear of the spot.
 func _spot_taken(spot: Vector2, dx: float, dy: float, slot: int) -> bool:
+	var fade_age: float = NUMBER_FADE_FROM * NUMBER_LIFE
 	for i in NUMBER_CAP:
-		if i != slot and _n_age[i] < NUMBER_CROWD_AGE and absf(_n_pos[i].x - spot.x) < dx \
+		if i != slot and _n_age[i] < fade_age and absf(_n_pos[i].x - spot.x) < dx \
 				and absf(_n_pos[i].y - spot.y) < dy:
 			return true
 	return false
+
+
+## World px between two number columns: number_spread, and zoomed out 1.5
+## glyph heights on screen.
+func number_column() -> float:
+	return maxf(number_spread, 1.5 * number_px / _view_zoom)
+
+
+## World px of one number row: a glyph height and 4 px on screen.
+func number_row() -> float:
+	return (number_px + 4.0) / _view_zoom
 
 
 # ============================================
@@ -573,40 +594,61 @@ func _draw() -> void:
 
 ## Numbers keep their on-screen size at any zoom: each is drawn in screen px
 ## (a 1 / zoom transform) from the fx_digits.svg glyph cells; a heal leads
-## with the "+" cell.
+## with the "+" cell. number_rect() is the same layout.
 func _draw_numbers() -> void:
 	var cell: Vector2 = _digit_cell
 	for i in NUMBER_CAP:
 		var k: float = _n_age[i] / NUMBER_LIFE
 		if k >= 1.0:
 			continue
-		var value: int = maxi(int(roundf(_n_value[i])), 1)
 		var heal: bool = _n_heal[i] == 1
 		var big: bool = not heal and _n_value[i] >= big_hit
-		var n: int = 0
-		var room: int = MAX_DIGITS - 1 if heal else MAX_DIGITS
-		while value > 0 and n < room:
-			_digits[n] = value % 10
-			value = floori(value / 10.0)
-			n += 1
-		if heal:
-			_digits[n] = FxTex.DIGIT_PLUS
-			n += 1
-		var pop: float = 1.0 + 0.5 * maxf(0.0, 1.0 - _n_pop[i] / NUMBER_POP)
-		var gh: float = (number_px_big if big else number_px) * pop
+		var n: int = _fill_digits(i)
+		var gh: float = _glyph_height(i)
 		var gw: float = gh * cell.x / cell.y
 		var advance: float = gw * 0.78
 		var x: float = -(advance * float(n - 1) + gw) * 0.5
-		var rise: float = number_rise * FxEase.out_cubic(minf(k * 1.6, 1.0))
 		var c: Color = _c_heal if heal else (_c_ours if _n_ours[i] == 1 else (_c_number_big if big else _c_number))
-		if k > 0.7:
-			c.a *= (1.0 - k) / 0.3
-		draw_set_transform(_n_pos[i] + Vector2(0.0, -rise), 0.0, Vector2.ONE / _view_zoom)
+		if k > NUMBER_FADE_FROM:
+			c.a *= (1.0 - k) / (1.0 - NUMBER_FADE_FROM)
+		draw_set_transform(_n_pos[i] + Vector2(0.0, -_rise(i)), 0.0, Vector2.ONE / _view_zoom)
 		for d in range(n - 1, -1, -1):
 			draw_texture_rect_region(FxTex.DIGITS, Rect2(x, -gh * 0.5, gw, gh),
 					Rect2(float(_digits[d]) * cell.x, 0.0, cell.x, cell.y), c)
 			x += advance
 	draw_set_transform_matrix(Transform2D.IDENTITY)
+
+
+## Slot `i`'s digits into _digits, lowest first (a heal's "+" last); their
+## count.
+func _fill_digits(i: int) -> int:
+	var value: int = maxi(int(roundf(_n_value[i])), 1)
+	var heal: bool = _n_heal[i] == 1
+	var n: int = 0
+	var room: int = MAX_DIGITS - 1 if heal else MAX_DIGITS
+	while value > 0 and n < room:
+		_digits[n] = value % 10
+		value = floori(value / 10.0)
+		n += 1
+	if heal:
+		_digits[n] = FxTex.DIGIT_PLUS
+		n += 1
+	return n
+
+
+## On-screen glyph height (px) of slot `i` now: a big hit's is larger, and
+## (`popped`) it pops to 1.5x for NUMBER_POP after it starts or adds up.
+func _glyph_height(i: int, popped: bool = true) -> float:
+	var big: bool = _n_heal[i] != 1 and _n_value[i] >= big_hit
+	var pop: float = 1.0 + 0.5 * maxf(0.0, 1.0 - _n_pop[i] / NUMBER_POP) if popped else 1.0
+	return (number_px_big if big else number_px) * pop
+
+
+## World px slot `i` has floated up: number_rise, at least a number row on
+## screen (zoomed out), eased over the first 60 % of its life.
+func _rise(i: int) -> float:
+	var k: float = _n_age[i] / NUMBER_LIFE
+	return maxf(number_rise, number_row()) * FxEase.out_cubic(minf(k * 1.6, 1.0))
 
 
 # ============================================
@@ -615,6 +657,24 @@ func _draw_numbers() -> void:
 
 func numbers_live() -> int:
 	return _numbers_live
+
+
+## The world-px box live number slot `i` is drawn in now (its glyphs at their
+## screen size at this zoom, risen; `popped` false: at its settled size, not
+## the 1.5x of its pop); an empty Rect2 for a free slot. _draw_numbers draws
+## the same layout.
+func number_rect(i: int, popped: bool = true) -> Rect2:
+	if _n_age[i] >= NUMBER_LIFE:
+		return Rect2()
+	var gh: float = _glyph_height(i, popped)
+	var gw: float = gh * _digit_cell.x / _digit_cell.y
+	var size := Vector2(gw * 0.78 * float(_fill_digits(i) - 1) + gw, gh) / _view_zoom
+	return Rect2(_n_pos[i] + Vector2(0.0, -_rise(i)) - size * 0.5, size)
+
+
+## True while live number slot `i` is not fading yet (full alpha).
+func number_opaque(i: int) -> bool:
+	return _n_age[i] < NUMBER_FADE_FROM * NUMBER_LIFE
 
 
 func telegraphs_live() -> int:

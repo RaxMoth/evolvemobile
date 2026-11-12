@@ -519,24 +519,36 @@ call `get_nodes_in_group` in a per-frame path. `EventBus` calls the target's
 ### 6. Rigs: sleep and budget (`Scripts/Rig/character_rig.gd`)
 
 One texture and one draw per character. A rig off screen sleeps (no pose
-writes); a budget caps how many rigs animate fully, the rest take a cheaper
+writes) and drops the reactions in flight (a move, the hurt flash), so it
+wakes clean; a budget caps how many rigs animate fully, the rest take a cheaper
 path (`within_budget()`, `plays_moves()`). A pose writes a property only when
 it changed. `tools/bench.sh ... 0 1` wakes every rig to measure the worst case.
+An effect that animates the drawn body from gameplay code (Ground Slam's hop,
+Nyxa's scatter fade) tweens the rig's `hop_scale` / `fade_alpha`, not its
+`scale` / `modulate`: a corpse in its death beat ignores them. Effect anchors
+(`mid_body`, `head_top`, `half_width`) read `RigBody.drawn_bounds()`, the box
+of the parts the current evolution stage shows; keep `bounds` (the union)
+for fitting. Two keys of a move track closer than a frame must be a step
+(transition 0), or a frame between them draws the jump half done.
 
 ### 7. VFX: pools and per-frame budgets (`Scripts/Vfx/vfx_manager.gd`)
 
 Pooled sprites, digits and telegraphs, no node made per hit. Hits outside the
 camera view are skipped; at most 8 hits and 2 kills per frame get the full
 treatment, the rest only their number. Screen shake is trauma-based and
-capped. F3 shows the pool use and the cost in ms.
+capped. F3 shows the pool use and the cost in ms. Numbers keep their screen
+size at any zoom, so anything that spaces them (columns, rows, the rise) needs
+a floor in screen px (`number_column()`, `number_row()`); `number_rect()` is
+the drawn layout the tests measure.
 
 ### 8. HpBar2D
 
 In-world HP bars are one `Node2D` with a `_draw` (`Scripts/hp_bar_2d.gd`), written only through
 `EntityBase.set_hp_display`. Mobs hide the bar while full. The bar and the level pill sit in the
 entity's `Hud` node, an `EntityHud` (`Scripts/entity_hud.gd`): it draws one z step above the
-bodies, and the huds of heroes and the monster (`stacks`) rise above each other when they would
-overlap, so four heroes on one spot show four rows.
+bodies, and the huds of heroes, Ted's fox and the monster (`stacks`) rise above each other when
+they would overlap, so four heroes on one spot show four rows. A character that is not an
+EntityBase gets the same `Hud` node scene-side (`TedsPet.tscn`), wired to its notifier.
 
 ### 9. Fight readability (fix batch F2)
 
@@ -734,8 +746,9 @@ then optimize the hot path the numbers point at.
 [ ] MonsterStats .tres (monster_id, reach, leave distance, armour, stages, XP thresholds)
 [ ] MonsterStrategy .tres (awareness, retreat, rest, ambush, farming, combos)
 [ ] passive_ability + ability_1..3 .tres, each with per-stage tables
-[ ] Rig, CharacterDef (stage_names, tip, unlock rules), roster.tres, skill tree
-    (with an ai_build_order of 12 entries, capstone last)
+[ ] Rig, CharacterDef (stage_names, tip, unlock rules; stage_portraits and
+    stage_head_regions when its look changes with the stage, as Grount's),
+    roster.tres, skill tree (with an ai_build_order of 12 entries, capstone last)
 [ ] Recipes and telegraphs, icons, strings
 [ ] Baseline: MONSTER=all RECORD_DIR=tools/baselines tools/sim_trace.sh
     (test_sim_tools fails while a roster monster has none)

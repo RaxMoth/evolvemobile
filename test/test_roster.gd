@@ -119,6 +119,33 @@ func test_head_region_frames_the_head() -> void:
 		assert_true(Rect2(Vector2.ZERO, d.portrait.get_size()).encloses(tex.region), "%s: head region inside the texture" % id)
 
 
+## A later stage's portrait (Grount's) has its own crop: square-ish, inside
+## the canvas, framing the head and that stage's horns, which grow past the
+## Stage I crop.
+func test_stage_head_regions_frame_the_grown_head() -> void:
+	for d in _roster().all():
+		var id := d.character_id()
+		assert_eq(d.stage_head_regions.size(), d.stage_portraits.size(), "%s: a crop per stage portrait" % id)
+		for i in d.stage_portraits.size():
+			var stage := i + 2
+			var region := d.stage_head_regions[i]
+			assert_true(d.stage_portraits[i] is DPITexture, "%s Stage %d portrait" % [id, stage])
+			assert_true(Rect2(Vector2.ZERO, CharacterDef.PORTRAIT_CANVAS).encloses(region), "%s Stage %d: inside the portrait" % [id, stage])
+			assert_true(absf(region.size.x / region.size.y - 1.0) < 0.15, "%s Stage %d: square-ish" % [id, stage])
+			for part: String in ["head", "horns_s%d" % stage]:
+				var path := "res://Assets/Characters/%s/src/parts/%s.svg" % [id, part]
+				if not FileAccess.file_exists(path):
+					continue
+				var img := Image.new()
+				assert_eq(img.load_svg_from_string(FileAccess.get_file_as_string(path), 1.0), OK, path)
+				var box := Rect2(img.get_used_rect())
+				var covered := box.intersection(region).get_area() / maxf(1.0, box.get_area())
+				assert_true(covered >= 0.85, "%s Stage %d: the crop covers %d%% of the %s" % [id, stage, roundi(covered * 100.0), part])
+			var tex := d.head_texture(stage)
+			assert_true(tex.atlas == d.stage_portraits[i], "%s Stage %d: cropped from its portrait" % [id, stage])
+		assert_true(d.head_texture(1).atlas == d.portrait, "%s Stage I: the portrait" % id)
+
+
 func test_unknown_monster_falls_back_to_default() -> void:
 	var roster := _roster()
 	assert_eq(roster.resolve_monster(&"no_such_monster").character_id(), roster.default_monster_id)

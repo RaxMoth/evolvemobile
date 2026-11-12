@@ -82,6 +82,23 @@ func test_portraits_import_as_dpitextures() -> void:
 			assert_eq(tex.get_size(), Vector2(128, 160), "%s is on the 128x160 rig canvas" % portrait_name)
 
 
+## Every composite portrait under Assets/Characters/<id>/ (<id>.svg and the
+## stage ones, not the generated sheet) is shown somewhere: a roster def
+## references it (Grount's Stage II and III portraits shipped unused).
+func test_every_portrait_is_used() -> void:
+	var used: Array[String] = []
+	for d in GameManager.ROSTER.all():
+		if d.portrait != null:
+			used.append(d.portrait.resource_path)
+		for tex in d.stage_portraits:
+			used.append(tex.resource_path)
+	for id in MONSTERS + HEROES:
+		for file in DirAccess.get_files_at("%s/%s" % [ROOT, id]):
+			if file.ends_with(".svg") and not file.ends_with("_sheet.svg"):
+				var path := "%s/%s/%s" % [ROOT, id, file]
+				assert_true(used.has(path), "%s is a roster portrait" % path)
+
+
 func test_motion_profiles_fit_the_art() -> void:
 	for id in _all():
 		var profile := _profile(id)

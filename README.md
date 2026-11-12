@@ -980,7 +980,8 @@ Gorrak and the Bat and Hog mobs.
   with its `src/`, the generated sheet and body, `<id>_motion.tres` and the
   composite portrait `<id>.svg` (the whole chibi on the 128x160 canvas,
   imported as a **DPITexture** for UI; Grount also has `grount_s2.svg` and
-  `grount_s3.svg` for its later stages):
+  `grount_s3.svg` for its later stages, the HUD heads and the result
+  screen's XP row of the stage he reached: `CharacterDef.stage_portraits`):
 
   | id | who | parts | body plan | world_scale | sheet svg/scale | full_speed / stride |
   |---|---|---|---|---|---|---|
@@ -1034,9 +1035,12 @@ Gorrak and the Bat and Hog mobs.
       ability's move (below), `EntityBase.damaged(packet)` the hurt flash and
       squash plus the hurt move when no other move plays,
       `MonsterBase.evolved(stage)` → `Rig.set_stage` the stage's parts. An
-      asleep rig (off screen) plays nothing; a mob's rig over the budget (see
-      LOD) plays the procedural swing instead of the attack move and only
-      flashes on a hit (`plays_moves()` is false).
+      asleep rig (off screen) plays nothing, and falling asleep (off screen, a
+      hidden menu view) drops the reactions in flight (a move, the hurt
+      flash, a swing) as leaving the tree does, so nothing stale plays on
+      when it wakes; a move started while asleep still plays on the wake. A
+      mob's rig over the budget (see LOD) plays the procedural swing instead
+      of the attack move and only flashes on a hit (`plays_moves()` is false).
     - `swing_fx` (scene-side, presentation only): the `AbilityFxRecipe` of a
       swing that carries no ability, which AbilityVfx draws on each hit the
       character lands while its rig `plays_moves()` (Ability Effects): the
@@ -1082,11 +1086,18 @@ Gorrak and the Bat and Hog mobs.
       dash's run loops between its `loop_from` and `loop_to` markers
       (`charge` 0.45-0.6 s, one stride; `swoop` 0.3-0.4 s, the held dive)
       while the dash `DASH_STARTED` names is still `is_dashing` (read only:
-      Echo Strike's way back keeps running), then plays out. Only FULL rigs
-      with an entity listen (`EventBus.ability_event`, connected in `_ready`).
+      Echo Strike's way back keeps running), then plays out. While that dash
+      is in flight the body faces its `dash_direction`, not the facing
+      carrier, which the busy AI does not turn: Echo Strike's return pass no
+      longer flies tail-first. Only FULL rigs with an entity listen
+      (`EventBus.ability_event`, connected in `_ready`).
     - Gorrak's `spin` (Whirlwind) turns through a mirrored body: its x scale
-      narrows to 0.45, flips within 0.1 ms and broadens mirrored, so it is
+      narrows to 0.45, flips at a step key and broadens mirrored, so it is
       never drawn edge on (it used to pass through 0, a 2-3 px sliver).
+      River's `twirl` unwinds its full turn of the staff arm at a step key
+      too. Any two keys of a track closer than a frame (1/60 s) must be a
+      step (transition 0: the value holds up to the next key), else a frame
+      landing between them draws the jump half done (`test_rig_moves`).
     - Which move a cast plays is data: `AbilityBase.move_name`
       (presentation only, read through `get_move_name(caster)`), falling back
       to `attack`, `cast` or `ultimate` by the ability's slot; a mob's swing
@@ -1098,14 +1109,22 @@ Gorrak and the Bat and Hog mobs.
       swoop, ultimate; the fox, the Hog and the Bat: attack. The menus'
       `StageCharacter.cheer()` plays `cheer` during its hop.
     - Mid-body anchor: `CharacterRig.mid_body()` / `mid_body_of(node)` is
-      the middle of the drawn body (the art's box centre, raised by a flyer's
-      mean hover, at the rig's size and the entity's scale), the start and end
+      the middle of the drawn body (the centre of the box of the parts drawn
+      now, `RigBody.drawn_bounds()`: Grount's stage box, see below; raised by
+      a flyer's mean hover, at the rig's size and the entity's scale), the
+      start and end
       of line effects (AbilityVfx's tracers, heal hops and beams, Monster
       Taunt's tethers; BasicStrike's optional trail), which used to run feet
       to feet. A node without a rig keeps its own position. `head_top()` /
       `head_top_of(node)` is the top of the drawn body, where a lasting
-      status mark (a taunt's anger vein, a "!") floats clear of the head; a
-      node without a rig answers 32 px above its position.
+      status mark (a taunt's anger vein, a "!", the stun stars) floats clear
+      of the head; a node without a rig answers 32 px above its position.
+      Both read the box of the parts the body draws now: the builder writes
+      `RigBody.stage_bounds` (one box per evolution stage) for a body with
+      stage parts, so Grount's marks sit on the calf's horns at Stage I
+      instead of 17 px above them (the union box is his Stage III horns);
+      `bounds` stays the union for UI fitting, the notifier, the shadow and
+      the HP bar.
     - Hit flash: the rig drives the body's modulate over 1 (palette white x
       `hurt_flash_gain`, easing back to white). Every generated body draws
       through ONE shared material, `Assets/Shaders/hit_flash_material.tres`
@@ -1135,18 +1154,25 @@ Gorrak and the Bat and Hog mobs.
       fox's) moves the rig to the entity's parent at the same place and size
       as a puppet: it pops up, tips over backwards (`DEATH_TILT` 1.45 rad over
       the first 60 %; a flyer drops to the ground with it), fades from 55 %
-      on and frees itself after `DEATH_TIME` 0.8 s. The entity dies and is
+      on and frees itself after `DEATH_TIME` 0.8 s. The corpse keeps the
+      entity's own size and fades from the alpha it had: a monster killed
+      mid-leap (Ground Slam grows and fades the rig with a tween bound to
+      the monster, which dies with it) no longer stays 1.19x too big and
+      snaps opaque. The entity dies and is
       freed exactly as before (`visual_root()` is null from then on); a mob's
       rig (BUDGETED, pooled with the mob) and a rig off screen play nothing.
       `GameManager` holds the result screen back for it (see Match result
       screen).
     - `half_width()` / `half_width_of(node)` is how far the drawn body reaches
-      to either side of its feet (the art's box at the rig's size and the
+      to either side of its feet (the drawn box at the rig's size and the
       entity's scale; 0 for a node without a rig): a swing effect starts
       outside it.
     - `EntityBase.visual_root()` is what effects move or tint (Ground Slam's
       hop, Trap Cage's pulse, Vampiric Rebirth's fade): the rig (null only
-      for a bare base scene without a body, which draws nothing).
+      for a bare base scene without a body, which draws nothing). The hop
+      and the fade tween the rig's `hop_scale` and `fade_alpha`, which write
+      its scale and alpha unless it is a dying corpse (their tweens are bound
+      to the entity and take one more step in its death frame).
     - LOD: a rig animates only while its entity's ScreenNotifier is on screen.
       While more than 48 rigs are awake (`within_budget()` is false), mob
       rigs (tier BUDGETED) animate every other frame, staggered, and skip
@@ -1219,7 +1245,8 @@ Gorrak and the Bat and Hog mobs.
       a walker and, for a flyer (its art floats above its feet), the art's
       top plus its highest hover (1.35 x `hover`). Heroes move their `Hud` to
       y = -68 (Irelia), -64 (Vlad), -59 (Ted) and -70 (River); the fox's bar
-      (an HpBar2D like every entity's, 20x4) sits at -44..-40; Grount's
+      (an HpBar2D like every entity's, 20x4, in its own `Hud` at y = -44)
+      sits at -44..-40; Grount's
       `Hud` is at -101, Nyxa's at -100 (a flyer: art top 138 + hover 8.1 at
       0.6), Gorrak's at -90 (art 130 at 0.6), the Hog's at -45 and the Bat's
       at -48. Each clears
@@ -1238,7 +1265,8 @@ Gorrak and the Bat and Hog mobs.
       Rect2(-58, -100, 116, 104), his stomp's hop, with the same 1.2x margin.
     - Ted's pet is a CharacterBody2D, not an EntityBase, so its `Rig` sets
       `mover = ".."` and the scene provides what an EntityBase has: its hidden
-      facing carrier "Sprite2D" (the pet aims it along its path), a unique
+      facing carrier "Sprite2D" (the pet aims it along its path, and at its
+      victim while it bites one already in range), a unique
       `ScreenNotifier` wired to the rig, and the presentation signals
       `ability_cast` (each bite) and `damaged` (each hit) wired to the rig's
       handlers. Gameplay never listens to them.
@@ -1437,8 +1465,10 @@ writes gameplay state, so `tools/sim_trace.sh` stays byte-identical.
   huds came on screen, so the bars never swap places while the characters
   mill around. Four heroes on one spot show four rows instead of one pile.
   Awake only while the character's ScreenNotifier reports it on screen
-  (wired in `NPCBaseClass.tscn`); presentation only. The fox's 20x4 bar is
-  a plain HpBar2D and does not stack.
+  (wired in `NPCBaseClass.tscn`); presentation only. Ted's fox has one too
+  (`TedsPet.tscn`: its 20x4 bar, `stacks` on, wired to its notifier), so a
+  character in front of the fox no longer covers its bar and it stacks with
+  the heroes' bars.
 - **Heroes side: `HeroHudCard`** (172x146, one per HeroBase in the "Hero"
   group, tree order):
     - the head portrait: `CharacterDef.head_texture()` (the def's
@@ -1467,8 +1497,11 @@ writes gameplay state, so `tools/sim_trace.sh` stays byte-identical.
   the focus; when the followed hero dies the focus moves to the next living
   hero (`EventBus.entity_died`), so the camera does not stay at the death spot.
 - **Monster side: `MonsterHudPanel`** (700x178), polled at 10 Hz:
-    - the head portrait in the monster's signature ring and the stage pips
-      I / II / III (`PillReady` once reached);
+    - the head portrait of the stage the monster reached
+      (`CharacterDef.head_texture(stage)`: Grount's Stage II and III
+      portraits, with their own crops) in the monster's signature ring and
+      the stage pips I / II / III (`PillReady` once reached); the heroes'
+      enemy tracker shows the same stage head;
     - the name, "STAGE II · DANGEROUS" (the README stage names) and the AI
       intent pill: FARMING (moss), AMBUSH (amber), HUNTING (danger), RETREAT
       (xp blue). `MonsterHudPanel.intent_of()` reads the strategy, the rest
@@ -1620,14 +1653,18 @@ camera view (grown by 64 px):
 - **Damage number**: hand-lettered glyphs from `fx_digits.svg` (white with
   the ink outline; gold and larger from `big_hit` = 30; red when the
   player's side takes it), drawn at a fixed on-screen size (22 / 30 px) at
-  any zoom. It starts just above the target's HP bar, pops, floats up 18 px
-  and fades over 0.8 s. Hits on one target within 0.15 s add up in one
-  number; a target shows at most 3 numbers (side by side: centre, right,
-  left), and a hit past that adds up in its youngest. A new number never
-  starts on top of a live one, whoever it belongs to: when a number younger
-  than 0.5 s started within one column (16 world px, at least 1.5 glyph
-  heights on screen) and one row of its spot, it takes the next free column
-  (right, left, two right, two left), then the row above (three rows).
+  any zoom. It starts just above the target's HP bar (6 world px; zoomed
+  out, at least half a glyph on screen, so it never covers the bar), pops,
+  floats up 18 world px (zoomed out, at least one row on screen: a glyph height and 4 px)
+  and fades over 0.8 s (from 70 % of it on). Hits on one target within
+  0.15 s add up in one number; a target shows at most 3 numbers (side by
+  side: centre, right, left), and a hit past that adds up in its youngest. A
+  new number never starts on top of a live one, whoever it belongs to: when
+  a number that is not fading yet started within one column (16 world px,
+  at least 1.5 glyph heights on screen) and one row of its spot, it takes
+  the next free column (right, left, two right, two left), then the row
+  above (three rows). A fading one has risen a row clear, so at every zoom
+  no two opaque numbers overlap.
   Heroes on one spot hit by one area attack used to show "12 12 12" as one
   smear; their numbers also start above their own stacked HP bars.
 - **Heal number**: a heal an ability reports (`FxEvents.HEAL_SHOT`,
@@ -1726,7 +1763,7 @@ changed (the trace is byte-identical).
 | Vlad | Land Mine (`mine`) | dust at Vlad's feet; `MINE_ARMED`: a small ring at each mine. The mine itself is `fx_mine` with a blinking `fx_lamp` (Mine.tscn's `Blink`), its trigger radius a dashed ring at 35 %. `MINE_EXPLODED`: a 0.14 s amber fireball, a ring out to the blast radius, three dust clouds, three rocks, a scorch crack left for 3 s |
 | Vlad | Blood Bomb (`blood_bomb`) | six drops sucked in for 0.12 s, then a crimson blast low on his body (the head stays clear), a ring to `area_of_effect`, four mist puffs rolling out along the ground, flying drops, a splat left for 3 s, trauma 0.25 |
 | Irelia | Shield Bash (`strike`) | the slash in her light teal |
-| Irelia | Divine Shield (`shield`) | a ring and a glint at Irelia; `SHIELD_UP` per hero: a 0.14 s bubble pop, then a ward ellipse at the feet whose alpha is the shield's strength; `SHIELD_HIT`: it pulses white; `SHIELD_BROKEN`: six shards; `SHIELD_EXPIRED`: it fades. The shielded hero is not tinted (the old blue modulate read purple on the skin; 8.3) |
+| Irelia | Divine Shield (`shield`) | a ring and a glint at Irelia; `SHIELD_UP` per hero: a 0.14 s bubble pop, then a ward ellipse at the feet whose alpha is the shield's strength; `SHIELD_HIT`: it pulses white; `SHIELD_BROKEN`: six shards; `SHIELD_EXPIRED`: it fades from the strength the shield last had (the freed Shield used to read as full strength, so a worn ward flashed bright as it ran out). The shielded hero is not tinted (the old blue modulate read purple on the skin; 8.3) |
 | Irelia | Monster Taunt (`taunt`) | a copper ring out to the range and a "!" above Irelia; `TAUNTED` per enemy: an anger vein above its head and a dashed tether body to body for the taunt's duration (replaces `TauntLink`); Rallying Taunt: `RALLIED` per hero |
 | Irelia | Regeneration (`last_stand`) | `LAST_STAND`: a gold ring, star and sparks, then a halo at her feet for the invulnerable seconds |
 | Ted | Claw Swipe (`claw`) | three raking marks over the target's body |
@@ -1764,8 +1801,9 @@ Toning-down rules (the anim prototype's previews were too busy), enforced by
 `test_ability_vfx`: rings at most 3 world px wide (ink included) and on the
 ground; at most 6 puffs or dust clouds per cast or event; nothing covers a
 character's head longer than 0.15 s (slashes, claws, stars, bubbles and
-blasts over a body live 0.14 s, lasting marks float above the head, wards
-and halos ring the feet); areas shown for a while (a mine's trigger, a
+blasts over a body live 0.14 s, lasting marks float above the head (the
+stun stars' orbit `STUN_LIFT` 12 px over its top, so the front star's lower
+edge stays clear of it), wards and halos ring the feet); areas shown for a while (a mine's trigger, a
 pickup radius) at 35 % alpha. No hero strikes with a `BasicStrike` trail any
 more (the recipes draw the hit); the trail stays a `.tres` option.
 
@@ -2160,7 +2198,10 @@ entity registers it and draws from the global RNG).
     `Assets/UI/Icons/Roles/role_<key>.svg`, `role_icon()`), `accent_token` (a
     UiPalette token), `tagline`, the rig (`rig_body`, `rig_profile`), the
     `portrait` (DPITexture) and `head_region`, the head crop in portrait units
-    (128x160) that `head_texture()` turns into an AtlasTexture for HUD heads.
+    (128x160) that `head_texture()` turns into an AtlasTexture for HUD heads;
+    a monster's `stage_portraits` (Stage II first) and `stage_head_regions`
+    give `head_texture(stage)` and `portrait_at(stage)` the later stages'
+    art (Grount's grown horns need a wider crop).
   - monsters: `stage_names` (Grount: Bullcalf, Rampager, Alpha Bull; Nyxa:
     Duskling, Night Hunter, Dusk Matriarch; Gorrak: Tusker, Warlord, Boar
     King), `opponent_after_matches` (Heroes-side quarry pool: Grount 0, Nyxa
@@ -2344,7 +2385,8 @@ code connections are to autoloads (`PersistedData.currency_changed`).
   `play(delay)` counts from 0 to `amount` over 0.7 s and pops the number;
   `bonus_pct` > 0 shows the Opponent Threat's bonus ("+20%", `AmberLabel`).
 - **`XpRow.tscn`** (`XpRow`): one character's permanent XP after a match, the
-  head portrait in a ring of its signature colour, the name, "+N XP", an
+  head portrait in a ring of its signature colour (a monster's of the
+  `stage` it reached), the name, "+N XP", an
   `XpBar` that `play(delay)` fills from `total_before` to `total_before + gain`
   over 0.9 s on the level curve, "Lv.N" and the LEVEL UP! pill (`PillReady`)
   popping when the fill crosses a level; `fallen` greys the head under a skull.
@@ -4021,11 +4063,12 @@ changelog with numbers); this section is the summary.
       (opt-out), localization (English + German: the UI and all content
       texts, a live language switch)
 - [x] Audio manager on the Master/Music/SFX buses (generated placeholder tones
-      until real assets land in `Assets/Audio/`)
+      until real assets land in `Assets/Audio/`; their noise from a private,
+      seeded RandomNumberGenerator, never the global one)
 - [x] Performance pass: faction collision layers, EntityRegistry, TickScheduler
       AI LOD, HpBar2D, mob pooling, rig sleep and budget
 - [x] Headless tools: `tools/lint.sh` (warnings are errors), `tools/run_tests.sh`
-      (659 tests), `tools/sim.sh`, `tools/sim_trace.sh`, `tools/bench.sh`,
+      (727 tests), `tools/sim.sh`, `tools/sim_trace.sh`, `tools/bench.sh`,
       `tools/selftest.sh`, and the art, rig, skill-tree and navigation builders
 
 ---

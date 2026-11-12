@@ -161,6 +161,10 @@ const SWARM_DIVE_SHARE: float = 0.35
 const STUN_SPIN: float = 7.0
 const STUN_ORBIT: float = 12.0
 const STUN_STAR_SIZE: float = 13.0
+## World px the stars' orbit centre floats above the head's top: at least
+## STUN_ORBIT * 0.35 + STUN_STAR_SIZE * 0.5 (10.7), so the front star never
+## dips over the head (with 6 it did, 4 px, for a third of each turn).
+const STUN_LIFT: float = 12.0
 ## A swarm's bats circle this share of the way from the caster's feet (its
 ## ground ring's centre) up to its body: over the ring, at flying height.
 const SWARM_LIFT_SHARE: float = 0.5
@@ -264,6 +268,9 @@ var _w_age := PackedFloat32Array()
 var _w_out := PackedFloat32Array()
 var _w_out_len := PackedFloat32Array()
 var _w_pulse := PackedFloat32Array()
+## The shield's strength (0..1) as last seen alive: a ward fading after its
+## shield expired or broke (freed that frame) keeps it.
+var _w_strength := PackedFloat32Array()
 var _w_rx := PackedFloat32Array()
 var _w_col := PackedColorArray()
 var _w_live: int = 0
@@ -389,6 +396,7 @@ func _alloc() -> void:
 	_w_out.resize(WARD_CAP)
 	_w_out_len.resize(WARD_CAP)
 	_w_pulse.resize(WARD_CAP)
+	_w_strength.resize(WARD_CAP)
 	_w_rx.resize(WARD_CAP)
 	_w_col.resize(WARD_CAP)
 	_h_hero.resize(HALO_CAP)
@@ -827,6 +835,7 @@ func _start_ward(shield: Shield, fx: AbilityFxRecipe) -> void:
 	_w_age[slot] = 0.0
 	_w_out[slot] = 0.0
 	_w_pulse[slot] = 0.0
+	_w_strength[slot] = shield.get_shield_percent()
 	_w_rx[slot] = _foot_radius(hero)
 	_w_col[slot] = _palette.color(fx.accent if fx != null else &"shield")
 	if in_view(hero.global_position):
@@ -1697,6 +1706,9 @@ func _step_wards(delta: float) -> void:
 			continue
 		_w_age[i] += delta
 		_w_pulse[i] = maxf(_w_pulse[i] - delta, 0.0)
+		var shield := instance_from_id(_w_shield[i]) as Shield
+		if shield != null:
+			_w_strength[i] = shield.get_shield_percent()
 		if _w_out[i] > 0.0:
 			_w_out[i] -= delta
 			if _w_out[i] <= 0.0:
@@ -2144,7 +2156,7 @@ func _draw_stuns() -> void:
 		var e := instance_from_id(_st_host[i]) as Node2D
 		if e == null or not in_view(e.global_position):
 			continue
-		var top := CharacterRig.head_top_of(e) + Vector2(0.0, -6.0)
+		var top := stun_centre(e)
 		var a: float = clampf(_st_age[i] / 0.12, 0.0, 1.0) * clampf((_st_life[i] - _st_age[i]) / 0.15, 0.0, 1.0)
 		for k in 3:
 			var ang: float = _st_age[i] * STUN_SPIN + TAU * float(k) / 3.0
@@ -2229,18 +2241,27 @@ func _paint_wards(ci: CanvasItem) -> void:
 		var hero := instance_from_id(_w_hero[i]) as Node2D
 		if hero == null or not hero.is_inside_tree():
 			continue
-		var strength: float = 1.0
-		var shield := instance_from_id(_w_shield[i]) as Shield
-		if shield != null:
-			strength = shield.get_shield_percent()
-		var a: float = 0.45 + 0.45 * strength
-		if _w_out[i] > 0.0:
-			a *= _w_out[i] / maxf(_w_out_len[i], 0.01)
 		var pulse: float = _w_pulse[i] / WARD_PULSE
 		var rx: float = _w_rx[i] * FxEase.pop(minf(_w_age[i] / WARD_POP, 1.0)) * (1.0 + 0.2 * pulse)
 		var col: Color = _w_col[i].lerp(_palette.white, pulse)
-		_paint_foot_ring(ci, hero.global_position, rx, Color(col, a))
+		_paint_foot_ring(ci, hero.global_position, rx, Color(col, _ward_alpha(i)))
 	ci.draw_set_transform_matrix(Transform2D.IDENTITY)
+
+
+## Ward slot `i`'s alpha: the shield's strength, the last one it had while it
+## lived (an expired shield is freed the frame it expires: a ward read as 1.0
+## from then on brightened just as it faded), times the fade-out.
+func _ward_alpha(i: int) -> float:
+	var a: float = 0.45 + 0.45 * _w_strength[i]
+	if _w_out[i] > 0.0:
+		a *= _w_out[i] / maxf(_w_out_len[i], 0.01)
+	return a
+
+
+## The alpha the ward at `hero`'s feet is painted with now (-1 = none).
+func ward_alpha(hero: Node2D) -> float:
+	var i: int = _ward_of(hero)
+	return _ward_alpha(i) if i >= 0 else -1.0
 
 
 ## Each Last Stand halo: a pulsing ellipse at the hero's feet.
@@ -2330,6 +2351,18 @@ func axes_live() -> int:
 
 func stuns_live() -> int:
 	return _st_live
+
+
+## The centre of the stun stars' orbit over `host`: STUN_LIFT above the top
+## of its drawn body.
+static func stun_centre(host: Node2D) -> Vector2:
+	return CharacterRig.head_top_of(host) + Vector2(0.0, -STUN_LIFT)
+
+
+## The lowest y (world px) a stun star over `host` reaches: the front of the
+## orbit, where a star is drawn at full size.
+static func stun_lowest_y(host: Node2D) -> float:
+	return stun_centre(host).y + STUN_ORBIT * 0.35 + STUN_STAR_SIZE * 0.5
 
 
 func bands_live() -> int:

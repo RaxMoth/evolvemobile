@@ -70,16 +70,22 @@ extends Node2D
 ## points up or down).
 ##
 ## Death beat: a FULL rig on screen outlives its entity (`died`, scene-wired):
-## it moves to the entity's parent as a puppet, tips over and fades for
-## DEATH_TIME, then frees itself. The entity dies and is freed exactly as
-## before; mobs (BUDGETED, pooled) keep VfxManager's puff alone.
+## it moves to the entity's parent as a puppet at the entity's size, tips over
+## and fades from the alpha it had for DEATH_TIME, then frees itself. The
+## entity dies and is freed exactly as before; mobs (BUDGETED, pooled) keep
+## VfxManager's puff alone.
+##
+## Sleeping (off screen, a hidden menu view) or leaving the tree drops the
+## reactions in flight (a move, the hurt flash, a swing): nothing stale plays
+## on when the rig wakes.
 ##
 ## mid_body() (and the static mid_body_of) is the middle of the drawn body, the
 ## origin and end of line, beam and projectile EFFECTS: the entity's position
 ## is its feet. head_top() (head_top_of) is the top of the drawn body, where a
 ## lasting status mark floats. half_width() (half_width_of) is how far the
 ## drawn body reaches to either side of its feet: a swing effect starts
-## outside it.
+## outside it. All three read the box of the parts drawn now
+## (RigBody.drawn_bounds: Grount's calf at Stage I, not his Stage III horns).
 
 enum Tier { FULL, BUDGETED }
 
@@ -170,6 +176,22 @@ var move_scale := Vector2.ONE
 var move_tilt := 0.0
 var arm_f_reach := Vector2.ZERO
 var arm_b_reach := Vector2.ZERO
+## The drawn body's size factor and alpha an ability animates: Ground Slam's
+## leap grows it to 1.2x and fades it to 0.7, Nyxa's scattered bats fade it.
+## Their tweens are bound to the entity, which a death frees only at the end
+## of the frame, after one more tween step: written through these, a dying
+## rig ignores them (the corpse keeps the entity's size and fades from the
+## alpha it had).
+var hop_scale := 1.0:
+	set(v):
+		hop_scale = v
+		if _dying <= 0.0:
+			scale = Vector2(v, v)
+var fade_alpha := 1.0:
+	set(v):
+		fade_alpha = v
+		if _dying <= 0.0:
+			modulate.a = v
 
 ## Half the width of the shadow's dense core in world px, before the entity's
 ## own scale (the shadow grows with an evolving monster like the body); the
@@ -198,8 +220,10 @@ var _hurt_wait := 0.0
 var _act := 0.0
 ## Seconds the side a cast picked still holds against the facing carrier.
 var _face_hold := 0.0
-## Seconds left of the death beat (0 = not dying).
+## Seconds left of the death beat (0 = not dying), and the alpha the corpse
+## fades from (the body's at the death).
 var _dying := 0.0
+var _death_alpha := 1.0
 var _flashing := false
 var _flash_color := Color.WHITE
 ## The authored move playing (null = none), its name and elapsed seconds.
@@ -323,16 +347,26 @@ func _enter_tree() -> void:
 
 
 ## Leaving the tree is either the end or a pooled mob being parked: drop the
-## reactions in flight so the next life does not start mid-flash or mid-swing.
+## reactions in flight so the next life does not start mid-flash or mid-swing,
+## and the walk.
 func _exit_tree() -> void:
 	set_on_screen(false)
 	if not _active:
 		return
+	_walk = 0.0
+	_drop_reactions()
+
+
+## The reactions in flight (a move, the hurt flash and squash, a swing, a
+## cast's side, a dash's loop) end now: the rig left the tree or fell asleep
+## (off screen, a hidden menu view). A rig hit or casting as it left the view
+## used to play the rest of that move and flash when it came back, seconds or
+## minutes later.
+func _drop_reactions() -> void:
 	_hurt = 0.0
 	_hurt_wait = 0.0
 	_act = 0.0
 	_face_hold = 0.0
-	_walk = 0.0
 	_skipped = 0.0
 	_dash = null
 	_airtime_frame = -1
@@ -392,6 +426,10 @@ func set_on_screen(on: bool) -> void:
 	_awake += 1 if awake else -1
 	if awake and _entity:
 		_last_pos = _entity.global_position
+	elif not awake:
+		# Awake -> asleep (only an active rig wakes). A play_move() while
+		# asleep (a hidden menu view) still starts on the next wake.
+		_drop_reactions()
 
 
 func _on_screen_entered() -> void:
@@ -548,6 +586,12 @@ func _on_entity_died() -> void:
 	_entity = null
 	_facing = null
 	_dash = null
+	# A leap's hop_scale or a scatter's fade_alpha may be mid-tween: the corpse
+	# starts at the entity's own size (the rest scale here; the reparent keeps
+	# the entity's stage scale) and fades from the alpha it has now. A monster
+	# dying mid-leap used to stay 1.19x too big and snap opaque.
+	scale = Vector2.ONE
+	_death_alpha = modulate.a
 	# Keeps the global transform; _exit_tree drops the reactions in flight.
 	reparent(host)
 	_dying = DEATH_TIME
@@ -695,12 +739,13 @@ func _sample_move() -> void:
 
 # ---------------------------------------------------------- anchors ----
 
-## The middle of the drawn body in global coordinates (the art's box centre,
-## raised by a flyer's mean hover, at the rig's size and the entity's scale):
-## where a line, beam or projectile EFFECT starts or ends on this character.
-## Presentation only; gameplay positions stay the entity's (its feet).
+## The middle of the drawn body in global coordinates (the centre of the box
+## of the parts drawn now, raised by a flyer's mean hover, at the rig's size
+## and the entity's scale): where a line, beam or projectile EFFECT starts or
+## ends on this character. Presentation only; gameplay positions stay the
+## entity's (its feet).
 func mid_body() -> Vector2:
-	var y := body.bounds.get_center().y
+	var y := body.drawn_bounds().get_center().y
 	if profile.body_plan == RigProfile.BodyPlan.FLYER:
 		y -= profile.hover
 	return to_global(Vector2(0.0, y * profile.world_scale * _size))
@@ -715,11 +760,12 @@ static func mid_body_of(node: Node2D) -> Vector2:
 	return node.global_position
 
 
-## Half the width of the drawn body in world px (the art's box at the rig's
-## size and the entity's scale): how far the body reaches to either side of
-## its feet, 1.5 times further on a Stage III monster. Presentation only.
+## Half the width of the drawn body in world px (the box of the parts drawn
+## now at the rig's size and the entity's scale): how far the body reaches to
+## either side of its feet, 1.5 times further on a Stage III monster.
+## Presentation only.
 func half_width() -> float:
-	return body.bounds.size.x * 0.5 * profile.world_scale * _size * absf(global_scale.x)
+	return body.drawn_bounds().size.x * 0.5 * profile.world_scale * _size * absf(global_scale.x)
 
 
 ## half_width() of `node`'s Rig when it has an active one, else 0 (a trap, a
@@ -731,12 +777,12 @@ static func half_width_of(node: Node2D) -> float:
 	return 0.0
 
 
-## The top of the drawn body in global coordinates (the art box's top edge,
-## raised by a flyer's mean hover, at the rig's size and the entity's scale):
-## where a lasting status mark (a taunt's anger vein, a "!") floats, clear of
-## the head. Presentation only.
+## The top of the drawn body in global coordinates (the top edge of the box of
+## the parts drawn now, raised by a flyer's mean hover, at the rig's size and
+## the entity's scale): where a lasting status mark (a taunt's anger vein, a
+## "!") floats, clear of the head. Presentation only.
 func head_top() -> Vector2:
-	var y := body.bounds.position.y
+	var y := body.drawn_bounds().position.y
 	if profile.body_plan == RigProfile.BodyPlan.FLYER:
 		y -= profile.hover
 	return to_global(Vector2(0.0, y * profile.world_scale * _size))
@@ -771,14 +817,20 @@ func _process(delta: float) -> void:
 		if step > 0.0:
 			_walk_phase += step / walk_stride() * PI
 		# A cast's side holds for FACE_HOLD; then the carrier decides again.
+		# A dash in flight overrides both and faces its way (read only: Echo
+		# Strike's return pass reverses it while the busy AI never turns the
+		# carrier, so she flew back tail-first). NAN: the side stays.
+		var c := NAN
 		if _face_hold > 0.0:
 			_face_hold -= dt
 		elif _facing:
-			var c := cos(_facing.rotation)
-			if c > 0.25:
-				_flip = 1.0
-			elif c < -0.25:
-				_flip = -1.0
+			c = cos(_facing.rotation)
+		if _dash != null and _dash.is_dashing:
+			c = _dash.dash_direction.x
+		if c > 0.25:
+			_flip = 1.0
+		elif c < -0.25:
+			_flip = -1.0
 	else:
 		_walk_phase += speed * dt / profile.stride * PI
 	_walk = move_toward(_walk, clampf(speed / profile.full_speed, 0.0, 1.0), dt * 6.0)
@@ -828,7 +880,9 @@ func _pose() -> void:
 		var fall := minf(death_k / DEATH_FALL, 1.0)
 		lift = lift * (1.0 - fall * fall) - sin(fall * PI) * DEATH_HOP
 		tilt -= DEATH_TILT * fall * fall
-		modulate.a = 1.0 - smoothstep(DEATH_FADE_FROM, 1.0, death_k)
+		# Written whole every beat frame: a tint left on this node (a Trap
+		# Cage's) does not stay on the corpse once its tween ends.
+		modulate = Color(1.0, 1.0, 1.0, _death_alpha * (1.0 - smoothstep(DEATH_FADE_FROM, 1.0, death_k)))
 	var off := move_offset * w
 	var body_pos := Vector2(off.x * _flip, lift + off.y) * k
 	if body_pos != _cur_body_pos:
@@ -868,6 +922,10 @@ func _pose() -> void:
 			_cur_head_y = head_y
 			_head.position.y = head_y
 			moved = true
+		# The head's angle is a move's alone: back at rest every frame, so a
+		# move blends over rest and out to it (it lerped from last frame's
+		# angle, froze in the blend-out and snapped at the hand-back).
+		moved = _rot(1, 0.0) or moved
 	if _arm_f:
 		moved = _rot(2, -step * p.arm_swing * _walk + atk) or moved
 	if _arm_b:

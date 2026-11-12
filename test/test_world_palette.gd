@@ -33,7 +33,7 @@ func test_hp_bars_take_their_colours_from_the_palette() -> void:
 		_check_trough_and_outline(bar, path.get_file())
 		e.queue_free()
 	var pet := (load(PET) as PackedScene).instantiate()
-	var pet_bar := pet.get_node(^"HealthBar") as HpBar2D
+	var pet_bar := pet.get_node(^"%HealthBar") as HpBar2D
 	assert_eq(pet_bar.fill_token, &"heal", "the pet is on the hero side")
 	pet.free()
 	await wait_frames(1)

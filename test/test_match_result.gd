@@ -134,6 +134,9 @@ func test_populate_each_side_and_outcome() -> void:
 		if monster_side:
 			assert_eq(cast[0].character.character_id(), &"nyxa", tag + " the match's monster")
 			assert_eq(cast[0].stage, 3, tag + " at the stage it reached")
+			assert_eq(rows[0].stage, 3, tag + " its row's head of that stage")
+			assert_true(((rows[0].get_node(^"%Head") as TextureRect).texture as AtlasTexture).atlas == \
+					cast[0].character.portrait_at(3), tag + " (the stage's portrait)")
 		else:
 			assert_eq(cast.map(func(a: StageCharacter) -> StringName: return a.character.character_id()),
 					[&"irelia", &"vlad", &"ted", &"river"], tag)

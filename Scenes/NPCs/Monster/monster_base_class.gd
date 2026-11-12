@@ -699,12 +699,12 @@ func _scatter_point() -> Vector2:
 
 
 ## Presentation: the scattered bats show as a faded body (the CharacterRig's
-## own modulate, as Ground Slam's leap does).
+## fade_alpha, as Ground Slam's leap does: a corpse ignores it).
 func _fade_visual(alpha: float) -> void:
 	var vis: Node2D = visual_root()
 	if vis == null:
 		return
-	create_tween().tween_property(vis, ^"modulate:a", alpha, SCATTER_FADE_TIME)
+	create_tween().tween_property(vis, ^"fade_alpha", alpha, SCATTER_FADE_TIME)
 
 
 ## One F3 HUD line: the monster id, stage, HP, its build ("save" when the

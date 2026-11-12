@@ -155,6 +155,7 @@ func _attack_target(delta: float) -> void:
 	else:
 		# Stop and attack
 		velocity = velocity.lerp(Vector2.ZERO, 10.0 * delta)
+		_face(current_target.global_position - global_position)
 		
 		if attack_timer <= 0.0:
 			_perform_attack()
@@ -185,9 +186,17 @@ func _navigate_to_position(target_pos: Vector2, speed: float, delta: float) -> v
 	# Move along the path
 	velocity = direction * speed
 	
-	# Rotate sprite to face movement direction (optional)
-	if has_node("Sprite2D") and direction.length_squared() > 0.01:
-		$Sprite2D.rotation = direction.angle()
+	_face(direction)
+
+
+## Turns the facing carrier (the hidden Sprite2D the rig mirrors by) along
+## `direction`: the path while it runs, its victim while it bites. A target
+## already in bite range (the next mob of a camp, one that walked round it)
+## used to be bitten facing away. Presentation only: nothing in gameplay
+## reads the pet's Sprite2D.
+func _face(direction: Vector2) -> void:
+	if direction.length_squared() > 0.01 and has_node(^"Sprite2D"):
+		($Sprite2D as Node2D).rotation = direction.angle()
 
 func _perform_attack() -> void:
 	if not _target_ok():
@@ -212,9 +221,10 @@ func _receive_damage(packet: DamagePacket) -> void:
 
 ## Mobs and the monster can target the pet now: keep its bar honest. The bar
 ## is the in-world HpBar2D every entity draws (a themed ProgressBar is too
-## small to read at this size).
+## small to read at this size), in the fox's own EntityHud (TedsPet.tscn):
+## above the bodies, stacking with the heroes' bars.
 func _update_health_bar() -> void:
-	var bar := get_node_or_null(^"HealthBar") as HpBar2D
+	var bar := get_node_or_null(^"%HealthBar") as HpBar2D
 	if bar:
 		bar.set_values(maxf(current_health, 0.0), max_health)
 

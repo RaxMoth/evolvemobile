@@ -172,7 +172,8 @@ func test_grount_dash_and_slam_emit_their_moments() -> void:
 
 
 ## Warcry Stomp stuns: STUNNED per target, three stars circling above its
-## head (never over it) that end with the stun.
+## head (never over it: vfx-7, the front star's lower edge stays above the
+## drawn head's top) that end with the stun.
 func test_stun_stars_float_above_the_head_while_the_stun_lasts() -> void:
 	var pair := _pair()
 	var mgr: VfxManager = pair[0]
@@ -186,8 +187,9 @@ func test_stun_stars_float_above_the_head_while_the_stun_lasts() -> void:
 	assert_eq(_count(recorded, FxEvents.STUNNED), 1, "Vlad stunned")
 	assert_true(v.is_stunned())
 	assert_eq(vfx.stuns_live(), 1, "stars")
-	var lowest: float = CharacterRig.head_top_of(v).y - 6.0 + AbilityVfx.STUN_ORBIT * 0.35
-	assert_true(lowest < CharacterRig.head_top_of(v).y, "the stars circle above the head")
+	var lowest: float = AbilityVfx.stun_lowest_y(v)
+	assert_true(lowest < CharacterRig.head_top_of(v).y, "the stars circle above the head (lowest edge %.1f px over it)" % (
+			CharacterRig.head_top_of(v).y - lowest))
 	v.clear_stun()  # a frozen entity's stun never decays: end it as Guardian Angel does
 	await wait_frames(2)
 	assert_eq(vfx.stuns_live(), 0, "gone with the stun")
@@ -319,9 +321,15 @@ func test_the_scattered_bats_shed_the_taunt_and_its_tether() -> void:
 
 ## Live anger veins riding `host` in the vfx's marks.
 func _anger_marks_on(vfx: AbilityVfx, host: Node) -> int:
+	return _anger_marks_of(vfx, host.get_instance_id())
+
+
+## Live anger veins riding the node with instance id `host_id` (it may be
+## freed by now).
+func _anger_marks_of(vfx: AbilityVfx, host_id: int) -> int:
 	var count: int = 0
 	for i in vfx.marks.capacity:
-		if vfx.marks.tex[i] == FxTex.ANGER and vfx.marks.follow[i] == host.get_instance_id():
+		if vfx.marks.tex[i] == FxTex.ANGER and vfx.marks.follow[i] == host_id:
 			count += 1
 	return count
 
@@ -387,6 +395,35 @@ func _kill_puffs(mgr: VfxManager) -> int:
 		if mgr.sprites.tex[i] == FxTex.PUFF:
 			count += 1
 	return count
+
+
+## vfx-7: what rides a mob ends when it dies, before the pool brings the same
+## node back: Irelia's taunt on a Hog (its tether and anger vein) and a stun's
+## stars, on EventBus.entity_died.
+func test_riders_end_when_their_mob_dies() -> void:
+	var pair := _pair()
+	var mgr: VfxManager = pair[0]
+	var vfx: AbilityVfx = pair[1]
+	var hog := (await spawn_frozen(HOG, Vector2(100, 100))) as MobBase
+	var irelia := await spawn_frozen(IRELIA, Vector2(200, 100))
+	(irelia.get_node(^"AbilitySystem") as AbilitySystem).ultimate_ability.execute(irelia)
+	hog.apply_stun(3.0)  # a frozen entity's stun never decays
+	EventBus.notify_ability_event(hog, null, FxEvents.STUNNED, hog.global_position, 3.0)
+	await wait_frames(1)
+	var hog_id: int = hog.get_instance_id()
+	assert_eq(vfx.tethers_live(), 1, "the taunt's tether")
+	assert_eq(_anger_marks_of(vfx, hog_id), 1, "its anger vein")
+	assert_eq(vfx.stuns_live(), 1, "the stun's stars")
+	EventBus.deal_damage(irelia, hog, 99999.0)
+	assert_false(hog.is_alive(), "the Hog dies")
+	await wait_seconds(AbilityVfx.TETHER_FADE + 0.2)
+	assert_eq(vfx.tethers_live(), 0, "the tether ended with it")
+	assert_eq(_anger_marks_of(vfx, hog_id), 0, "and the vein")
+	assert_eq(vfx.stuns_live(), 0, "and the stars")
+	for node: Node in [hog, irelia, mgr]:
+		if is_instance_valid(node):
+			node.queue_free()
+	await wait_frames(1)
 
 
 ## Call of the Herd: RECRUITED per Hog; each gets a ring at its feet while it

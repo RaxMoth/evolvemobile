@@ -102,6 +102,29 @@ func test_stage_parts_follow_the_stage() -> void:
 	await wait_frames(1)
 
 
+## rig-5: the builder writes each stage's own box (the parts that stage
+## shows); drawn_bounds() is that box at the body's stage, `bounds` stays the
+## union of every part (UI fitting, notifier, shadow, HP bar).
+func test_drawn_bounds_follow_the_stage() -> void:
+	var body := (load(FIXTURE_BODY) as PackedScene).instantiate() as RigBody
+	add_child(body)
+	assert_eq(body.stage_bounds.keys(), [1, 2, 3], "one box per stage")
+	var crown_top: float = body.bounds.position.y
+	assert_true(body.drawn_bounds().position.y > crown_top + 1.0, "stage 1: no crown on top (%.1f vs %.1f)" % [
+			body.drawn_bounds().position.y, crown_top])
+	body.set_stage(2)
+	assert_eq(body.drawn_bounds(), body.bounds, "stage 2: the crown's box is the union")
+	body.set_stage(1)
+	assert_true(body.drawn_bounds().position.y > crown_top + 1.0, "back to stage 1")
+	assert_eq(body.drawn_bounds().end.y, body.bounds.end.y, "the feet stay where they are")
+	body.queue_free()
+	var plain := (load("res://Assets/Characters/vlad/vlad_body.tscn") as PackedScene).instantiate() as RigBody
+	assert_true(plain.stage_bounds.is_empty(), "a body without stage parts has no stage boxes")
+	assert_eq(plain.drawn_bounds(), plain.bounds, "and draws its whole box")
+	plain.free()
+	await wait_frames(1)
+
+
 func _write_broken(id: String, parts: Array, svgs: Dictionary) -> void:
 	var dir := "%s/%s/src/parts" % [BROKEN_ROOT, id]
 	DirAccess.make_dir_recursive_absolute(dir)
@@ -389,6 +412,53 @@ func test_entity_rig_reads_but_never_writes() -> void:
 	assert_false(rig.is_processing(), "asleep again off screen")
 	assert_eq(CharacterRig.awake_count(), awake_before)
 	vlad.queue_free()
+	await wait_frames(1)
+
+
+## rig-4: falling asleep drops the reactions in flight. A rig hit or casting
+## as it left the view used to play the rest of that move and of the white
+## flash when it came back, seconds or minutes later; a menu view hidden
+## mid-cheer finished the cheer when shown again. A move started while
+## asleep (a hidden view told to cheer) still plays on the wake.
+func test_sleep_drops_the_reactions_in_flight() -> void:
+	var vlad := await spawn_frozen(VLAD, Vector2(300, 300)) as EntityBase
+	var rig := vlad.get_node(^"Rig") as CharacterRig
+	rig.set_on_screen(true)
+	vlad.announce_cast((vlad.get_node(^"AbilitySystem") as AbilitySystem).ultimate_ability, null)
+	vlad.damaged.emit(DamagePacket.make(null, vlad, 1.0, null, 0))
+	await wait_frames(2)
+	assert_true(rig.current_move() != &"", "the ultimate's move plays")
+	assert_true(rig.body.modulate.r > 1.0, "and the hurt flash")
+	rig._on_screen_exited()
+	assert_eq(rig.current_move(), &"", "asleep: the move is dropped")
+	assert_eq(rig.body.modulate, Color.WHITE, "and the flash")
+	assert_near(rig._hurt, 0.0, 0.0001, "and the squash")
+	await wait_seconds(0.3)
+	rig._on_screen_entered()
+	await wait_frames(2)
+	assert_eq(rig.current_move(), &"", "nothing stale plays on the wake")
+	assert_eq(rig.body.modulate, Color.WHITE, "no flash either")
+	rig._on_screen_exited()
+	rig.play_move(&"cheer")
+	rig._on_screen_entered()
+	await wait_frames(1)
+	assert_eq(rig.current_move(), &"cheer", "a move started while asleep plays on the wake")
+	vlad.queue_free()
+	# A menu view hidden mid-cheer.
+	var view := RigView.new()
+	view.size = Vector2(140, 180)
+	view.character = GameManager.ROSTER.find(&"irelia")
+	add_child(view)
+	await wait_frames(2)
+	view.play_move(&"cheer")
+	await wait_frames(2)
+	assert_eq(view.rig.current_move(), &"cheer", "the view cheers")
+	view.hide()
+	assert_eq(view.rig.current_move(), &"", "hidden: the cheer is dropped")
+	view.show()
+	await wait_frames(2)
+	assert_eq(view.rig.current_move(), &"", "shown again: no half cheer")
+	view.queue_free()
 	await wait_frames(1)
 
 

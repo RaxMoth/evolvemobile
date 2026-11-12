@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="CharacterDef" load_steps=7 format=3]
+[gd_resource type="Resource" script_class="CharacterDef" load_steps=9 format=3]
 
 [ext_resource type="Script" uid="uid://cgn88tt4e34c7" path="res://Scripts/Roster/character_def.gd" id="1_def"]
 [ext_resource type="Resource" uid="uid://beh8ck0yckyl5" path="res://Scenes/NPCs/Monster/Grount/grount_stats.tres" id="2_stats"]
@@ -6,6 +6,8 @@
 [ext_resource type="Resource" path="res://Assets/Characters/grount/grount_motion.tres" id="4_motion"]
 [ext_resource type="Texture2D" uid="uid://cbyfikert83sd" path="res://Assets/Characters/grount/grount.svg" id="5_portrait"]
 [ext_resource type="Resource" path="res://Data/SkillTrees/monster_grount.tres" id="6_tree"]
+[ext_resource type="Texture2D" uid="uid://d082guun17o7v" path="res://Assets/Characters/grount/grount_s2.svg" id="7_s2"]
+[ext_resource type="Texture2D" uid="uid://b2i443t31b52x" path="res://Assets/Characters/grount/grount_s3.svg" id="8_s3"]
 
 [resource]
 script = ExtResource("1_def")
@@ -21,6 +23,8 @@ rig_body = ExtResource("3_body")
 rig_profile = ExtResource("4_motion")
 portrait = ExtResource("5_portrait")
 head_region = Rect2(52, 37, 68, 68)
+stage_portraits = Array[Texture2D]([ExtResource("7_s2"), ExtResource("8_s3")])
+stage_head_regions = Array[Rect2]([Rect2(44, 24, 82, 82), Rect2(26, 8, 100, 100)])
 stage_names = PackedStringArray("Bullcalf", "Rampager", "Alpha Bull")
 skill_tree = ExtResource("6_tree")
 tip = "Spread out against his Ground Slam and kite the Ram Dash. Strike before he reaches Stage 3."

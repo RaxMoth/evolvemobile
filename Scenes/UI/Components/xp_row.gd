@@ -21,6 +21,13 @@ const LEVEL_UP_FROM := Vector2(0.3, 0.3)
 		character = v
 		if is_node_ready():
 			_apply_character()
+## The evolution stage the monster reached in the match: its head shows that
+## stage (CharacterDef.head_texture). 1 for heroes.
+@export var stage: int = 1:
+	set(v):
+		stage = v
+		if is_node_ready():
+			_apply_character()
 ## Permanent XP before this match.
 @export var total_before: int = 0
 ## XP this match earned.
@@ -77,7 +84,7 @@ func play(delay: float = 0.0) -> void:
 func _apply_character() -> void:
 	if character == null:
 		return
-	_head.texture = character.head_texture()
+	_head.texture = character.head_texture(stage)
 	_name.text = character.get_display_name()
 	var sb := get_theme_stylebox(&"panel", &"HudPanel").duplicate() as StyleBoxFlat
 	if sb == null:

@@ -23,11 +23,16 @@ extends Node2D
 @export var part_order: PackedStringArray
 ## part name -> the evolution stages it shows in (absent = every stage).
 @export var stage_parts: Dictionary
+## Evolution stage -> the box of the parts that stage shows (art units, like
+## `bounds`); only a body with stage parts has it. drawn_bounds() reads it.
+@export var stage_bounds: Dictionary
 ## proxy node -> part whose local transform it mirrors (see RigBuilder).
 @export var proxies: Dictionary
 
 var _rest: Dictionary[String, Transform2D] = {}  ## part -> transform of the generated scene
 var _proxy_pairs: Array[Node2D] = []  ## [proxy, source, proxy, source, ...]
+## The stage set_stage last showed (a fresh body shows Stage 1).
+var _stage: int = 1
 
 
 func _ready() -> void:
@@ -69,6 +74,7 @@ func sync_proxies() -> void:
 
 ## Shows the parts of one evolution stage (parts without a stage list always show).
 func set_stage(stage: int) -> void:
+	_stage = stage
 	for n: String in stage_parts:
 		var p := part(StringName(n))
 		if p:
@@ -78,3 +84,13 @@ func set_stage(stage: int) -> void:
 ## Height of the art in units (UI fitting).
 func art_height() -> float:
 	return bounds.size.y
+
+
+## The box of the parts drawn now (art units): the stage's own box on a body
+## with stage parts (Grount's calf at Stage I is lower and narrower than its
+## Stage III horns), else `bounds`. The character's effect anchors read it
+## (CharacterRig.mid_body / head_top / half_width); UI fitting, the notifier,
+## the shadow and the HP bar keep the union `bounds`.
+func drawn_bounds() -> Rect2:
+	var box: Rect2 = stage_bounds.get(_stage, bounds)
+	return box

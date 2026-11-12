@@ -19,7 +19,8 @@ extends CanvasLayer
 ##     XP, counting up; at an Opponent Threat above 0 the currencies carry its
 ##     bonus (+10% per level, never XP) and the header says so;
 ##   - an XpRow per character (two columns for the heroes): the bar fills from
-##     the pre-match total and pops LEVEL UP! where it crosses a level;
+##     the pre-match total and pops LEVEL UP! where it crosses a level; the
+##     monster's head is the one of the stage it reached;
 ##   - "N upgrades ready" (the ranks the cast can buy now) while there are any:
 ##     upgrades_requested(side), and the menu opens on that side's roster
 ##     (GameManager.request_menu_roster);
@@ -243,6 +244,8 @@ func _fill_xp(defs: Array[CharacterDef], monster_side: bool) -> void:
 	for def in defs:
 		var row := XP_ROW.instantiate() as XpRow
 		row.character = def
+		if def.is_monster():
+			row.stage = result.monster_stage
 		row.gain = result.xp
 		# The rewards are saved before populate: the save holds the new total.
 		row.total_before = maxi(0, CharacterProgress.xp(def) - result.xp)

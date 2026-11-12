@@ -21,6 +21,21 @@ func test_every_key_has_a_stream() -> void:
 	assert_true(AudioManager.is_placeholder(&"menu"))
 
 
+## gaps-2: the placeholder tones' noise comes from a private, seeded
+## RandomNumberGenerator: making one leaves the global RNG (gameplay and the
+## determinism trace) where it was, and it sounds the same every time. (It drew
+## about 32,000 numbers from the global RNG at boot.)
+func test_placeholder_tones_leave_the_global_rng_alone() -> void:
+	var script := load("res://Scripts/audio_manager.gd")
+	seed(4242)
+	var expected := randi()
+	seed(4242)
+	var a: AudioStreamWAV = script.call(&"_tone", 180.0, 90.0, 0.06, 0.45, 0.5)
+	assert_eq(randi(), expected, "no global draw")
+	var b: AudioStreamWAV = script.call(&"_tone", 180.0, 90.0, 0.06, 0.45, 0.5)
+	assert_true(a.data == b.data, "the same noise every time")
+
+
 func test_same_key_is_rate_limited() -> void:
 	# The rate limit runs on the wall clock (Time.get_ticks_msec) while the suite
 	# runs at a fixed fps, so wait in real time. The first wait clears a "cast"

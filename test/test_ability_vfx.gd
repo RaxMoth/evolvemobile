@@ -198,6 +198,38 @@ func test_divine_shield_wards_follow_the_shields() -> void:
 	await wait_frames(1)
 
 
+## vfx-6: a shield worn down and then run out fades its ward from the
+## strength it had: never brighter than just before, gone after WARD_FADE.
+## (The Shield is freed the frame it expires and the ward read a missing
+## shield as full strength: at 30 % it flashed from 0.58 up to 0.8 alpha just
+## as it ran out.)
+func test_an_expiring_ward_fades_from_its_strength() -> void:
+	var irelia := await spawn_frozen(IRELIA, Vector2(0, 0))
+	var vfx := _vfx()
+	var active: AbilityBase = (irelia.get_node("AbilitySystem") as AbilitySystem).active_ability
+	active.execute(irelia)
+	await wait_frames(1)
+	var shield := irelia.get_node(^"Shield") as Shield
+	EventBus.deal_damage(null, irelia, shield.max_shield * 0.7)
+	await wait_frames(2)
+	assert_near(shield.get_shield_percent(), 0.3, 0.01, "worn to 30 %")
+	var before: float = vfx.ward_alpha(irelia)
+	assert_near(before, 0.45 + 0.45 * 0.3, 0.01, "the ward's alpha is the strength")
+	shield.remaining_time = 0.0  # runs out on its next frame
+	var brightest := 0.0
+	var frames := 0
+	while vfx.ward_alpha(irelia) >= 0.0 and frames < 60:
+		brightest = maxf(brightest, vfx.ward_alpha(irelia))
+		await wait_frames(1)
+		frames += 1
+	assert_true(brightest <= before + 0.001, "never brighter while it fades (%.2f over %.2f)" % [brightest, before])
+	assert_eq(vfx.wards_live(), 0, "faded out")
+	assert_true(frames <= ceili(AbilityVfx.WARD_FADE * 60.0) + 3, "within WARD_FADE (%d frames)" % frames)
+	for n: Node in [vfx, irelia]:
+		n.queue_free()
+	await wait_frames(1)
+
+
 ## Vlad's mine, Ted's Rally Cry and Trap Cage emit their moments: the arming
 ## and the blast of each mine, the cage closing and opening (its stakes
 ## spring up and sink), the trapped enemy's rig pulsing toward the palette's

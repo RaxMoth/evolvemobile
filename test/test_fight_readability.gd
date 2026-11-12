@@ -7,11 +7,13 @@ extends TestCase
 ##  - a cleave's crescent starts outside the caster's drawn body, however big
 ##    the monster has grown;
 ##  - stacked characters' in-world huds (HP bar and level pill) rise above
-##    each other, and damage numbers never start on top of a live one;
+##    each other, the fox's bar too, and damage numbers never start on top of
+##    a live one; numbers that are not fading stay apart at any zoom;
 ##  - World.tscn y-sorts its characters (a hero in front of the monster's
 ##    feet draws in front of it);
 ##  - a hero's or the monster's rig stays behind as the corpse for the death
-##    beat, while the entity is freed as before; a mob's stays with the mob.
+##    beat, while the entity is freed as before; a mob's stays with the mob;
+##    a monster dying mid-leap keeps its size and never brightens.
 ## GameManager holding the result screen back for the beat is in
 ## test_match_result; the Trap Cage's freed entry in test_hero_actives.
 
@@ -22,6 +24,10 @@ const TED := "res://Scenes/NPCs/Hero/Heros/Support/Ted/Ted.tscn"
 const GROUNT := "res://Scenes/NPCs/Monster/Grount/Grount.tscn"
 const BAT := "res://Scenes/NPCs/Mob/Mobs/Bat/Bat.tscn"
 const PET := "res://Scenes/NPCs/Hero/Heros/Support/Ted/Abilities/Passive/TedsPet.tscn"
+## Most a non-fading number may overlap another (share of the smaller box,
+## at its settled size): a start's +-2 world px jitter can bring two
+## neighbouring columns a few px together.
+const NUMBER_OVERLAP := 0.1
 const CLEAVE := "res://Scenes/NPCs/Monster/Grount/abilities/grount_front_cleave.tres"
 ## Frames between two hits of a five-attacker fight (0.15 s at 60 fps).
 const HIT_EVERY := 9
@@ -314,6 +320,75 @@ func test_damage_numbers_never_start_on_a_live_one() -> void:
 	await wait_frames(1)
 
 
+## vfx-5: numbers keep their screen size at any zoom, so their columns,
+## rows and rise are at least a glyph apart on screen too. One target hit
+## every 0.25 s or 0.5 s for 3 s (two-digit numbers, also when hits add up),
+## plus heals: no two numbers that are not fading overlap, and a new number
+## starts clear of the HP bar under it. (The rise was 18 world px: at zoom 1.0
+## or 0.5 the next number in a column started on an opaque one, 44-86 % of it;
+## the 6 world px lift put the number's lower half on the bar.)
+func test_numbers_stay_apart_at_every_zoom() -> void:
+	var vp := get_viewport()
+	var keep: Transform2D = vp.canvas_transform
+	for zoom: float in [0.5, 1.0, 2.0]:
+		for every: int in [15, 30]:
+			vp.canvas_transform = Transform2D(0.0, Vector2(zoom, zoom), 0.0, Vector2.ZERO)
+			var vfx := VfxManager.new()
+			add_child(vfx)
+			var center: Vector2 = vp.get_canvas_transform().affine_inverse() * vp.get_visible_rect().get_center()
+			var t := Node2D.new()
+			t.position = center
+			add_child(t)
+			var bar := Node2D.new()  # where a hud would hold the HP bar
+			bar.name = "Hud"
+			bar.position = Vector2(0.0, -30.0)
+			t.add_child(bar)
+			await wait_frames(1)  # the manager reads the zoom
+			vfx.show_hit(t, 7.0)
+			var first := Array(vfx._n_target).find(t.get_instance_id())
+			assert_true(vfx.number_rect(first, false).end.y <= bar.global_position.y + 0.001,
+					"zoom %.1f: the number starts above the bar (%.1f over %.1f)" % [
+					zoom, vfx.number_rect(first, false).end.y, bar.global_position.y])
+			await wait_seconds(VfxManager.NUMBER_LIFE + 0.05)
+			var worst := 0.0
+			var at := ""
+			for f in 180:
+				if f % every == 0:
+					vfx.show_hit(t, 7.0)
+				if f % 50 == 20:
+					vfx.show_heal(t, 9.0)
+				await wait_frames(1)
+				var overlap := _worst_number_overlap(vfx)
+				if overlap > worst:
+					worst = overlap
+					at = "frame %d" % f
+			assert_true(worst <= NUMBER_OVERLAP, "zoom %.1f, a hit every %d frames: numbers overlap %.0f %% (%s)" % [
+					zoom, every, worst * 100.0, at])
+			t.queue_free()
+			vfx.queue_free()
+			await wait_frames(1)
+	vp.canvas_transform = keep
+
+
+## The largest share of the smaller box that two live numbers which are not
+## fading yet cover of each other, at their settled size (a number popping to
+## 1.5x for 0.12 s as it starts or adds up may cover a neighbour's edge).
+func _worst_number_overlap(vfx: VfxManager) -> float:
+	var worst := 0.0
+	for i in VfxManager.NUMBER_CAP:
+		if vfx._n_age[i] >= VfxManager.NUMBER_LIFE or not vfx.number_opaque(i):
+			continue
+		var a := vfx.number_rect(i, false)
+		for j in i:
+			if vfx._n_age[j] >= VfxManager.NUMBER_LIFE or not vfx.number_opaque(j):
+				continue
+			var b := vfx.number_rect(j, false)
+			var both := a.intersection(b)
+			if both.has_area():
+				worst = maxf(worst, both.get_area() / minf(a.get_area(), b.get_area()))
+	return worst
+
+
 ## World.tscn y-sorts its characters: the root and the three holders are
 ## y-sorted Node2Ds at the origin, so a character draws in front of whatever
 ## stands behind (north of) its feet. The monster used to draw last, over
@@ -356,6 +431,72 @@ func test_a_dead_heros_rig_stays_as_the_corpse() -> void:
 	assert_true(rig.modulate.a < 0.6, "fading (alpha %.2f)" % rig.modulate.a)
 	await wait_seconds(CharacterRig.DEATH_TIME * 0.2 + 0.1)
 	assert_false(is_instance_valid(rig), "gone after DEATH_TIME")
+
+
+## fight-2: Ground Slam's leap grows the monster's rig to 1.2x and fades it
+## to 0.7 with a tween bound to the monster, which dies with it (after one
+## more step in the death frame). Killed mid-leap, the corpse stayed 1.19x
+## too big for the whole beat and snapped opaque. It now keeps the monster's
+## own stage size on every frame and fades from the alpha it had.
+func test_a_monster_killed_mid_leap_falls_at_its_size() -> void:
+	var grount := await spawn_frozen(GROUNT, Vector2(900, 300)) as MonsterBase
+	if grount._stage_tween:
+		grount._stage_tween.kill()
+	grount.scale = Vector2(1.5, 1.5)
+	var rig := _rig(grount)
+	rig.set_on_screen(true)
+	grount.ability_3.execute(grount, null)
+	await wait_seconds(0.45)
+	await wait_frames(1)
+	assert_true(rig.scale.x > 1.1, "mid-leap: the rig is grown (%.2f)" % rig.scale.x)
+	var alpha: float = rig.modulate.a
+	assert_true(alpha < 0.9, "and faded (%.2f)" % alpha)
+	EventBus.deal_damage(null, grount, 999999.0)
+	assert_true(rig.is_dying(), "the corpse plays the beat")
+	var worst_scale := 0.0
+	var brightest := 0.0
+	var seen: PackedStringArray = []
+	while is_instance_valid(rig):
+		worst_scale = maxf(worst_scale, absf(rig.global_scale.x - 1.5))
+		brightest = maxf(brightest, rig.modulate.a)
+		seen.append("%.3f/%.2f" % [rig.global_scale.x, rig.modulate.a])
+		await wait_frames(1)
+	assert_true(worst_scale < 0.01, "the corpse keeps the Stage III size (%.3f off: %s)" % [worst_scale, ", ".join(seen)])
+	assert_true(brightest <= alpha + 0.001, "it never brightens (%.2f over %.2f)" % [brightest, alpha])
+
+
+## fight-3: the fox's bar is an EntityHud too (TedsPet.tscn): above the
+## bodies, so a character standing in front of the fox no longer covers it,
+## and stacking with the heroes' bars. It was a plain z 0 bar under the fox.
+func test_the_fox_bar_draws_above_and_stacks() -> void:
+	var ted := await spawn_frozen(VLAD, Vector2(400, 400)) as EntityBase
+	var keeper := Node2D.new()
+	keeper.position = Vector2(400, 400)
+	add_child(keeper)
+	var pet := (load(PET) as PackedScene).instantiate() as Node2D
+	pet.call(&"set_owner_entity", keeper)
+	var ted_hud := _hud(ted)
+	# The fox where its hud's origin is on Ted's.
+	pet.position = ted.position + Vector2(0.0, ted_hud.position.y + 44.0)
+	add_child(pet)
+	await wait_physics_frames(2)
+	var hud := _hud(pet)
+	assert_true(hud != null, "the fox's bar sits in an EntityHud")
+	assert_eq(hud.z_index, 1, "above the bodies")
+	assert_true(hud.stacks, "it stacks")
+	var bar := pet.get_node(^"%HealthBar") as HpBar2D
+	assert_eq(bar.get_parent(), hud, "the bar is the hud's")
+	EventBus.deal_damage(null, pet, 10.0)
+	assert_near(bar.value, float(pet.get("current_health")), 0.001, "and shows the fox's HP")
+	ted_hud._on_screen_entered()
+	hud._on_screen_entered()
+	assert_true(hud.world_rect().intersects(ted_hud.world_rect()), "at rest on Ted's bar")
+	await wait_seconds(0.6)
+	assert_false(hud.world_rect().intersects(ted_hud.world_rect()), "risen clear of it")
+	assert_near(ted_hud.lift(), 0.0, 0.01, "Ted's came first and stays")
+	for n: Node in [pet, keeper, ted]:
+		n.queue_free()
+	await wait_frames(1)
 
 
 ## The monster and the fox fall too; a mob's rig (pooled with the mob) and a

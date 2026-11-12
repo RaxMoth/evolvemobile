@@ -311,10 +311,23 @@ static func _v(v: Vector2) -> String:
 func _write_body(nodes: Array[Dictionary]) -> String:
 	var bounds := Rect2()
 	var first := true
+	# Stage (1 up to the last one a part names) -> the box of the parts that
+	# stage shows; only for a body with stage parts.
+	var last_stage := 0
+	for p in _parts:
+		for s: Variant in p.stages:
+			last_stage = maxi(last_stage, int(s))
+	var stage_boxes: Dictionary[int, Rect2] = {}
+	for s in range(1, last_stage + 1):
+		stage_boxes[s] = Rect2()
 	for p in _parts:
 		var r := Rect2(Vector2((p.box as Rect2i).position) - _origin, Vector2((p.box as Rect2i).size))
 		bounds = r if first else bounds.merge(r)
 		first = false
+		var stages: Array = p.stages
+		for s: int in stage_boxes:
+			if stages.is_empty() or stages.has(float(s)) or stages.has(s):
+				stage_boxes[s] = stage_boxes[s].merge(r) if stage_boxes[s].has_area() else r
 	var stage_parts: PackedStringArray = []
 	var proxies: PackedStringArray = []
 	var order: PackedStringArray = []
@@ -338,6 +351,14 @@ func _write_body(nodes: Array[Dictionary]) -> String:
 	t += "bounds = Rect2(%s, %s, %s, %s)\n" % [_f(bounds.position.x), _f(bounds.position.y), _f(bounds.size.x), _f(bounds.size.y)]
 	t += "part_order = PackedStringArray(%s)\n" % ", ".join(order)
 	t += "stage_parts = {%s}\n" % ", ".join(stage_parts)
+	if not stage_boxes.is_empty():
+		var keys: Array[int] = stage_boxes.keys()
+		keys.sort()
+		var boxes: PackedStringArray = []
+		for s in keys:
+			var b: Rect2 = stage_boxes[s]
+			boxes.append("%d: Rect2(%s, %s, %s, %s)" % [s, _f(b.position.x), _f(b.position.y), _f(b.size.x), _f(b.size.y)])
+		t += "stage_bounds = {%s}\n" % ", ".join(boxes)
 	t += "proxies = {%s}\n" % ", ".join(proxies)
 	for n in nodes:
 		t += "\n"

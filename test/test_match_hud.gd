@@ -5,7 +5,8 @@ extends TestCase
 ## hero's death must hand the focus and the camera to a living hero, and Tab
 ## must never select a dead or freed one), the card visuals (head portrait from
 ## the CharacterDef, slots, HP bands, fallen state), the monster side's panel
-## and tracker, the intent mapping, and the top bar's pause / follow wiring.
+## and tracker (the head of the stage the monster reached), the intent
+## mapping, and the top bar's pause / follow wiring.
 
 const WORLD := "res://Scenes/World/World.tscn"
 const EVOLUTION_ICON := "res://Assets/UI/Icons/Abilities/grount_passive_evolution.svg"
@@ -13,6 +14,7 @@ const MONSTER_PANEL := "res://Scenes/UI/Hud/MonsterHudPanel.tscn"
 const GROUNT := "res://Scenes/NPCs/Monster/Grount/Grount.tscn"
 const VLAD := "res://Scenes/NPCs/Hero/Heros/DMG/Vlad/Vlad.tscn"
 const BAT := "res://Scenes/NPCs/Mob/Mobs/Bat/Bat.tscn"
+const XP_ROW := "res://Scenes/UI/Components/XpRow.tscn"
 
 
 func test_intent_mapping() -> void:
@@ -68,6 +70,42 @@ func test_the_intent_pill_hunts_while_the_monster_engages_a_hero() -> void:
 		assert_eq(active_state_of(g), "Idle", "back to idle")
 	panel.queue_free()
 	for n: Node in [g, hero, bat]:
+		n.queue_free()
+	await wait_frames(1)
+
+
+## rig-7: Grount's Stage II and III portraits (horns, spikes and eyes grow)
+## are the heads of the stage he reached: the monster panel's portrait when
+## he evolves, the heroes' enemy tracker (MatchHud._head_of) and the result
+## screen's XP row. They shipped unused: the HUD head stayed the Stage I calf.
+func test_heads_follow_the_monster_stage() -> void:
+	var def := GameManager.ROSTER.find(&"grount")
+	assert_eq(def.stage_portraits.size(), 2, "Grount has a Stage II and a Stage III portrait")
+	var g := (await spawn_frozen(GROUNT, Vector2.ZERO)) as MonsterBase
+	var panel := (load(MONSTER_PANEL) as PackedScene).instantiate() as MonsterHudPanel
+	add_child(panel)
+	panel.bind_to_monster(g, 4)
+	var head := panel.get_node(^"%Head") as TextureRect
+	assert_true((head.texture as AtlasTexture).atlas == def.portrait, "Stage I: the calf")
+	for stage in [2, 3]:
+		evolve_to(g, stage)
+		panel._refresh()
+		var tex := head.texture as AtlasTexture
+		assert_true(tex.atlas == def.stage_portraits[stage - 2], "Stage %d: its own portrait" % stage)
+		var k := float(tex.atlas.get_width()) / CharacterDef.PORTRAIT_CANVAS.x
+		assert_eq(tex.region, Rect2(def.stage_head_regions[stage - 2].position * k, def.stage_head_regions[stage - 2].size * k),
+				"Stage %d: its own head crop" % stage)
+		var tracked := MatchHud._head_of(&"grount", stage) as AtlasTexture
+		assert_true(tracked.atlas == def.stage_portraits[stage - 2], "Stage %d: the heroes' tracker too" % stage)
+	assert_true((MatchHud._head_of(&"vlad", 3) as AtlasTexture).atlas == GameManager.ROSTER.find(&"vlad").portrait,
+			"a character without stage portraits keeps its own")
+	var row := (load(XP_ROW) as PackedScene).instantiate() as XpRow
+	row.character = def
+	row.stage = 3
+	add_child(row)
+	assert_true(((row.get_node(^"%Head") as TextureRect).texture as AtlasTexture).atlas == def.stage_portraits[1],
+			"the result screen's XP row: the stage he reached")
+	for n: Node in [row, panel, g]:
 		n.queue_free()
 	await wait_frames(1)
 

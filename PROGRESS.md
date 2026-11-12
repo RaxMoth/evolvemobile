@@ -104,8 +104,12 @@ anything (see "Verification gate").
       (the other way round, or a smaller circle) needs care not to ping-pong at a wall's end.
 - [ ] **Death moves** — the death beat (F2) is procedural (a hop, the fall backwards, a fade); an
       authored `death` move per body plan (humanoid, quadruped, flyer) could replace it.
-- [ ] **The fox's HP bar** is a plain HpBar2D outside the `EntityHud` stack (F2): give TedsPet a
-      `Hud` node if its 20x4 bar on top of a hero's bothers.
+- [ ] **Number spots for big numbers** (R4) — the columns (1.5 glyph heights, F2, with a +-2
+      world px start jitter) and rows (a glyph and 4 px) are sized for the 22 px glyphs of a
+      two-digit number. A big (30+, 30 px glyphs) or three-digit number next to or above a
+      neighbour touches or covers its edge (seen in the zoom 0.5 render: a "33" on a "+9").
+      Sizing a spot by the two numbers' sizes would fix it (`VfxManager._free_spot`); the 0.12 s
+      pop overlaps briefly by design.
 - [ ] **Monster instincts** — PreRoundScreen's Lurker / Ambusher / Ravager tiles are built and hidden
       (`show_instincts = false`); balance three `MonsterStrategy` presets per monster (sim), then show.
 - [ ] **Pre-round scroll** — the heroes-side pre-round is about 1,500 px tall; on a 720x1280 phone
@@ -237,6 +241,15 @@ Gameplay:
   threat, and `deal_damage` returns 0.
 
 Look and feel:
+- **Grount's status marks follow his stage** (R4): the stun stars, the taunt's vein and the beams
+  now use the box of the parts each stage draws, so at Stage I they sit on the calf's horns.
+  His HP bar stays on the box of all three stages (it must clear the Stage III horns), so at
+  Stage I and II the marks are now well below the bar instead of next to it. Option: keep the
+  marks on the union box too (README would then say "the top of the art box").
+- **Grount's stage heads** (R4): the HUD panel, the heroes' enemy tracker and the result
+  screen's XP row show his Stage II / III portrait with a wider crop (Rect2(44, 24, 82, 82) and
+  Rect2(26, 8, 100, 100) of the 128x160 canvas) so the grown horns fit; the head itself is
+  smaller in the ring at Stage III. Option: crop the horn tips for a bigger head.
 - **Hit effects land on the damage frame**; the attack move reaches contact about 0.1-0.16 s
   later. A contact marker could delay the hit sprite to match the lunge. The prototype's
   per-ability wind-up poses and hit-feedback delay were not ported.
@@ -440,7 +453,7 @@ Tools (T1):
 ## Verification gate
 
 Every change passes `tools/lint.sh` (errors=0; every GDScript warning is an error there) and
-`tools/run_tests.sh` (exit 0; 701 tests: 700 passed, 1 skipped headless, the run exits with nothing
+`tools/run_tests.sh` (exit 0; 727 tests: 726 passed, 1 skipped headless, the run exits with nothing
 leaked). A change that must not alter gameplay also keeps the determinism trace byte-identical:
 `MONSTER=all BASELINE_DIR=tools/baselines tools/sim_trace.sh > <new trace>` (exit 0): seeds 1-3 ×
 heroes/monster × every monster as full matches, `JOBS=2` at a time by default (no per-seed split
@@ -579,6 +592,84 @@ Match speed (F3, `tools/bench.sh 3 2 900 300 0 <rigs_awake> <speed>`, back to ba
       uses `GameManager.killer_side`; the sim could use the same rule. Low priority.
 
 ## Changelog
+### 2026-11-12 — fix batch R4: VFX and rig polish (numbers, wards, stun stars, the fox, rigs, stage heads)
+Sixth batch of the second fix run: review findings vfx-5, vfx-6, vfx-7, rig-1 to rig-7, gaps-2,
+and the second review's fight-2 and fight-3 (the fox's HP bar, now required). Presentational:
+the determinism traces stay byte-identical, plain and with every rig awake.
+
+- **Damage numbers zoomed out** (vfx-5): F2's `_free_spot` had fixed the side-by-side columns;
+  the rise was still 18 world px, so at zoom 1.0 / 0.5 a number had risen only 18 / 9 screen px
+  (less than its 22 px glyph) when the next one in its column started on it. The rise is now at
+  least one number row on screen (`number_row()`, the glyph and 4 px; zoom 2.0 keeps its 18
+  world px), and a spot counts as taken while a number on it is not fading yet (70 % of its
+  life; it was 0.5 s). The start's 6 world px lift over the HP bar is at least half a glyph on
+  screen too (the first render at zoom 1.0 showed the numbers' lower halves on the bar).
+  `number_rect()` is the drawn layout (`_draw_numbers` uses the same helpers). Ted's fox's
+  numbers now start above its new hud, as everyone's do.
+- **The ward of an expiring shield** (vfx-6): the Shield is freed the frame it expires and the
+  ward read a missing shield as full strength, so a ward at 30 % flashed from 0.58 to 0.8 alpha
+  as it faded. Each ward keeps the strength its shield last had (`_w_strength`); a broken
+  shield's fade uses 0 now. `ward_alpha(hero)` is what `_paint_wards` paints.
+- **Stun stars** (vfx-7): the orbit centre is `STUN_LIFT` 12 px above the head's top (it was 6,
+  and the front star dipped 4 px into the head for a third of each turn); `stun_lowest_y()` is
+  the drawn geometry the test now asserts on (its old check was constants only). A new test
+  ends a Hog's tether, vein and stars on its death.
+- **The fox bites facing its victim** (rig-1): its facing carrier turned only along its path,
+  so a target already in bite range was bitten (and stared at between bites) facing away.
+  `_attack_target` aims the carrier at the victim in range (`_face`).
+- **Echo Strike's way back** (rig-2): the busy AI never turns the carrier during a dash, so
+  Nyxa flew the return pass tail-first. While the dash the rig read from `DASH_STARTED` is in
+  flight, the body faces its `dash_direction` (read only; the carrier is untouched).
+- **The head channel** (rig-3): the procedural layer never set the head's angle back to rest,
+  so a move's head lerped from last frame's value, froze in the blend-out and snapped at the
+  hand-back (0.078 rad on the war cry). `_pose` writes it at rest like every other limb; the
+  test steps the war cry and finds the head at lerp(rest, move, weight) on every frame.
+- **Sleep drops the reactions** (rig-4): only leaving the tree dropped a move, the hurt flash
+  and swing; a rig falling asleep off screen (or a hidden menu view) kept them and played the
+  rest when it woke. `_drop_reactions()` runs on both; a move started while asleep still plays.
+- **Grount's anchors per stage** (rig-5): `tools/rig_builder.gd` also writes `stage_bounds`
+  (the box of the parts each stage shows; Grount's and the fixture's bodies rebuilt with
+  `tools/build_rigs.sh`, one line each), `RigBody.drawn_bounds()` returns the current stage's
+  box, and `mid_body` / `head_top` / `half_width` read it: at Stage I the marks sit on the
+  calf's horns (17 px lower), beams end 9 px lower. `bounds` stays the union (fitting,
+  notifier, shadow, HP bar; see Decisions).
+- **Sub-frame key gaps** (rig-6): River's twirl unwound its full turn between 0.300 and 0.301 s
+  and Gorrak's spin mirrored inside 0.1 ms gaps, which a frame could sample (an arm up to 180
+  degrees off; an edge-on sliver). The first key of each gap is a step (transition 0) in
+  `humanoid_moves.tres`; a library-wide test requires that of every gap shorter than 1/60 s,
+  and the spin test now also samples inside every key gap.
+- **Grount's stage portraits** (rig-7): `grount_s2.svg` / `grount_s3.svg` shipped unused.
+  `CharacterDef.stage_portraits` and `stage_head_regions` (wider crops for the horns),
+  `head_texture(stage)` and `portrait_at(stage)`; the monster panel's head follows the stage
+  (`_show_stage`), the heroes' enemy tracker too, and the result screen's monster XP row shows
+  the stage reached (`XpRow.stage`).
+- **Placeholder tones** (gaps-2): `AudioManager._tone` draws its noise from a private
+  RandomNumberGenerator with a fixed seed (`NOISE_SEED`), not about 32,000 global draws at boot.
+- **A monster dying mid-leap** (fight-2): Ground Slam grew and faded the rig with a tween bound
+  to the monster; the corpse kept the 1.19x size for the whole beat and snapped opaque. The
+  rig's root resets before the reparent (the stage scale is the entity's), the beat fades from
+  the alpha the body had, and the leap and Nyxa's scatter fade now tween the rig's `hop_scale`
+  / `fade_alpha`, which a dying rig ignores (the bound tween takes one more step in the death
+  frame; the first attempt still showed that frame at 1.19x).
+- **The fox's HP bar** (fight-3, the backlog item): after F2's y-sort its plain z 0 bar was
+  drawn under any character south of the fox. `TedsPet.tscn` puts it in an `EntityHud`
+  (`%Hud`, z 1, `stacks`, a 20x4 footprint, wired to the fox's notifier), so it draws above the
+  bodies and rises above a hero's bar it would overlap; `entity_hud.gd`'s header is true now.
+- Render (muted, a scratch driver on a copy): the fox between two Hogs bites the left one facing
+  left and, once it dies, turns to the right one (its bar 8 px above Vlad's, over the bodies);
+  Nyxa with Echo Strike flies the return pass facing left (rig `_flip` -1 on every frame of the
+  way back from the second one on); the monster panel shows the calf, the Stage II and the
+  Stage III head (red eyes, full horns), the Stage III XP row too; at zoom 1.0 and 0.5 a hero hit
+  every 0.25 s shows its numbers apart and above its HP bar, the stun stars above his head.
+- Gate: `tools/lint.sh` errors=0; `tools/run_tests.sh` 726 passed, 0 failed, 1 skipped (the
+  windowed minimap test), nothing leaked at exit; 16 new tests, 5 extended. With every fix
+  reverted on a copy (APIs kept), 15 of them fail; the rest pin data (stage crops, every
+  portrait used), the fox's hud placement or behaviour that was right (riders end on a death).
+  `MONSTER=all BASELINE_DIR=tools/baselines tools/sim_trace.sh`: identical (1,998 / 3,428 /
+  2,846 lines), and with `RIGS_AWAKE=1` too. `tools/bench.sh 2 2 900 300`, parent then this
+  tree back to back (load 5-8): frame mean 1.675 / 1.620 ms, p99 3.509 / 3.548 ms; with every
+  rig awake (`... 0 1`) 2.035 / 2.055 ms and 4.638 / 4.810 ms (+1 % / +4 %).
+
 ### 2026-11-12 — fix batch R3: monster bugs (Rebirth and the cage, Brood Mother, recruits, strafe data, intent pill)
 Fifth batch of the second fix run: review findings monsters-3, monsters-4, monsters-6,
 monsters-7, monsters-8, monsters-9, vfx-3, vfx-4, hud-2, hud-6 and hud-10. Flagged gameplay,

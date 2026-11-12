@@ -53,6 +53,13 @@ const MONSTER_ABILITY_SLOTS: Array[StringName] = [&"passive_ability", &"ability_
 ## Head crop of the portrait in art units (PORTRAIT_CANVAS), for the HUD's head
 ## portraits (head_texture()).
 @export var head_region: Rect2 = Rect2(32, 32, 64, 64)
+## Monsters: the composites of the later evolution stages (<id>_s2.svg,
+## <id>_s3.svg as DPITextures), Stage II first; a stage without one shows
+## `portrait`. Grount's horns, spikes and eyes grow with him.
+@export var stage_portraits: Array[Texture2D] = []
+## Head crop of each stage portrait, same order and units as head_region (the
+## grown horns need a wider crop).
+@export var stage_head_regions: Array[Rect2] = []
 ## Monsters: one name per evolution stage (I, II, III). Empty for heroes.
 @export var stage_names: PackedStringArray = PackedStringArray()
 ## The Codex's field notes: how a hero plays or how a monster hunts (its
@@ -137,13 +144,27 @@ func role_icon() -> Texture2D:
 	return load(path) as Texture2D if ResourceLoader.exists(path) else null
 
 
-## AtlasTexture cropping head_region out of the portrait (HUD head portraits).
-func head_texture() -> AtlasTexture:
+## The composite of evolution stage `stage` (1, or a stage without its own:
+## `portrait`).
+func portrait_at(stage: int) -> Texture2D:
+	var i := stage - 2
+	if i >= 0 and i < stage_portraits.size() and stage_portraits[i] != null:
+		return stage_portraits[i]
+	return portrait
+
+
+## AtlasTexture cropping the head out of evolution stage `stage`'s portrait
+## (HUD head portraits; the result screen's XP row): head_region of
+## `portrait`, or a later stage's own portrait and crop.
+func head_texture(stage: int = 1) -> AtlasTexture:
 	var tex := AtlasTexture.new()
-	tex.atlas = portrait
-	if portrait != null:
-		var k := float(portrait.get_width()) / PORTRAIT_CANVAS.x
-		tex.region = Rect2(head_region.position * k, head_region.size * k)
+	tex.atlas = portrait_at(stage)
+	var region := head_region
+	if tex.atlas != portrait and stage - 2 < stage_head_regions.size():
+		region = stage_head_regions[stage - 2]
+	if tex.atlas != null:
+		var k := float(tex.atlas.get_width()) / PORTRAIT_CANVAS.x
+		tex.region = Rect2(region.position * k, region.size * k)
 	return tex
 
 

@@ -2,7 +2,8 @@ class_name MonsterHudPanel
 extends PanelContainer
 
 ## The monster side's bottom panel in the MatchHud (700x178):
-##   - the head portrait (CharacterDef.head_texture()) in a ring of the
+##   - the head portrait of the stage it has reached
+##     (CharacterDef.head_texture(stage): Grount's horns grow) in a ring of the
 ##     monster's signature colour, with the stage pips I / II / III under it
 ##     (PillReady once reached);
 ##   - the name, "STAGE II · DANGEROUS" and the AI's intent pill (intent_of):
@@ -35,6 +36,8 @@ const RING_WIDTH := 3
 
 var monster: MonsterBase = null
 
+## The monster's roster def (null when it has none): its stage heads.
+var _def: CharacterDef = null
 var _poll: float = 0.0
 var _approach: StateChartState = null
 var _fight: StateChartState = null
@@ -74,9 +77,10 @@ func bind_to_monster(m: MonsterBase, hero_count: int) -> void:
 		return
 	var id := m.monster_stats.monster_id if m.monster_stats != null else StringName(String(m.name).to_lower())
 	var def := GameManager.ROSTER.find(id)
+	_def = def
 	_name.text = (def.get_display_name() if def != null else String(m.name)).to_upper()
 	if def != null:
-		_head.texture = def.head_texture()
+		_head.texture = def.head_texture(m.get_stage())
 	_ring(UiPalette.signature(String(id), true))
 
 	var source := CooldownSource.Monster.new(m)
@@ -179,6 +183,8 @@ func _show_stage(stage: int) -> void:
 	_stage_text.text = "%s · %s" % [tr("STAGE %s") % CooldownSource.STAGE_NUMERALS[shown], tr(STAGE_NAMES[shown])]
 	for i in _pips.size():
 		_pips[i].theme_type_variation = &"PillReady" if i < stage else &"Pill"
+	if _def != null:
+		_head.texture = _def.head_texture(shown)
 	var evolving := stage < last
 	_evo.visible = evolving
 	_evo_text.visible = evolving
