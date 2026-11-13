@@ -36,10 +36,13 @@
 #
 # Works on a temp copy with its own user:// (override.cfg), never on the real
 # project directory. An unknown MONSTER id fails (exit 2). A run without a
-# result or with a SCRIPT ERROR fails the bench (exit 1; the run and its first
-# error lines on stderr) and is left out of the medians; `runs: m/n` counts
-# the runs measured of those asked for. A kill (TERM, INT, HUP) stops the
-# running match and deletes the copy (tools/tool_env.zsh).
+# result, with a SCRIPT ERROR, whose Godot exited non-zero or whose result is
+# not a JSON object fails the bench (exit 1; the run and its first error lines
+# on stderr) and is left out of the medians; `runs: m/n` counts the runs
+# measured of those asked for. A run still going after TOOL_TIME_LIMIT_S
+# (default 1800 s; a run takes about a minute) is stopped and fails the same
+# way. A kill (TERM, INT, HUP) stops the running match and deletes the copy
+# (tools/tool_env.zsh).
 setopt NULL_GLOB
 RUNS="${1:-5}"; MULT="${2:-2}"; FRAMES="${3:-1800}"; WARMUP="${4:-600}"; ONSCREEN="${5:-0}"; RIGS="${6:-0}"; SPEED="${7:-0}"
 SRC="$(cd "$(dirname "$0")/.." && pwd)"
@@ -71,16 +74,21 @@ for m in "${MONSTERS[@]}"; do
     cpu_before=$CHILDREN_CPU_S
     run_godot "$log" --headless --fixed-fps 60 --max-fps 0 --path "$TMP/proj" \
       -s res://tools/bench_match.gd -- "$r" "$WARMUP" "$FRAMES" "$MULT" "$ONSCREEN" "$RIGS" "$SPEED" ${m:+monster=$m}
+    rc=$?
     children_cpu_s
     cpu=$(( CHILDREN_CPU_S - cpu_before ))
     line="$(sed -n 's/^BENCH_RESULT //p' "$log")"
-    if [ -z "$line" ] || grep -q "SCRIPT ERROR" "$log"; then
-      echo "${m:+$m }run $r failed ($(grep -c "SCRIPT ERROR" "$log") script errors$([ -z "$line" ] && echo ", no result")):" >&2
+    if [ -z "$line" ] || [ "$rc" != 0 ] || grep -q "SCRIPT ERROR" "$log"; then
+      echo "${m:+$m }run $r failed ($(grep -c "SCRIPT ERROR" "$log") script errors$([ -z "$line" ] && echo ", no result")$(rc_note "$rc")):" >&2
       { grep -m 5 -A 2 "SCRIPT ERROR" "$log" || tail -5 "$log"; } >&2
       STATUS=1
       continue
     fi
-    echo "$line" | python3 -c "import json,sys; d=json.load(sys.stdin); d['cpu_s']=round(float(sys.argv[1]), 2); print(json.dumps(d))" "$cpu" >> "$res"
+    if ! echo "$line" | python3 -c "import json,sys; d=json.load(sys.stdin); d['cpu_s']=round(float(sys.argv[1]), 2); print(json.dumps(d))" "$cpu" >> "$res" 2> "$TMP/row.err"; then
+      echo "${m:+$m }run $r failed (its BENCH_RESULT is not a JSON object: ${line[1,120]}):" >&2
+      tail -1 "$TMP/row.err" >&2
+      STATUS=1
+    fi
   done
   cat "$res" >> "$TMP/results.jsonl"
   (( first )) || echo

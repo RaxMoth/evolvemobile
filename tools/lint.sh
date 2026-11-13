@@ -12,8 +12,9 @@
 # untyped / unsafe family) stay ignored, as in the editor.
 #
 # The lint must reach lint_all.gd's "LINT DONE" line with Godot exiting 0: a
-# missing binary, a crash or a killed run fails it instead of reading as
-# errors=0.
+# missing binary, a crash, a killed run or one stopped by TOOL_TIME_LIMIT_S
+# (default 1800 s per Godot run; the lint takes a few minutes) fails it
+# instead of reading as errors=0.
 SRC="$(cd "$(dirname "$0")/.." && pwd)"
 source "$SRC/tools/tool_env.zsh"
 tool_tmp
@@ -35,7 +36,7 @@ fi
 run_godot "$TMP/lint.log" --headless --path "$TMP/proj" -s res://tools/lint_all.gd
 LINT_RC=$?
 if ! grep "^LINT DONE" "$TMP/lint.log" || [ "$LINT_RC" != 0 ]; then
-  echo "lint did not finish (Godot exit $LINT_RC: crashed or killed?): $GODOT" >&2
+  echo "lint did not finish (Godot exit $LINT_RC: crashed, killed or timed out?): $GODOT" >&2
   tail -20 "$TMP/lint.log" >&2
   exit 1
 fi

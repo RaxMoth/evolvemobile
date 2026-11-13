@@ -31,14 +31,8 @@ func test_world_navigation_is_one_baked_region_matching_the_ground_tiles() -> vo
 	var rid := NavigationServer2D.region_create()
 	NavigationServer2D.region_set_map(rid, map)
 	NavigationServer2D.region_set_navigation_polygon(rid, navpoly)
-	# Polygons land one map sync after the region, and the sync runs on a
-	# worker thread: wait until a known mesh vertex answers (not the origin).
-	var probe: Vector2 = navpoly.vertices[0]
-	for i in range(600):
-		await wait_physics_frames(1)
-		if NavigationServer2D.map_get_closest_point(map, probe).distance_to(probe) < 1.0:
-			break
-	assert_true(NavigationServer2D.map_get_closest_point(map, probe).distance_to(probe) < 1.0, "test map synced")
+	# Wait until a known mesh vertex answers (not the origin).
+	assert_true(await wait_for_nav_map(map, navpoly.vertices[0]), "test map synced")
 
 	var walkable_off_mesh := 0
 	var wall_on_mesh := 0

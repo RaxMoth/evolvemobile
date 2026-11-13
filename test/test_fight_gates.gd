@@ -198,47 +198,95 @@ func test_river_with_range_nodes_shoots_from_her_full_reach() -> void:
 	await _free([river, g, nav])
 
 
-## Every roster character, at every rank combination of the range nodes its
-## trees hold (rank 0 to max each, Titan Form at Stage III), leaves Fight
-## further out than it enters it, and its attack band can open. Grount with
-## Wide Sweep 3 and Long Reach 2 entered at 108.6 px and left at 100; River
-## with Long Scope 4 entered at 351 and left at 350.
-func test_every_range_node_combination_leaves_fight_past_its_gate() -> void:
+## Every roster character runs its own chart onto a frozen target 1 px inside
+## where Approach enters Fight (fight_enter_range - 1), with no range node and
+## with every range node of its trees at its top rank (Titan Form equipped; a
+## monster at Stage III, where it hunts heroes). It enters Fight, never goes
+## back to Approach and lands a hit; River does it with the rifle and holds
+## Fight with the staff (nobody to heal). meta-1 / meta-2: Grount with Wide
+## Sweep 3 and Long Reach 2 entered at 108.6 px and left at 100, River with
+## Long Scope 4 entered at 351 and left at 350; each flipped between Approach
+## and Fight every tick and stood still.
+func test_every_character_holds_fight_at_its_reach_with_any_range_nodes() -> void:
 	if not require_isolated():
 		return
-	var checked: int = 0
+	var nav := await bake_nav_rect(Rect2(-1500, -1500, 3000, 3000))
+	var cases: int = 0
+	var past_max: int = 0
 	for def: CharacterDef in GameManager.ROSTER.all():
 		var nodes := _range_nodes(def)
-		play_side(def.side)
-		for ranks: Array in _rank_combinations(nodes):
-			PersistedData.wipe_progress(false)
-			var label: String = String(def.character_id())
-			var titan: bool = false
-			for i in nodes.size():
-				var n := nodes[i][1] as MetaSkillNode
-				if int(ranks[i]) > 0:
-					PersistedData.set_skill_rank(nodes[i][0], n.id, int(ranks[i]))
-					label += " %s %d" % [n.id, int(ranks[i])]
-					titan = titan or n.stat_name == "monster_titan_form"
-			var e := (await spawn_frozen(def.scene_path, Vector2(0, 0))) as EntityBase
-			if titan:
-				evolve_to(e, 3)
-				await wait_seconds(0.7)  # the stage scale tween
-			_check_gate(e, label)
-			if e is River:
-				(e as River)._use_active_now()
-				_check_gate(e, label + " (staff)")
-			e.queue_free()
-			await wait_frames(2)
-			checked += 1
-	assert_true(checked >= 70, "combinations walked: %d" % checked)
+		for maxed: bool in [false, true]:
+			for staff: bool in ([false, true] if def.scene_path == RIVER else [false]):
+				PersistedData.wipe_progress(false)
+				play_side(def.side)
+				var label := String(def.character_id())
+				if maxed:
+					for pair: Array in nodes:
+						var n := pair[1] as MetaSkillNode
+						PersistedData.set_skill_rank(pair[0], n.id, n.max_rank)
+						if n.capstone:
+							PersistedData.set_equipped_capstone(pair[0], n.id)
+						label += " %s %d" % [n.id, n.max_rank]
+				if staff:
+					label += " (staff)"
+				if await _holds_fight(def.scene_path, staff, label):
+					past_max += 1
+				cases += 1
+	assert_true(cases >= 16, "cases run: %d" % cases)
+	assert_true(past_max >= 2, "cases whose enter range lies past max_distance (the ones that froze): %d" % past_max)
+	await _free([nav])
 
 
-func _check_gate(e: EntityBase, label: String) -> void:
-	assert_true(e.fight_leave_range() > e.fight_enter_range(),
-		"%s: Fight leaves at %.1f, past where Approach enters it (%.1f)" % [label, e.fight_leave_range(), e.fight_enter_range()])
-	assert_true(e.min_distance < e.attack_range,
-		"%s: the band %.0f..%.1f can open" % [label, e.min_distance, e.attack_range])
+## Spawns the entity at `path` with its AI running, calls it onto a frozen
+## target (a Hog for a hero, Vlad for a monster) 1 px inside its Fight enter
+## range and runs 1.5 s, asserting the gate holds. True when that spot lies
+## past max_distance, where a leave rule of max_distance would flip it.
+func _holds_fight(path: String, staff: bool, label: String) -> bool:
+	var e := (await spawn_entity(path, Vector2.ZERO)) as EntityBase
+	var monster := e as MonsterBase
+	if e is HeroBase:
+		(e as HeroBase).auto_use_active = false  # no dash or swap of its own
+		(e as HeroBase).auto_use_ultimate = false
+	if staff:
+		(e as River)._use_active_now()
+	if monster:
+		evolve_to(monster, 3)
+		await wait_seconds(0.7)  # the stage scale tween
+	var target := (await spawn_frozen(VLAD if monster else HOG, e.global_position + Vector2(1000, 0))) as EntityBase
+	var enter: float = e.fight_enter_range()
+	# Due east of where the entity stands now (it may have wandered while the
+	# target spawned), then in by the difference: range_to is the centre
+	# distance less the bodies.
+	target.global_position = e.global_position + Vector2(1000, 0)
+	target.global_position.x -= e.range_to(target) - (enter - 1.0)
+	assert_near(e.range_to(target), enter - 1.0, 0.5, "%s: the target 1 px inside the enter range" % label)
+	assert_true(e.fight_leave_range() > enter,
+		"%s: Fight leaves at %.1f, past where Approach enters it (%.1f)" % [label, e.fight_leave_range(), enter])
+	var past_max: bool = enter - 1.0 > e.max_distance
+	var chart := e.get_node(^"%StateChart/CompoundState")
+	var entries := [0, 0]  # Fight entries, Approach entries after the first Fight
+	var on_fight := func() -> void: entries[0] += 1
+	var on_approach := func() -> void:
+		if entries[0] > 0:
+			entries[1] += 1
+	chart.get_node(^"Fight").connect(&"state_entered", on_fight)
+	chart.get_node(^"Approach").connect(&"state_entered", on_approach)
+	_call_onto(e, target)
+	for i in 90:
+		if monster:  # the basic swing only: no dash or slam that moves it
+			monster.ability_cooldowns["ability_2"] = 99.0
+			monster.ability_cooldowns["ability_3"] = 99.0
+		await wait_physics_frames(1)
+	chart.get_node(^"Fight").disconnect(&"state_entered", on_fight)
+	chart.get_node(^"Approach").disconnect(&"state_entered", on_approach)
+	assert_true(int(entries[0]) >= 1, "%s: enters Fight with the target %.1f px away" % [label, enter - 1.0])
+	assert_eq(int(entries[1]), 0, "%s: never back to Approach (enter %.1f, leave %.1f, max_distance %.0f)"
+			% [label, enter, e.fight_leave_range(), e.max_distance])
+	if not staff:
+		var hit := not is_instance_valid(target) or target.get_health() < target.get_max_health()
+		assert_true(hit, "%s: and lands a hit" % label)
+	await _free([e, target])
+	return past_max
 
 
 ## [tree id, MetaSkillNode] of every node in `def`'s base and own tree whose key
@@ -258,18 +306,3 @@ func _range_nodes(def: CharacterDef) -> Array:
 			if n.stat_name in RANGE_KEYS:
 				out.append([tree_id, n])
 	return out
-
-
-## Every rank combination of `nodes` (0..max_rank each), as arrays of ints.
-func _rank_combinations(nodes: Array) -> Array:
-	var combos: Array = [[]]
-	for pair: Array in nodes:
-		var n := pair[1] as MetaSkillNode
-		var grown: Array = []
-		for combo: Array in combos:
-			for rank in n.max_rank + 1:
-				var c: Array = combo.duplicate()
-				c.append(rank)
-				grown.append(c)
-		combos = grown
-	return combos

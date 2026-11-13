@@ -925,11 +925,13 @@ python3 tools/art/build.py · python3 tools/art/make_theme.py           # UI kit
 tools/selftest.sh                               # the tools' own failure paths, with a fake Godot
 ```
 
-No tool passes by accident: a missing or crashed Godot, a run that never
-reached its end marker and any `SCRIPT ERROR` fail it, and a test that hits
-a script error fails even when its asserts passed. A killed tool stops its
-Godot processes and deletes its copies (`tools/tool_env.zsh`). After changing
-a tool run `tools/selftest.sh`.
+No tool passes by accident: a missing Godot, one that crashed or exited
+non-zero (also after its end marker), a run that never reached its end
+marker, one past its time limit (`TOOL_TIME_LIMIT_S`: a loop that never ends
+cannot hang a tool) and any `SCRIPT ERROR` fail it, and a test that hits a
+script error, or an engine `ERROR` it did not announce, fails even when its
+asserts passed. A killed tool stops its Godot processes and deletes its
+copies (`tools/tool_env.zsh`). After changing a tool run `tools/selftest.sh`.
 
 **The gate for every commit**: lint `errors=0`, the suite green, and
 
@@ -952,8 +954,14 @@ assert_false / assert_near / skip`. Helpers: `spawn_entity(scene, pos)` (adds
 under the test and waits for the awaited `_ready`), `spawn_frozen`,
 `active_state_of(entity)`, `wait_frames / wait_physics_frames / wait_seconds`,
 `play_side(side)`, `require_isolated()` for tests that write the save,
-`bake_nav_rect`, `evolve_to(monster, stage)`. Nodes a test leaves behind are
-freed between tests; the locale is pinned to `en`; deaths never end a match.
+`bake_nav_rect`, `wait_for_nav_map(map, probe)` (a private navigation map,
+never asked before its first sync), `evolve_to(monster, stage)`,
+`expect_error(fragment)` (the test provokes that engine `ERROR` on purpose,
+e.g. a corrupt save; any other engine `ERROR` fails the test). Nodes a test
+leaves behind are freed between tests; the locale is pinned to `en`; deaths
+never end a match. Await what a test starts: a coroutine, timer or deferred
+call that errors after the test ended fails the next test (its message names
+the culprit's `file:line`).
 A loop that waits for a condition needs a bound (and an assert after it): a
 test still running after 120 s is named and stops the run. A probe script run with
 `-s` must not use project `class_name`s as types.

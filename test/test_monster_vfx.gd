@@ -398,13 +398,22 @@ func _kill_puffs(mgr: VfxManager) -> int:
 
 
 ## vfx-7: what rides a mob ends when it dies, before the pool brings the same
-## node back: Irelia's taunt on a Hog (its tether and anger vein) and a stun's
-## stars, on EventBus.entity_died.
+## node back: Irelia's taunt on a pooled Hog (its tether and anger vein) and a
+## stun's stars, on EventBus.entity_died. The Hog is parked by its
+## SpawnManager, not freed, so the same instance lives on: without the death
+## hook its tether and vein would too. (The stars also drop on their own once
+## the parked body leaves the tree.)
 func test_riders_end_when_their_mob_dies() -> void:
 	var pair := _pair()
 	var mgr: VfxManager = pair[0]
 	var vfx: AbilityVfx = pair[1]
+	var pool := SpawnManager.new()
+	pool.auto_activate_on_ready = false
+	pool.enable_lazy_activation = false
+	add_child(pool)
 	var hog := (await spawn_frozen(HOG, Vector2(100, 100))) as MobBase
+	hog.pool_key = HOG  # as SpawnManager.acquire_mob sets it
+	hog.spawn_manager = pool
 	var irelia := await spawn_frozen(IRELIA, Vector2(200, 100))
 	(irelia.get_node(^"AbilitySystem") as AbilitySystem).ultimate_ability.execute(irelia)
 	hog.apply_stun(3.0)  # a frozen entity's stun never decays
@@ -417,12 +426,13 @@ func test_riders_end_when_their_mob_dies() -> void:
 	EventBus.deal_damage(irelia, hog, 99999.0)
 	assert_false(hog.is_alive(), "the Hog dies")
 	await wait_seconds(AbilityVfx.TETHER_FADE + 0.2)
+	assert_true(is_instance_valid(hog) and hog.is_parked, "the pool parked it (the same node comes back)")
 	assert_eq(vfx.tethers_live(), 0, "the tether ended with it")
 	assert_eq(_anger_marks_of(vfx, hog_id), 0, "and the vein")
 	assert_eq(vfx.stuns_live(), 0, "and the stars")
-	for node: Node in [hog, irelia, mgr]:
-		if is_instance_valid(node):
-			node.queue_free()
+	# The pool frees its parked Hog when it leaves the tree.
+	for node: Node in [irelia, mgr, pool]:
+		node.queue_free()
 	await wait_frames(1)
 
 

@@ -396,6 +396,23 @@ Tools (T1):
 - **The audio rate-limit test** retries when the machine stalled between the two plays instead of
   driving AudioManager from a fake clock (no test hook in the game code).
 
+Tools (T2):
+- **An engine `ERROR` a test did not announce fails the test**, as a `SCRIPT ERROR` does. A test
+  that provokes one on purpose says so with `expect_error(<fragment of its text>)` (the three
+  corrupt-save tests); its ok line then says "the ERROR above was expected". An announced error
+  that never comes does not fail the test (engine texts change between versions). Option: only
+  list unexpected engine errors at the end of the run instead of failing.
+- **Every Godot run of a tool has a time limit**: 1800 s; `sim.sh` and `sim_trace.sh` 3 s per
+  capped game second, at least 1800 (a match takes 15-60 s); `run_tests.sh` 3600 (the runner's 120 s
+  per test comes first). On a machine that thrashes 30 times slower than usual a long run could
+  still be stopped; `TOOL_TIME_LIMIT_S=0` turns the limit off, any other number replaces it.
+- **`cap_seconds` is whole game seconds** in `sim.sh` and `sim_trace.sh` (a fraction now exits 2;
+  `sim_match.gd` would take it) so the limit can be worked out from it.
+- **`sim_trace.sh` plays a seed or side given twice twice**, each run with its own log, rather
+  than refusing it: two runs of one seed in one call are a determinism check.
+- **A build tool copies nothing after a `SCRIPT ERROR` or a crash**, but a handled failure of one
+  rig or tree (a missing source, a bad part) still copies the ones that built, as before.
+
 ### Accepted by the user (2026-11-11)
 
 Gameplay:
@@ -580,11 +597,14 @@ Look and feel:
 ## Verification gate
 
 Every change passes `tools/lint.sh` (errors=0; every GDScript warning is an error there) and
-`tools/run_tests.sh` (exit 0; 748 tests: 747 passed, 1 skipped headless, the run exits with nothing
-leaked). A change that must not alter gameplay also keeps the determinism trace byte-identical:
+`tools/run_tests.sh` (exit 0; 752 tests: 751 passed, 1 skipped headless, the run exits with nothing
+leaked; the log's only `ERROR` lines are the 4 the tests announce with `expect_error`, so any other
+fails a test). A change that must not alter gameplay also keeps the determinism trace byte-identical:
 `MONSTER=all BASELINE_DIR=tools/baselines tools/sim_trace.sh > <new trace>` (exit 0): seeds 1-3 ×
 heroes/monster × every monster as full matches, `JOBS=2` at a time by default (no per-seed split
-needed on the 8 GB machine). A change to a tool also passes `tools/selftest.sh`. Every 60 frames the trace hashes each EntityRegistry
+needed on the 8 GB machine). A change to a tool also passes `tools/selftest.sh` (44 checks, about
+20 s, a fake Godot). Every Godot run of a tool has a wall-clock limit (`TOOL_TIME_LIMIT_S`, README
+"Headless Tools"), so a loop that never ends fails a gate instead of hanging it. Every 60 frames the trace hashes each EntityRegistry
 entity's class, position (1 px), health and active state, the monster's stage and XP and the mob
 kill count — never node names. The temp copies turn off the navigation server's asynchronous
 map/region iterations (override.cfg only), which makes runs repeat from the first line under any
@@ -809,6 +829,74 @@ at 30-40 fps, which is the 1/12.5 case of "Grount at fast on 30 fps"). Device nu
       uses `GameManager.killer_side`; the sim could use the same rule. Low priority.
 
 ## Changelog
+### 2026-11-13 — fix batch T2: tools and tests from the run-2 review
+Presentational batch of the third fix run, on the review of the run-2 commits: findings tools-1 to
+tools-6, four of the five one-liners the tools reviewer dropped, abilities-2, vfx_rig-4 and the
+`ERROR` lines in the test log. No game code changes; the determinism traces of all three monsters
+are byte-identical to `tools/baselines` (Grount 1,772, Nyxa 3,104 and Gorrak 1,940 lines).
+
+- **Self-test checks that could not fail** (tools-1): "sim: a SCRIPT ERROR and a crashed seed"
+  passed because seed 2 crashed, and no bench check put a `SCRIPT ERROR` next to a result. New: "sim:
+  a SCRIPT ERROR in a finished match" (one seed) and "bench: a SCRIPT ERROR next to a result". With
+  the review's mutation (sim.sh and bench.sh no longer looking for `SCRIPT ERROR`) exactly these
+  two fail.
+- **A crash after the end marker fails** (tools-2): `sim.sh` and `sim_trace.sh` write each run's
+  Godot exit code next to its log and fail a run that exited non-zero ("seed 1: failed (0 script
+  errors, Godot exit 139)"); `bench.sh` does the same. Real runs exit 0 (the 18 trace matches of the
+  gate, `tools/sim.sh 2 heroes 2 120` and `tools/bench.sh 1 2 240 0` all pass).
+- **A test filter that matches nothing fails** (tools-3): `tools/run_tests.sh zz_no_such_test` gave
+  "0 files" and exit 0; now "FAIL the test selection: no test file matches zz_no_such_test", exit 1.
+- **A SCRIPT ERROR says where it came from** (tools-4): the runner reads the error's backtrace. In
+  the test itself: "the test stopped there, its later checks did not run"; in code the test called:
+  "it returned a default value"; not called by the test: "game code running on its own (an AI tick,
+  a signal), or a timer, deferred call or coroutine an earlier test left behind", each with
+  `file:line (function)`. A probe whose un-awaited coroutine errored 3 frames later made the next
+  test fail with the false "the test stopped there"; it now names `test_zz_probe_late.gd:38
+  (_later)` as not called by that test.
+- **Every tool has a time limit** (tools-5): `run_godot` (`tools/tool_env.zsh`) bounds each Godot run
+  (`TOOL_TIME_LIMIT_S`; Decisions): a watchdog stops it (TERM, KILL 5 s later), prints `TIMEOUT:
+  ...`, and the tool names the seed or run and fails. With a Godot that never ends and a 1 s limit,
+  sim, trace, lint and bench exit 1 and the tests 124 within 2 s, with nothing left running.
+- **The build tools copy nothing after a `SCRIPT ERROR`** (tools-6), a crash or a build that never
+  printed its "built" line; they used to copy every `RIG_OUT` / `TREE_OUT` file whatever the log said.
+- **The dropped one-liners**: `RIGS_AWAKE=0` woke the rigs (`${RIGS_AWAKE:+...}` takes "0" as set),
+  now `0` or unset is asleep; `sim_trace.sh` given a seed twice wrote both runs into one log, so two
+  runs of one seed always looked identical, now each run has its own (`run_<i>.log`); `bench.sh`
+  dropped a `BENCH_RESULT` that was not JSON and passed, now the run fails; the `_hero_levels`
+  comment in `sim_match.gd` now says it lists dead heroes not yet freed. Left as it is: the
+  self-test's failure branch kills every PID it logged, also fakes that ended long before; it only
+  runs after a check failed, and only a PID reused within that second could be hit.
+- **Self-test**: 44 checks (24 before), about 20 s. Besides the above: a crash after the end marker
+  (sim, trace, bench), a bench result that is not JSON, a seed given twice, `RIGS_AWAKE=0` and `=1`,
+  a build that must copy nothing back and one that copies, a time limit that is not a number, a cap
+  that is not whole seconds, a run that never ends (5 tools), and no watchdog left after a TERM. The
+  parent's tools fail 15 of the 44.
+- **The roster fight-gate test can fail** (abilities-2): it checked `fight_leave_range() >
+  fight_enter_range()`, true by construction, on frozen entities. Now every roster character runs
+  its own chart onto a frozen target 1 px inside its enter range for 1.5 s, at rank 0 and with every
+  range node at its top rank (Titan Form equipped; a monster at Stage III; River with the rifle and
+  the staff): 16 cases, each must enter Fight, never go back to Approach and land a hit. With the old
+  leave rule (`distance > max_distance`) River (both weapons) and Grount at their top ranks fail with
+  45 Approach entries in 1.5 s.
+- **The rider test parks its Hog** (vfx_rig-4): the Hog now has a `SpawnManager`, so it is parked
+  (the same node the pool brings back), as the test's text claimed; the test asserts that and that
+  the tether, the vein and the stars ended. Without the death hook the tether and vein checks fail.
+  The two engine `ERROR`s of every run (the freed Hog put into a typed array) are gone.
+- **No `ERROR` line nobody expects** in the test log: an engine `ERROR` now fails the running test
+  unless the test announced it (`TestCase.expect_error`; Decisions). The three corrupt-save tests
+  announce their ConfigFile parse errors. The NavigationServer "query before first map
+  synchronization" came from tests polling a private map before its first sync (`test_combat_ai`,
+  and `test_world_navigation` on a run where the timing allowed it); `TestCase.wait_for_nav_map`
+  waits for the map's first iteration first. The log's only `ERROR` lines are now the four the tests
+  announce (three corrupt saves, one in `test_runner_rules`).
+- **Tests**: new `test_runner_rules` (the empty selection, an error's origin from real backtraces,
+  an announced engine error); the fight-gate and rider tests above.
+- **Docs**: README "Headless Tools" (failing, time limit, self-test, tests, trace, bench, build
+  tools); INSTRUCTOR (tools, writing a test); PROGRESS (gate, Decisions).
+- **Verified**: `tools/lint.sh` errors=0; `tools/run_tests.sh` 751 passed, 0 failed, 1 skipped (the
+  rendered minimap test), nothing leaked, 4 expected `ERROR` lines; `tools/selftest.sh` all 44 checks
+  pass; `MONSTER=all BASELINE_DIR=tools/baselines tools/sim_trace.sh` exit 0, byte-identical; the mutations above fail the new checks.
+
 ### 2026-11-13 — fix batch G3: fast-button fidelity, threat 1-4 retune, mob swings on their timer
 Gameplay batch of the third fix run, on G2's follow-ups: Grount on fast at 30 fps, threat 2-4,
 the threat 0 edges and mob swings per AI tick. The traces change (mob swings), so

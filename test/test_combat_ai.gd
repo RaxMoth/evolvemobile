@@ -459,11 +459,7 @@ func test_the_heroes_spawn_apart_on_walkable_ground() -> void:
 	var rid := NavigationServer2D.region_create()
 	NavigationServer2D.region_set_map(rid, map)
 	NavigationServer2D.region_set_navigation_polygon(rid, navpoly)
-	var probe: Vector2 = navpoly.vertices[0]
-	for i in range(600):
-		await wait_physics_frames(1)
-		if NavigationServer2D.map_get_closest_point(map, probe).distance_to(probe) < 1.0:
-			break
+	assert_true(await wait_for_nav_map(map, navpoly.vertices[0]), "the map synchronized")
 	for p in spawns:
 		assert_true(NavigationServer2D.map_get_closest_point(map, p).distance_to(p) < 1.5, "%s is walkable" % p)
 	NavigationServer2D.free_rid(rid)

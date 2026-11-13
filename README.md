@@ -3457,19 +3457,38 @@ only with a display, so the sims, the trace and the tests are not affected by it
 No tool can pass by accident, and none leaks when it is stopped:
 
 - **Failing**: a tool exits non-zero when Godot is missing (exit 2, before
-  any work), crashes or is killed before its end marker, or when a run prints
-  a `SCRIPT ERROR`; the run and its first error lines go to stderr.
+  any work), crashes or is killed before its end marker, exits non-zero
+  after it (a crash in the match-end settlement or the teardown, after
+  `SIM_RESULT` / `SIM_TRACE_END`), runs past its time limit, or when a run
+  prints a `SCRIPT ERROR`; the run and its first error lines go to stderr.
+  `build_rigs.sh` and `build_skill_trees.sh` copy nothing back after a
+  `SCRIPT ERROR` or a crash (a helper that errors returns its default value,
+  so a file it wrote may be cut short).
+- **Time limit** (`TOOL_TIME_LIMIT_S`, `tools/tool_env.zsh`): every Godot run
+  a tool starts is bounded on the wall clock, because a GDScript loop that
+  never ends holds the main thread and no game-time cap can end it. Defaults:
+  1800 s a run; `sim.sh` and `sim_trace.sh` 3 s per capped game second, at
+  least 1800 (a full match takes 15-60 s); `run_tests.sh` 3600, behind the
+  runner's own 120 s per test. The environment wins (`0` = no limit; not a
+  number = exit 2). A run past it is stopped (TERM, KILL 5 s later), stderr
+  says `TIMEOUT: ...`, the seed or run is named and the tool fails
+  (`run_tests.sh` exits 124).
 - **Stopping** (`tools/tool_env.zsh`, sourced by every tool): TERM, INT and
   HUP stop every Godot and worker the tool started and delete its copies and
   `user://` dirs (zsh alone skips the clean-up on TERM). SIGKILL cannot be
   caught.
-- **`tools/selftest.sh`** checks both with a fake Godot (about 10 s, no real
-  Godot runs): 24 checks of lint, tests, sim, trace and bench, among them a
-  crash before the end marker, a planted `SCRIPT ERROR`, a seed without a
-  result, a bad side, a missing `SAVE`, `JOBS=0`, a sim step setting out of
-  range (G2), and a `TERM` mid-run after which no match, copy or `user://`
-  dir may be left. Run it after changing a tool. The tools before T1 fail 14
-  of the 23 checks T1 wrote.
+- **`tools/selftest.sh`** checks all of it with a fake Godot (about 20 s, no
+  real Godot runs): 44 checks of lint, tests, sim, trace, bench and the two
+  build tools, among them a crash before the end marker and one after it, a
+  planted `SCRIPT ERROR` (next to a finished result too, in sim and bench), a
+  seed without a result, a bench result that is not JSON, a bad side, a
+  missing `SAVE`, `JOBS=0`, a sim step setting or a cap out of range, a seed
+  given twice, `RIGS_AWAKE=0`, a build that must copy nothing back, a run
+  that never ends (`TOOL_TIME_LIMIT_S=1`), and a `TERM` mid-run after which
+  no match, copy, `user://` dir or watchdog may be left. Run it after
+  changing a tool. The tools before T1 fail 14 of the 23 checks T1 wrote;
+  the tools before T2 fail 15 of T2's 44, and two more catch a sim or
+  bench that stopped looking for `SCRIPT ERROR`.
 
 - `tools/lint.sh`: loads every script, scene and resource and checks the scene
   wiring; prints `LINT DONE ... warnings_as_errors=41` and `errors=0`, and
@@ -3504,7 +3523,19 @@ No tool can pass by accident, and none leaks when it is stopped:
   passes when it ran to its end with no failed assert and no `SCRIPT ERROR`
   (a script error aborts the function it is in, so the test's later checks
   never ran: a `Logger` in `test/run_tests.gd` catches it and fails the test
-  that was running). A skipped test (`skip()`) counts as skipped, not passed:
+  that was running). The failure says where the first error came from, read
+  from its backtrace: in the test itself ("the test stopped there"), in code
+  the test called (which went on with a default value), or not called by the
+  test at all (game code running on its own, or a timer, deferred call or
+  coroutine an earlier test left behind: the late error lands in the next
+  test, which names the culprit's `file:line`). An **engine `ERROR`**
+  (`push_error`, an engine check, a freed object put in a typed array) fails
+  the test too, unless the test announced it with
+  `TestCase.expect_error(<fragment>)` (the corrupt-save tests do; their ok
+  line says the `ERROR` above was expected), so the log carries no `ERROR`
+  line nobody expects and a new one stands out. A name that matches no test
+  file fails the run (`tools/run_tests.sh zz_no_such_test` exits 1; a typo
+  used to pass as "0 failed"). A skipped test (`skip()`) counts as skipped, not passed:
   `== 700 passed, 0 failed, 1 skipped ==` (the rendered minimap test). A run
   outside the isolated `user://` (the runner started by hand on a copy) skips
   the save tests, prints `NOT ISOLATED` and exits 1. A test still running
@@ -3545,9 +3576,9 @@ No tool can pass by accident, and none leaks when it is stopped:
   `SAVE`), so the same tree gives the same numbers on every run, whatever the
   CPU load or worker count, and seed s is `sim_trace.sh`'s seed s. Before
   (async on), 24 seeds of identical code gave 17 % and 33 % hero wins.
-  **Checked**: a side other than `heroes` / `monster` and a `SAVE` file that
-  is not there exit 2 (a typo used to play a fresh save, or the heroes under
-  the typed label); a match with a `SCRIPT ERROR` or without a result fails
+  **Checked**: a side other than `heroes` / `monster`, a `SAVE` file that
+  is not there and a `cap_seconds` that is not whole game seconds exit 2 (a
+  typo used to play a fresh save, or the heroes under the typed label); a match with a `SCRIPT ERROR` or without a result fails
   the run (exit 1, the seed and its errors on stderr; the summary still
   prints), and so does a group with fewer rows than `runs` or a Monster win
   before the time cap with a hero alive (`sim_summary.py`). Each result is
@@ -3567,7 +3598,9 @@ No tool can pass by accident, and none leaks when it is stopped:
   the determinism trace (a state hash every 60 frames and at the end), byte
   for byte the same for the same tree. `BASELINE=<file>` diffs the output with
   a saved one and exits 1 on a difference; `RIGS_AWAKE=1` animates every rig
-  and must not change it. **`JOBS=<n>`** (default 2) matches run at a time,
+  and must not change it (`0` or unset: asleep). A seed or side given twice
+  plays twice, each run with its own log (two runs of one seed in one call
+  check determinism). **`JOBS=<n>`** (default 2) matches run at a time,
   each worker on its own copy with a fresh `user://` per match: on an 8 GB
   machine the default keeps two Godot processes alive; `JOBS=6` plays a
   monster's six default matches at once. The output order is the argument
@@ -3589,7 +3622,8 @@ No tool can pass by accident, and none leaks when it is stopped:
   `frame_peak_ms` is the mean of the slowest frame of each 60 measured
   frames (it replaces `process_peak_ms` / `physics_peak_ms`, Godot's
   per-wall-second monitors, which reached back into the warm-up). A run
-  without a result or with a `SCRIPT ERROR` fails the bench (exit 1); `runs:
+  without a result, with a `SCRIPT ERROR`, whose Godot exited non-zero or
+  whose `BENCH_RESULT` is not a JSON object fails the bench (exit 1); `runs:
   m/n` counts the runs measured of those asked for.
 - **Monsters** (`tools/monster_env.zsh`, shared by `sim.sh`, `sim_trace.sh`
   and `bench.sh`):
@@ -3625,7 +3659,8 @@ No tool can pass by accident, and none leaks when it is stopped:
 - `tools/bake_nav.sh`, `tools/build_rigs.sh`, `tools/build_skill_trees.sh` and
   `tools/build_locale.sh` regenerate the navigation bake, the rig sheets and
   bodies, the skill tree resources and the imported translations on their
-  copy and copy only the generated files back.
+  copy and copy only the generated files back (nothing after a `SCRIPT
+  ERROR` or a crash).
 
 ### File Structure
 

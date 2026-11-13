@@ -338,6 +338,7 @@ func test_a_truncated_save_is_kept_aside_and_a_fresh_one_starts() -> void:
 	var cut := text.find("{")
 	assert_true(cut > 0, "the save has a table to cut through")
 	_write_text(text.substr(0, cut + 3))
+	expect_error("ConfigFile parse error")
 	_launch()
 	assert_true(FileAccess.file_exists(SAVE + ".corrupt.bak"), "the damaged file is kept aside")
 	assert_eq(FileAccess.get_file_as_string(SAVE + ".corrupt.bak"), text.substr(0, cut + 3), "as it was")

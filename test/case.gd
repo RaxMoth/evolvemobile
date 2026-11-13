@@ -42,6 +42,13 @@ func skip(reason: String) -> void:
 	runner.call("record_skip", reason)
 
 
+## This test provokes an engine ERROR whose text holds `fragment` on purpose
+## (a corrupt save file): it does not fail the test. Any other engine ERROR
+## (push_error, an engine check) fails the running test (test/run_tests.gd).
+func expect_error(fragment: String) -> void:
+	runner.call("expect_error", fragment)
+
+
 # ---------- helpers ----------
 
 func wait_frames(n: int) -> void:
@@ -160,6 +167,20 @@ func bake_nav_outline(points: PackedVector2Array) -> NavigationRegion2D:
 	add_child(region)
 	await wait_physics_frames(6)  # polygons land one map sync after the region
 	return region
+
+
+## Waits (up to 600 physics frames) until the private navigation `map` has
+## synchronized and answers at `probe`, a vertex of its mesh (polygons land a
+## sync after the region, on a worker thread). It never asks the map before
+## its first synchronization: that query logs an engine ERROR. True once the
+## map answered.
+func wait_for_nav_map(map: RID, probe: Vector2) -> bool:
+	for i in 600:
+		await wait_physics_frames(1)
+		if NavigationServer2D.map_get_iteration_id(map) > 0 \
+				and NavigationServer2D.map_get_closest_point(map, probe).distance_to(probe) < 1.0:
+			return true
+	return false
 
 
 func bake_nav_rect(rect: Rect2) -> NavigationRegion2D:

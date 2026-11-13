@@ -28,10 +28,14 @@
 # quietly playing the default monster; so do a THREAT outside 0-4, a side
 # other than heroes or monster and a SAVE file that is not there.
 #
-# Exit 1 when a match hit a SCRIPT ERROR or ended without a result: the seed
-# and its first error lines go to stderr (the summary still prints, over the
-# matches that did finish). A kill (TERM, INT, HUP) stops the workers and
-# their matches and deletes the copies (tools/tool_env.zsh).
+# Exit 1 when a match hit a SCRIPT ERROR, ended without a result or Godot
+# exited non-zero (a crash after the result, at the match-end settlement or
+# the teardown): the seed and its first error lines go to stderr (the summary
+# still prints, over the matches that did finish). A match still running
+# after TOOL_TIME_LIMIT_S (default: 3 s per capped game second, at least
+# 1800 s; a match takes 15-60 s) is stopped and named the same way. A kill
+# (TERM, INT, HUP) stops the workers and their matches and deletes the copies
+# (tools/tool_env.zsh).
 #
 # Reproducible: the copies' override.cfg turns off the navigation server's
 # asynchronous map and region iterations, as tools/sim_trace.sh does, and every
@@ -65,6 +69,11 @@ if [[ "$SIDE" != (heroes|monster) ]]; then
   echo "side=$SIDE: heroes or monster" >&2
   exit 2
 fi
+if [[ ! "$CAP" =~ '^[1-9][0-9]*$' ]]; then
+  echo "cap_seconds=$CAP: whole game seconds" >&2
+  exit 2
+fi
+tool_time_limit $(( 3 * CAP > 1800 ? 3 * CAP : 1800 ))
 SPEED="${SPEED:-0}"; FPS="${FPS:-60}"; LOD="${LOD:-on}"
 if [[ ! "$SPEED" =~ '^[0-2]$' ]] || [[ ! "$FPS" =~ '^[1-9][0-9]*$' ]] || [[ "$LOD" != (on|off) ]]; then
   echo "SPEED=$SPEED FPS=$FPS LOD=$LOD: SPEED is 0-2, FPS a frame rate, LOD on or off" >&2
@@ -123,6 +132,7 @@ for t in "${THREATS[@]}"; do
           fi
           run_godot "$res/seed_$s.log" --headless --fixed-fps "$FPS" --max-fps 0 --path "$TMP/w$w" \
             -s res://tools/sim_match.gd -- "$s" "$SIDE" "$CAP" ${m:+monster=$m} ${t:+threat=$t} "${STEP_ARGS[@]}"
+          echo $? > "$res/seed_$s.rc"
         done
       ) &
       TOOL_PIDS+=($!)
@@ -130,13 +140,15 @@ for t in "${THREATS[@]}"; do
     wait
     TOOL_PIDS=()
     # Seed order; a match with a SCRIPT ERROR (an ability that errors on every
-    # cast still lets the match finish) or without a result fails the run.
+    # cast still lets the match finish), without a result or whose Godot
+    # exited non-zero fails the run.
     : > "$res.jsonl"
     for ((s = 1; s <= RUNS; s++)); do
       log="$res/seed_$s.log"
+      rc="$(cat "$res/seed_$s.rc" 2> /dev/null)"
       sed -n 's/^SIM_RESULT //p' "$log" >> "$res.jsonl"
-      if grep -q "SCRIPT ERROR" "$log" || ! grep -q "^SIM_RESULT " "$log"; then
-        echo "${t:+threat $t }${m:+$m }seed $s: failed ($(grep -c "SCRIPT ERROR" "$log") script errors$(grep -q "^SIM_RESULT " "$log" || echo ", no result"))" >&2
+      if [ "$rc" != 0 ] || grep -q "SCRIPT ERROR" "$log" || ! grep -q "^SIM_RESULT " "$log"; then
+        echo "${t:+threat $t }${m:+$m }seed $s: failed ($(grep -c "SCRIPT ERROR" "$log") script errors$(grep -q "^SIM_RESULT " "$log" || echo ", no result")$(rc_note "$rc"))" >&2
         { grep -m 5 -A 2 "SCRIPT ERROR" "$log" || tail -5 "$log"; } >&2
         STATUS=1
       fi

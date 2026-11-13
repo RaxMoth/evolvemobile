@@ -369,7 +369,9 @@ func _report(reason: String, winner: String, t: float) -> void:
 	quit()
 
 
-## Hero name -> level (HeroStats) of the heroes alive now.
+## Hero name -> level (HeroStats) of every hero still in EntityRegistry: the
+## living ones and the dead ones not freed yet (an entity leaves the registry
+## in _exit_tree), so a hero who fell earlier in the match can be listed.
 func _hero_levels() -> Dictionary:
 	var out := {}
 	for h in root.get_node("EntityRegistry").get("heroes"):
