@@ -38,7 +38,11 @@ const WARBAND_TINT: float = 0.45
 ## first re-evaluation: the recruit stood idle for the whole 20 s.
 @export var warband_seek_radius: float = 350.0
 
+## Repeats (one_shot false in the scene): a swing that goes on restarts from
+## the timer with the frame's overshoot (_on_attack_timer_timeout).
 @onready var attack_timer: Timer = %AttackTimer
+## The chart's Fight state: _keeps_swinging asks it, so no flag mirrors it.
+@onready var _fight_state: StateChartState = get_node_or_null(^"StateChart/CompoundState/Fight") as StateChartState
 ## Runs while the mob fights for a monster (join_warband); its timeout is
 ## wired scene-side to _on_warband_timer_timeout.
 @onready var warband_timer: Timer = %WarbandTimer
@@ -259,6 +263,28 @@ func _on_attack_timer_timeout() -> void:
 	attacking = false
 	if is_target_valid() and not is_stunned():  # a stun interrupts the swing
 		_perform_basic_attack()
+	# The next swing starts here, from the timer, while the Fight tick would
+	# start one anyway: the repeating AttackTimer runs on with the overshoot
+	# of the frame it ended in, so swings keep attack_cooldown's pace at any
+	# AI tick rate. Started on the next tick instead, each swing came up to a
+	# tick late (0.05 s off screen at 20 Hz). Otherwise the timer stops and
+	# the Fight tick starts a fresh swing once the mob can swing again.
+	if _keeps_swinging():
+		attacking = true
+	else:
+		attack_timer.stop()
+
+
+## The Fight tick's swing gate (EntityBase._on_fight_state_processing): alive,
+## fighting a valid target inside the band between min_distance and the
+## attack range, neither stunned nor flinching.
+func _keeps_swinging() -> bool:
+	if not is_alive() or not is_target_valid() or is_stunned() or _flinch_timer > 0.0:
+		return false
+	if _fight_state == null or not _fight_state.active:
+		return false
+	var distance: float = range_to(target_entity as Node2D)
+	return distance <= attack_range and distance >= min_distance
 
 func _on_mob_death() -> void:
 	"""Hook for subclasses (loot, VFX). EntityBase._on_dead_state_entered then

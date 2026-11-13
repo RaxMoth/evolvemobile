@@ -48,7 +48,7 @@ enum GateKind { TIER_BELOW, LEVEL, POINTS }
 
 @export_group("AI")
 ## The ranks an AI-controlled side buys, in order: each entry is one more rank
-## of that node id, capstones last (the Opponent Threat build takes a prefix).
+## of that node id, never a capstone (the Opponent Threat build takes a prefix).
 @export var ai_build_order: Array[StringName] = []
 
 

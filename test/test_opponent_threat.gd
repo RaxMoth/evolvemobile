@@ -132,13 +132,15 @@ func test_ai_build_takes_3t_character_and_2t_base_entries() -> void:
 		for threat in range(0, 6):
 			var size := MetaSkillManager.ai_build_size(tree_id, threat)
 			assert_eq(size, mini(threat, 4) * per, "%s at threat %d" % [tree_id, threat])
-		# Threat 4 holds exactly one capstone of a character tree (its last entry).
+		# An AI build never holds a capstone, not even at threat 4 (fix batch
+		# G3: Brood Mother, Whirlwind and Titan Form won 83-92 % of the
+		# threat-4 parity matches; the player's own capstone stays theirs).
 		var capstones := 0
 		var full := MetaSkillManager.ai_build_ranks(tree_id, MetaSkillManager.ai_build_entries(tree_id, 4))
 		for id: StringName in full:
 			if _node(tree_id, id).capstone:
 				capstones += 1
-		assert_eq(capstones, 0 if MetaSkillManager.is_base_tree(tree_id) else 1, "%s: capstones at threat 4" % tree_id)
+		assert_eq(capstones, 0, "%s: capstones at threat 4" % tree_id)
 
 
 func test_ai_build_ranks_are_the_order_prefix() -> void:

@@ -328,7 +328,6 @@ func test_ai_build_orders_are_valid() -> void:
 		# Threat 4 buys 3 x 4 character ranks and 2 x 4 base ranks.
 		assert_true(order.size() >= (8 if side_wide else 12), "%s: %d entries" % [tree_id, order.size()])
 		var bought: Dictionary[StringName, int] = {}
-		var capstone_seen := false
 		for id in order:
 			var n := t.find_node(id)
 			assert_true(n != null, "%s: unknown %s" % [tree_id, id])
@@ -336,8 +335,8 @@ func test_ai_build_orders_are_valid() -> void:
 				continue
 			bought[id] = int(bought.get(id, 0)) + 1
 			assert_true(bought[id] <= n.max_rank, "%s: %s bought past its max rank" % [tree_id, id])
-			assert_false(capstone_seen and not n.capstone, "%s: the capstone comes last" % tree_id)
-			capstone_seen = capstone_seen or n.capstone
+			# The AI never builds a capstone (fix batch G3, README "Opponent Threat").
+			assert_false(n.capstone, "%s: %s is a capstone" % [tree_id, id])
 
 
 # ------------------------------------------------------------ hidden nodes

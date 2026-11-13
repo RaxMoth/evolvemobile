@@ -248,4 +248,4 @@ branches = PackedStringArray("Marksman", "Field Medic", "Scout")
 gate_kind = 1
 tier_gates = Array[int]([1, 3, 5, 8])
 owner_id = &"river"
-ai_build_order = Array[StringName]([&"r1_range", &"r1_hp", &"r1_range", &"r2_dmg", &"rv_heal", &"r2_triple", &"r1_hp", &"r2_dropcd", &"r3_range", &"r3_dropheal", &"r3_hp", &"rv_deadeye"])
+ai_build_order = Array[StringName]([&"r1_range", &"r1_hp", &"r1_range", &"r2_dmg", &"rv_heal", &"r2_triple", &"r1_hp", &"r2_dropcd", &"r3_range", &"r3_dropheal", &"r3_hp", &"r2_dmg"])

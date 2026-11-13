@@ -395,8 +395,8 @@ func ai_build_entries(tree_id: StringName, threat: int) -> int:
 
 ## node id -> rank of the first `entries` entries of the tree's ai_build_order:
 ## each entry is one more rank of that node, capped at its max rank. Ids the
-## game does not know (unknown, hidden) are skipped. Every capstone in the
-## prefix applies: an order ends in its one capstone.
+## game does not know (unknown, hidden) are skipped. The shipped orders hold
+## no capstone (test_skill_trees_v2): the AI never builds one.
 func ai_build_ranks(tree_id: StringName, entries: int) -> Dictionary[StringName, int]:
 	var out: Dictionary[StringName, int] = {}
 	var t: MetaSkillTree = get_tree_def(tree_id)

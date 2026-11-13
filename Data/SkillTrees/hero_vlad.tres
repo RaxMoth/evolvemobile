@@ -233,4 +233,4 @@ branches = PackedStringArray("Butcher", "Blood", "Demolition")
 gate_kind = 1
 tier_gates = Array[int]([1, 3, 5, 8])
 owner_id = &"vlad"
-ai_build_order = Array[StringName]([&"v1_dmg", &"v1_hp", &"v1_dmg", &"v2_dmg", &"v2_hp", &"vl_lust", &"v1_hp", &"v3_dmg", &"v3_atkspd", &"vl_minedmg", &"v2_bombaoe", &"vl_leech"])
+ai_build_order = Array[StringName]([&"v1_dmg", &"v1_hp", &"v1_dmg", &"v2_dmg", &"v2_hp", &"vl_lust", &"v1_hp", &"v3_dmg", &"v3_atkspd", &"vl_minedmg", &"v2_bombaoe", &"v1_dmg"])

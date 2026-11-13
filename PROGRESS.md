@@ -92,29 +92,15 @@ anything (see "Verification gate").
 - [ ] **Decisions for the user** and **Placeholder copy** below (user step): each entry names the
       default that ships. The user accepted the list as it stood on 2026-11-11; the open list holds
       what came after.
-- [ ] **Parity table at 48 seeds** — `MONSTER=all THREAT="1 2 3 4" tools/sim.sh 48 <side> 2` once
-      the threat 2-4 retune below is in (G2 measured 24 seeds: 14 of 24 cells inside 35-65 %).
-- [ ] **Threat 2-4 after G2** — the shipped tree (`MONSTER=all THREAT="1 2 3 4" tools/sim.sh 24
-      <side> 2`) has 14 of 24 cells inside 35-65 %: every AI monster wins at threat 4 (hero wins 17 /
-      8 / 17 %, Grount / Nyxa / Gorrak: the capstones in the threat-4 build against heroes who level
-      slower since G2) and Grount from threat 2 on (12 / 25 % at T2 / T3: Stampede, +speed, is his
-      order's second entry and his 600 px awareness keeps him from being caught at Stage I).
-      Gorrak at 3-4 (62-75 % in 6.8) is no longer the weak spot (38 / 17 %). Candidates: 2T monster
-      character entries (no capstone at threat 4), Stampede later in Grount's order. Needs the AI
-      build size decision below.
-- [ ] **AI build size** (decision first): 3T character + 2T base entries keep the AI behind a player
-      at the threshold (a P = 6T save wins 71-100 % as heroes at T4). Candidate: 3T + 3T.
-- [ ] **Grount at fast on 30 fps** (G2) — at 1/12.5 game s a step (the speed button's fast setting
-      on a 30 fps phone; `SPEED=2 FPS=30 MONSTER=grount tools/sim.sh 24 <side> 2`) the heroes win
-      79 % against Grount, 42 % at the sims' 1/60 (48 matches each); Nyxa and Gorrak do not move.
-      Suspects: his leaping slam, the 40 px-per-step Ram Dash, the cleave's cone query reading the
-      last physics step's positions. Find it, or sub-step the entity logic when a step exceeds
-      1/25 game s (README "Watched match against the sims").
-- [ ] **Mob swings per AI tick** (G2) — a mob starts each swing on its next AI tick after its
-      `AttackTimer` ran out, so off screen in the sims (20 Hz) it swings up to 0.05 s late and on
-      screen (every frame) up to a frame late: about 2 % fewer Bat and Hog hits in the sims than
-      on a device. Heroes and monsters credit their overshoot since G2; a mob would need its swing
-      cycle restarted from the timer, not from the tick.
+- [ ] **Parity table at 48 seeds** — G3's threat retune is measured at 24 seeds per cell on each
+      side (README "Opponent Threat"); `MONSTER=all THREAT="1 2 3 4" tools/sim.sh 48 <side> 2` for
+      the whole table is still open (about 45 minutes a side on the development Mac).
+- [ ] **Ram Dash lane at coarse steps** (G3) — the dash tests its lane once per step (a 40 px
+      circle at each step's end), so at 1/12.5 game s (fast on a 30 fps phone) Grount moves 40 px
+      a step and Nyxa's swoop 56 px, and a hero at the lane's edge between two steps is missed: 5 %
+      fewer dash hits on heroes per cast at 1/12.5 (1.53 against 1.61, 96 seeds). Hero wins do not
+      move (README "Watched match against the sims"); testing the swept segment would make it
+      exact.
 - [ ] **Fight sides at walls** (G1) — a hero walks round its target to its side along the circle
       it stands on; a wall on that circle stops it where it is (it fights from there, as before).
       In a render where Grount stood against a wall the melee heroes stayed behind him. A detour
@@ -206,11 +192,46 @@ Gameplay:
     gave 46 % and 54 %, before the cooldown-overshoot fix below). One standard error is 7 points,
     so a nudge is a coin toss without 96 seeds per side. If the user wants them inside: Grount's
     awareness 550 (more Stage I contacts, which the heroes win) and Nyxa's Stage 3 screech 13.
+    (Changed in G3: after mob swings on their timer Nyxa is at 54 / 54 % and Grount at 38 / 40 %
+    with 48 seeds, 45 % with 96 on the heroes side, so neither nudge was made.)
 - **A cooldown's overshoot counts** (G2): a cooldown that ends inside a frame credits the overshoot
   (at most one frame) to the next cast, heroes (`AbilitySystem`) and monsters (`MonsterBase._cast`).
   Before, attacks lost half a frame each, about 4 % of the hits of a 1 s attack on fast at 30 fps.
-  Mobs still start each swing on their next AI tick (20 Hz off screen in the sims, every frame on
-  screen), so they swing up to a tick later than their cooldown (Backlog).
+  (Changed in G3: mobs keep their pace too, next entry.)
+- **A mob's swing goes on from its timer** (G3): while a mob can swing on (alive, not stunned or
+  flinching, in Fight with its target inside the band), its next swing starts when the last one
+  lands, from the repeating `AttackTimer` with the frame's overshoot; otherwise the timer stops and
+  the Fight tick starts a fresh swing later, as before. It used to start on the mob's next AI tick
+  (up to 0.05 s late at the sims' 20 Hz: a Hog's 1.0 s swing took about 1.04 s), and the timer ran
+  on after a mob stopped swinging, so a target that stepped back into reach on a timeout took a
+  stray hit. Option: start every swing on the AI tick again (the sims then land 2-4 % fewer mob
+  hits than a device).
+- **The AI builds no capstone** (G3; the user left balance calls to us): every `ai_build_order`
+  ends in one more rank instead of its capstone (heroes `r2_dmg`, `v1_dmg`, `t2_dmg`, `i1_dmg`;
+  the monsters below), so the AI opponent never fields one; the player's own equipped capstone
+  stays theirs. With the capstones the AI monster won 83-92 % at threat 4 (Brood Mother, Whirlwind,
+  Titan Form); with only the heroes' the heroes won 79-83 % against Nyxa and Gorrak. Options: one
+  capstone for both sides at threat 4 with a weaker rest of the build, or a capstone only above
+  some power (a threat 5).
+- **The threat 1-4 AI orders** (G3, README "Opponent Threat" has every variant): Grount's order
+  leaves out Quick Cleave, Ravenous and Titan's Wrath for Thick Hide, Stampede and Long Charge
+  ranks (with Quick Cleave at threat 2 the heroes won 12 %); `monster_base` buys Thicker Hide at
+  threat 1 instead of Sharpened Claws, and Brutal Strikes 2 and Apex Body at threat 4 instead of
+  Sharpened Claws 2 and Quick Evolution (Nyxa at threat 1 73 %, at threat 4 75 % before); Nyxa
+  buys Thirst at threat 1 and Piercing Shriek 3 and Dusk Hide 4 at threat 4; Gorrak Wide Arc and
+  Earthshaker at threat 4. Every cell at threats 1-4 is inside 35-65 % (24 seeds; edge cells at
+  48), but flat rather than falling with the threat, and Gorrak at threat 4 sits at the lower
+  edge (35 % at 48 seeds). Option: a falling curve needs a weaker AI at threat 1 and a stronger
+  one at 4 for all three (and more seeds than 24 a cell to see it).
+- **The AI build size stays 3T character + 2T base entries** (G3, the Backlog's "AI build size"):
+  the retune above fits inside it, and the 2T base entries keep a player at the threshold ahead of
+  the AI (6.8: a P = 6T save won 71-100 % as heroes at threat 4, with the AI's capstone then).
+  Option: 3T + 3T makes a threshold player a parity match.
+- **No sub-step for the fast button** (G3): G2's "Grount at fast on 30 fps" (79 % against 42 %)
+  was its 24 seeds; at 96 seeds 1/12.5 and 1/60 game s a step give 46 % and 43 %, and Grount's
+  cleave, slam and damage are the same at both steps (README "Watched match against the sims").
+  The entity logic keeps one step per frame. Option: sub-step it anyway on slow phones (costs a
+  frame's entity logic per sub-step).
 - **Faster rounds** (P1, the user's request of 2026-11-11: "each round should be slightly
   faster, so faster movement speed and ingame speed"): everybody walks 20 % faster than before,
   on top of F3's base speed 1.2 (unchanged, `GameManager.MATCH_BASE_SPEED`). Every walking
@@ -610,6 +631,9 @@ Threat 0, fresh save, 48 seeds (`MONSTER=<id> tools/sim.sh 48 <side> 6`), hero w
 | **Grount** (G2 final, 48 seeds) | **38 %** | **38 %** | 1 / 1 | 310 / 310 s | first contact 324 / 321 s; awareness 600, hero XP 100 per level |
 | **Nyxa** (G2 final, 48 seeds) | **62 %** | **62 %** | 3 / 3 | 360 / 360 s | first contact 369 s; screech 12 at Stage 3; 6 of 96 without contact |
 | **Gorrak** (G2 final, 48 seeds) | **44 %** | **42 %** | 0 / 0 | 330 / 330 s | first contact 379 s; Stage 3 HP 1700 |
+| **Grount** (G3, 48 seeds) | **38 %** | **40 %** | 0 / 0 | 295 / 294 s | first contact 318 s; mob swings on their timer; 45 % at 96 seeds (heroes side) |
+| **Nyxa** (G3, 48 seeds) | **54 %** | **54 %** | 3 / 3 | 357 / 357 s | first contact 382 s; 2 of 48 without contact a side |
+| **Gorrak** (G3, 48 seeds) | **42 %** | **44 %** | 1 / 1 | 319 / 319 s | first contact 357 s |
 
 R1 (`MONSTER=all tools/sim.sh 12 <side> 2`, the parent `524536a` run the same way): River's staff
 healed for the first time (`staff_heals`: 207-225 heals in 12 matches against Grount or Gorrak
@@ -640,8 +664,30 @@ side was 58 / 67 / 67 %, with it on every cooldown 25 / 17 / 4 % (see the change
 
 This closes "Balance retune after `74e2bff`" (heroes 29 % then).
 
-Opponent Threat parity after G2 (the shipped tree; `MONSTER=all THREAT="1 2 3 4" tools/sim.sh 24
-<side> 2`, threat 0 at 48 seeds; hero wins, heroes side / monster side):
+G3 (`MONSTER=all tools/sim.sh 48 <side> 2`): a mob's next swing starts from its timer, not on its
+next AI tick, so mobs land their hits on time in the sims too (2-4 % more than before); Nyxa
+62 -> 54 %, Grount and Gorrak within 2 points. The step-size check is in the G3 changelog entry and
+README "Watched match against the sims".
+
+Opponent Threat parity after G3 (the shipped tree; `MONSTER=all THREAT=N tools/sim.sh <seeds>
+<side> 2`: threat 0 at 48 seeds a side, threat 1 at 48 heroes side and 24 monster side, threats 2-4
+at 24, Gorrak at threat 4 at 48 heroes side; hero wins, heroes side / monster side; README
+"Opponent Threat" has every variant tried):
+
+| threat | Grount | Nyxa | Gorrak |
+|---|---|---|---|
+| 0 | 38 % / 40 % | 54 % / 54 % | 42 % / 44 % |
+| 1 | 40 % / 58 % | 52 % / 42 % | 38 % / 42 % |
+| 2 | 50 % / 50 % | 62 % / 62 % | 54 % / 54 % |
+| 3 | 50 % / 50 % | 58 % / 58 % | 42 % / 42 % |
+| 4 | 42 % / 42 % | 58 % / 58 % | 35 % / 38 % |
+
+Every cell at threats 1-4 is inside 35-65 % (G2: 14 of 24). The monster side replays nearly the
+same matches (same builds on both sides). The hero wins are flat within the noise rather than
+falling with the threat; Gorrak at threat 4 is at the lower edge (Decisions).
+
+Opponent Threat parity after G2 (`MONSTER=all THREAT="1 2 3 4" tools/sim.sh 24 <side> 2`, threat 0
+at 48 seeds; hero wins, heroes side / monster side):
 
 | threat | Grount | Nyxa | Gorrak |
 |---|---|---|---|
@@ -651,7 +697,7 @@ Opponent Threat parity after G2 (the shipped tree; `MONSTER=all THREAT="1 2 3 4"
 | 3 | 25 % / 25 % | 62 % / 62 % | 38 % / 38 % |
 | 4 | 17 % / 17 % | 8 % / 8 % | 17 % / 17 % |
 
-14 of the 24 cells at threats 1-4 are inside 35-65 % (Backlog "Threat 2-4 after G2").
+14 of the 24 cells at threats 1-4 were inside 35-65 % (closed by G3).
 
 Opponent Threat parity (6.8, `MONSTER=all THREAT=all tools/sim.sh 24 <side> 8`, hero wins, heroes
 side / monster side):
@@ -763,6 +809,77 @@ at 30-40 fps, which is the 1/12.5 case of "Grount at fast on 30 fps"). Device nu
       uses `GameManager.killer_side`; the sim could use the same rule. Low priority.
 
 ## Changelog
+### 2026-11-13 — fix batch G3: fast-button fidelity, threat 1-4 retune, mob swings on their timer
+Gameplay batch of the third fix run, on G2's follow-ups: Grount on fast at 30 fps, threat 2-4,
+the threat 0 edges and mob swings per AI tick. The traces change (mob swings), so
+`tools/baselines` is re-recorded. The AI orders change only the threat 1-4 builds, and no trace
+or threat-0 match holds one.
+
+- **The fast button and Grount: G2's sample, not the step.** G2's 79 % hero wins at 1/12.5 game s
+  a step, against 42 % at 1/60, came from seeds 1-24. At 96 seeds (heroes side, the G2 tree) the
+  heroes win 46 % at 1/12.5 and 43 % at 1/60; at 1/12.5 the four blocks of 24 seeds gave 19, 12, 7
+  and 6 hero wins. A probe counted each ability's hits on heroes: the cleave lands 0.21 / 0.20 hits
+  a cast at the two steps, the slam 1.62 / 1.60, and Grount's damage is the same (median 709 / 741,
+  235 / 227 hero deaths). Only Ram Dash loses 5 % of its hits (1.61 / 1.53 a cast), because it
+  tests its lane once per 40 px step (Backlog). Nothing needs a smaller step, so nothing is
+  sub-stepped. The step table of the shipped tree (heroes side, 48 seeds a monster; README
+  "Watched match against the sims"), hero wins Grount / Nyxa / Gorrak / all:
+  1/60 38 / 54 / 42 / 44 %; 1/25 at the base speed (30 fps) 44 / 62 / 50 / 52 %; 1/25 on fast
+  (60 fps) 46 / 52 / 48 / 49 %; 1/12.5 on fast (30 fps) 50 / 52 / 56 / 53 %. Grount and Gorrak at 1/12.5 were 12 and 14 points over 1/60 at 48 seeds; at 96 they flip or shrink (Grount 45 % at 1/60 against 36 %, Gorrak 44 % against 48 %), and two runs at the same 1/25 step differ by up to 10 points (Nyxa): noise, not a step effect.
+- **Mob swings on their timer.** A mob started its next swing on its next AI tick after its
+  `AttackTimer` ran out. Off screen that is up to 0.05 s late (20 Hz, every sim), so a Hog's 1.0 s
+  swing took about 1.04 s. The timer also kept running after the mob stopped swinging, so a target
+  back in reach at a timeout took a stray hit. Now `MobBase._on_attack_timer_timeout` lets the
+  repeating timer run on, with the frame's overshoot, while the mob can swing on
+  (`_keeps_swinging`: alive, not stunned or flinching, the chart in Fight, the target inside the
+  band), and stops it otherwise.
+- **Threat 0 after it** (`MONSTER=all tools/sim.sh 48 <side> 2`, hero wins heroes / monster side):
+  - Grount 38 / 40 %; 45 % at 96 seeds on the heroes side;
+  - Nyxa 54 / 54 % (G2: 62 / 62 %);
+  - Gorrak 42 / 44 %.
+  This answers the threat 0 edges item: G2's Grount 38 % and Nyxa 62 % were 2 points outside the
+  target, and now nothing moved outside 40-60 % by more than the noise, so neither nudge was made.
+  Pace: the median match is 399 game s; the median first contact is 357 game s; 6 of 288 matches
+  had no contact.
+- **Threat 1-4 retune** (README "Opponent Threat" has every variant; Decisions). Three changes:
+  - The AI builds no capstone. Each order's capstone is replaced by one more rank. With the
+    capstones the AI monster won 83-92 % at threat 4. With only the heroes' capstones the heroes
+    won 79-83 % against Nyxa and Gorrak.
+  - Grount's order leaves out Quick Cleave, Ravenous and Titan's Wrath and takes Thick Hide,
+    Stampede and Long Charge ranks instead. With Quick Cleave the heroes won 12 % at threat 2.
+  - `monster_base` takes Thicker Hide at threat 1, and Brutal Strikes 2 and Apex Body at threat 4.
+    Nyxa takes Thirst at threat 1, and Piercing Shriek 3 and Dusk Hide 4 at threat 4. Gorrak takes
+    Wide Arc and Earthshaker at threat 4.
+
+  Every cell at threats 1-4 is now inside 35-65 % (G2: 14 of 24). Heroes side / monster side:
+  - Threat 1: Grount 40 / 58 %, Nyxa 52 / 42 %, Gorrak 38 / 42 %;
+  - Threat 2: Grount 50 / 50 %, Nyxa 62 / 62 %, Gorrak 54 / 54 %;
+  - Threat 3: Grount 50 / 50 %, Nyxa 58 / 58 %, Gorrak 42 / 42 %;
+  - Threat 4: Grount 42 / 42 %, Nyxa 58 / 58 %, Gorrak 35 / 38 %.
+
+  Seeds: threat 1 at 48 on the heroes side and 24 on the monster side; threats 2-4 at 24 per side;
+  Gorrak at threat 4 at 48 on the heroes side. The monster side replays nearly the same matches.
+  Two parts of the goal are not met: the hero wins stay flat within the noise instead of falling as
+  the threat rises, and Gorrak at threat 4 is at the lower edge.
+- **AI build size**: stays 3T character + 2T base entries (Decisions). The Backlog's item for it,
+  "Threat 2-4 after G2", "Grount at fast on 30 fps" and "Mob swings per AI tick" are closed. New in
+  the Backlog: "Ram Dash lane at coarse steps".
+- **Tests**:
+  - New: `test_match_speed` `test_a_mob_swings_at_its_pace_whatever_its_tick_rate`. It fails on the
+    parent: a 1.008 s timer gave 1.047 s a swing, and the timer ran on with no target.
+  - Updated: `test_opponent_threat` (no capstone in a threat-4 build) and `test_skill_trees_v2` (no
+    capstone in any order; the generator's `SkillTreeDataV2.ai_build_order()` matches the `.tres`).
+- **Docs**:
+  - README: Match Speed, Combat AI ("Mob swings"), Monster Roster, Measured Balance, "Watched match
+    against the sims", Opponent Threat, Next and Known Issues;
+  - INSTRUCTOR: the AI build, tick-independent pacing, and the new-monster checklist's order rule.
+- **Verified**: `tools/lint.sh` errors=0; `tools/run_tests.sh` 748 passed, 0 failed, 1 skipped (the
+  rendered minimap test), nothing leaked; the new test fails on the parent; traces re-recorded
+  (`MONSTER=all RECORD_DIR=tools/baselines tools/sim_trace.sh`: 1772 / 3104 / 1940 lines, were
+  1682 / 3186 / 2282) and checked identical (`BASELINE_DIR`, exit 0); muted render (a Stage I
+  Grount farming three Bats on screen at the base speed, 0.04 game s a frame: every Bat bite came
+  1.48 or 1.52 s after the last, 1.50 s on average, its `attack_cooldown`).
+
 ### 2026-11-12 — fix batch G2: final balance (contact for every monster, retune, threat table, watched-match fidelity, idle bench)
 Last gameplay batch of the second fix run: the walkthrough's TIME UP against Nyxa, the review's gap
 on sims against a watched match (and F3's note on step sizes), the threat table and the idle bench.

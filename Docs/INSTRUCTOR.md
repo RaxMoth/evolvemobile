@@ -327,6 +327,13 @@ var is_idle = true
 var is_chasing = false
 ```
 
+Pacing that must not depend on the tick rate is kept off the tick: a mob's
+swing is its repeating `AttackTimer`, and when a swing lands while the mob
+can swing on (`MobBase._keeps_swinging`, which asks the chart's Fight state)
+the next one starts there with the frame's overshoot, not on the next 20 Hz
+tick (fix batch G3); heroes and monsters credit a cooldown's overshoot to
+the next cast (G2).
+
 A Transition's `to` NodePath resolves relative to the transition node itself
 (`../Dead`, not `Dead`): the first headless test run caught exactly that.
 The monster's strategy layer (farm / rest / retreat / ambush / hunt) picks
@@ -444,7 +451,8 @@ final_stat = (base_value + level_bonus + additive_modifier) * multiplicative_mod
 Skill-tree ranks arrive as modifiers (`add_stat_modifier`) and through the
 generic stat keys (`get_damage_taken_multiplier`, `get_cooldown_multiplier`,
 `get_start_level`). Only the **played side** applies the save's trees; the AI
-opponent applies its threat build (`MetaSkillManager.spawn_ranks`).
+opponent applies its threat build (`MetaSkillManager.spawn_ranks`), which
+never holds a capstone.
 
 ### Monster evolution
 
@@ -776,7 +784,7 @@ then optimize the hot path the numbers point at.
 [ ] passive_ability + ability_1..3 .tres, each with per-stage tables
 [ ] Rig, CharacterDef (stage_names, tip, unlock rules; stage_portraits and
     stage_head_regions when its look changes with the stage, as Grount's),
-    roster.tres, skill tree (with an ai_build_order of 12 entries, capstone last)
+    roster.tres, skill tree (with an ai_build_order of 12 entries, no capstone)
 [ ] Recipes and telegraphs, icons, strings
 [ ] Baseline: MONSTER=all RECORD_DIR=tools/baselines tools/sim_trace.sh
     (test_sim_tools fails while a roster monster has none)

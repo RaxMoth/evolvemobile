@@ -283,4 +283,4 @@ branches = PackedStringArray("Horns", "Hide", "Charge")
 gate_kind = 1
 tier_gates = Array[int]([1, 3, 5, 8])
 owner_id = &"grount"
-ai_build_order = Array[StringName]([&"g1_hide", &"g1_speed", &"g3_slam", &"g2_cleavecd", &"g1_dmg", &"g3_dash", &"g2_hp", &"g1_dmg", &"g2_evo", &"g1_stun", &"g3_dmg", &"g4_titan"])
+ai_build_order = Array[StringName]([&"g1_hide", &"g1_speed", &"g3_slam", &"g1_hide", &"g1_dmg", &"g3_dash", &"g2_hp", &"g1_speed", &"g3_dash", &"g1_hide", &"g1_dmg", &"g1_stun"])

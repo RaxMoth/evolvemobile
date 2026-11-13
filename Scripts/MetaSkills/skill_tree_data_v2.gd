@@ -339,20 +339,22 @@ static func gorrak() -> Array:
 ## Which ranks an AI-controlled side buys, in order, at each Threat level
 ## (README "Opponent Threat"): threat T gives the first 3T entries of a
 ## character tree and 2T of a base tree (MetaSkillManager.ai_build_entries).
-## An entry is a node id (one more rank of it). Capstones come last. The
-## monster and monster_base orders are 6.8's retune (the design's orders
-## stalled the AI monster); test_skill_trees_v2 checks that the generator's
-## output and the shipped .tres agree, so build_skill_trees.sh --force cannot
-## silently revert them.
+## An entry is a node id (one more rank of it). No order holds a capstone
+## (fix batch G3: the AI's capstones won 83-92 % of the threat-4 parity
+## matches). The monster and monster_base orders are 6.8's retune (the
+## design's orders stalled the AI monster), Grount's and Nyxa's late entries
+## G3's; test_skill_trees_v2 checks that the generator's output and the
+## shipped .tres agree, so build_skill_trees.sh --force cannot silently
+## revert them.
 static func ai_build_order() -> Dictionary:
 	return {
 		&"hero_base": [&"t1_hp", &"t1_dmg", &"t1_speed", &"t1_hp", &"t1_dmg", &"t2_hp", &"t2_dmg", &"hb_armor", &"t2_atkspd", &"t2_hp", &"t2_dmg", &"t3_hp", &"t3_atkspd", &"t3_speed", &"hb_cdr", &"t4_hp", &"t4_dmg", &"t4_atkspd"],
-		&"monster_base": [&"mb_claws", &"mt1_xp", &"mt1_hp", &"mb_bark", &"mt2_dmg", &"mt1_hp", &"mb_claws", &"mt2_evo", &"mt2_dmg", &"mt3_hp", &"mt3_range", &"mb_cdr", &"mb_regen", &"mb_apex"],
-		&"hero_river": [&"r1_range", &"r1_hp", &"r1_range", &"r2_dmg", &"rv_heal", &"r2_triple", &"r1_hp", &"r2_dropcd", &"r3_range", &"r3_dropheal", &"r3_hp", &"rv_deadeye"],
-		&"hero_vlad": [&"v1_dmg", &"v1_hp", &"v1_dmg", &"v2_dmg", &"v2_hp", &"vl_lust", &"v1_hp", &"v3_dmg", &"v3_atkspd", &"vl_minedmg", &"v2_bombaoe", &"vl_leech"],
-		&"hero_ted": [&"t1_hp", &"td_petvit", &"t1_hp", &"t2_dmg", &"td_petdmg", &"t2_atkspd", &"t1_range", &"t2_trapcd", &"t3_hp", &"td_respawn", &"t3_trapdur", &"td_twin"],
-		&"hero_irelia": [&"i1_hp", &"ir_regen", &"i1_hp", &"i2_hp", &"ir_armor", &"i2_rallycd", &"i1_dmg", &"i3_hp", &"ir_aegis", &"i2_atkspd", &"i3_dashcd", &"ir_guardian"],
-		&"monster_grount": [&"g1_hide", &"g1_speed", &"g3_slam", &"g2_cleavecd", &"g1_dmg", &"g3_dash", &"g2_hp", &"g1_dmg", &"g2_evo", &"g1_stun", &"g3_dmg", &"g4_titan"],
-		&"monster_nyxa": [&"ny_hp", &"ny_dmg", &"ny_hp", &"ny_evo", &"ny_dmg", &"ny_leech", &"ny_hp", &"ny_speed", &"ny_swoopcd", &"ny_swarm", &"ny_swarmdur", &"ny_brood"],
-		&"monster_gorrak": [&"gk_dmg", &"gk_hp", &"gk_dmg", &"gk_dmg", &"gk_axedmg", &"gk_dmg", &"gk_axedmg", &"gk_dmg", &"gk_axedmg", &"gk_hp", &"gk_hp", &"gk_whirl"],
+		&"monster_base": [&"mt1_hp", &"mt1_xp", &"mb_claws", &"mb_bark", &"mt2_dmg", &"mt1_hp", &"mt2_dmg", &"mt3_hp", &"mb_claws", &"mt2_evo", &"mt3_range", &"mb_cdr", &"mb_regen", &"mb_apex"],
+		&"hero_river": [&"r1_range", &"r1_hp", &"r1_range", &"r2_dmg", &"rv_heal", &"r2_triple", &"r1_hp", &"r2_dropcd", &"r3_range", &"r3_dropheal", &"r3_hp", &"r2_dmg"],
+		&"hero_vlad": [&"v1_dmg", &"v1_hp", &"v1_dmg", &"v2_dmg", &"v2_hp", &"vl_lust", &"v1_hp", &"v3_dmg", &"v3_atkspd", &"vl_minedmg", &"v2_bombaoe", &"v1_dmg"],
+		&"hero_ted": [&"t1_hp", &"td_petvit", &"t1_hp", &"t2_dmg", &"td_petdmg", &"t2_atkspd", &"t1_range", &"t2_trapcd", &"t3_hp", &"td_respawn", &"t3_trapdur", &"t2_dmg"],
+		&"hero_irelia": [&"i1_hp", &"ir_regen", &"i1_hp", &"i2_hp", &"ir_armor", &"i2_rallycd", &"i1_dmg", &"i3_hp", &"ir_aegis", &"i2_atkspd", &"i3_dashcd", &"i1_dmg"],
+		&"monster_grount": [&"g1_hide", &"g1_speed", &"g3_slam", &"g1_hide", &"g1_dmg", &"g3_dash", &"g2_hp", &"g1_speed", &"g3_dash", &"g1_hide", &"g1_dmg", &"g1_stun"],
+		&"monster_nyxa": [&"ny_hp", &"ny_dmg", &"ny_leech", &"ny_evo", &"ny_dmg", &"ny_hp", &"ny_hp", &"ny_speed", &"ny_swoopcd", &"ny_swarm", &"ny_dmg", &"ny_hp"],
+		&"monster_gorrak": [&"gk_dmg", &"gk_hp", &"gk_dmg", &"gk_dmg", &"gk_axedmg", &"gk_dmg", &"gk_axedmg", &"gk_dmg", &"gk_axedmg", &"gk_hp", &"gk_arc", &"gk_stomp"],
 	}

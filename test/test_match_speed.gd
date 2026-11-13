@@ -345,3 +345,40 @@ func test_attacks_keep_their_pace_at_any_step() -> void:
 		assert_near(cleave, g.ability_1.cooldown, 0.02, "Grount cleaves every %.2f s at a %.3f s step" % [g.ability_1.cooldown, step])
 	for n in [vlad, g]:
 		n.queue_free()
+
+
+const HOG := "res://Scenes/NPCs/Mob/Mobs/Hog/Hog.tscn"
+
+
+## A mob swung on its next AI tick after its AttackTimer ran out, so off screen
+## (20 Hz, as in every sim) each swing came up to 0.05 s late, and the frame's
+## overshoot was lost. The next swing now starts from the repeating timer,
+## with that overshoot, while the mob can keep swinging; once it cannot (its
+## target gone), the timer stops and nothing swings on its own. The swing
+## here lasts 60.5 frames: the old swings took at least 61 frames each.
+func test_a_mob_swings_at_its_pace_whatever_its_tick_rate() -> void:
+	var vlad := await spawn_frozen(VLAD, Vector2(0, 0))
+	var hog := (await spawn_entity(HOG, Vector2(30, 0))) as MobBase  # inside its 20-40 px band
+	var swing: float = hog.attack_cooldown + 0.5 / 60.0
+	hog.attack_timer.wait_time = swing
+	var frames: Array[int] = []
+	var on_hit := func(p: DamagePacket) -> void:
+		if p.source == hog:
+			frames.append(Engine.get_process_frames())
+	EventBus.damage_applied.connect(on_hit)
+	for i in 600:
+		await get_tree().process_frame
+		if frames.size() >= 6:
+			break
+	EventBus.damage_applied.disconnect(on_hit)
+	assert_eq(frames.size(), 6, "six swings landed")
+	assert_eq(TickScheduler.lod_name(TickScheduler.lod_of(hog)), "NEAR", "the Hog's AI ticks at 20 Hz")
+	if frames.size() == 6:
+		# The runner steps 1/60 s a frame.
+		var mean: float = float(frames[5] - frames[0]) / 5.0 / 60.0
+		assert_near(mean, swing, 1.0 / 60.0 / 5.0, "a swing every %.4f s (%.4f s)" % [swing, mean])
+	vlad.queue_free()
+	await wait_seconds(swing + 0.1)
+	assert_true(hog.attack_timer.is_stopped() and not hog.attacking, "its target gone: the timer stopped")
+	hog.queue_free()
+	await wait_frames(2)

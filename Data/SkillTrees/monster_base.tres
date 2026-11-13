@@ -188,4 +188,4 @@ nodes = Array[ExtResource("1_tvpyk")]([SubResource("mb_claws"), SubResource("mt2
 branches = PackedStringArray("Ferocity", "Hide", "Instinct")
 gate_kind = 2
 tier_gates = Array[int]([0, 4, 10, 18])
-ai_build_order = Array[StringName]([&"mb_claws", &"mt1_xp", &"mt1_hp", &"mb_bark", &"mt2_dmg", &"mt1_hp", &"mb_claws", &"mt2_evo", &"mt2_dmg", &"mt3_hp", &"mt3_range", &"mb_cdr", &"mb_regen", &"mb_apex"])
+ai_build_order = Array[StringName]([&"mt1_hp", &"mt1_xp", &"mb_claws", &"mb_bark", &"mt2_dmg", &"mt1_hp", &"mt2_dmg", &"mt3_hp", &"mb_claws", &"mt2_evo", &"mt3_range", &"mb_cdr", &"mb_regen", &"mb_apex"])

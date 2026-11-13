@@ -249,4 +249,4 @@ branches = PackedStringArray("Brawler", "Beastmaster", "Trapper")
 gate_kind = 1
 tier_gates = Array[int]([1, 3, 5, 8])
 owner_id = &"ted"
-ai_build_order = Array[StringName]([&"t1_hp", &"td_petvit", &"t1_hp", &"t2_dmg", &"td_petdmg", &"t2_atkspd", &"t1_range", &"t2_trapcd", &"t3_hp", &"td_respawn", &"t3_trapdur", &"td_twin"])
+ai_build_order = Array[StringName]([&"t1_hp", &"td_petvit", &"t1_hp", &"t2_dmg", &"td_petdmg", &"t2_atkspd", &"t1_range", &"t2_trapcd", &"t3_hp", &"td_respawn", &"t3_trapdur", &"t2_dmg"])

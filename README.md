@@ -163,8 +163,11 @@ fast), and the median first contact 363 game s (303 real).
   30 fps, still inside every melee fighter's 20 px or wider band between
   `min_distance` and the attack range. A cooldown that ends inside a frame
   credits its overshoot to the next cast (fix batch G2), so heroes and
-  monsters attack at their pace at any step; the sims at a device's steps are
-  under "Contact and the Final Retune" ("Watched match against the sims").
+  monsters attack at their pace at any step, and a mob's next swing starts
+  from its repeating `AttackTimer` with that overshoot instead of on its next
+  AI tick (fix batch G3, Combat AI "Mob swings"); the sims at a device's steps
+  are under "Contact and the Final Retune" ("Watched match against the
+  sims").
 - **Cost**: a frame costs more at speed, because everything that is paced in
   game time comes more often per frame (the mobs' 20 / 10 / 3 Hz AI ticks
   first of all). Stress bench on the development Mac
@@ -406,24 +409,26 @@ plus its stats, strategy and ability `.tres` (see "Shared Monster Framework"
 and "Character Roster"). Hero wins at threat 0 are `MONSTER=<id> tools/sim.sh
 48 heroes 6` / `... 48 monster 6` (fresh save, reproducible since 6.2); the
 target is 40-60 % per monster on both sides. The columns repeat the latest
-measurement: fix batch G2's 48 seeds per side, after the contact fixes and
-the final retune (see Measured Balance and "Contact and the Final Retune").
-Gorrak is inside the target; Grount (38 %) and Nyxa (62 %) are 2 points
-outside it, within one standard error of 48 seeds (7 points).
+measurement: fix batch G3's 48 seeds per side (G2's contact fixes and final
+retune, and G3's mob swings on their timer; see Measured Balance and
+"Contact and the Final Retune"). Nyxa and Gorrak are inside the target;
+Grount's heroes side (38 %) is 2 points outside it, within one standard
+error of 48 seeds (7 points), and inside at 96 seeds (see Measured Balance).
 
 | Monster | Role | Owned / unlock | Heroes meet it after | HP (S1 / S2 / S3) | Evolves at (total XP) | Hero wins, heroes side / monster side | Timeouts (H / M) |
 | ------- | ---- | -------------- | -------------------- | ----------------- | --------------------- | ------------------------------------ | ---------------- |
-| **Grount**, the Bull | brute: cone cleave, ram dash, leaping slam | from the start | 0 hunts | 800 / 1400 / 2200 | 150 / 300 | 38 % / 38 % | 1 / 1 |
-| **Nyxa**, the Dusk Matriarch | stalker: lifesteal skirmisher, bat aura | 2,500 Leaves once a monster is Lv 3 | 3 hunts | 600 / 950 / 1250 | 150 / 400 | 62 % / 62 % | 3 / 3 |
-| **Gorrak**, the Boar King | brute: armoured, returning axe, stunning stomp | 3,000 Leaves once a monster is Lv 3 | 6 hunts | 1100 / 1450 / 1700 | 150 / 500 | 44 % / 42 % | 0 / 0 |
+| **Grount**, the Bull | brute: cone cleave, ram dash, leaping slam | from the start | 0 hunts | 800 / 1400 / 2200 | 150 / 300 | 38 % / 40 % | 0 / 0 |
+| **Nyxa**, the Dusk Matriarch | stalker: lifesteal skirmisher, bat aura | 2,500 Leaves once a monster is Lv 3 | 3 hunts | 600 / 950 / 1250 | 150 / 400 | 54 % / 54 % | 3 / 3 |
+| **Gorrak**, the Boar King | brute: armoured, returning axe, stunning stomp | 3,000 Leaves once a monster is Lv 3 | 6 hunts | 1100 / 1450 / 1700 | 150 / 500 | 42 % / 44 % | 1 / 1 |
 
 - Every monster heals to full on evolving (`heal_to_full_on_evolution`).
   Each has a per-stage table for every ability, so `stage_N_damage_multiplier`
   only matters for an untabled ability.
 - At Opponent Threat 1-4 (the AI monster's build grows with the player's
-  ranks) 14 of the 24 parity cells are inside 35-65 % since fix batch G2
-  (table under "Opponent Threat"): every monster wins at threat 4 (8-17 %
-  hero wins, the capstones) and Grount from threat 2 on (12-25 %).
+  ranks) every parity cell is inside 35-65 % since fix batch G3 (table under
+  "Opponent Threat"; G2 had 14 of 24: the AI capstones won threat 4 and
+  Grount threats 2-3). The AI builds no capstone since G3; Gorrak at threat
+  4 (35 %) is at the lower edge.
 - Capstone sanity (a fully ranked monster, one capstone, against fresh heroes,
   24 seeds): Grount Titan Form 0 %, Rampage 29 %, Trample 33 % hero wins;
   Nyxa and Gorrak 0 % with every capstone ("Monster capstones and behaviour
@@ -774,8 +779,12 @@ fresh saves, threat 0; the balance at each Opponent Threat level is under
 | G1: combat AI fixes (24 seeds) | 33 % | 33 % | 1 / 1 | 327 s / 327 s | 390 s / 390 s |
 | before P1 (`c60fa2f`, after R1-R5; 24 seeds) | 50 % | 50 % | 1 / 1 | 331 s / 331 s | 392 s / 392 s |
 | P1: everybody walks 20 % faster (24 seeds) | 58 % | 54 % | 2 / 2 | 296 s / 296 s | 309 s / 309 s |
-| G2: contact for every monster, XP 100, awareness 600 (48 seeds) | **38 %** | **38 %** | 1 / 1 | 310 s / 310 s | 324 s / 321 s |
+| G2: contact for every monster, XP 100, awareness 600 (48 seeds) | 38 % | 38 % | 1 / 1 | 310 s / 310 s | 324 s / 321 s |
+| G3: mob swings on their timer (48 seeds) | **38 %** | **40 %** | 0 / 0 | 295 s / 294 s | 318 s / 318 s |
 
+- G3 (mob swings on their timer, `MONSTER=all tools/sim.sh 48 <side> 2`):
+  Grount's heroes side at 96 seeds is 45 % (1 timeout, median Stage 3 305 s,
+  first contact 333 s; seeds 1-48 are the row above), inside the target.
 - 6.3 changed two things. Ted's Trap Cage now traps what it lands on (it
   trapped almost nothing; see "Hero capstones and behaviour nodes"), which
   alone takes the heroes side to 33 %. Grount's
@@ -798,7 +807,8 @@ fresh saves, threat 0; the balance at each Opponent Threat level is under
 | G1: combat AI fixes (24 seeds) | 33 % | 33 % | 8 / 7 | 376 s / 369 s | 428 s / 428 s |
 | before P1 (`c60fa2f`, after R1-R5; 24 seeds) | 46 % | 46 % | 8 / 7 | 376 s / 376 s | 428 s / 428 s |
 | P1: everybody walks 20 % faster (24 seeds) | 58 % | 58 % | 6 / 6 | 342 s / 341 s | 382 s / 386 s |
-| G2: contact for every monster, XP 100, screech 12 at Stage 3 (48 seeds) | **62 %** | **62 %** | 3 / 3 | 360 s / 360 s | 369 s / 369 s |
+| G2: contact for every monster, XP 100, screech 12 at Stage 3 (48 seeds) | 62 % | 62 % | 3 / 3 | 360 s / 360 s | 369 s / 369 s |
+| G3: mob swings on their timer (48 seeds) | **54 %** | **54 %** | 3 / 3 | 357 s / 357 s | 382 s / 382 s |
 
 - Until G2 Nyxa's wins were almost all timeouts: in 17 of 48 matches the
   heroes never met her (6.4), 6 of 24 per side at P1. Two bugs did it, not
@@ -813,7 +823,8 @@ fresh saves, threat 0; the balance at each Opponent Threat level is under
 | G1: combat AI fixes (24 seeds) | 38 % | 50 % | 3 / 2 | 349 s / 350 s | 442 s / 442 s |
 | before P1 (`c60fa2f`, after R1-R5; 24 seeds) | 50 % | 58 % | 3 / 2 | 349 s / 350 s | 442 s / 442 s |
 | P1: everybody walks 20 % faster (24 seeds) | 46 % | 42 % | 3 / 3 | 304 s / 313 s | 393 s / 396 s |
-| G2: contact for every monster, XP 100, Stage 3 HP 1700 (48 seeds) | **44 %** | **42 %** | 0 / 0 | 330 s / 330 s | 379 s / 379 s |
+| G2: contact for every monster, XP 100, Stage 3 HP 1700 (48 seeds) | 44 % | 42 % | 0 / 0 | 330 s / 330 s | 379 s / 379 s |
+| G3: mob swings on their timer (48 seeds) | **42 %** | **44 %** | 1 / 1 | 319 s / 319 s | 357 s / 357 s |
 
 - G1 (fix batch, `MONSTER=all tools/sim.sh 24 <side> 2`) changed both sides at once: ultimates
   only in reach and never at a reused pooled mob, the Supply Drop landing before it heals,
@@ -952,21 +963,45 @@ against the same seeds of the 48-seed threat-0 run:
 | 1/60, seeds 1-24 | 42 / 58 / 38 / 46 % | 395 / 354 | 6 | 0.987 |
 | 1/12.5, seeds 1-24 | 79 / 62 / 35 / 59 % | 410 / 362 | 2 | 0.944 |
 
-- **Grount at fast on a 30 fps phone is a real step effect**: the heroes win
-  79 % against 42 % at 1/60 (48 matches each); in the 24 heroes-side matches
-  Grount deals about 10 % less damage to the heroes (median 670 against 751)
-  and kills 32 heroes instead of 55; Nyxa (62 / 58 %)
-  and Gorrak (35 / 38 %) do not move. Not isolated in G2. His own mechanics
-  are the suspects: the leaping slam and the 40 px-per-step dash (Nyxa's
-  swoop and Gorrak's stomp share their scripts but not the leap), and the
-  cone query of his cleave, which reads the physics state of the last physics
-  step while the bodies moved in this frame's process (8 px a frame for a
-  hero at 1/12.5, under 3 px at 1/60). Backlog "Grount at fast on 30 fps".
+- **Grount at fast on a 30 fps phone was the sample, not the step** (fix
+  batch G3). G2 read it from seeds 1-24 (79 % against 42 % at 1/60). At 96
+  seeds (heroes side, the G2 tree) the heroes win 43 % at 1/60 and 46 % at
+  1/12.5; at 1/12.5 the four blocks of 24 seeds gave 19, 12, 7 and 6 hero
+  wins (1/60: 10, 8, 10, 13). Grount deals as much damage at both steps
+  (median 709 / 741 to the heroes; 235 / 227 hero deaths), and per ability
+  (a probe counting each ability's hits on heroes over the 96 matches) the
+  cleave lands 0.21 / 0.20 hero hits per cast, the slam 1.62 / 1.60 and the
+  dash 1.61 / 1.53: only the dash loses a little, because it tests its lane
+  once per step (40 px a step at 1/12.5, as wide as its 40 px hit circle;
+  Backlog "Ram Dash lane at coarse steps"). Nothing in his kit needs a
+  smaller step, so the entity logic is not sub-stepped. The G3 table below
+  checks every monster at 48 seeds.
 - **Mob LOD off** (every mob ticks every frame, as on screen) and the 60 fps
   steps (1/50, 1/25) stay inside the noise of 12 seeds.
 - Hero basic attacks per second in a fight still lose 3 % at 1/12.5 after the
   fix (0.955 against 0.985): a swing also waits for the hero to stand inside
   its band, which a coarse step reaches later.
+
+**The step table of fix batch G3** (the shipped tree, mob swings on their
+timer; `SPEED` / `FPS` `MONSTER=all tools/sim.sh 48 heroes 2`, threat 0, 48
+seeds per monster; at threat 0 the monster side replays nearly the same
+matches, see Measured Balance):
+
+| Step (game s) | Hero wins Grount / Nyxa / Gorrak / all | Median match / first contact (game s) | No contact | Hero attacks per Fight second |
+|---|---|---|---|---|
+| 1/60 (the sims) | 38 / 54 / 42 / 44 % | 400 / 357 | 3 | 0.963 |
+| 1/25 (base, 30 fps) | 44 / 62 / 50 / 52 % | 409 / 371 | 3 | 0.973 |
+| 1/25 (fast, 60 fps) | 46 / 52 / 48 / 49 % | 408 / 368 | 2 | 0.956 |
+| 1/12.5 (fast, 30 fps) | 50 / 52 / 56 / 53 % | 412 / 365 | 5 | 0.938 |
+
+Every cell is within about 8 points of 1/60 except Grount and Gorrak at
+1/12.5 (+12 and +14). At 96 seeds those two flip or shrink: Grount 45 %
+at 1/60 against 36 % at 1/12.5, Gorrak 44 % against 48 % (and the G2 tree
+gave Grount 43 % against 46 %). The cells move by 8-14 points in either
+direction between samples, and two runs at the same 1/25 step (30 fps at
+the base speed, 60 fps on fast) differ by up to 10 points (Nyxa 62 / 52 %),
+so no step effect stands out from the noise of 48 seeds; the hero attack
+rate in fights drops 2.6 % at 1/12.5 (0.938 against 0.963), as after G2.
 
 ---
 
@@ -2186,6 +2221,18 @@ built.
   hands to another camp is nobody's target any more; it used to come back as
   the old target of every hero that had fought it (Idle heroes fired their
   ultimates at it across the map, Trap Cage caged the monster there)
+- **Mob swings**: a mob's swing is its `AttackTimer` (`attack_cooldown`; the
+  hit lands when it runs out, if the target is still in reach). The Fight
+  tick starts a swing inside the band; when a swing ends and the mob could
+  swing on (alive, not stunned or flinching, in Fight with its target inside
+  the band: `MobBase._keeps_swinging`), the next one starts there, from the
+  repeating timer with the overshoot of the frame it ended in; otherwise the
+  timer stops. Until fix batch G3 the next swing waited for the mob's next AI
+  tick: up to 0.05 s late off screen at 20 Hz (every sim), so a Hog's 1.0 s
+  swing took about 1.04 s (`test_match_speed`
+  `test_a_mob_swings_at_its_pace_whatever_its_tick_rate`), and the timer ran on
+  after a mob stopped swinging, landing a stray hit when the target came back
+  in reach on a timeout
 - Monsters: the strategy layer's combos (see Monster AI)
 - Targeting: priority, distance, threat (`TeamBlackboard`), low-HP focus;
   Irelia's Shield Bash adds 40 threat, her taunt overrides
@@ -3956,30 +4003,50 @@ way round).
   T))`): the first 3T entries of the opponent character tree's
   `ai_build_order` and the first 2T of its side's base tree's. Each entry is
   one more rank of that node (capped at its max); unknown and hidden ids are
-  skipped; the order's one capstone comes last and applies (threat 4). No
-  RNG. When the player plays the monster, every AI hero takes its own order
-  plus `hero_base`'s. `side_ai_build(side, monster_id, T)` lists a whole side
+  skipped. No order holds a capstone (fix batch G3, below): the AI never
+  builds one, the player's own equipped capstone stays theirs. No RNG. When
+  the player plays the monster, every AI hero takes its own order plus
+  `hero_base`'s. `side_ai_build(side, monster_id, T)` lists a whole side
   (tree id -> node id -> rank).
 - **The monster orders (6.8 retune).** The design's orders were never
   simulated; on the parity check (below) they gave Grount 25 % hero wins at
   threat 2 and Gorrak 96 % (heroes side) / 92 % (monster side) at threat 4.
   6.8 reordered them in the `.tres` (`SkillTreeDataV2` keeps the design's):
-  - `monster_base`: `mb_claws, mt1_xp, mt1_hp, mb_bark, mt2_dmg, mt1_hp,
-    mb_claws, mt2_evo`, then as designed (the same ranks at threat 4: a +10 %
-    HP rank and the XP rank no longer both come at threat 1).
-  - Grount: `g1_hide, g1_speed, g3_slam, g2_cleavecd, g1_dmg, g3_dash, g2_hp,
-    g1_dmg, g2_evo, g1_stun, g3_dmg, g4_titan` (the same ranks; damage,
+  - `monster_base` (6.8): `mb_claws, mt1_xp, mt1_hp, mb_bark, mt2_dmg,
+    mt1_hp, mb_claws, mt2_evo`, then as designed (the same ranks at threat 4:
+    a +10 % HP rank and the XP rank no longer both come at threat 1). **G3**:
+    `mt1_hp, mt1_xp, mb_claws, mb_bark, mt2_dmg, mt1_hp, mt2_dmg, mt3_hp,
+    mb_claws, mt2_evo`, then as designed: Thicker Hide comes at threat 1
+    instead of Sharpened Claws (threats 2-3 hold the same ranks as before),
+    and threat 4 buys a second Brutal Strikes rank and Apex Body (+20 % HP)
+    instead of a second Sharpened Claws rank and Quick Evolution.
+  - Grount (6.8): `g1_hide, g1_speed, g3_slam, g2_cleavecd, g1_dmg, g3_dash,
+    g2_hp, g1_dmg, g2_evo, g1_stun, g3_dmg, g4_titan` (the same ranks; damage,
     Ravenous and Stunning Charge later: an early-built Grount reached Stage 3
-    before the heroes had their levels).
-  - Nyxa: `ny_hp, ny_dmg, ny_hp, ny_evo, ny_dmg, ny_leech, ny_hp, ny_speed,
-    ny_swoopcd, ny_swarm, ny_swarmdur, ny_brood` (Wide Shriek and Night
-    Recovery out, a third Dusk Hide and a second Piercing Shriek rank in).
-  - Gorrak: `gk_dmg, gk_hp, gk_dmg, gk_dmg, gk_axedmg, gk_dmg, gk_axedmg,
-    gk_dmg, gk_axedmg, gk_hp, gk_hp, gk_whirl`: Heavy Cleaver and Honed Tusks
-    with Whirlwind. With his design order (armour, regeneration, stun,
-    Unstoppable) and with every HP, stun or Call of the Herd variant tried,
-    the heroes won 83-96 % at threat 4; only the axe damage moved it (71 %).
-  - The hero orders are as designed.
+    before the heroes had their levels). **G3**: `g1_hide, g1_speed, g3_slam,
+    g1_hide, g1_dmg, g3_dash, g2_hp, g1_speed, g3_dash, g1_hide, g1_dmg,
+    g1_stun`: Quick Cleave (his cleave every 1.53 s instead of 1.8 at Stage
+    III), Ravenous, Titan's Wrath and Titan Form are out, Thick Hide, Stampede
+    and Long Charge ranks in.
+  - Nyxa (6.8): `ny_hp, ny_dmg, ny_hp, ny_evo, ny_dmg, ny_leech, ny_hp,
+    ny_speed, ny_swoopcd, ny_swarm, ny_swarmdur, ny_brood` (Wide Shriek and
+    Night Recovery out, a third Dusk Hide and a second Piercing Shriek rank
+    in). **G3**: `ny_hp, ny_dmg, ny_leech, ny_evo, ny_dmg, ny_hp, ny_hp,
+    ny_speed, ny_swoopcd, ny_swarm, ny_dmg, ny_hp`: Thirst comes at threat 1
+    (threats 2-3 hold the same ranks), and threat 4 buys a third Piercing
+    Shriek and a fourth Dusk Hide rank instead of Endless Night and Brood
+    Mother.
+  - Gorrak (6.8): `gk_dmg, gk_hp, gk_dmg, gk_dmg, gk_axedmg, gk_dmg,
+    gk_axedmg, gk_dmg, gk_axedmg, gk_hp, gk_hp, gk_whirl`: Heavy Cleaver and
+    Honed Tusks with Whirlwind. With his design order (armour, regeneration,
+    stun, Unstoppable) and with every HP, stun or Call of the Herd variant
+    tried, the heroes won 83-96 % at threat 4; only the axe damage moved it
+    (71 %). **G3**: the last two entries are Wide Arc and Earthshaker
+    (`..., gk_hp, gk_arc, gk_stomp`) instead of a third Thick Bristles rank
+    and Whirlwind.
+  - The hero orders are as designed, less the capstone (G3): each ends in one
+    more rank instead (River `r2_dmg`, Vlad `v1_dmg`, Ted `t2_dmg`, Irelia
+    `i1_dmg`).
 - **Balance** (6.8, `MONSTER=all THREAT=all tools/sim.sh 24 <side> 8`, hero
   wins, heroes side / monster side; threat 0 is a fresh save):
 
@@ -4016,6 +4083,51 @@ way round).
   3-4 is no longer the weak spot. Not retuned in G2 (a structural choice,
   Backlog "AI build size"): candidates are 2T monster character entries (the
   capstone leaves the threat-4 build), or Stampede later in Grount's order.
+
+  **Fix batch G3** (the shipped tree: G2's numbers, mob swings on their timer
+  and the G3 orders above; threat 0 at 48 seeds per side, threat 1 at 48
+  seeds heroes side and 24 monster side, threats 2-4 at 24 per side, Gorrak
+  at threat 4 at 48 heroes side; heroes side / monster side):
+
+  | threat | Grount | Nyxa | Gorrak |
+  |---|---|---|---|
+  | 0 | 38 % / 40 % | 54 % / 54 % | 42 % / 44 % |
+  | 1 | 40 % / 58 % | 52 % / 42 % | 38 % / 42 % |
+  | 2 | 50 % / 50 % | 62 % / 62 % | 54 % / 54 % |
+  | 3 | 50 % / 50 % | 58 % / 58 % | 42 % / 42 % |
+  | 4 | 42 % / 42 % | 58 % / 58 % | 35 % / 38 % |
+
+  Every cell at threats 1-4 is inside 35-65 %. With the same builds on both
+  sides the monster side replays nearly the same matches (threats 2-4: the
+  same results; threat 1: 70 of the 72 winners, the heroes side's seeds 1-24
+  gave 54 / 46 / 42 %), so it adds no new sample. The hero wins do not fall
+  with the threat as the goal asked: they stay flat within the noise (24
+  seeds: one standard error is 10 points), and Gorrak at threat 4 is at the
+  lower edge (35 % at 48 seeds; 33 % with Thick Bristles 3-4 in place of
+  Wide Arc and Earthshaker, 25 % with Long March for the fourth rank). Each
+  step of the retune, heroes side, 24 seeds unless noted (orders above):
+
+  | Variant | Grount | Nyxa | Gorrak |
+  |---|---|---|---|
+  | G2 orders (the G2 table above) | T2 12 %, T3 25 %, T4 17 % | T4 8 % | T4 17 % |
+  | the monsters' capstones out of their orders, Grount without Quick Cleave (heroes keep theirs) | T2 50 %, T3 25 %, T4 29 % | T4 79 % | T4 83 % |
+  | no capstone on either side; Grount's threat 3 Thick Hide, Stampede and Long Charge ranks | T3 67 %, T4 46 % | T4 75 % | T4 46 % |
+  | Grount's threat 3 with Scar Tissue (shipped); Nyxa's threat 4 Piercing Shriek and Dusk Hide (shipped) | T3 50 % | T4 75 % | |
+  | Nyxa's threat 3-4 with Wide Shriek and Disorienting Dive | | T3 62 %, T4 79 % | |
+  | `monster_base` threat 4: Brutal Strikes 2 and Apex Body (shipped) | T4 42 % | T4 58 % | T4 38 % |
+  | the same tree, threat 1 and Gorrak's threat 4 at 48 seeds | T1 46 % | T1 73 % | T1 46 %, T4 33 % |
+  | Nyxa's Thirst at threat 1 (48 seeds) | | T1 69 % | |
+  | `monster_base` threat 1: Thicker Hide for Sharpened Claws, with Nyxa's Thirst (shipped; 48 seeds) | T1 40 % | T1 52 % | T1 38 % |
+  | Gorrak's threat 4: Long March for Thick Bristles 4 / Wide Arc and Earthshaker for Thick Bristles 3-4 (shipped; 48 seeds) | | | T4 25 % / 35 % |
+
+  The capstones decided threat 4: with them the AI monster won 83-92 % of
+  the matches (Brood Mother's permanent swarm, Whirlwind's full circle, Titan
+  Form); without the monsters' but with the heroes' the heroes won 79-83 %
+  against Nyxa and Gorrak. No capstone on either side keeps the AI builds
+  comparable rank for rank, so the player's own capstone is theirs alone.
+  Grount's Quick Cleave (his Stage III cleave every 1.53 s instead of 1.8)
+  and the base tree's threat 1 and 4 entries were the other levers; Nyxa's
+  and Gorrak's own late entries moved their cells by less than the noise.
 - **A player at the threshold** (a real save, `SAVE=`: the first 12
   `ai_build_order` entries of the base tree and of each played character
   tree, P 24, threat 4 by the rule) owns 24 ranks to the AI's 20 and wins
@@ -4024,7 +4136,10 @@ way round).
   "Hero capstones and behaviour nodes" (power ranks 39-42, threat 4) beat the
   threat-4 Grount 79 % without capstones and 92-100 % with them (92 % against
   an unbuilt Grount before 6.8). The 2T base entries keep the AI behind the
-  player; giving it 3T would make a threshold player a parity match.
+  player; giving it 3T would make a threshold player a parity match. (These
+  are 6.8's numbers, when the AI's threat-4 build held its capstone; since
+  G3 it holds none, so a player at the threshold is further ahead. The AI
+  build size stays 3T + 2T: Decisions.)
 - **Rewards**: currency and Gold x (1 + 0.1 T) ("Earning Rates v2").
 - **F3**: a "Threat" line (`GameManager.debug_threat_line()`: `Threat 2
   played heroes P 13  AI monster: 6 nyxa + 4 base ranks`, or `AI heroes:
@@ -4377,9 +4492,9 @@ changelog with numbers); this section is the summary.
       phone with F3, Compatibility vs Mobile renderer
 - [ ] **User review of the open design decisions and placeholder copy**
       (PROGRESS: "Decisions for the user", "Placeholder copy")
-- [ ] **Balance at Opponent Threat 2-4**: since fix batch G2 the AI monster
-      wins at threat 4 (hero wins 8-17 %) and Grount from threat 2 on; the AI
-      build size (2T monster entries?) and the 48-seed parity table
+- [ ] **Parity table at 48 seeds**: fix batch G3 brought every threat 1-4
+      cell inside 35-65 % at 24 seeds (edge cells at 48); the whole table at
+      48 seeds per side is open
 - [ ] **Real audio assets**: drop `.ogg` / `.wav` files into `Assets/Audio/`
       (keys in its README)
 
@@ -4453,9 +4568,12 @@ at once on an enemy already inside it is the README's rule (see Vlad).
 
 **Balance**:
 
-- [ ] Opponent Threat: 21 of 30 parity cells inside 35-65 % at 24 seeds;
-      Gorrak at threat 3-4 is too weak, a player at the threshold beats the AI
-- [ ] Nyxa wins mostly by timeout (17-18 of 48): accepted as her trait
+- [ ] Opponent Threat: every parity cell inside 35-65 % since G3 (24 seeds,
+      edge cells at 48), but flat rather than falling with the threat, and
+      Gorrak at threat 4 at the lower edge (35 %); a player at the threshold
+      beats the AI
+- [ ] Nyxa's timeouts: 3 of 48 per side since G2 (17-18 before the contact
+      fixes); she wins her fights instead
 - [ ] Fully ranked heroes beat a threat-4 Grount 79-100 %
 
 **Design Debt**:

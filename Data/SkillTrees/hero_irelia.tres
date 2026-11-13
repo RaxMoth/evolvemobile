@@ -247,4 +247,4 @@ branches = PackedStringArray("Bulwark", "Oathkeeper", "Vanguard")
 gate_kind = 1
 tier_gates = Array[int]([1, 3, 5, 8])
 owner_id = &"irelia"
-ai_build_order = Array[StringName]([&"i1_hp", &"ir_regen", &"i1_hp", &"i2_hp", &"ir_armor", &"i2_rallycd", &"i1_dmg", &"i3_hp", &"ir_aegis", &"i2_atkspd", &"i3_dashcd", &"ir_guardian"])
+ai_build_order = Array[StringName]([&"i1_hp", &"ir_regen", &"i1_hp", &"i2_hp", &"ir_armor", &"i2_rallycd", &"i1_dmg", &"i3_hp", &"ir_aegis", &"i2_atkspd", &"i3_dashcd", &"i1_dmg"])
