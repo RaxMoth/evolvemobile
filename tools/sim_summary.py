@@ -92,6 +92,39 @@ def summarize(rows, expected):
               "  damage taken median: " + ", ".join(f"{k} {v:.0f}" for k, v in taken.items()))
     print(f"mob kills: monster median {statistics.median(r['mob_kills_monster'] for r in rows):.0f}"
           f"  heroes median {statistics.median(r['mob_kills_heroes'] for r in rows):.0f}")
+    paced = [r["pace"] for r in rows if "pace" in r]
+    if paced:
+        print(pace_line(paced))
+
+
+def pace_line(paced):
+    """One line from the rows' "pace" (tools/sim_match.gd), median (p90) over
+    the rows: the heroes view unless named, real seconds at the base speed
+    unless "fast". quiet = the share of the match in stretches of 10 real s or
+    more with no hit in view (12 game s at the base speed, 24 on fast);
+    longest = the longest such gap; first fight = the first hit in the heroes
+    view (">10s" counts the later ones and matches without any); contact share
+    = first hero-monster contact / match length; kills still = the longest
+    gap between two hero-side mob kills (the kills chip)."""
+    def pq(xs, fmt):
+        xs = sorted(xs)
+        return f"{fmt.format(statistics.median(xs))} (p90 {fmt.format(xs[int(.9 * (len(xs) - 1))])})"
+    pct, sec = "{:.0%}", "{:.0f}s"
+    hero = [p["heroes"] for p in paced]
+    fights = [p["first_fight_real"] for p in paced]
+    late = sum(1 for f in fights if f < 0 or f > 10.0)
+    shares = [p["first_contact_share"] for p in paced if p["first_contact_share"] >= 0]
+    contact = f"{statistics.median(shares):.2f}" if shares else "-"
+    no_fight = [f if f >= 0 else 999.0 for f in fights]
+    return (f"pace: quiet {pq([h['base']['share'] for h in hero], pct)}"
+            f" longest {pq([h['base']['longest_real'] for h in hero], sec)}"
+            f" | fast quiet {pq([h['fast']['share'] for h in hero], pct)}"
+            f" longest {pq([h['fast']['longest_real'] for h in hero], sec)}"
+            f" | first fight median {statistics.median(no_fight):.1f}s max {max(no_fight):.1f}s, >10s {late}"
+            f" | contact share {contact}"
+            f" | kills still {statistics.median(p['kills_still_longest_real'] for p in paced):.0f}s"
+            f" | monster view quiet {statistics.median(p['monster']['base']['share'] for p in paced):.0%}"
+            f" | hero kills {statistics.median(p['hero_kills_per_min'] for p in paced):.1f}/min")
 
 
 path = sys.argv[1]

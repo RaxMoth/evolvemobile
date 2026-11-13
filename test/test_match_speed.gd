@@ -382,3 +382,52 @@ func test_a_mob_swings_at_its_pace_whatever_its_tick_rate() -> void:
 	assert_true(hog.attack_timer.is_stopped() and not hog.attacking, "its target gone: the timer stopped")
 	hog.queue_free()
 	await wait_frames(2)
+
+
+const CTRL := "res://Scenes/NPCs/Hero/HeroExplorationController.tscn"
+
+
+## The AI's interval timers dropped the overshoot of the step they ran out in,
+## so at 0.08 s a step the monster's 0.5 s strategy tick took 0.56 s (54
+## updates in 30 s instead of 60), and so did the exploration and camp
+## activation checks. They now keep it. The exploration interval is set to
+## 0.5 s here (the dial's 1.5-5 s hide the rounding inside 30 s).
+func test_ai_intervals_keep_their_pace_at_any_step() -> void:
+	var g := await spawn_frozen(GROUNT, Vector2(0, 0))
+	var vlad := await spawn_frozen(VLAD, Vector2(3000, 0))
+	var ctrl := (load(CTRL) as PackedScene).instantiate() as HeroExplorationController
+	add_child(ctrl)
+	var mgr := SpawnManager.new()
+	mgr.auto_activate_on_ready = false
+	add_child(mgr)
+	await wait_frames(2)
+	ctrl.set_process(false)
+	mgr.set_process(false)
+	ctrl.exploration_update_interval = 0.5
+	var counts: Dictionary = {}
+	for step: float in STEPS:
+		g._strategy_timer = 0.0
+		ctrl.exploration_timer = 0.0
+		mgr._check_timer = 0.0
+		var n: Array[int] = [0, 0, 0]
+		for i in roundi(30.0 / step):
+			n[0] += _fired(func() -> float: return g._strategy_timer, func() -> void: g._pre_tick(step), step)
+			n[1] += _fired(func() -> float: return ctrl.exploration_timer, func() -> void: ctrl._process(step), step)
+			n[2] += _fired(func() -> float: return mgr._check_timer, func() -> void: mgr._process(step), step)
+		counts[step] = n
+	var fine: Array[int] = counts[STEPS[0]]
+	var coarse: Array[int] = counts[STEPS[1]]
+	assert_true(absi(fine[0] - 60) <= 1, "strategy: every 0.5 s at 1/60 s a step (%d in 30 s)" % fine[0])
+	assert_true(absi(coarse[0] - fine[0]) <= 1, "strategy updates at 0.08 s a step: %d, at 1/60: %d" % [coarse[0], fine[0]])
+	assert_true(absi(coarse[1] - fine[1]) <= 1, "exploration updates at 0.08 s a step: %d, at 1/60: %d" % [coarse[1], fine[1]])
+	assert_true(absi(coarse[2] - fine[2]) <= 1, "camp checks at 0.08 s a step: %d, at 1/60: %d" % [coarse[2], fine[2]])
+	for node in [g, vlad, ctrl, mgr]:
+		node.queue_free()
+
+
+## 1 when `tick` ran its timer out (the timer, read by `timer`, came back up),
+## else 0.
+func _fired(timer: Callable, tick: Callable, step: float) -> int:
+	var before: float = timer.call()
+	tick.call()
+	return 1 if float(timer.call()) > before - step + 0.0001 else 0

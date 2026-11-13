@@ -84,11 +84,20 @@ var _resting: bool = false
 ## Seconds since the last damage packet (rest regeneration waits regen_delay).
 var _since_damage: float = 0.0
 var _camp_goal: MobSpawnArea = null
-## Camps _pick_camp skips until the strategy clock passes the value: the camp
-## goal of a walk that mobs it cannot beat came at (MonsterStrategy
-## barred_camp_time).
-var _barred_camps: Dictionary[MobSpawnArea, float] = {}
-## Game seconds of strategy ticks (_pre_tick): the clock of _barred_camps.
+## Obstacles (README Monster AI "Barred camps"): the camps of mobs above the
+## farming gate that came at it, until the strategy clock passes the value
+## (MonsterStrategy.barred_camp_time). _pick_camp skips them and every camp
+## whose way leads past one, not the camp it was walking to.
+var _obstacle_camps: Dictionary[MobSpawnArea, float] = {}
+## Boxed in (every camp behind an obstacle): until the strategy clock passes
+## _transit_until it walks past the mobs of _transit_camps to its camp
+## (MonsterStrategy.transit_time). No timer: a time stamp, like the obstacles.
+var _transit_until: float = -INF
+var _transit_camps: Array[MobSpawnArea] = []
+## How often mobs above the farming gate came at it (F3, tools/sim_match.gd).
+var obstacle_events: int = 0
+## Game seconds of strategy ticks (_pre_tick): the clock of the obstacles and
+## the transit.
 var _strategy_clock: float = 0.0
 ## The running stage scale tween (_update_stage_scale), killed by the next one.
 var _stage_tween: Tween
@@ -763,6 +772,15 @@ func _debug_build_tag(monster_id: StringName) -> String:
 			MetaSkillManager.ai_build_size(MetaSkillManager.TREE_MONSTER_BASE, _ai_threat)]
 
 
+## The F3 line of the camp choice (README Monster AI "Barred camps"): the live
+## obstacle camps and the seconds a boxed-in walk past them has left; "" with
+## no strategy.
+func debug_camps_line() -> String:
+	if not _strategy_enabled():
+		return ""
+	return "camps: obst %d  transit %.1fs" % [_live_obstacles().size(), maxf(_transit_until - _strategy_clock, 0.0)]
+
+
 ## The F3 line under debug_meta_line: the generic tree keys this monster
 ## carries ("!" = Apex Predator active now; "-" on a fresh save).
 func debug_keys_line() -> String:
@@ -903,7 +921,11 @@ func _pre_tick(delta: float) -> void:
 	_update_rest(delta)
 	_strategy_timer -= delta
 	if _strategy_timer <= 0.0:
-		_strategy_timer = strategy_profile.strategy_eval_interval
+		# Keep the overshoot: at 1/12.5 s a step the 0.5 s tick took 0.56 s.
+		# One huge step still updates once.
+		_strategy_timer += strategy_profile.strategy_eval_interval
+		if _strategy_timer <= 0.0:
+			_strategy_timer = strategy_profile.strategy_eval_interval
 		_update_strategy()
 
 
@@ -914,11 +936,15 @@ func _update_strategy() -> void:
 	var heroes_close: bool = _heroes_near > 0
 	var was_threatened: bool = not _mob_threats.is_empty()
 	_mob_threats = _find_mob_threats(next)
-	if not was_threatened and not _mob_threats.is_empty() and _camp_goal != null:
-		# Mobs it cannot beat came at it on the way: that camp lies behind them.
-		# Walking on to it, fleeing, turning back to it shuttled Nyxa at a Hog
-		# camp for the rest of the match (seeds 1, 3 and 15: 450 s).
-		_barred_camps[_camp_goal] = _strategy_clock + p.barred_camp_time
+	if not was_threatened and not _mob_threats.is_empty():
+		# Mobs it cannot beat came at it: their camp is an obstacle, and so is
+		# the way past it. Barring only the camp it walked to sent Nyxa to the
+		# next camp behind the same Hogs, 9-12 times a minute (seeds 1, 3, 8, 13).
+		obstacle_events += 1
+		for m: Node2D in _mob_threats:
+			var camp: MobSpawnArea = (m as MobBase).spawn_area if m is MobBase else null
+			if camp != null:
+				_obstacle_camps[camp] = _strategy_clock + p.barred_camp_time
 	if next != strategy or heroes_close != _had_heroes_near or was_threatened != not _mob_threats.is_empty():
 		strategy = next
 		_camp_goal = null
@@ -971,6 +997,8 @@ func _score_target(target_node: Node2D) -> float:
 	var taunter := _get_taunter()
 	if taunter != null:
 		return 10000.0 if target_node == taunter else -1000.0
+	if _passes_in_transit(target_node):
+		return -1000.0  # boxed in: walk past the obstacle's mobs, like a hunt
 	var is_hero: bool = target_node.is_in_group("Hero")
 	if _resting and not is_hero and not _is_attacking_me(target_node):
 		return -1000.0
@@ -1012,9 +1040,21 @@ func _find_mob_threats(for_strategy: Strategy) -> Array[Node2D]:
 		return out
 	var gate: float = strategy_profile.max_mob_health_for_stage(current_stage)
 	for m in EntityRegistry.mobs:
-		if is_instance_valid(m) and _is_attacking_me(m) and (m as EntityBase).get_max_health() > gate:
+		if is_instance_valid(m) and _is_attacking_me(m) and (m as EntityBase).get_max_health() > gate \
+				and not _passes_in_transit(m):
 			out.append(m)
 	return out
+
+
+## A mob of a camp a boxed-in monster is walking past (_pick_camp's transit):
+## no threat and no target while the transit holds and its HP is at least
+## rest_hp_pct (lower, it rests and flees as usual).
+func _passes_in_transit(node: Node2D) -> bool:
+	if _strategy_clock >= _transit_until or not (node is MobBase):
+		return false
+	if current_health < strategy_profile.rest_hp_pct * get_max_health():
+		return false
+	return _transit_camps.has((node as MobBase).spawn_area)
 
 
 func _may_engage_hero(hero: Node2D) -> bool:
@@ -1057,13 +1097,18 @@ func _get_smart_idle_destination() -> Vector2:
 
 
 ## Best world-eligible camp with mobs left and no hero close to it: more mobs
-## and less distance score higher; the current goal is sticky. A barred camp
-## (see _update_strategy) waits out its time.
+## and less distance score higher; the current goal is sticky. A live
+## obstacle (see _update_strategy) bars itself and every camp behind it: one
+## whose straight line, or for the best candidates whose nav path, passes
+## within obstacle_clearance of the obstacle's centre (_way_passes). Boxed in
+## (every candidate behind one), it takes the best camp anyway and walks past
+## the obstacles' mobs for transit_time (_passes_in_transit).
 func _pick_camp() -> MobSpawnArea:
 	var mgr := EntityRegistry.singleton(&"SpawnManager") as SpawnManager
 	if mgr == null:
 		return null
 	var p := strategy_profile
+	var candidates: Array = []  # [score, camp] of every camp it may farm
 	var best: MobSpawnArea = null
 	var best_score: float = -INF
 	for camp in mgr.get_active_spawns():
@@ -1076,16 +1121,79 @@ func _pick_camp() -> MobSpawnArea:
 			continue
 		if EntityRegistry.count_within(EntityRegistry.heroes, camp.global_position, p.camp_hero_avoid_radius, 1) > 0:
 			continue
-		if float(_barred_camps.get(camp, -INF)) > _strategy_clock:
-			continue
 		var score: float = available * 100.0 - global_position.distance_to(camp.global_position)
 		if camp == _camp_goal:
 			score += 150.0
+		candidates.append([score, camp])
 		if score > best_score:
 			best_score = score
 			best = camp
+	var obstacles: Array[MobSpawnArea] = _live_obstacles()
+	if best != null and not obstacles.is_empty() and _strategy_clock >= _transit_until:
+		var clear: MobSpawnArea = _camp_past_obstacles(candidates, obstacles)
+		if clear != null:
+			best = clear
+		else:
+			# Boxed in: pacing beside the obstacle's mobs kept Nyxa at Stage 2
+			# for minutes (seed 3: to the 600 s timeout). Walk past them to the
+			# best camp; while the transit holds, the goal stays the best.
+			_transit_until = _strategy_clock + p.transit_time
+			_transit_camps = obstacles
 	_camp_goal = best
 	return best
+
+
+## How many candidate camps may cost a nav path query per _pick_camp.
+const OBSTACLE_PATH_CHECKS: int = 3
+
+
+## The best candidate whose way is clear of `obstacles`: the straight line for
+## every candidate, then the nav path of the best ones in turn (at most
+## OBSTACLE_PATH_CHECKS); null when none is clear.
+func _camp_past_obstacles(candidates: Array, obstacles: Array[MobSpawnArea]) -> MobSpawnArea:
+	var ranked: Array = candidates.duplicate()
+	ranked.sort_custom(func(a: Array, b: Array) -> bool: return float(a[0]) > float(b[0]))
+	var nav_map: RID = GameUtils.usable_nav_map(get_world_2d())
+	var checks: int = 0
+	for entry: Array in ranked:
+		var camp: MobSpawnArea = entry[1]
+		if obstacles.has(camp) or _way_passes(PackedVector2Array([global_position, camp.global_position]), obstacles):
+			continue
+		if not nav_map.is_valid():
+			return camp
+		if checks >= OBSTACLE_PATH_CHECKS:
+			return null
+		checks += 1
+		if not _way_passes(NavigationServer2D.map_get_path(nav_map, global_position, camp.global_position, true), obstacles):
+			return camp
+	return null
+
+
+## True when the polyline `way` comes within obstacle_clearance of an
+## obstacle's centre, and closer to it than the monster stands now (a way
+## that leads away from an obstacle it just fled from is clear).
+func _way_passes(way: PackedVector2Array, obstacles: Array[MobSpawnArea]) -> bool:
+	for camp: MobSpawnArea in obstacles:
+		var c: Vector2 = camp.global_position
+		var limit: float = minf(strategy_profile.obstacle_clearance, global_position.distance_to(c) - 1.0)
+		for i in range(way.size() - 1):
+			if Geometry2D.get_closest_point_to_segment(c, way[i], way[i + 1]).distance_to(c) < limit:
+				return true
+	return false
+
+
+## Obstacle camps whose time has not run out, that still hold mobs and whose
+## mobs are still above this stage's farming gate (an evolution can open it).
+func _live_obstacles() -> Array[MobSpawnArea]:
+	var out: Array[MobSpawnArea] = []
+	var gate: float = strategy_profile.max_mob_health_for_stage(current_stage)
+	for key: Variant in _obstacle_camps.keys():
+		if not is_instance_valid(key) or _obstacle_camps[key] <= _strategy_clock:
+			continue
+		var camp := key as MobSpawnArea
+		if camp.total_mob_count() > 0 and _camp_mob_health(camp) > gate:
+			out.append(camp)
+	return out
 
 
 ## Mobs of `mobs` this monster may hit: its own warband (Gorrak's Call of the

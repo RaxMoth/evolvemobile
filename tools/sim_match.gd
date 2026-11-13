@@ -49,8 +49,27 @@ extends SceneTree
 ## _finish): GameManager ends the match from inside the deciding
 ## entity_died, before this script's own handlers of that death and of the
 ## damage that caused it have run.
+##
+## "pace" in the result (README "Headless Tools"): how long a watcher waits
+## for something to happen on screen. Two virtual phone cameras, the
+## viewport (720x1280) / World's MainCam.default_zoom plus VIEW_MARGIN on
+## every side: "heroes" centred on the first living HeroBase in group "Hero"
+## order (MainCam._auto_find_target's rule, Irelia while she lives) and
+## "monster" on the monster. A hit counts for a view when its source or its
+## target is inside the rect; tools/pace_stats.gd turns the hit times into
+## quiet stretches of QUIET_REAL_S real seconds at the base speed ("base",
+## 12 game s) and on fast ("fast", 24 game s). "obstacle_events" and
+## "obstacle_max_60s" count the times mobs above its farming gate came at the
+## monster (MonsterBase.obstacle_events), in all and most within 60 s. It
+## only listens: the trace stays byte-identical.
 
 const WORLD := "res://Scenes/World/World.tscn"
+## By path: a -s script must not name project classes.
+const PaceStats := preload("res://tools/pace_stats.gd")
+## Px added on every side of a view rect: a hit at the screen's edge counts.
+const VIEW_MARGIN: float = 32.0
+## A quiet stretch: at least this many real seconds with no hit in view.
+const QUIET_REAL_S: float = 10.0
 const FPS := 60.0
 const TRACE_EVERY := 60
 ## EntityRegistry lists hashed by the trace, walked in list order.
@@ -105,6 +124,24 @@ var _staff_heals: int = 0
 var _staff_heal_hp: float = 0.0
 var _monster_dmg_taken: Dictionary = {"heroes": 0.0, "mobs": 0.0, "other": 0.0}
 var _monster_killer: String = ""
+## The monster's stage when the first hero-monster damage landed (-1: none).
+var _contact_stage: int = -1
+## Pace: half the view rect (px), the views' centres this frame (INF: nobody
+## to follow) and the frame they were taken in, the game seconds of every hit
+## seen by each view and of every mob the hero side killed, and GameManager's
+## speed constants (read from its script: the time scale a player watches at).
+var _view_half: Vector2 = Vector2.ZERO
+var _view_frame: int = -1
+var _hero_view: Vector2 = Vector2.INF
+var _monster_view: Vector2 = Vector2.INF
+var _hero_view_hits: Array[float] = []
+var _monster_view_hits: Array[float] = []
+var _hero_kill_times: Array[float] = []
+var _base_speed: float = 1.2
+var _fast_factor: float = 2.0
+## Game seconds of each MonsterBase.obstacle_events step (mobs above its
+## farming gate came at it: README Monster AI "Barred camps").
+var _obstacle_times: Array[float] = []
 
 
 func _initialize() -> void:
@@ -165,9 +202,23 @@ func _start() -> void:
 	var world := (load(WORLD) as PackedScene).instantiate()
 	root.add_child(world)
 	current_scene = world
+	_setup_pace(gm, world)
 	var m := _monster()
 	_monster_name = String(m.name) if m else ""
 	process_frame.connect(_tick)
+
+
+## The pace views' size (a phone's viewport at the World camera's zoom) and
+## the speeds the quiet thresholds are watched at.
+func _setup_pace(gm: Node, world: Node) -> void:
+	var cam: Node = world.get_node_or_null("MainCam")
+	var zoom: float = float(cam.get("default_zoom")) if cam else 1.0
+	var viewport := Vector2(float(ProjectSettings.get_setting("display/window/size/viewport_width")),
+			float(ProjectSettings.get_setting("display/window/size/viewport_height")))
+	_view_half = viewport / maxf(zoom, 0.001) * 0.5 + Vector2(VIEW_MARGIN, VIEW_MARGIN)
+	var consts: Dictionary = (gm.get_script() as Script).get_script_constant_map()
+	_base_speed = float(consts.get("MATCH_BASE_SPEED", _base_speed))
+	_fast_factor = float(consts.get("MATCH_FAST_FACTOR", _fast_factor))
 
 
 ## "threat=<N>": the AI opponent plays its threat-N build and the played side
@@ -206,6 +257,11 @@ func _tick() -> void:
 				var st := _state_of(h as Node)
 				var d: Dictionary = _hero_state_s.get_or_add(n, {})
 				d[st] = float(d.get(st, 0.0)) + span
+	var m := _monster()
+	if m:
+		var events: Variant = m.get("obstacle_events")
+		while events != null and _obstacle_times.size() < int(events):
+			_obstacle_times.append(_t())
 	if _trace and not _done and _frames % TRACE_EVERY == 0:
 		print("SIM_TRACE %d %d" % [_frames, _trace_hash("")])
 	if not _done and _t() >= _cap_s:
@@ -216,6 +272,7 @@ func _on_damage_applied(packet: Object) -> void:
 	var src: Object = packet.get("source")
 	var dst: Object = packet.get("target")
 	var amount: float = float(packet.get("amount"))
+	_pace_hit(src, dst)
 	if dst != null and is_instance_valid(dst) and _is(dst, "MonsterBase"):
 		_monster_dmg_taken[_faction(src)] = float(_monster_dmg_taken[_faction(src)]) + amount
 	if src == null or dst == null or not is_instance_valid(src) or not is_instance_valid(dst):
@@ -232,10 +289,36 @@ func _on_damage_applied(packet: Object) -> void:
 		if _first_contact_s < 0.0:
 			_first_contact_s = _t()
 			_hero_levels_contact = _hero_levels()
+			_contact_stage = int((src if src_mon else dst).get("current_stage"))
 	if src_hero and dst_mon:
 		_hero_dmg_to_monster += amount
 	elif src_mon and dst_hero:
 		_monster_dmg_to_heroes += amount
+
+
+## A hit for every pace view that sees its source or its target (freed ones
+## count for neither). The views are taken once per frame.
+func _pace_hit(src: Object, dst: Object) -> void:
+	if _view_frame != _frames:
+		_view_frame = _frames
+		_hero_view = Vector2.INF
+		for h: Node in get_nodes_in_group("Hero"):
+			if _is(h, "HeroBase") and bool(h.call("is_alive")):
+				_hero_view = (h as Node2D).global_position
+				break
+		var m := _monster()
+		_monster_view = m.global_position if m else Vector2.INF
+	if _in_view(_hero_view, src) or _in_view(_hero_view, dst):
+		_hero_view_hits.append(_t())
+	if _in_view(_monster_view, src) or _in_view(_monster_view, dst):
+		_monster_view_hits.append(_t())
+
+
+func _in_view(center: Vector2, o: Object) -> bool:
+	if not center.is_finite() or o == null or not is_instance_valid(o) or not (o is Node2D):
+		return false
+	var off: Vector2 = ((o as Node2D).global_position - center).abs()
+	return off.x <= _view_half.x and off.y <= _view_half.y
 
 
 func _on_entity_died(entity: Object, killer: Object) -> void:
@@ -243,6 +326,8 @@ func _on_entity_died(entity: Object, killer: Object) -> void:
 		_monster_killer = _faction(killer)
 		return
 	if _is(entity, "MobBase"):
+		if _faction(killer) == "heroes":
+			_hero_kill_times.append(_t())  # the heroes side's kills chip
 		if killer != null and is_instance_valid(killer):
 			if _is(killer, "MonsterBase"):
 				_mob_kills_by_monster += 1
@@ -364,9 +449,43 @@ func _report(reason: String, winner: String, t: float) -> void:
 		"monster_killer": _monster_killer,
 		"step_hz": snappedf(_fps / (float(gm.call("match_speed")) if _speed > 0 else 1.0), 0.1),
 		"lod": _lod,
+		"pace": _pace(t),
+		"obstacle_events": _obstacle_times.size(),
+		"obstacle_max_60s": _most_within(_obstacle_times, 60.0),
 	}
 	print("SIM_RESULT " + JSON.stringify(out))
 	quit()
+
+
+## The result's "pace" (README "Headless Tools"). Real seconds are game
+## seconds / the base speed (1.2) unless named "fast" (/ 2.4).
+func _pace(t: float) -> Dictionary:
+	var fast_speed: float = _base_speed * _fast_factor
+	var out := {}
+	for view: String in ["heroes", "monster"]:
+		var hits: Array[float] = _hero_view_hits if view == "heroes" else _monster_view_hits
+		out[view] = {
+			"hits": hits.size(),
+			"base": PaceStats.quiet(hits, t, QUIET_REAL_S * _base_speed, _base_speed),
+			"fast": PaceStats.quiet(hits, t, QUIET_REAL_S * fast_speed, fast_speed),
+		}
+	out["first_fight_real"] = snappedf(_hero_view_hits[0] / _base_speed, 0.1) if not _hero_view_hits.is_empty() else -1.0
+	out["first_contact_share"] = snappedf(_first_contact_s / t, 0.001) if _first_contact_s >= 0.0 and t > 0.0 else -1.0
+	out["contact_stage"] = _contact_stage
+	out["kills_still_longest_real"] = PaceStats.longest_real(_hero_kill_times, t, _base_speed)
+	out["hero_kills_per_min"] = snappedf(_hero_kill_times.size() * 60.0 / t, 0.01) if t > 0.0 else 0.0
+	return out
+
+
+## The most of `times` (ascending) inside any `window` seconds.
+func _most_within(times: Array[float], window: float) -> int:
+	var most: int = 0
+	var first: int = 0
+	for i in times.size():
+		while times[i] - times[first] > window:
+			first += 1
+		most = maxi(most, i - first + 1)
+	return most
 
 
 ## Hero name -> level (HeroStats) of every hero still in EntityRegistry: the

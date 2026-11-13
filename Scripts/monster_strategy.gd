@@ -58,11 +58,22 @@ extends Resource
 ## Stage-1 Grount (Front Cleave 12 dmg / 4.5 s) lost ~350 HP to a 3-Hog camp
 ## without killing one.
 @export var farm_max_mob_health: Array[float] = [60.0, 150.0, 1000.0]
-## Game seconds a camp is skipped after mobs above the farming gate came at
-## the monster on its way there: the camp lies behind them. Without it she
+## Game seconds the camp of mobs above the farming gate that came at the
+## monster stays an obstacle (README Monster AI "Barred camps"): the camp
+## itself and every camp whose way leads past it are skipped. Without it she
 ## walked on, fled, turned back and walked on again for the rest of the match
 ## (Nyxa at a Hog camp between her and her Bat camp: 450 s, never Stage 3).
 @export var barred_camp_time: float = 60.0
+## A camp whose way (the straight line, then the nav path of the best
+## candidates) passes this close to an obstacle camp's centre lies behind it:
+## about the reach of a camp's mobs (they roam up to their 100 px leash from
+## it and spot a walker 172 px away).
+@export var obstacle_clearance: float = 260.0
+## Game seconds a boxed-in monster (every camp behind an obstacle) walks past
+## the obstacles' mobs to the best camp instead of pacing beside them: they
+## are no threat and no target for it until then (while its HP is at least
+## rest_hp_pct).
+@export var transit_time: float = 6.0
 
 @export_group("Combos")
 ## Minimum gap between two casts (no Slam+Dash+Cleave on consecutive frames).

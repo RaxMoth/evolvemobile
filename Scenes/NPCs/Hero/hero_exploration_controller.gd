@@ -62,9 +62,10 @@ var hero_stuck_anchor: Dictionary = {}
 var _detours: Dictionary = {}
 
 ## Waypoints the group reached, newest last. Only the last
-## RECENT_TARGET_MEMORY are kept (and read by _is_recently_explored).
+## recent_target_memory are kept (and read by _is_recently_explored): with 5
+## the group cycled over the same explored edge points for minutes.
 var explored_targets: Array[Vector2] = []
-const RECENT_TARGET_MEMORY: int = 5
+@export var recent_target_memory: int = 12
 ## _disc_grid's cache: the in-disc grid offsets for _disc_radius/_disc_step.
 var _disc_offsets: PackedVector2Array = PackedVector2Array()
 var _disc_radius: float = -1.0
@@ -77,6 +78,49 @@ var _last_group_center: Vector2 = Vector2.INF
 ## Seconds of < 60 px group progress (out of combat) before a waypoint is
 ## abandoned. The group used to sit in a corner for minutes.
 @export var waypoint_stall_timeout: float = 9.0
+
+@export_group("Walk Mask")
+## Wall-clock time the walk mask may take to fill per frame
+## (Time.get_ticks_usec), so the fill spreads over the first frames of a
+## match instead of one load hitch.
+@export var walk_mask_budget_usec: int = 500
+## Which fog is ground the group can walk on (README Hero Exploration AI
+## "Walkable fog"): one byte per WALK_CELL px cell over the fog rect, WALK_YES
+## when the navigation mesh lies within WALK_REACH px of the cell's centre,
+## else WALK_NO (walls, water, the void past the map's walkable edge, which
+## stays fog for good and outscored every real waypoint). It is rasterized
+## from the polygons of the map's NavigationRegion2Ds, one polygon after the
+## other: a closest-point query costs about 60 us on the world's 2,056
+## polygons, 0.65 s for the 11,092 cells. _process fills it within
+## walk_mask_budget_usec a frame; the AI reads it from its second exploration
+## update on (_walk_ready), when _prepare_walk_mask completes it if the
+## frames did not, so its decisions never depend on how fast the frames were.
+const WALK_CELL: float = 64.0
+const WALK_REACH: float = 32.0
+const WALK_NO: int = 0
+const WALK_YES: int = 1
+var _walk_mask: PackedByteArray = PackedByteArray()
+var _walk_cols: int = 0
+var _walk_rows: int = 0
+var _walk_origin: Vector2 = Vector2.ZERO
+## The regions the mask is rasterized from, the one being rasterized (its
+## polygon cursor and global vertices) and the polygons done of them all.
+var _walk_regions: Array[NavigationRegion2D] = []
+var _walk_region_i: int = 0
+var _walk_poly_i: int = 0
+var _walk_verts: PackedVector2Array = PackedVector2Array()
+var _walk_polys_total: int = 0
+var _walk_polys_done: int = 0
+var _walk_done: bool = false
+## The WALK_YES cells, in index order (once done).
+var _walk_cells: PackedInt32Array = PackedInt32Array()
+var _walk_ready: bool = false
+## Exploration updates so far: the first one (match start) runs without the
+## mask, every later one with the complete mask.
+var _exploration_updates: int = 0
+## F3: the walkable unexplored cells, counted at most once a second.
+var _debug_fog_cells: int = 0
+var _debug_fog_at_msec: int = -1000000
 
 func _ready() -> void:
 	# NOTE: Group "HeroExplorationController" is declared in
@@ -104,10 +148,15 @@ func _process(delta: float) -> void:
 		return
 	_cleanup_freed_heroes()
 	
+	_fill_walk_mask(walk_mask_budget_usec)
 	exploration_timer -= delta
 	
 	if exploration_timer <= 0.0:
-		exploration_timer = exploration_update_interval
+		# Keep the overshoot so the updates keep their interval at any step
+		# size (one huge step still fires once).
+		exploration_timer += exploration_update_interval
+		if exploration_timer <= 0.0:
+			exploration_timer = exploration_update_interval
 		_update_exploration_targets()
 	
 	_update_hero_flow(delta)
@@ -130,11 +179,14 @@ func _update_exploration_targets() -> void:
 		return
 	
 	var group_center = _calculate_group_center()
+	_exploration_updates += 1
+	if _exploration_updates > 1:
+		_prepare_walk_mask()
 	
 	# Check if we reached the current target
 	if group_center.distance_to(current_group_target) < waypoint_reached_distance:
 		explored_targets.append(current_group_target)
-		if explored_targets.size() > RECENT_TARGET_MEMORY:
+		while explored_targets.size() > recent_target_memory:
 			explored_targets.pop_front()
 	else:
 		_track_stall(group_center)
@@ -145,7 +197,8 @@ func _update_exploration_targets() -> void:
 	if unexplored_target != Vector2.ZERO:
 		current_group_target = unexplored_target
 	else:
-		# Fallback: random unexplored area
+		# Fallback: random unexplored area, then the nearest walkable fog
+		# anywhere on the map, then any reachable point
 		current_group_target = _get_random_unexplored_position(group_center)
 	# The slots turn to the new target at once; make the leader re-pick its
 	# idle goal now instead of walking to the old one for idle_retarget_time.
@@ -232,7 +285,7 @@ const MAX_REACH_CHECKS: int = 8
 ## stays unexplored for good, every sample out there snapped back onto the
 ## group's own spot, the group "reached" it at once and stood there for the
 ## rest of the match (Nyxa seed 15: 490 s at the east edge).
-func _first_reachable(positions: Array) -> Vector2:
+func _first_reachable(positions: Array, max_checks: int = MAX_REACH_CHECKS) -> Vector2:
 	var world: World2D = get_viewport().world_2d if get_viewport() else null
 	var from: Vector2 = _formation_leader.global_position if is_instance_valid(_formation_leader) else _calculate_group_center()
 	var center: Vector2 = _calculate_group_center()
@@ -246,7 +299,7 @@ func _first_reachable(positions: Array) -> Vector2:
 			return on_mesh
 		_mark_unreachable(on_mesh)
 		checks += 1
-		if checks >= MAX_REACH_CHECKS:
+		if checks >= max_checks:
 			break
 	return Vector2.ZERO
 
@@ -314,9 +367,15 @@ func _get_random_unexplored_position(near_position: Vector2) -> Vector2:
 		var distance = randf_range(search_radius_per_check - 150.0, search_radius_per_check + 150.0)
 		var candidate = near_position + Vector2.from_angle(angle) * distance
 
-		if fog_rect.has_point(candidate) and not _is_abandoned(candidate) and not fog_system.is_tile_explored(candidate):
+		if fog_rect.has_point(candidate) and not _is_abandoned(candidate) and not fog_system.is_tile_explored(candidate) \
+				and _is_walkable(candidate):
 			candidates.append(candidate)
 	var reachable: Vector2 = _first_reachable(candidates)
+	if reachable != Vector2.ZERO:
+		return reachable
+	# No walkable fog around: the nearest anywhere on the map (the west third
+	# stayed unexplored all match while the group paced the explored east).
+	reachable = _nearest_walkable_unexplored(near_position)
 	if reachable != Vector2.ZERO:
 		return reachable
 
@@ -445,15 +504,23 @@ func _update_formation_offsets() -> void:
 
 ## Unexplored fog tiles on a grid (two tiles apart) inside the disc around
 ## center. Only points inside fog_rect count: off-map tiles read as
-## "unexplored" and dragged the group into the map's edge for minutes.
+## "unexplored" and dragged the group into the map's edge for minutes. With
+## the walk mask ready only walkable ones count: fog on walls and in the void
+## past the walkable edge stays unexplored for good.
 func _count_unexplored_in_area(center: Vector2, radius: float, fog_rect: Rect2) -> int:
 	if not fog_system:
 		return 0
 	
 	var count: int = 0
 	var offsets: PackedVector2Array = _disc_grid(radius, exploration_tile_size * 2)
+	if _walk_ready:
+		for off: Vector2 in offsets:
+			var p: Vector2 = center + off
+			var i: int = _walk_index(p)
+			if i >= 0 and _walk_mask[i] != WALK_NO and not fog_system.is_tile_explored(p):
+				count += 1
 	# The whole disc on the map (the usual case): no per-point bounds test.
-	if fog_rect.encloses(Rect2(center - Vector2(radius, radius), Vector2(radius, radius) * 2.0)):
+	elif fog_rect.encloses(Rect2(center - Vector2(radius, radius), Vector2(radius, radius) * 2.0)):
 		for off: Vector2 in offsets:
 			if not fog_system.is_tile_explored(center + off):
 				count += 1
@@ -464,6 +531,190 @@ func _count_unexplored_in_area(center: Vector2, radius: float, fog_rect: Rect2) 
 				count += 1
 	
 	return count
+
+
+# ============================================
+# Walk mask (README Hero Exploration AI "Walkable fog")
+# ============================================
+
+## Rasterize navigation polygons into the walk mask until budget_usec of
+## wall-clock time have passed (at least one polygon a call), once the nav map
+## is usable. Its cells only reach a decision through _prepare_walk_mask, so
+## the budget never changes what the AI does.
+func _fill_walk_mask(budget_usec: int) -> void:
+	if _walk_done or fog_system == null:
+		return
+	if _walk_regions.is_empty():
+		if not _start_walk_mask():
+			return
+		if budget_usec < 1 << 62:
+			return  # the set-up has this frame's budget; polygons from the next
+	var start: int = Time.get_ticks_usec()
+	while _walk_region_i < _walk_regions.size():
+		var region: NavigationRegion2D = _walk_regions[_walk_region_i]
+		var poly_count: int = region.navigation_polygon.get_polygon_count() if is_instance_valid(region) else 0
+		if _walk_poly_i >= poly_count:
+			_walk_region_i += 1
+			_walk_poly_i = 0
+			if _walk_region_i < _walk_regions.size() and is_instance_valid(_walk_regions[_walk_region_i]):
+				var next: NavigationRegion2D = _walk_regions[_walk_region_i]
+				_walk_verts = next.global_transform * next.navigation_polygon.get_vertices()
+			continue
+		_rasterize_polygon(region.navigation_polygon.get_polygon(_walk_poly_i))
+		_walk_poly_i += 1
+		_walk_polys_done += 1
+		if Time.get_ticks_usec() - start >= budget_usec:
+			return
+	_walk_done = true
+	for i in _walk_mask.size():
+		if _walk_mask[i] == WALK_YES:
+			_walk_cells.append(i)
+
+
+## Size the mask to the fog rect and list the enabled NavigationRegion2Ds of
+## the world's map (the World's one baked region; the tests' baked rects).
+## False while the map is not usable yet or has no polygons (then
+## _walk_regions stays empty and the next call tries again).
+func _start_walk_mask() -> bool:
+	var world: World2D = get_viewport().world_2d if get_viewport() else null
+	var nav_map: RID = GameUtils.usable_nav_map(world)
+	if not nav_map.is_valid():
+		return false
+	for node: Node in get_tree().root.find_children("*", "NavigationRegion2D", true, false):
+		var region := node as NavigationRegion2D
+		if region.enabled and region.navigation_polygon != null and region.get_navigation_map() == nav_map:
+			_walk_regions.append(region)
+			_walk_polys_total += region.navigation_polygon.get_polygon_count()
+	if _walk_polys_total == 0:
+		_walk_regions.clear()
+		return false
+	var rect: Rect2 = _fog_rect()
+	_walk_origin = rect.position
+	_walk_cols = ceili(rect.size.x / WALK_CELL)
+	_walk_rows = ceili(rect.size.y / WALK_CELL)
+	_walk_mask.resize(_walk_cols * _walk_rows)
+	_walk_mask.fill(WALK_NO)
+	_walk_verts = _walk_regions[0].global_transform * _walk_regions[0].navigation_polygon.get_vertices()
+	return true
+
+
+## Mark WALK_YES every cell whose centre lies in the polygon (indices into
+## _walk_verts) or within WALK_REACH px of its outline.
+func _rasterize_polygon(indices: PackedInt32Array) -> void:
+	var n: int = indices.size()
+	if n < 3:
+		return
+	var poly := PackedVector2Array()
+	poly.resize(n)
+	var lo: Vector2 = _walk_verts[indices[0]]
+	var hi: Vector2 = lo
+	for k in n:
+		var v: Vector2 = _walk_verts[indices[k]]
+		poly[k] = v
+		lo = lo.min(v)
+		hi = hi.max(v)
+	var c0: int = maxi(0, floori((lo.x - WALK_REACH - _walk_origin.x) / WALK_CELL - 0.5))
+	var c1: int = mini(_walk_cols - 1, ceili((hi.x + WALK_REACH - _walk_origin.x) / WALK_CELL - 0.5))
+	var r0: int = maxi(0, floori((lo.y - WALK_REACH - _walk_origin.y) / WALK_CELL - 0.5))
+	var r1: int = mini(_walk_rows - 1, ceili((hi.y + WALK_REACH - _walk_origin.y) / WALK_CELL - 0.5))
+	for row in range(r0, r1 + 1):
+		for col in range(c0, c1 + 1):
+			var i: int = row * _walk_cols + col
+			if _walk_mask[i] == WALK_YES:
+				continue
+			var c: Vector2 = _walk_origin + (Vector2(col, row) + Vector2(0.5, 0.5)) * WALK_CELL
+			if c.x < lo.x - WALK_REACH or c.x > hi.x + WALK_REACH or c.y < lo.y - WALK_REACH or c.y > hi.y + WALK_REACH:
+				continue
+			if Geometry2D.is_point_in_polygon(c, poly) or _near_outline(c, poly):
+				_walk_mask[i] = WALK_YES
+
+
+func _near_outline(c: Vector2, poly: PackedVector2Array) -> bool:
+	var prev: Vector2 = poly[poly.size() - 1]
+	for v: Vector2 in poly:
+		if Geometry2D.get_closest_point_to_segment(c, prev, v).distance_squared_to(c) <= WALK_REACH * WALK_REACH:
+			return true
+		prev = v
+	return false
+
+
+## Complete the walk mask now if the frames did not (the AI's second
+## exploration update on; tests). True when it is ready.
+func _prepare_walk_mask() -> bool:
+	if not _walk_ready:
+		_fill_walk_mask(1 << 62)
+		_walk_ready = _walk_done
+	return _walk_ready
+
+
+func _walk_cell_center(i: int) -> Vector2:
+	var row: int = floori(float(i) / float(_walk_cols))
+	return _walk_origin + (Vector2(i - row * _walk_cols, row) + Vector2(0.5, 0.5)) * WALK_CELL
+
+
+## The walk-mask cell of `pos`, -1 off the mask.
+func _walk_index(pos: Vector2) -> int:
+	var col: int = floori((pos.x - _walk_origin.x) / WALK_CELL)
+	var row: int = floori((pos.y - _walk_origin.y) / WALK_CELL)
+	if col < 0 or col >= _walk_cols or row < 0 or row >= _walk_rows:
+		return -1
+	return row * _walk_cols + col
+
+
+## Ground the group may explore: any point until the mask is ready, then a
+## walkable cell's.
+func _is_walkable(pos: Vector2) -> bool:
+	if not _walk_ready:
+		return true
+	var i: int = _walk_index(pos)
+	return i >= 0 and _walk_mask[i] != WALK_NO
+
+
+## How many cells' worth of nearest walkable fog _nearest_walkable_unexplored
+## hands to _first_reachable, and how many path checks it may cost.
+const NEAREST_FOG_CELLS: int = 24
+const NEAREST_FOG_CHECKS: int = 4
+
+
+## The nearest walkable cell anywhere on the map whose centre is still fog
+## and that the group can walk to (at most NEAREST_FOG_CHECKS path checks),
+## snapped onto the mesh; ZERO when the mask is not ready or nothing is left.
+func _nearest_walkable_unexplored(center: Vector2) -> Vector2:
+	if not _walk_ready or fog_system == null:
+		return Vector2.ZERO
+	# The NEAREST_FOG_CELLS nearest, kept sorted (nearest first) as they come.
+	var dists := PackedFloat32Array()
+	var nearest: Array[Vector2] = []
+	for i: int in _walk_cells:
+		var c: Vector2 = _walk_cell_center(i)
+		var d: float = center.distance_squared_to(c)
+		if nearest.size() >= NEAREST_FOG_CELLS and d >= dists[dists.size() - 1]:
+			continue
+		if fog_system.is_tile_explored(c) or _is_abandoned(c):
+			continue
+		var at: int = dists.bsearch(d, false)
+		dists.insert(at, d)
+		nearest.insert(at, c)
+		if nearest.size() > NEAREST_FOG_CELLS:
+			dists.resize(NEAREST_FOG_CELLS)
+			nearest.resize(NEAREST_FOG_CELLS)
+	return _first_reachable(nearest, NEAREST_FOG_CHECKS)
+
+
+## F3 (debug_overlay): how much of the walk mask is filled, and how many of
+## its walkable cells are still fog ("mask 87%  walkable fog 1234").
+func debug_line() -> String:
+	if _walk_mask.is_empty():
+		return "Explore: mask -"
+	var now: int = Time.get_ticks_msec()
+	if now - _debug_fog_at_msec >= 1000 and fog_system != null:
+		_debug_fog_at_msec = now
+		_debug_fog_cells = 0
+		for i in _walk_mask.size():
+			if _walk_mask[i] == WALK_YES and not fog_system.is_tile_explored(_walk_cell_center(i)):
+				_debug_fog_cells += 1
+	return "Explore: mask %d%%%s  walkable fog %d" % [roundi(100.0 * _walk_polys_done / maxi(1, _walk_polys_total)),
+			"" if _walk_ready else " (not used yet)", _debug_fog_cells]
 
 
 ## Grid offsets (step apart) within radius of the origin, built once per

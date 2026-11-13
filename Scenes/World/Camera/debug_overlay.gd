@@ -329,15 +329,23 @@ func _update_hud_label(active_hero: Node, heroes_team: TeamBlackboard, enemies_t
 		EntityRegistry.hero_side.size() - EntityRegistry.heroes.size(),
 		EntityRegistry.monsters.size(),
 		EntityRegistry.mobs.size()])
+	# The heroes' exploration: the walk mask's fill and the walkable fog left.
+	var explore := EntityRegistry.singleton(&"HeroExplorationController") as HeroExplorationController
+	if explore:
+		lines.append(explore.debug_line())
 	# Opponent Threat: the played side's power ranks, the threat and the AI
 	# opponent's build (the side rule).
 	lines.append(GameManager.debug_threat_line())
 	# Per monster: stage, HP, its build and the behaviour nodes it carries,
-	# then its generic tree keys (damage taken, regen, cooldowns, Apex, Head Start).
+	# then its generic tree keys (damage taken, regen, cooldowns, Apex, Head Start)
+	# and its camp choice (obstacles, the boxed-in transit).
 	for mon in EntityRegistry.monsters:
 		if is_instance_valid(mon) and mon is MonsterBase:
 			lines.append((mon as MonsterBase).debug_meta_line())
 			lines.append("  " + (mon as MonsterBase).debug_keys_line())
+			var camps: String = (mon as MonsterBase).debug_camps_line()
+			if not camps.is_empty():
+				lines.append("  " + camps)
 			_append_ability_lines(lines, CooldownSource.Monster.new(mon as MonsterBase))
 	if active_hero and is_instance_valid(active_hero):
 		lines.append("Camera focus: %s" % active_hero.name)

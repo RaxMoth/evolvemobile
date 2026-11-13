@@ -126,3 +126,75 @@ func test_a_hero_jittering_in_a_corner_gets_a_detour_formation_keeps() -> void:
 	assert_false(ctrl._detours.has(vlad), "detour reached: formation takes over again")
 	vlad.queue_free()
 	ctrl.queue_free()
+
+
+const FOG := "res://Scenes/World/FogOfWar/FogOfWarSystem.tscn"
+
+
+## A fog system over `size` px from the origin, every disc of `reveals`
+## ([centre, radius]) explored for the AI.
+func _fog(size: Vector2, reveals: Array) -> FogOfWarSystem:
+	var fog := (load(FOG) as PackedScene).instantiate() as FogOfWarSystem
+	fog.world_size = size
+	add_child(fog)
+	for r: Array in reveals:
+		fog.reveal_area(r[0], r[1], false)
+	return fog
+
+
+## The controller for `fog`, with the AI's first two exploration updates
+## done (the second one reads the walk mask): its waypoint.
+func _explore(fog: FogOfWarSystem) -> HeroExplorationController:
+	var ctrl := (load(CTRL) as PackedScene).instantiate() as HeroExplorationController
+	add_child(ctrl)
+	await wait_frames(2)
+	ctrl.set_process(false)
+	ctrl.fog_system = fog
+	ctrl._update_exploration_targets()
+	ctrl._update_exploration_targets()
+	return ctrl
+
+
+## Past the map's walkable edge the fog stays unexplored for good, and a
+## sample out there outscored every real waypoint: the group paced the
+## explored east for minutes while the west third stayed fog (Nyxa seeds 3
+## and 27, no contact). Only walkable fog counts now.
+func test_exploration_counts_only_walkable_fog() -> void:
+	# A corridor x 0-1400, y 0-300; the fog goes on past its east end and
+	# below it (the void). Explored around the group at its east end.
+	var region := await bake_nav_rect(Rect2(0, 0, 1400, 300))
+	var vlad := await spawn_frozen(VLAD, Vector2(1250, 150))
+	var fog := _fog(Vector2(2560, 1280), [[Vector2(1250, 150), 500.0]])
+	var ctrl := await _explore(fog)
+	var waypoint: Vector2 = ctrl.current_group_target
+	assert_true(waypoint.x < 1250.0, "the void east of the corridor never wins: %s" % str(waypoint))
+	var nav_map: RID = GameUtils.usable_nav_map(ctrl.get_viewport().world_2d)
+	var walkable_fog: int = 0
+	for off: Vector2 in ctrl._disc_grid(150.0, 64):
+		var p: Vector2 = waypoint + off
+		if not fog.is_tile_explored(p) and NavigationServer2D.map_get_closest_point(nav_map, p).distance_to(p) <= 32.0:
+			walkable_fog += 1
+	assert_true(walkable_fog > 0, "walkable unexplored ground within 150 px of %s" % str(waypoint))
+	assert_true(ctrl.debug_line().begins_with("Explore: mask 100%  walkable fog "), ctrl.debug_line())
+	for n in [vlad, ctrl, fog, region]:
+		n.queue_free()
+	await wait_physics_frames(6)
+
+
+## No walkable fog within reach of the samples (the explored east, the void
+## past it): the group heads for the nearest walkable fog anywhere on the
+## map instead of a random point, or the void at its own edge.
+func test_without_local_fog_the_group_heads_for_the_nearest_walkable_unexplored_cell() -> void:
+	var region := await bake_nav_rect(Rect2(0, 0, 3000, 300))
+	var vlad := await spawn_frozen(VLAD, Vector2(2800, 150))
+	var reveals: Array = []
+	for x in range(1600, 3201, 200):
+		reveals.append([Vector2(x, 150), 400.0])
+	var fog := _fog(Vector2(3200, 640), reveals)
+	var ctrl := await _explore(fog)
+	var waypoint: Vector2 = ctrl.current_group_target
+	assert_true(waypoint.x > 1000.0 and waypoint.x < 1250.0 and waypoint.y >= 0.0 and waypoint.y <= 300.0,
+			"the nearest walkable fog, the corridor west of x 1200: %s" % str(waypoint))
+	for n in [vlad, ctrl, fog, region]:
+		n.queue_free()
+	await wait_physics_frames(6)

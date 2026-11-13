@@ -92,6 +92,19 @@ anything (see "Verification gate").
 - [ ] **Decisions for the user** and **Placeholder copy** below (user step): each entry names the
       default that ships. The user accepted the list as it stood on 2026-11-11; the open list holds
       what came after.
+- [ ] **Balance after P2A** — P2A (camps respawn on time, obstacles, walkable fog) moved threat 0
+      at 24 seeds (heroes side) from 46 / 58 / 38 % hero wins to 46 / 75 / 79 % (Grount / Nyxa /
+      Gorrak): the heroes find Nyxa and Gorrak at Stage I-II in 15 of 24 matches (was 8 and 11)
+      and win those. Gorrak's median match is 262 game s (218 real), under the 346 s floor of the
+      pace request. P2B's hero XP counter-tune comes first; G4 retunes to 40-60 % at 48 seeds per
+      side and checks the round length.
+- [ ] **First fight at a watched step** (P2A's metric) — at `SPEED=1 FPS=30` and `SPEED=2
+      FPS=30` (1/25 and 1/12.5 game s a step) the first hit in the heroes' view comes at 11.3 s
+      real in the median, in every seed later than 10 s, against 5.6 s at 1/60: the group's
+      opening walk differs with the step (Irelia stands at (533, 288) instead of (423, 513) at 6
+      game s, seed 1). In a muted render (async navigation) the first waypoint was a random far
+      point (3555, 402) for the first 3.6 s. P2B's opening camp should make the opening the same
+      at any step; check its first fight at both steps.
 - [ ] **Parity table at 48 seeds** — G3's threat retune is measured at 24 seeds per cell on each
       side (README "Opponent Threat"); `MONSTER=all THREAT="1 2 3 4" tools/sim.sh 48 <side> 2` for
       the whole table is still open (about 45 minutes a side on the development Mac).
@@ -164,6 +177,40 @@ list holds what was added after that review, and entries a later batch changed (
 ### Open (added or changed after the review of 2026-11-11)
 
 Gameplay:
+- **Camps respawn on time** (P2A): a dead mob comes back 40 s after its death whether or not
+  anyone is near, live when its camp is active then, else into the camp's virtual count. Before,
+  a camp that was cleared and left read as empty to the monster's camp choice for the rest of the
+  match, but refilled the moment someone walked past it again. Measured alone (72 matches, heroes
+  side): the monster kills 4-12 % more mobs a minute, the heroes 15-18 % fewer (no free refill),
+  and the heroes are 0.3-0.6 levels lower at a Stage III contact; hero wins 46 / 58 / 38 % ->
+  50 / 38 / 33 % (Grount / Nyxa / Gorrak, 24 seeds). Option: the old instant refill on a revisit.
+- **The monster bars the obstacle, and walks past it when boxed in** (P2A): the camp of mobs above
+  its farming gate that came at it is an obstacle for 60 s; it skips that camp and every camp
+  whose way passes within 260 px of it (`MonsterStrategy.obstacle_clearance`; the straight line
+  for every camp, the nav path for the best three). When every camp lies behind an obstacle (or
+  three paths in a row pass one) it takes the best camp anyway and for 6 s
+  (`MonsterStrategy.transit_time`) treats the obstacle's mobs as neither threat nor target, while
+  its HP is at least `rest_hp_pct`: it may take a few Hog hits. Judgement calls: three blocked
+  paths count as boxed in (the plan left open what follows the third check), a way that leads
+  away from an obstacle it stands near is clear (it just fled from it), and an obstacle whose
+  mobs an evolution made farmable ends. Measured: Nyxa seeds 1, 3, 8, 13 reach Stage III or are
+  decided first and all make contact, at most 3 obstacle events in any 60 s (the review saw 9-12
+  barred camps a minute). Options: a Stage 2 gate that admits the blocking camp, or resting on
+  the far side instead of walking past.
+- **Heroes explore walkable fog only** (P2A): a walk mask (64 px cells over the fog rect) keeps
+  fog on walls and in the void past the map's edge from scoring, and when no walkable fog is
+  within reach the group heads for the nearest walkable fog anywhere on the map; the group
+  remembers its last 12 waypoints (was 5). The mask is rasterized from the navigation polygons
+  (12.6 ms in all, 0.5 ms a frame at most, done 25 frames into a match; the same cells as one nav
+  query per cell, which would cost 0.65 s), and the AI uses it from its second exploration update
+  on, so its choices never depend on frame timing (the trace stays reproducible). The fog picture
+  and the minimap still show walls as fog. **Effect on balance**: the heroes now find a hiding
+  monster much earlier: first contact Nyxa 385 -> 283 game s, Gorrak 325 -> 212; 15 of 24
+  contacts at Stage I-II for each (was 8 and 11), which the heroes win (13 and 14 of 15), so hero
+  wins rose to 75 % (Nyxa) and 79 % (Gorrak) at 24 seeds, and Gorrak's median match fell to 262
+  game s (218 real), under the 346 s floor recorded for the pace request. P2B's XP counter-tune
+  and G4's retune are meant to bring them back to 40-60 % (Backlog "Balance after P2A"). Option:
+  keep the old fog walk (no mask) and accept the matches without contact (Nyxa seeds 3 and 27).
 - **Contact for every monster** (G2): the heroes no longer park at the map's walkable edge, a
   monster skips for 60 s a camp that mobs it cannot beat stood in front of
   (`MonsterStrategy.barred_camp_time`), and a hunting (Stage 3) monster walks past mobs that leave
@@ -597,12 +644,12 @@ Look and feel:
 ## Verification gate
 
 Every change passes `tools/lint.sh` (errors=0; every GDScript warning is an error there) and
-`tools/run_tests.sh` (exit 0; 752 tests: 751 passed, 1 skipped headless, the run exits with nothing
+`tools/run_tests.sh` (exit 0; 759 tests: 758 passed, 1 skipped headless, the run exits with nothing
 leaked; the log's only `ERROR` lines are the 4 the tests announce with `expect_error`, so any other
 fails a test). A change that must not alter gameplay also keeps the determinism trace byte-identical:
 `MONSTER=all BASELINE_DIR=tools/baselines tools/sim_trace.sh > <new trace>` (exit 0): seeds 1-3 ×
 heroes/monster × every monster as full matches, `JOBS=2` at a time by default (no per-seed split
-needed on the 8 GB machine). A change to a tool also passes `tools/selftest.sh` (44 checks, about
+needed on the 8 GB machine). A change to a tool also passes `tools/selftest.sh` (45 checks, about
 20 s, a fake Godot). Every Godot run of a tool has a wall-clock limit (`TOOL_TIME_LIMIT_S`, README
 "Headless Tools"), so a loop that never ends fails a gate instead of hanging it. Every 60 frames the trace hashes each EntityRegistry
 entity's class, position (1 px), health and active state, the monster's stage and XP and the mob
@@ -654,6 +701,12 @@ Threat 0, fresh save, 48 seeds (`MONSTER=<id> tools/sim.sh 48 <side> 6`), hero w
 | **Grount** (G3, 48 seeds) | **38 %** | **40 %** | 0 / 0 | 295 / 294 s | first contact 318 s; mob swings on their timer; 45 % at 96 seeds (heroes side) |
 | **Nyxa** (G3, 48 seeds) | **54 %** | **54 %** | 3 / 3 | 357 / 357 s | first contact 382 s; 2 of 48 without contact a side |
 | **Gorrak** (G3, 48 seeds) | **42 %** | **44 %** | 1 / 1 | 319 / 319 s | first contact 357 s |
+| Grount (G3, 24 seeds, heroes side) | 46 % | | 0 | 293 s | P2A's base run (with the pace metric) |
+| Nyxa (G3, 24 seeds, heroes side) | 58 % | | 1 | 355 s | first contact 385 s |
+| Gorrak (G3, 24 seeds, heroes side) | 38 % | | 0 | 305 s | first contact 325 s |
+| Grount (P2A, 24 seeds, heroes side) | 46 % | | 0 | 309 s | first contact 292 s; camps respawn on time, obstacles, walkable fog |
+| Nyxa (P2A, 24 seeds, heroes side) | 75 % | | 0 | 334 s | first contact 283 s; 15 of 24 at Stage I-II (was 8) |
+| Gorrak (P2A, 24 seeds, heroes side) | 79 % | | 0 | 283 s | first contact 212 s; median match 262 s |
 
 R1 (`MONSTER=all tools/sim.sh 12 <side> 2`, the parent `524536a` run the same way): River's staff
 healed for the first time (`staff_heals`: 207-225 heals in 12 matches against Grount or Gorrak
@@ -683,6 +736,13 @@ below the 40-60 % target; the final balance batch retunes. Without ability 2 in 
 side was 58 / 67 / 67 %, with it on every cooldown 25 / 17 / 4 % (see the changelog).
 
 This closes "Balance retune after `74e2bff`" (heroes 29 % then).
+
+P2A (`MONSTER=all tools/sim.sh 24 heroes 2` after each step, the G3 tree with the pace metric as
+the base; the P2A changelog has every step): camps that respawn on time cost the heroes their free
+refills and help the monster (hero wins 46 / 58 / 38 -> 50 / 38 / 33 %), the obstacle rule changes
+little in the totals (42 / 38 / 25 %), and the walkable-fog exploration finds the monster early
+(46 / 75 / 79 %; contact at Stage I-II in 12, 15 and 15 of 24). P2B's XP counter-tune and G4
+follow (Backlog "Balance after P2A").
 
 G3 (`MONSTER=all tools/sim.sh 48 <side> 2`): a mob's next swing starts from its timer, not on its
 next AI tick, so mobs land their hits on time in the sims too (2-4 % more than before); Nyxa
@@ -787,6 +847,18 @@ would spend 11-15 ms mean at the base speed and 14-21 ms on fast before drawing,
 be 20-50 ms: the base speed fits with little room for drawing, fast does not at 60 fps (it would run
 at 30-40 fps, which is the 1/12.5 case of "Grount at fast on 30 fps"). Device numbers stay open.
 
+P2A (`tools/bench.sh 3 2 1800 600 0 1 <speed>`, every rig awake, the parent `15292e9` and P2A back
+to back, load 3.7-4.5): base 2.543 -> 2.460 ms mean, p99 6.11 -> 4.84 ms; fast 3.571 -> 3.705 ms
+(+3.8 %), p99 5.48 -> 6.36 ms (+16 %), with one tree run ended early (seed 3, the heroes met the
+monster) so 2 against 3 runs. A 5-run pair on fast under load 7.4-8.9 (other apps busy) gave 7.15
+-> 6.25 ms mean and p99 15.5 -> 21.9 ms: noise above any change. A second fast round, alternated
+parent / P2A / P2A / parent at load 4.6-5.2: 3.511 / 3.498 -> 3.522 / 3.569 ms mean (+0.3 to
++2 %), p99 5.56 / 5.67 -> 5.54 / 5.61 ms (P2A's seed 3 ends at frame 486 in both, so 2 runs).
+P2A adds no per-frame work after
+the walk mask (0.5 ms a frame at most, 25 frames); its timers fire at their intervals instead of
+rounding up to the step (at fast and 60 fps the camp activation check runs every 0.25 s instead
+of 0.28 s, +12 % checks), and a camp choice with obstacles costs 0.24 ms (0.10 ms without).
+
 - Total overhead of the overhaul against `885e86a`: about +0.03 ms with the rigs asleep and about
   +0.5 ms with all 232 awake (the limit was +0.6 ms).
 - A frame costs more at speed because the game-time paced work (the mobs' 20 / 10 / 3 Hz AI
@@ -829,6 +901,107 @@ at 30-40 fps, which is the 1/12.5 case of "Grount at fast on 30 fps"). Device nu
       uses `GameManager.killer_side`; the sim could use the same rule. Low priority.
 
 ## Changelog
+### 2026-11-13 — fix batch P2A: pacing A (the quiet metric, camps respawn on time, the monster bars the obstacle, heroes explore walkable fog, timer carry)
+Gameplay batch, the first half of the pacing plan P2 (the design panel on the user's "it should not
+feel like waiting"; the review3 walkthrough found the heroes side quiet for 64-80 % of a round).
+Items 0-5 of the plan; P2B (camp-first routing with an opening camp, the hero XP counter-tune, the
+evolve meter) comes next and is judged against the plan's final pace targets.
+
+- **The pace metric** (tools only; `tools/pace_stats.gd`, `tools/sim_match.gd`,
+  `tools/sim_summary.py`; README "Headless Tools" "Pace" and "Match Speed"): every sim row gets
+  `pace`, two virtual phone cameras (720x1280 / `MainCam.default_zoom` 2, plus 32 px) on the first
+  living hero and on the monster; a hit counts when its source or target is in view; quiet = gaps
+  of 10 real s or more (12 game s at the base speed, 24 on fast), start and end included. Fields:
+  per view `hits` and `base` / `fast` `{share, longest_real, n}`, `first_fight_real`,
+  `first_contact_share`, `contact_stage`, `kills_still_longest_real`, `hero_kills_per_min`; also
+  `obstacle_events` / `obstacle_max_60s`. The summary prints one pace line per monster. With the
+  metric alone the three traces were byte-identical to the G3 baselines, with and without
+  `RIGS_AWAKE=1`.
+- **Calibration** on the G3 tree (`MONSTER=all tools/sim.sh 24 heroes 2`): heroes view quiet
+  66 / 72 / 65 % (Grount / Nyxa / Gorrak; band 60-85), longest stretch 40 / 38 / 36 s (band
+  35-70), on fast 40 / 47 / 42 % and 20 / 19 / 18 s, first fight 5.6 s median but later than 10 s
+  in 8 of 24 seeds (max 43 s), kills chip still 48 / 45 / 46 s, contact share 0.88 / 0.93 / 0.88;
+  monster view 27 / 25 / 36 % (band 35 % or less: Gorrak is 1 point over; the e645ba2 tree with
+  only the new tool files gives Gorrak 43 % there and 68 % on the heroes view, so it is his slow
+  farming, not the metric). `SPEED=2 FPS=30`: quiet 70 / 73 / 72 %, fast 44 / 46 / 43 %;
+  `SPEED=1 FPS=30` (8 seeds): 70 / 76 / 65 %. At both watched steps the first fight comes at
+  11.3 s in the median in every seed (the opening walk differs with the step: Backlog).
+- **Camps respawn on time** (`MobSpawnArea`; README "Spawn System"): `deactivate()` no longer
+  bumps the epoch and `activate()` no longer folds the pending respawns in, so a respawn ends after
+  `respawn_time` either way: a live mob in an active camp, else `virtual_count`. Only
+  `reset_population()` (Shift+R) cancels one. Before, a camp cleared and left read as empty to
+  `MonsterBase._pick_camp` until someone passed it, and refilled at once on a revisit.
+- **The monster bars the obstacle, not the destination** (`MonsterBase`, `MonsterStrategy`
+  `obstacle_clearance` 260 and `transit_time` 6; README Monster AI "Barred camps"): when mobs above
+  the farming gate come at it, their `spawn_area` is an obstacle for `barred_camp_time` (60 s,
+  while it holds mobs above the gate). `_pick_camp` skips the obstacle and every camp whose
+  straight line, or for the best candidates whose nav path (at most 3 queries), passes within the
+  clearance of it, closer than the monster stands. Boxed in, it takes the best camp and for
+  `transit_time` the obstacle's mobs are no threat (`_find_mob_threats`) and no target
+  (`_score_target` -1000) while HP >= `rest_hp_pct`. Time stamps on the strategy clock, nothing
+  beside the chart. `obstacle_events` counts the threats appearing; F3 has a new line under the
+  monster's: `camps: obst n  transit x.xs` (not on `debug_meta_line`, whose build tag and node
+  list three tests pin). Nyxa seeds 1 / 3 / 8 / 13 (heroes side, after this step): Stage III at
+  350 / 322 / - / 332 s, contact at 400 / 356 / 206 / 372 s (seed 8 is decided at 206 s, before
+  Stage III), at most 3 / 3 / 0 / 2 obstacle events in any 60 s; on the parent the same seeds
+  reached Stage III at 484 / 555 / 480 / never, and in seed 3 she won on time.
+- **Heroes explore walkable fog** (`HeroExplorationController`; README Hero Exploration AI
+  "Walkable fog"): a walk mask of 64 px cells (118 x 94 on the World map, 2,997 walkable), cells
+  within 32 px of the nav mesh, rasterized from the `NavigationRegion2D`s' polygons in `_process`
+  within `walk_mask_budget_usec` (500): 12.6 ms in all, at most 0.52 ms a frame, done at frame 25;
+  identical to a `map_get_closest_point` per cell on every sampled cell (1,585 checked), which
+  costs about 60 us each (0.65 s for the mask: the first version, measured and replaced). The AI
+  uses it from its second exploration update on, completing the fill then if needed, so its
+  choices never depend on the frame times. `_count_unexplored_in_area` counts walkable fog only,
+  the random fallback needs a walkable point, and a new `_nearest_walkable_unexplored` (the 24
+  nearest walkable fog cells, at most 4 path checks, about 1 ms) runs before the old random
+  reachable point. `recent_target_memory` 12 (was the constant 5). F3: `Explore: mask 100%
+  walkable fog n`. No RNG draws added (the new fallback runs before the old one's draws and skips
+  them when it finds a cell). Nyxa seeds 3 and 27 now make contact at 350 and 360 s (parent:
+  Stage II contact at 399 s and the timeout; seed 27 never met her).
+- **Timer carry**: the monster's strategy tick, the exploration update and the camps' activation
+  check keep the overshoot of the step they ran out in (and fire once for a huge step), as G2's
+  cooldowns do. At 0.08 s a step the 0.5 s strategy tick took 0.56 s: 54 updates in 30 s against
+  59-60.
+- **The A/B** (`MONSTER=all tools/sim.sh 24 heroes 2` after each step; heroes view pace,
+  Grount / Nyxa / Gorrak; P2A's row is the committed tree):
+
+  | Step | Hero wins | Quiet (base) | Longest | Quiet (fast) | Kills still | Monster view | Hero / monster kills a min | Stage II / III median | Level at a Stage III contact | Contact at Stage I / II / III / none | Median match, game (real) s |
+  |---|---|---|---|---|---|---|---|---|---|---|---|
+  | G3 (base) | 46 / 58 / 38 % | 66 / 72 / 65 % | 40 / 38 / 36 s | 40 / 47 / 42 % | 48 / 45 / 46 s | 27 / 25 / 36 % | 7.2 / 7.8 / 7.0; 5.1 / 6.9 / 6.7 | 217 / 181 / 143; 293 / 355 / 305 | 3.71 / 4.28 / 3.98 | 6-1-17-0 / 4-4-16-0 / 7-4-13-0 | 370 / 420 / 375 (308 / 350 / 313) |
+  | + respawn on time | 50 / 38 / 33 % | 73 / 76 / 75 % | 43 / 48 / 45 s | 52 / 59 / 56 % | 54 / 51 / 51 s | 15 / 20 / 40 % | 6.0 / 6.4 / 5.9; 5.5 / 7.7 / 7.0 | 208 / 177 / 153; 307 / 345 / 332 | 3.25 / 3.64 / 3.70 | 7-5-12-0 / 2-4-18-0 / 5-4-14-1 | 338 / 401 / 416 (282 / 334 / 347) |
+  | + obstacles | 42 / 38 / 25 % | 73 / 77 / 72 % | 41 / 47 / 43 s | 53 / 59 / 55 % | 52 / 55 / 50 s | 15 / 18 / 38 % | 6.0 / 6.2 / 5.8; 5.5 / 8.1 / 7.4 | 206 / 173 / 151; 303 / 334 / 329 | 3.16 / 3.46 / 3.52 | 7-3-14-0 / 2-3-19-0 / 5-6-13-0 | 337 / 394 / 411 (281 / 328 / 342) |
+  | + walkable fog, timer carry (P2A) | 46 / 75 / 79 % | 68 / 68 / 64 % | 40 / 38 / 34 s | 36 / 39 / 32 % | 45 / 41 / 42 s | 26 / 15 / 36 % | 7.6 / 8.0 / 7.5; 5.3 / 7.5 / 7.0 | 207 / 183 / 151; 309 / 334 / 283 | 3.90 / 4.36 / 4.14 | 7-5-12-0 / 7-8-9-0 / 7-8-9-0 | 346 / 343 / 262 (288 / 286 / 218) |
+
+  Stage III is not reached earlier per monster (respawn alone: 307 / 345 / 332 s against 293 / 355
+  / 305), but the monster farms more (kills a minute up 4-12 %) and its view is quieter for
+  Grount and Nyxa. First fight stays at 5.6-5.7 s (P2B's opening camp is the lever). No-contact
+  matches: 0 of 72 (the parent: 0, but Nyxa 3 and 27 beyond the first 24 seeds). Hero wins
+  moved far for Nyxa and Gorrak: the better exploration meets them at Stage I-II (Decisions,
+  Backlog "Balance after P2A"). Gorrak's median match (262 game s) is under the 346 s floor.
+- **Tests** (each fails on the parent: 9 failures in a copy of `15292e9` with only the new tests):
+  `test_spawn_pool` (the deactivate / activate window rewritten: 2 live and 1 pending, then 3
+  after `respawn_time`; new: a cleared, deactivated camp refills virtually on time),
+  `test_monster_strategy` (the old barred-camp test replaced by an obstacle that bars the camps
+  behind it but not the free one; a boxed-in Grount reaches the camp past the Hogs within
+  `transit_time` with no new obstacle, and the F3 line), `test_wall_movement` (only walkable fog
+  counts: the void east of a corridor never wins; with no local fog the group heads for the
+  nearest walkable fog 1,600 px away), `test_match_speed` (the strategy, exploration and camp
+  check cadence at 0.08 s and 1/60 s steps agree within 1 over 30 s), new `test_pace_stats` (a
+  30 s gap and the opening count as quiet, a 9 s gap does not). `tools/selftest.sh`: a check of the
+  summary's pace line (45 checks).
+- **Docs**: README Headless Tools (pace, self-test), Match Speed (waiting, measured), Spawn
+  System, Monster AI (Barred camps), Hero Exploration AI (Walkable fog, Memory, Steady updates),
+  Contact and the Final Retune (the no-contact causes); PROGRESS (Decisions, Backlog, Balance,
+  Performance, gate counts).
+- **Verified**: `tools/lint.sh` errors=0; `tools/run_tests.sh` 758 passed, 0 failed, 1 skipped,
+  nothing leaked, the 4 announced `ERROR` lines; `tools/selftest.sh` 45 of 45; traces re-recorded
+  (2,522 / 2,113 / 2,676 lines for Grount / Nyxa / Gorrak, were 1,772 / 3,104 / 1,940) and
+  byte-identical on a second run and with `RIGS_AWAKE=1`; the camp choice with 7 obstacles costs
+  0.24 ms (0.10 ms without); bench (every rig awake, Performance): base 2.54 -> 2.46 ms mean, p99
+  6.11 -> 4.84; fast 3.51 / 3.50 -> 3.52 / 3.57 ms, p99 5.56 / 5.67 -> 5.54 / 5.61 (second round);
+  a muted 30 fps render (Nyxa, seed 11, heroes side) shows the two new F3 lines.
+
 ### 2026-11-13 — fix batch T2: tools and tests from the run-2 review
 Presentational batch of the third fix run, on the review of the run-2 commits: findings tools-1 to
 tools-6, four of the five one-liners the tools reviewer dropped, abilities-2, vfx_rig-4 and the

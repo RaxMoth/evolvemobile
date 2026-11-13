@@ -68,7 +68,11 @@ func _process(delta: float) -> void:
 
 	_check_timer -= delta
 	if _check_timer <= 0.0:
-		_check_timer = activation_check_interval
+		# Keep the overshoot: the checks keep their 4 Hz at any step size (one
+		# huge step still checks once).
+		_check_timer += activation_check_interval
+		if _check_timer <= 0.0:
+			_check_timer = activation_check_interval
 		_update_activations()
 
 # ============================================

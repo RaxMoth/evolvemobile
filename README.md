@@ -129,6 +129,28 @@ every monster and the final retune; 288 matches at 48 seeds per side) the
 median match is 404 game s, **337 s real** at the normal setting (168 s on
 fast), and the median first contact 363 game s (303 real).
 
+**Waiting, measured** (fix batch P2, the pace metric in every sim row:
+Headless Tools "Pace"): the user's "it should not feel like waiting" is the
+share of a round spent in stretches of 10 real seconds or more with no hit on
+the phone's screen (the camera's 360x640 world px around the followed hero).
+On the G3 tree the heroes side is quiet for 65-72 % of a round (median of 24
+seeds per monster), the longest stretch 36-40 real s, the first fight at a
+median 5.6 s but after 43 s in one seed in three, and the kills chip stands
+still for 45-48 s at a time; the monster side is quiet 25-36 %. P2A (the
+first half of P2) fixes the AI's walking (camps that respawn on time, the
+monster's obstacle rule, the heroes' walkable fog); P2B routes the heroes
+from camp to camp. `MONSTER=all tools/sim.sh 24 heroes 2`, heroes view,
+median (p90), real seconds at the base speed:
+
+| Tree | Quiet share | Longest quiet | Quiet on fast | First fight (later than 10 s) | Kills chip still | Monster view quiet | Median match, game / real s |
+|---|---|---|---|---|---|---|---|
+| G3 (parent) | 66 / 72 / 65 % | 40 / 38 / 36 s | 40 / 47 / 42 % | 5.6 s (8 of 24) | 48 / 45 / 46 s | 27 / 25 / 36 % | 370 / 420 / 375 (308 / 350 / 313) |
+| P2A | 68 / 68 / 64 % | 40 / 38 / 34 s | 36 / 39 / 32 % | 5.6-5.7 s (8 of 24) | 45 / 41 / 42 s | 26 / 15 / 36 % | 346 / 343 / 262 (288 / 286 / 218) |
+
+(Grount / Nyxa / Gorrak.) At a watched step (`SPEED=1 FPS=30`, 1/25 game s)
+the first hit in view comes later in every seed: median 11.3 s, the group's
+opening walk differs with the step (P2B's opening camp is meant to fix it).
+
 - **One number sets the time scale**: `MATCH_BASE_SPEED`. While a match runs,
   `Engine.time_scale` is `GameManager.match_speed()` (the base, times the
   factor on fast). Godot scales every delta, timer, tween, animation and
@@ -695,6 +717,7 @@ eligible per match and every camp respawns after 40 s):
 
 - **MobSpawnArea**: 39 circular camps (116 mobs configured). `SpawnManager` picks 26–30 of them as world-eligible per match and only instantiates a camp while a hero is inside its activation ring (200 px; despawn beyond 300 px)
 - **Respawn Time**: 40 s on every camp in `World.tscn` (prefab default 10 s), in game seconds on a pausable timer (a paused match respawns nothing). Dead and despawned mobs are recycled from a pool instead of re-instantiated
+- **Respawn on time** (fix batch P2): a dead mob comes back `respawn_time` after its death whether or not anyone is near: as a live mob when its camp is active then, else into the camp's `virtual_count`, which the next activation spawns. Until P2 a deactivation cancelled the waiting respawns and the next activation folded them back in at once, so a camp that was cleared and left read as empty to the monster's camp choice (`MonsterBase._pick_camp` counts `virtual_count` and live mobs) for the rest of the match, but refilled the moment someone walked past it again. Only Shift+R (`reset_population`) cancels a waiting respawn
 - **Monster placement** (`world.gd _place_monster`): the start waits for the navigation map, not a number of frames. Until the map answers (`GameUtils.nav_map_answers`: synchronised, with the region's polygons in) every miss waits for the world's next map sync (`NavigationServer2D.map_changed`), then tries on the physics frame after it. With the shipped asynchronous map and region iterations the map answered 10 to 14 physics frames after World entered in a muted 60 fps window (about 0.25 s; 0.34 to 0.59 game seconds at the base and the fast speed; 14 frames under the load of 12 busy processes on 8 cores) and about 95 in an unthrottled headless run (the sims and tests turn the asynchronous iterations off: there it answers on the second physics frame, as before). If it never answers within `nav_wait_limit_sec` (10 real seconds), the monster keeps `MonsterSlot.spawn_position`, inside Zone 3, and the match goes on. The old placement gave up after 180 physics frames, frames that an unthrottled or a fast run passes in a fraction of the wait
 - **Leash Distance**: Mobs return if heroes run too far (100 px from the camp centre)
 - **Camp Clearing**: Important strategic decision (delay monster vs gain XP)
@@ -905,7 +928,11 @@ Steel and Leaves are `MatchRewards.compute` on each row, the played side's):
 
 - **Contact**: 8 of 288 matches end without one (3 %; P1: 22 of 144, 15 %),
   at most 6 % for any monster. The rest are a Nyxa or a Grount that never
-  reached Stage 3 (slow Bat farming, no hunt).
+  reached Stage 3 (no hunt). The review of G2 found the causes: Nyxa paced
+  beside a Hog camp, barring one camp behind it after the other, and the
+  heroes explored the void past the walkable edge instead of the west third
+  where she farmed; fix batch P2 fixed both (Monster AI "Barred camps", Hero
+  Exploration AI "Walkable fog").
 - **Pace**: the median match is 404 game seconds (337 real at the normal
   setting; P1 422 / 351), the median first contact 363 / 303 (P1 384 / 320).
   Most matches are decided at Stage 3 (202 of 288 first contacts), where the
@@ -2101,12 +2128,34 @@ built.
   of travel, and the next hero takes the lead if the leader dies
 - **Goal Selection**: Target unexplored fog areas; each sample is snapped onto the
   navigation mesh and must be reachable (`HeroExplorationController._first_reachable`)
+- **Walkable fog** (fix batch P2): only fog on ground the group can walk on counts. A walk mask
+  holds one byte per 64 px cell of the fog rect (118 x 94 cells): walkable when the nav mesh lies
+  within 32 px of the cell's centre (2,997 of 11,092 cells on the World map). The controller
+  rasterizes it from the polygons of the map's `NavigationRegion2D`s in `_process`, within
+  `walk_mask_budget_usec` (0.5 ms) a frame: 12.6 ms in all on the development Mac, done 25 frames
+  into a match, the same cells as one `map_get_closest_point` per cell (which costs about 60 us on
+  the World's 2,056 polygons, 0.65 s for the mask). The AI uses it from its second exploration
+  update on (at 3 s by default), completing what the frames did not, so its choices never depend
+  on how fast the frames were. Samples score only walkable unexplored points, the
+  random fallback needs a walkable unexplored point, and when neither finds anything the group
+  heads for the nearest walkable unexplored cell anywhere on the map (at most 4 path checks)
+  before a random reachable point. Before, fog on walls and in the void past the walkable edge
+  (it stays fog for good) outscored real ground: the group cycled over explored edge points in
+  the east while the west third stayed fog all match, and Nyxa, farming there, was never found
+  (seed 27; seed 3 with the Hog pocket). The fog picture and the minimap are untouched (walls
+  still show as fog). F3: `Explore: mask 100%  walkable fog n`
 - **No waypoint underfoot** (fix batch G2): a sample whose walkable point lies within
   `waypoint_reached_distance` (100 px) of the group's centre, or within 200 px of a waypoint the
   group reached lately, is skipped. Past the map's walkable edge the fog stays unexplored for good;
   every sample out there snapped back onto the group's own spot, the group "reached" it at once and
   stood at the east edge for the rest of the match (in every match without a contact before G2)
-- **Memory**: Remember last 5 explored positions (avoid backtracking)
+- **Memory**: Remember the last `recent_target_memory` (12) waypoints reached and skip samples
+  within 200 px of them (avoid backtracking; 5 until P2, which let the group cycle over the same
+  edge points)
+- **Steady updates** (fix batch P2): the exploration update keeps the overshoot of the step its
+  timer ran out in, as the monster's strategy tick and the camps' activation check do, so their
+  intervals hold at a device's coarser steps (at 0.08 s a step the 0.5 s strategy tick took
+  0.56 s)
 - **Stuck Detection**: Auto-unstuck after 5s stationary
 
 **Planned Improvements**:
@@ -2129,10 +2178,21 @@ built.
   then caught the slow Stage I bull in half the matches), paths to the camp with the most mobs and no hero within 500 px; only
   camps whose mobs it can beat at its stage (`farm_max_mob_health`: Bats at Stage 1, Hogs from
   Stage 2); camps activate around the monster too
-- **Barred camps** (fix batch G2): when mobs above its farming gate come at it on the way to a
-  camp, that camp is skipped for `barred_camp_time` (60 s) and it farms elsewhere. Before, it fled,
-  the mobs went home, it turned back to the same camp and met them again: Nyxa shuttled at a Hog
-  camp between her and her Bat camp for up to 450 s and never reached Stage 3
+- **Barred camps** (fix batch G2, reworked in P2): when mobs above its farming gate come at it,
+  their camp becomes an **obstacle** for `barred_camp_time` (60 s, while it holds mobs). The camp
+  choice skips the obstacle and every camp behind it: one whose straight line from the monster,
+  or (while an obstacle stands, for the best candidates, at most 3 nav path queries) whose path,
+  passes within `obstacle_clearance` (260 px, about a camp's reach) of an obstacle's centre and
+  closer to it than the monster stands (a way that leads away from Hogs it just fled is clear).
+  **Boxed in** (every camp behind an obstacle, or three paths in a row past one), it takes the best
+  camp anyway and walks past the obstacles' mobs for `transit_time` (6 s): they are no threat and
+  no target for it then, like a hunt, while its HP is at least `rest_hp_pct`; they may land a few
+  hits. With no obstacle and no camp it wanders as before. All windows are time stamps on its
+  strategy clock (no timer beside the state chart). G2 barred the camp it was walking to instead,
+  so Nyxa's next pick lay behind the same Hogs: in her pocket at BatArea20 she barred 9-12 camps a
+  minute and stayed at Stage 2 for minutes (seed 3 to the 600 s timeout, without contact). Before
+  G2 she shuttled at one Hog camp for up to 450 s. F3 shows `camps: obst n  transit x.xs` under the
+  monster's lines; the sims count `obstacle_events` (Headless Tools)
 - **Rest**: below 45% HP it stops taking mob fights, keeps 450 px from camps and regenerates
   0.6% max HP/s after 4 s without damage, until 80% HP
 - **Retreat**: Stage ≤ 2, below 30% HP with 2+ heroes close → flee, escape-dash a hero that closes in
@@ -3478,12 +3538,13 @@ No tool can pass by accident, and none leaks when it is stopped:
   `user://` dirs (zsh alone skips the clean-up on TERM). SIGKILL cannot be
   caught.
 - **`tools/selftest.sh`** checks all of it with a fake Godot (about 20 s, no
-  real Godot runs): 44 checks of lint, tests, sim, trace, bench and the two
+  real Godot runs): 45 checks of lint, tests, sim, trace, bench and the two
   build tools, among them a crash before the end marker and one after it, a
   planted `SCRIPT ERROR` (next to a finished result too, in sim and bench), a
   seed without a result, a bench result that is not JSON, a bad side, a
   missing `SAVE`, `JOBS=0`, a sim step setting or a cap out of range, a seed
-  given twice, `RIGS_AWAKE=0`, a build that must copy nothing back, a run
+  given twice, `RIGS_AWAKE=0`, a build that must copy nothing back, the
+  sim summary's pace line (fix batch P2), a run
   that never ends (`TOOL_TIME_LIMIT_S=1`), and a `TERM` mid-run after which
   no match, copy, `user://` dir or watchdog may be left. Run it after
   changing a tool. The tools before T1 fail 14 of the 23 checks T1 wrote;
@@ -3594,6 +3655,31 @@ No tool can pass by accident, and none leaks when it is stopped:
   row has `step_hz` and `lod`, and the summary prints them. A bad value exits
   2. What it measured is under "Contact and the Final Retune" ("Watched match
   against the sims").
+  **Pace** (fix batch P2, `pace` in every row; `tools/pace_stats.gd`, checked
+  by `test/test_pace_stats.gd`): how long a player waits for something to
+  happen on screen. Two virtual phone cameras watch every match, the
+  720x1280 viewport at World's `MainCam.default_zoom` (2: 360x640 world px)
+  plus 32 px on every side: `heroes`, centred on the first living hero in
+  group "Hero" order (the camera's rule: Irelia while she lives), and
+  `monster`, on the monster. A hit counts for a view when its source or
+  target is inside it. Per view: `hits`, and `base` / `fast` with the
+  `share` of the match spent in quiet stretches (gaps with no hit in view of
+  10 real s or more, match start to the first hit and the last hit to the
+  end included: 12 game s at the base speed, 24 on fast), the `longest_real`
+  gap and their number `n`. Also `first_fight_real` (the first hit in the
+  heroes view), `first_contact_share` (first contact / match length, -1
+  without one), `contact_stage` (the monster's stage then, -1),
+  `kills_still_longest_real` (the longest gap between two mobs the hero side
+  killed: the heroes' kills chip standing still) and `hero_kills_per_min`.
+  Real seconds are game seconds / 1.2 unless "fast" (/ 2.4), so the numbers
+  read the same at any `SPEED` / `FPS`. Each row also has `obstacle_events`
+  and `obstacle_max_60s` (Monster AI "Barred camps": how often mobs above its
+  farming gate came at the monster, in all and at most within 60 s). The
+  summary prints one pace line per group, median (p90): the heroes view's
+  quiet share and longest stretch at the base speed and on fast, the first
+  fight's median, maximum and count later than 10 s, the median contact
+  share, the kills chip's longest stillness, the monster view's quiet share
+  and the hero kills a minute. What it measured is under Match Speed.
 - `tools/sim_trace.sh [seeds="1 2 3"] [sides="heroes monster"] [cap_seconds=660]`:
   the determinism trace (a state hash every 60 frames and at the end), byte
   for byte the same for the same tree. `BASELINE=<file>` diffs the output with

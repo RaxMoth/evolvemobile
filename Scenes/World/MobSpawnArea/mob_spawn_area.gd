@@ -24,6 +24,9 @@ class_name MobSpawnArea
 ##
 ## Lazy spawning unchanged: the area holds a virtual_count when no hero is
 ## near, instantiates real nodes on activate(), despawns on deactivate().
+## A dead mob comes back after respawn_time in game time whether or not
+## anyone is near: as a live mob in an active camp, else as virtual_count
+## (README "Spawn System").
 
 signal mob_left_area(mob: MobBase)
 signal mob_respawned(mob: MobBase)
@@ -98,9 +101,11 @@ var area_radius: float = 200.0  ## Wander radius (read from CollisionShape2D in 
 var virtual_count: int = 0
 var is_active: bool = false
 var _pending_respawns: int = 0
-## Bumped by deactivate()/reset_population(). A respawn coroutine captures
-## the epoch before it awaits and bails if it changed, so respawns never
-## leak across a deactivation or a Shift+R re-randomize.
+## Bumped by reset_population() only. A respawn coroutine captures the epoch
+## before it awaits and bails if it changed, so respawns never leak across a
+## Shift+R re-randomize. A deactivation does not cancel it: the camp refills
+## on time while nobody is near (virtual_count), as the monster's camp choice
+## counts it (MonsterBase._pick_camp).
 var _epoch: int = 0
 ## mob -> bound Callable connected ONE_SHOT to its `died` signal (not
 ## tree_exiting: pooled mobs leave the tree on every release). deactivate()
@@ -198,9 +203,9 @@ func activate() -> void:
 		return
 	is_active = true
 
-	virtual_count += _pending_respawns
-	_pending_respawns = 0
-
+	# Pending respawns stay pending: their timers still run and spawn them
+	# live when they end (_on_mob_died), so a revisit never refills a camp
+	# before respawn_time.
 	var to_spawn := virtual_count
 	virtual_count = 0
 	for i in range(to_spawn):
@@ -212,7 +217,6 @@ func deactivate() -> void:
 	if not is_active:
 		return
 	is_active = false
-	_epoch += 1
 
 	# Take the list first: parking a mob removes its Body from the tree, which
 	# fires our area_exited synchronously — the leash must not see it any more.
@@ -228,7 +232,8 @@ func deactivate() -> void:
 
 func reset_population() -> void:
 	## SpawnManager.randomize_spawns: drop real mobs, forget pending respawns
-	## and invalidate any respawn coroutine still waiting on its timer.
+	## and invalidate any respawn coroutine still waiting on its timer (the
+	## only place the epoch moves).
 	deactivate()
 	_epoch += 1
 	virtual_count = 0
@@ -374,8 +379,9 @@ func _on_mob_died(mob: MobBase) -> void:
 		return
 
 	# Carry the dead slot as a pending respawn: total_mob_count() stays flat
-	# while the timer runs, and a deactivate() during the wait folds it back
-	# into virtual_count on the next activate().
+	# while the timer runs. The timer runs on through a deactivate() and an
+	# activate(): it ends in a live mob if the camp is active then, else in
+	# virtual_count (the next activate() spawns it).
 	_pending_respawns += 1
 	var epoch := _epoch
 	# Pausable (process_always false): the pause menu and the result screen

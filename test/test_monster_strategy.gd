@@ -286,35 +286,83 @@ func test_stage_1_farms_bats_and_leaves_hogs_alone() -> void:
 		n.queue_free()
 
 
-func test_a_camp_behind_mobs_it_cannot_beat_waits_while_she_farms_elsewhere() -> void:
+func test_an_obstacle_camp_bars_the_camps_behind_it_not_the_free_one() -> void:
 	# Nyxa walked to her Bat camp, a Hog camp on the way came at her, she fled,
-	# the Hogs went home, she turned back to the same camp, and so on for the
-	# rest of the match (seeds 1, 3, 15: 450 s, never Stage 3, no contact).
+	# and the next camp she picked lay behind the same Hogs: 9-12 camps barred
+	# a minute, one after the other (seeds 1, 3, 8, 13). The obstacle is the
+	# Hog camp, so every camp behind it waits and the free one is farmed.
 	var g := await spawn_frozen(GROUNT, Vector2(0, 0))
-	var hog := await spawn_frozen(HOG, Vector2(-60, 0))
-	hog.target_entity = null
 	var mgr := SpawnManager.new()
 	mgr.auto_activate_on_ready = false
+	mgr.enable_lazy_activation = false
 	mgr.add_to_group(&"SpawnManager")
 	add_child(mgr)
-	var near := _camp(mgr, BAT, Vector2(-1500, 0))
-	var far := _camp(mgr, BAT, Vector2(3000, 0))
+	var hogs := _camp(mgr, HOG, Vector2(600, 0))
+	var bats_1 := _camp(mgr, BAT, Vector2(1500, 0))
+	var bats_2 := _camp(mgr, BAT, Vector2(1500, 250))
+	var free := _camp(mgr, BAT, Vector2(-1800, 0))
+	var hog := await spawn_frozen(HOG, Vector2(560, 0))
+	hog.spawn_area = hogs
+	hog.target_entity = null
 	g._update_strategy()
-	assert_eq(g._pick_camp(), near, "the nearer Bat camp first")
+	assert_eq(g._pick_camp(), bats_1, "the nearest Bat camp first")
 	hog.target_entity = g
-	g._camp_goal = near
 	g._update_strategy()
 	assert_eq(g._mob_threats.size(), 1, "a Hog on the way is on it")
 	hog.target_entity = null
 	g._update_strategy()
 	assert_true(g._mob_threats.is_empty(), "the Hog went home")
-	assert_eq(g._pick_camp(), far, "the camp behind the Hogs waits: the other one")
+	var picked: MobSpawnArea = g._pick_camp()
+	assert_true(picked != bats_2, "never the next camp behind the same Hogs")
+	assert_eq(picked, free, "the camp on the free side")
 	g._strategy_clock += g.strategy_profile.barred_camp_time + 0.1
 	g._camp_goal = null
-	assert_eq(g._pick_camp(), near, "after barred_camp_time it may try that camp again")
+	assert_eq(g._pick_camp(), bats_1, "after barred_camp_time the way is open again")
 	for n in [g, hog, mgr]:
 		n.queue_free()
 
+
+func test_a_boxed_in_monster_transits_past_the_obstacle() -> void:
+	# Every camp lies behind the Hogs (Nyxa's pocket at BatArea20): instead of
+	# pacing beside them until the timeout, it walks past them to its camp.
+	var region := await bake_nav_rect(Rect2(-300, -300, 1000, 600))
+	var g := await spawn_frozen(GROUNT, Vector2(0, 0))
+	var mgr := SpawnManager.new()
+	mgr.auto_activate_on_ready = false
+	mgr.enable_lazy_activation = false
+	mgr.add_to_group(&"SpawnManager")
+	add_child(mgr)
+	var hogs := _camp(mgr, HOG, Vector2(160, 0))
+	var bats := _camp(mgr, BAT, Vector2(330, 0))
+	var hog := await spawn_frozen(HOG, Vector2(170, 40))
+	hog.spawn_area = hogs
+	hog.target_entity = g
+	g._update_strategy()
+	assert_eq(g.obstacle_events, 1, "the Hogs came at it")
+	hog.target_entity = null
+	g._update_strategy()
+	assert_eq(g._pick_camp(), bats, "boxed in: the camp past the Hogs")
+	var transit: float = g.strategy_profile.transit_time
+	assert_near(g._transit_until - g._strategy_clock, transit, 0.001, "walks past them for transit_time")
+	assert_eq(g.debug_camps_line(), "camps: obst 1  transit %.1fs" % transit, "the F3 line")
+	hog.target_entity = g  # they come at it again on the way
+	g._update_strategy()
+	assert_true(g._mob_threats.is_empty(), "no threat while it walks past")
+	assert_true(g._score_target(hog) < 0.0, "and no target")
+	var start_clock: float = g._strategy_clock
+	var reached: bool = false
+	for i in roundi(transit * 60.0):
+		hog.target_entity = g
+		g._tick(1.0 / 60.0)
+		if g.global_position.distance_to(bats.global_position) <= 80.0:
+			reached = true
+			break
+	assert_true(reached, "reached the camp past the Hogs within %.0f s (at %s after %.1f s)"
+			% [transit, str(g.global_position), g._strategy_clock - start_clock])
+	assert_eq(g.obstacle_events, 1, "the Hogs it walked past added no obstacle")
+	for n in [g, hog, mgr, region]:
+		n.queue_free()
+	await wait_physics_frames(6)
 
 
 func test_random_reachable_point_skips_unreachable_islands() -> void:

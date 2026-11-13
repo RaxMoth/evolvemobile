@@ -171,17 +171,44 @@ func test_reset_population_cancels_pending_respawn() -> void:
 
 
 func test_deactivate_activate_inside_the_respawn_window_keeps_population() -> void:
+	# The dead slot waits out its respawn_time through a deactivate() and an
+	# activate(): a revisit no longer refills the camp at once.
 	vlad = await spawn_entity("res://Scenes/NPCs/Hero/Heros/DMG/Vlad/Vlad.tscn", Vector2(4000, 4000))
+	area.respawn_time = 0.5
 	area.activate()
 	await wait_physics_frames(4)
 	EventBus.deal_damage(vlad, area.spawned_mobs[0], 9999.0)
 	await wait_frames(2)
 	area.deactivate()
 	area.activate()
-	await wait_seconds(0.5)
-	assert_eq(area.spawned_mobs.size(), area.mob_count, "dead slot carried through deactivate/activate exactly once")
+	assert_eq(area.spawned_mobs.size(), 2, "the two survivors come back, not the dead one")
+	assert_eq(area._pending_respawns, 1, "the dead slot is still pending")
+	assert_eq(area.total_mob_count(), area.mob_count)
+	await wait_seconds(0.7)
+	assert_eq(area.spawned_mobs.size(), area.mob_count, "dead slot respawned live, exactly once")
 	assert_eq(area._pending_respawns, 0)
 	assert_eq(area.total_mob_count(), area.mob_count)
+
+
+func test_a_cleared_deactivated_camp_refills_virtually_on_time() -> void:
+	# A camp cleared and left read as empty to the monster's camp choice until
+	# someone walked past it again (the deactivation cancelled its respawns).
+	vlad = await spawn_entity("res://Scenes/NPCs/Hero/Heros/DMG/Vlad/Vlad.tscn", Vector2(4000, 4000))
+	area.respawn_time = 0.5
+	area.activate()
+	await wait_physics_frames(4)
+	for mob: MobBase in area.spawned_mobs.duplicate():
+		EventBus.deal_damage(vlad, mob, 9999.0)
+	await wait_frames(2)
+	assert_eq(area.spawned_mobs.size(), 0, "cleared")
+	area.deactivate()
+	assert_eq(area.virtual_count, 0, "nothing to refill yet")
+	await wait_seconds(0.7)
+	assert_false(area.is_active, "nobody came back")
+	assert_eq(area.virtual_count, area.mob_count, "refilled on its respawn_time, virtually")
+	assert_eq(area._pending_respawns, 0)
+	area.activate()
+	assert_eq(area.spawned_mobs.size(), area.mob_count, "and spawned when someone comes")
 
 
 func test_mob_combat_defaults_come_from_the_base_scene() -> void:

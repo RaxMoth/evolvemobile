@@ -85,7 +85,7 @@ case "$script" in
       (( ${args[(Ie)rigs_awake]} )) && echo "SIM_TRACE 90 rigs_awake"
       echo "SIM_TRACE_END 120 end Heroes $$"
     fi
-    echo "SIM_RESULT {\"seed\": $seed, \"side\": \"$side\", \"monster\": \"grount\", \"monster_name\": \"Grount\", \"threat\": 0, \"power\": 0, \"reason\": \"end\", \"winner\": \"Heroes\", \"t\": 300.0, \"game_clock\": 300.0, \"monster_stage\": 2, \"heroes_alive\": 4, \"hero_deaths\": [], \"evolutions\": [], \"first_contact\": 100.0, \"hero_dmg_to_monster\": 1000, \"monster_dmg_to_heroes\": 500, \"mob_kills_monster\": 10, \"mob_kills_heroes\": 20, \"monster_dmg_taken\": {\"heroes\": 1000.0, \"mobs\": 0.0, \"other\": 0.0}, \"monster_killer\": \"heroes\"}"
+    echo "SIM_RESULT {\"seed\": $seed, \"side\": \"$side\", \"monster\": \"grount\", \"monster_name\": \"Grount\", \"threat\": 0, \"power\": 0, \"reason\": \"end\", \"winner\": \"Heroes\", \"t\": 300.0, \"game_clock\": 300.0, \"monster_stage\": 2, \"heroes_alive\": 4, \"hero_deaths\": [], \"evolutions\": [], \"first_contact\": 100.0, \"hero_dmg_to_monster\": 1000, \"monster_dmg_to_heroes\": 500, \"mob_kills_monster\": 10, \"mob_kills_heroes\": 20, \"monster_dmg_taken\": {\"heroes\": 1000.0, \"mobs\": 0.0, \"other\": 0.0}, \"monster_killer\": \"heroes\", \"pace\": {\"heroes\": {\"hits\": 9, \"base\": {\"share\": 0.5, \"longest_real\": 30.0, \"n\": 3}, \"fast\": {\"share\": 0.25, \"longest_real\": 15.0, \"n\": 1}}, \"monster\": {\"hits\": 20, \"base\": {\"share\": 0.2, \"longest_real\": 12.0, \"n\": 1}, \"fast\": {\"share\": 0.0, \"longest_real\": 6.0, \"n\": 0}}, \"first_fight_real\": 12.5, \"first_contact_share\": 0.333, \"contact_stage\": 2, \"kills_still_longest_real\": 40.0, \"hero_kills_per_min\": 4.0}}"
     late_crash ;;
   res://tools/bench_match.gd)
     case "$FAKE_MODE" in
@@ -234,6 +234,7 @@ expect "sim: a SCRIPT ERROR and a crashed seed" 1 "seed 2: failed .*no result" e
 expect "sim: a SCRIPT ERROR in a finished match" 1 "seed 1: failed \(1 script errors\)" env FAKE_MODE=error "$T/sim.sh" 1 heroes 1 60
 expect "sim: a crash after the result" 1 "seed 1: failed \(0 script errors, Godot exit 139\)" env FAKE_MODE=latecrash "$T/sim.sh" 1 heroes 1 60
 expect "sim: clean" 0 "runs: 4/4" env FAKE_MODE=ok "$T/sim.sh" 4 heroes 2 60
+expect "sim: the pace line (quiet share, longest, first fight after 10 s)" 0 "pace: quiet 50% \(p90 50%\) longest 30s .* fast quiet 25% .* first fight median 12.5s max 12.5s, >10s 4 \| contact share 0.33 .* monster view quiet 20%" env FAKE_MODE=ok "$T/sim.sh" 4 heroes 2 60
 expect "trace: a side that is not heroes or monster" 2 "heroes or monster" "$T/sim_trace.sh" "1" "hero"
 expect "trace: JOBS=0" 2 "JOBS" env JOBS=0 "$T/sim_trace.sh"
 expect "trace: a SCRIPT ERROR" 1 "seed 1 heroes: failed" env FAKE_MODE=error "$T/sim_trace.sh" "1" "heroes"
